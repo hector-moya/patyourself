@@ -18,6 +18,18 @@ return new class extends Migration
             $table->foreignId('category_id')->constrained();
             $table->timestamps();
         });
+
+        Schema::create('exercise_workout', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('workout_id')->constrained();
+            $table->foreignId('exercise_id')->constrained();
+        });
+
+        Schema::create('plan_workout', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('workout_id')->constrained();
+            $table->foreignId('plan_id')->constrained();
+        });
     }
 
     /**

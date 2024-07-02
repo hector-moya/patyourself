@@ -14,8 +14,13 @@ class Muscle extends Model
         'description'
     ];
 
-    public function musculable()
+    public function exercises()
     {
-        return $this->morphTo();
+        return $this->belongsToMany(Exercise::class);
+    }
+
+    public function workouts()
+    {
+        return $this->belongsToMany(Workout::class);
     }
 }

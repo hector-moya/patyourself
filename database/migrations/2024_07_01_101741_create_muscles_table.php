@@ -15,9 +15,19 @@ return new class extends Migration
             $table->id();
             $table->string('name');
             $table->string('description')->nullable();
-            $table->integer('musculable_id');
-            $table->string('musculable_type');
             $table->timestamps();
+        });
+
+        Schema::create('muscle_workout', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('muscle_id')->constrained();
+            $table->foreignId('workout_id')->constrained();
+        });
+
+        Schema::create('exercise_muscle', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('muscle_id')->constrained();
+            $table->foreignId('exercise_id')->constrained();
         });
     }
 
