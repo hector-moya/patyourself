@@ -1,0 +1,1 @@
+<img class="h-14 w-14 p-1 border border-gray-900/10 ring-1 ring-inset bg-gray-50 rounded-full" src="{{ asset('images/patyourselg_logo.png') }}" alt="PatYourSelf">
