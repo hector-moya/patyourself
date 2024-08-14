@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Livewire\Dashboard;
+namespace App\Livewire\OverviewPanel;
 
 use Livewire\Component;
 
@@ -8,6 +8,6 @@ class Index extends Component
 {
     public function render()
     {
-        return view('livewire.dashboard.index');
+        return view('livewire.overview-panel.index');
     }
 }
