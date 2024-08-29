@@ -18,7 +18,8 @@ class Exercise extends Model
 
     public function workouts()
     {
-        return $this->belongsToMany(Workout::class);
+        return $this->belongsToMany(Workout::class)
+                    ->withPivot('date');
     }
 
     public function muscles()

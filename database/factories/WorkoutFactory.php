@@ -24,6 +24,7 @@ class WorkoutFactory extends Factory
             'name' => $this->faker->word,
             'description' => $this->faker->sentence,
             'category_id' => Category::factory(),
+            'image' => $this->faker->imageUrl(),
         ];
     }
 }

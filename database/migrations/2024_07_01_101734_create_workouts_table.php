@@ -15,6 +15,7 @@ return new class extends Migration
             $table->id();
             $table->string('name');
             $table->string('description')->nullable();
+            $table->string('image')->nullable();
             $table->foreignId('category_id')->constrained();
             $table->timestamps();
         });
@@ -23,6 +24,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('workout_id')->constrained();
             $table->foreignId('exercise_id')->constrained();
+            $table->string('date')->default(now());
         });
 
         Schema::create('plan_workout', function (Blueprint $table) {

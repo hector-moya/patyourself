@@ -15,6 +15,12 @@
                     <x-nav-link href="{{ route('dashboard') }}" :active="request()->routeIs('dashboard')">
                         {{ __('Dashboard') }}
                     </x-nav-link>
+                    <x-nav-link href="{{ route('plans.show') }}" :active="request()->routeIs('plans.show')">
+                        {{ __('Plans') }}
+                    </x-nav-link>
+                    <x-nav-link href="{{ route('workouts.show') }}" :active="request()->routeIs('workouts.show')">
+                        {{ __('Workouts') }}
+                    </x-nav-link>
                 </div>
             </div>
 
@@ -141,6 +147,12 @@
         <div class="pt-2 pb-3 space-y-1">
             <x-responsive-nav-link href="{{ route('dashboard') }}" :active="request()->routeIs('dashboard')">
                 {{ __('Dashboard') }}
+            </x-responsive-nav-link>
+            <x-responsive-nav-link href="{{ route('plans.show') }}" :active="request()->routeIs('plans.show')">
+                {{ __('Plans') }}
+            </x-responsive-nav-link>
+            <x-responsive-nav-link href="{{ route('workouts.show') }}" :active="request()->routeIs('workouts.show')">
+                {{ __('Workouts') }}
             </x-responsive-nav-link>
         </div>
 
