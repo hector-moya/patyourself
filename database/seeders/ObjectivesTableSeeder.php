@@ -13,8 +13,16 @@ class ObjectivesTableSeeder extends Seeder
      */
     public function run(): void
     {
+        Objective::create([
+            'name' => 'Strength',
+            'description' => 'Increase muscle strength',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        
         Objective::factory()
             ->count(3)
             ->create();
+
     }
 }

@@ -24,4 +24,9 @@ class Plan extends Model
     {
         return $this->belongsToMany(Workout::class);
     }
+
+    public function users()
+    {
+        return $this->belongsToMany(User::class);
+    }
 }

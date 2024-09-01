@@ -13,6 +13,13 @@ class CategoriesTableSeeder extends Seeder
      */
     public function run(): void
     {
+        Category::create([
+            'name' => 'Gym',
+            'description' => 'Exercises that require gym equipment',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
         Category::factory()
             ->count(3)
             ->create();

@@ -64,4 +64,13 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
+
+    public function plans()
+    {
+        return $this->belongsToMany(Plan::class, 'enrolled_plan');
+    }
+    public function enrolledExcersisePlan()
+    {
+        return $this->belongsToMany(Plan::class, 'enrolled_plan');
+    }
 }
