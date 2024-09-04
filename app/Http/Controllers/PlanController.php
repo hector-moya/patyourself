@@ -6,8 +6,8 @@ use Illuminate\Http\Request;
 
 class PlanController extends Controller
 {
-    public function show()
+    public function index()
     {
-        return view('plans.show');
+        return view('plans.index');
     }
 }

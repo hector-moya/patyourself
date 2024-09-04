@@ -1,12 +1,12 @@
 <?php
 
-namespace App\Livewire\WorkoutsPanel;
+namespace App\Livewire\Workouts\Components;
 
 use Livewire\Component;
 use App\Models\Plan;
 use Illuminate\Support\Collection;
 
-class Index extends Component
+class WorkoutsPanel extends Component
 {
 
     public ?Plan $plan = null;
@@ -20,6 +20,6 @@ class Index extends Component
     
     public function render()
     {
-        return view('livewire.workouts-panel.index');
+        return view('livewire.workouts.components.workouts-panel');
     }
 }

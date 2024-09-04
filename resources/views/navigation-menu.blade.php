@@ -15,10 +15,10 @@
                     <x-nav-link href="{{ route('dashboard') }}" :active="request()->routeIs('dashboard')">
                         {{ __('Dashboard') }}
                     </x-nav-link>
-                    <x-nav-link href="{{ route('plans.show') }}" :active="request()->routeIs('plans.show')">
+                    <x-nav-link href="{{ route('plans.index') }}" :active="request()->routeIs('plans.index')">
                         {{ __('Plans') }}
                     </x-nav-link>
-                    <x-nav-link href="{{ route('workouts.show') }}" :active="request()->routeIs('workouts.show')">
+                    <x-nav-link href="{{ route('workouts.index') }}" :active="request()->routeIs('workouts.index')">
                         {{ __('Workouts') }}
                     </x-nav-link>
                 </div>
@@ -148,10 +148,10 @@
             <x-responsive-nav-link href="{{ route('dashboard') }}" :active="request()->routeIs('dashboard')">
                 {{ __('Dashboard') }}
             </x-responsive-nav-link>
-            <x-responsive-nav-link href="{{ route('plans.show') }}" :active="request()->routeIs('plans.show')">
+            <x-responsive-nav-link href="{{ route('plans.index') }}" :active="request()->routeIs('plans.index')">
                 {{ __('Plans') }}
             </x-responsive-nav-link>
-            <x-responsive-nav-link href="{{ route('workouts.show') }}" :active="request()->routeIs('workouts.show')">
+            <x-responsive-nav-link href="{{ route('workouts.index') }}" :active="request()->routeIs('workouts.index')">
                 {{ __('Workouts') }}
             </x-responsive-nav-link>
         </div>
