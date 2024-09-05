@@ -39,6 +39,6 @@ class PlansTableSeeder extends Seeder
         $testUser = User::where('email', 'nokure@gmail.com')->firstOrFail();
 
         // Enroll the test user in the specific plan
-        $testUser->plans()->attach($beginnerPlan); 
+        $testUser->enrolledExcersisePlan()->attach($beginnerPlan); 
     }
 }

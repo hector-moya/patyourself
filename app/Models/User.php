@@ -43,20 +43,10 @@ class User extends Authenticatable
         'two_factor_secret',
     ];
 
-    /**
-     * The accessors to append to the model's array form.
-     *
-     * @var array<int, string>
-     */
     protected $appends = [
         'profile_photo_url',
     ];
 
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
     protected function casts(): array
     {
         return [
@@ -65,12 +55,13 @@ class User extends Authenticatable
         ];
     }
 
-    public function plans()
-    {
-        return $this->belongsToMany(Plan::class, 'enrolled_plan');
-    }
     public function enrolledExcersisePlan()
     {
         return $this->belongsToMany(Plan::class, 'enrolled_plan');
+    }
+
+    public function exerciseSessions()
+    {
+        return $this->belongsToMany(Exercise::class, 'exercise_session');
     }
 }

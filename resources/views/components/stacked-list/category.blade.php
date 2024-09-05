@@ -1,0 +1,1 @@
+<p class="text-sm leading-6 text-white">{{ $option->category->name }}</p>
