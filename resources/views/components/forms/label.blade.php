@@ -1,1 +1,1 @@
-<x-buk-label {{ $attributes->merge(['class' => 'text-white'])}} />
+<x-buk-label {{ $attributes->merge(['class' => 'dark:text-white text-gray-700'])}} />

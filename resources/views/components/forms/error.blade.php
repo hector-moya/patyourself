@@ -1,0 +1,1 @@
+<x-buk-error {{ $attributes->merge(['class' => 'text-red-500 text-xs italic']) }}>{{ $slot }}</x-buk-error>

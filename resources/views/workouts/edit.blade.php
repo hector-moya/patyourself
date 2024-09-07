@@ -5,6 +5,6 @@
         </h2>
     </x-slot>
     <div class="mx-auto max-w-7xl py-12">
-        <livewire:workouts.workout-edit :$workout />
+        <livewire:workouts.workout-edit :$workout @workoutEdited="$refresh" />
     </div>
 </x-app-layout>
