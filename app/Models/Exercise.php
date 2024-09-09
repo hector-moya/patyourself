@@ -24,6 +24,11 @@ class Exercise extends Model
 
     public function muscles()
     {
-        return $this->morphMany(Muscle::class, 'musculable');
+        return $this->belongsToMany(Muscle::class);
+    }
+
+    public function exercises()
+    {
+        return $this->belongsToMany(User::class)->withPivot('created_at');
     }
 }

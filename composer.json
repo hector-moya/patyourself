@@ -10,6 +10,7 @@
         "blade-ui-kit/blade-ui-kit": "^0.6.2",
         "laravel/framework": "^11.9",
         "laravel/jetstream": "^5.1",
+        "laravel/octane": "^2.5",
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^2.9",
         "livewire/livewire": "^3.0",
@@ -17,6 +18,7 @@
         "troccoli/blade-health-icons": "^3.0"
     },
     "require-dev": {
+        "barryvdh/laravel-debugbar": "^3.13",
         "fakerphp/faker": "^1.23",
         "laravel/pint": "^1.13",
         "laravel/sail": "^1.26",

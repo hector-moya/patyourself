@@ -76,15 +76,15 @@ class WorkoutForm extends Form
         $this->workout->delete();
     }
 
-    public function addExercise(Exercise $exercise) : Collection
+    public function addExercise(int $id) : Collection
     {
-        $this->workout->exercises()->attach($exercise);
+        $this->workout->exercises()->attach($id);
         return $this->workout->exercises;
     }
 
-    public function removeExercise(Exercise $exercise) : Collection
+    public function removeExercise(int $id) : Collection
     {
-        $this->workout->exercises()->detach($exercise);
+        $this->workout->exercises()->detach($id);
         return $this->workout->exercises;
     }
 }

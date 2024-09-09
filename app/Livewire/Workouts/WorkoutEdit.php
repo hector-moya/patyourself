@@ -15,19 +15,30 @@ class WorkoutEdit extends Component
     public Workout $workout;
     public ?Collection $exercises;
     public ?Collection $allExercises;
+    public bool $showSlideover = false;
 
     protected $listeners = ['workoutUpdated' => 'setWorkout'];
 
     public function mount()
     {
         $this->setWorkout();
-
-        $this->allExercises = Exercise::all();
     }
 
     public function setWorkout()
     {
         $this->form->setWorkout($this->workout);
+    }
+
+    public function addExercise($id)
+    {
+        $this->form->addExercise($id);
+        $this->dispatch('workoutUpdated', $this->form->workout);
+    }
+
+    public function removeExercise($id)
+    {
+        $this->form->removeExercise($id);
+        $this->dispatch('workoutUpdated', $this->form->workout);
     }
 
     public function updated()
@@ -37,6 +48,7 @@ class WorkoutEdit extends Component
     }
     public function render() :View
     {
+        $this->allExercises = Exercise::with('muscles')->get();
         return view('livewire.workouts.workout-edit');
     }
 }
