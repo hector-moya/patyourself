@@ -21,6 +21,9 @@
                     <x-nav-link href="{{ route('workouts.index') }}" :active="request()->routeIs('workouts.index')">
                         {{ __('Workouts') }}
                     </x-nav-link>
+                    <x-nav-link href="{{ route('exercises.index') }}" :active="request()->routeIs('exercises.index')">
+                        {{ __('Exercises') }}
+                    </x-nav-link>
                 </div>
             </div>
 
@@ -153,6 +156,9 @@
             </x-responsive-nav-link>
             <x-responsive-nav-link href="{{ route('workouts.index') }}" :active="request()->routeIs('workouts.index')">
                 {{ __('Workouts') }}
+            </x-responsive-nav-link>
+            <x-responsive-nav-link href="{{ route('exercises.index') }}" :active="request()->routeIs('exercises.index')">
+                {{ __('Exercises') }}
             </x-responsive-nav-link>
         </div>
 
