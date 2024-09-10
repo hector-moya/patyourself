@@ -56,12 +56,12 @@ class WorkoutForm extends Form
         return $this->workout;
     }
 
-    public function resetForm()
+    public function resetForm() : void
     {
         $this->reset('name', 'description', 'image', 'category_id');
     }
 
-    public function setWorkout(Workout $workout)
+    public function setWorkout(Workout $workout) : void
     {
         $this->workout = $workout;
         $this->name = $workout->name;
@@ -71,7 +71,7 @@ class WorkoutForm extends Form
         $this->exercises = $workout->exercises;
     }
 
-    public function delete()
+    public function delete() : void
     {
         $this->workout->delete();
     }

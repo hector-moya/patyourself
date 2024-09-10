@@ -14,7 +14,7 @@ class WorkoutsPanel extends Component
 
     public function mount()
     {
-        $this->workouts = $this->plan->workouts;
+        $this->workouts = $this->plan->workouts()->with('category')->get();
     }
 
     

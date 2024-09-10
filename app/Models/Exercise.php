@@ -13,7 +13,9 @@ class Exercise extends Model
         'name',
         'description',
         'sets',
-        'reps'
+        'reps',
+        'weight',
+        'image_path'
     ];
 
     public function workouts()
@@ -28,6 +30,11 @@ class Exercise extends Model
     }
 
     public function exercises()
+    {
+        return $this->belongsToMany(User::class)->withPivot('created_at');
+    }
+
+    public function users()
     {
         return $this->belongsToMany(User::class)->withPivot('created_at');
     }

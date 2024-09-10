@@ -12,7 +12,7 @@ class Index extends Component
 
     public function mount()
     {
-        $this->workouts = Auth::user()->enrolledExcersisePlan->first()->workouts;
+        $this->workouts = Auth::user()->enrolledExcersisePlan->first()->workouts()->with('category')->get();
     }
     public function render()
     {

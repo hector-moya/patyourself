@@ -17,6 +17,8 @@ return new class extends Migration
             $table->string('description')->nullable();
             $table->string('sets');
             $table->string('reps');
+            $table->string('weight')->nullable();
+            $table->string('image_path')->nullable();
             $table->timestamps();
         });
     }
