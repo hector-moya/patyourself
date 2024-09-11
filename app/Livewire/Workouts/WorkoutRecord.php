@@ -10,6 +10,7 @@ class WorkoutRecord extends Component
     public Workout $workout;
 
     public $exercises;
+    public bool $showSlideover = false;
 
     public function mount()
     {
