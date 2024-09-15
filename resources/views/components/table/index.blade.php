@@ -1,4 +1,3 @@
-
 <div class="px-4 sm:px-6 lg:px-8">
     <div class="sm:flex sm:items-center">
         <div class="sm:flex-auto">
@@ -23,8 +22,6 @@
                         </thead>
                         <tbody class="divide-y divide-gray-200 dark:divide-gray-600 bg-white dark:bg-gray-800">
                                 {{ $body }}
-
-                            <!-- More people... -->
                         </tbody>
                     </table>
                 </div>
