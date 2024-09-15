@@ -1,4 +1,4 @@
 <!-- Body -->
-<div class="p-8">
+<div {{ $attributes->merge(['class' => ''])}}>
     {{ $slot }}
 </div>

@@ -16,10 +16,11 @@
                         <x-forms.label for="Record Session" />
                     </x-slideover.header>
                     <x-slideover.body>
-                        <x-forms.input label="Name" name="exercise-name" wire:model.blur="form.name" />
+                        {{-- <x-forms.input label="Name" name="exercise-name" wire:model.blur="form.name" />
                         <x-forms.input-number label="Sets" name="exercise-sets" wire:model.live="form.sets" />
                         <x-forms.input-number name="exercise-reps" wire:model.blur="form.reps" />
-                        <x-forms.input-number name="exercise-weight" wire:model.blur="form.weight" size="w-12" />
+                        <x-forms.input-number name="exercise-weight" wire:model.blur="form.weight" size="w-12" /> --}}
+                        <x-drawer-action />
                     </x-slideover.body>
                     <x-slideover.footer />
                 </x-slideover.overlay>
