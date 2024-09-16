@@ -34,8 +34,8 @@ class Exercise extends Model
         return $this->belongsToMany(User::class)->withPivot('created_at');
     }
 
-    public function users()
+    public function exerciseSession()
     {
-        return $this->belongsToMany(User::class)->withPivot('created_at');
+        return $this->hasMany(ExerciseSession::class);
     }
 }

@@ -15,6 +15,8 @@ return new class extends Migration
             $table->id();
             $table->foreignId('exercise_id')->constrained();
             $table->foreignId('user_id')->constrained();
+            $table->string('reps');
+            $table->string('weight');
             $table->timestamps();
         });
     }

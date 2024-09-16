@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Forms;
 
+use App\Models\ExerciseSession;
 use Livewire\Attributes\Validate;
 use Livewire\Form;
 use App\Models\Exercise;
@@ -95,10 +96,17 @@ class ExerciseForm extends Form
         return $this->exercise->muscles;
     }
     
-    public function addExerciseSession(int $exerciseId) : Collection
+    public function addExerciseSession(string $reps, string $weight) : ExerciseSession
     {
-        $this->exercise->users()->attach($exerciseId);
-        return $this->exercise->users;
+        $this->validate();
+
+        $exerciseSession = $this->exercise->exerciseSession()->create([
+            'user_id' => auth()->id(),
+            'reps' => $reps,
+            'weight' => $weight,
+        ]);
+
+        return $exerciseSession;
     }
 
     public function removeExerciseSession(int $exerciseId) : Collection

@@ -1,9 +1,9 @@
 <tr>
     <x-table-workout.body-item>
-        {{ $exercise->name }}
+        {{ $form->name }}
     </x-table-workout.body-item>
     <x-table-workout.body-item>
-        {{ __('Missing sets: ') . $exercise->sets }}
+        {{ __('Missing sets: ') . $form->sets }}
     </x-table-workout.body-item>
     <x-table-workout.body-item actionButton="true">
         <x-slideover>
@@ -16,13 +16,23 @@
                         <x-forms.label for="Record Session" />
                     </x-slideover.header>
                     <x-slideover.body>
-                        {{-- <x-forms.input label="Name" name="exercise-name" wire:model.blur="form.name" />
-                        <x-forms.input-number label="Sets" name="exercise-sets" wire:model.live="form.sets" />
-                        <x-forms.input-number name="exercise-reps" wire:model.blur="form.reps" />
-                        <x-forms.input-number name="exercise-weight" wire:model.blur="form.weight" size="w-12" /> --}}
-                        <x-drawer-action />
+                        <x-drawer-action>
+                            <x-slot:media>
+                                <x-drawer-action.media />
+                            </x-slot:media>
+                            <x-slot:title>
+                                <x-drawer-action.title :title="$form->name" :sessions="$form->sets" />
+                            </x-slot:title>
+                            <x-slot:actions>
+                                <x-forms.input-number label="Reps" name="exercise-reps" wire:model="form.reps" />
+                                <x-forms.input-number label="Weight" name="exercise-weight" wire:model="form.weight" size="w-12" />
+                                <x-drawer-action.action wire:click="save" />
+                            </x-slot:actions>
+                            <x-slot:body>
+                                <x-drawer-action.body :description="$form->description" :sets="$form->sets" :reps="$form->reps" :weight="$form->weight" />
+                            </x-slot:body>
+                        </x-drawer-action>
                     </x-slideover.body>
-                    <x-slideover.footer />
                 </x-slideover.overlay>
             @endif
         </x-slideover>

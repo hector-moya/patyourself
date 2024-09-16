@@ -1,4 +1,4 @@
 <!-- Body -->
-<div {{ $attributes->merge(['class' => ''])}}>
+<div {{ $attributes->merge(['class' => 'grow'])}}>
     {{ $slot }}
 </div>

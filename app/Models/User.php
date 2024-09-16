@@ -60,8 +60,9 @@ class User extends Authenticatable
         return $this->belongsToMany(Plan::class, 'enrolled_plan');
     }
 
-    public function exerciseSessions()
+    public function exerciseSession()
     {
-        return $this->belongsToMany(Exercise::class, 'exercise_session');
+        return $this->hasMany(ExerciseSession::class);
     }
+
 }
