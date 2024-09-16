@@ -2,7 +2,7 @@
     <x-forms.label for="My_Current_Plan" />
     <x-stacked-list>
         @foreach ($workouts as $workout)
-            <x-stacked-list.list-wrapper>
+            <x-stacked-list.list-wrapper :option="$workout">
                 <div class="flex min-w-0 gap-x-4">
                     <x-stacked-list.image :option="$workout" />
                     <div class="min-w-0 flex-auto">

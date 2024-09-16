@@ -109,9 +109,9 @@ class ExerciseForm extends Form
         return $exerciseSession;
     }
 
-    public function removeExerciseSession(int $exerciseId) : Collection
+    public function removeExerciseSession(int $id) : Collection
     {
-        $this->exercise->users()->detach($exerciseId);
-        return $this->exercise->users;
+        $this->exercise->exerciseSession()->find($id)->delete();
+        return $this->exercise->exerciseSession;
     }
 }
