@@ -30,8 +30,8 @@ class DatabaseSeeder extends Seeder
             UsersTableSeeder::class,
             ObjectivesTableSeeder::class,
             CategoriesTableSeeder::class,
-            ExercisesTableSeeder::class,
             MusclesTableSeeder::class,
+            ExercisesTableSeeder::class,
             WorkoutsTableSeeder::class,
             PlansTableSeeder::class,
         ]);

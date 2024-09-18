@@ -23,16 +23,13 @@ class PlansTableSeeder extends Seeder
             'updated_at' => now(),
         ]);
 
-        Plan::factory()
-            ->hasAttached(Workout::factory()->count(3))
-            ->count(3)
-            ->create();
-
         $beginnerPlan->workouts()->attach([
             1,
             2,
             3,
-            4
+            4,
+            5,
+            6
         ]);
 
         // Find the test user

@@ -14,6 +14,12 @@ class Index extends Component
     {
         $this->workouts = Auth::user()->enrolledExcersisePlan->first()->workouts()->with('category')->get();
     }
+
+    public function redirectTo(int $workoutId)
+    {
+        return $this->redirect('/workout/' . $workoutId);
+
+    }
     public function render()
     {
         return view('livewire.overview-panel.index');

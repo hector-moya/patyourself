@@ -14,7 +14,6 @@ class Exercise extends Model
         'description',
         'sets',
         'reps',
-        'weight',
         'image_path'
     ];
 
