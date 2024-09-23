@@ -31,17 +31,6 @@ class WorkoutRow extends Component
             ->get();
     }
 
-    public function getExercises()
-    {
-        $response = Http::withHeaders([
-            'X-RapidAPI-Key' => config('services.exercisedb.x-rapidapi-key'),
-            'X-RapidAPI-Host' => config('services.exercisedb.x-rapidapi-host'),
-        ])->get('https://exercisedb.p.rapidapi.com/exercises/name/' . 'barbell incline bench press');
-
-        // Handle the response (assuming JSON)
-        return $response->json();
-    }
-
     public function save()
     {
         $this->form->addExerciseSession($this->form->reps, $this->form->weight);
@@ -59,9 +48,6 @@ class WorkoutRow extends Component
     }
     public function render()
     {
-        $this->testExercise = $this->getExercises();
-        return view('livewire.workouts.workout-row', [
-            'myExercise' => $this->testExercise[0],
-        ]);
+        return view('livewire.workouts.workout-row');
     }
 }

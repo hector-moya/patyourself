@@ -10,7 +10,7 @@
             </x-table.head-item>
         </x-slot:head>
         <x-slot:body>
-            @foreach ($this->getAllExercises as $exercise)
+            @foreach ($exercises as $exercise)
                 <livewire:exercises.exercise-row :exercise="$exercise" :key="$exercise->id" />
             @endforeach
         </x-slot:body>

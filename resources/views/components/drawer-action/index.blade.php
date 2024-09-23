@@ -1,7 +1,7 @@
 <div>
     <div class="pb-1 sm:pb-6">
         <div>
-            <div class="relative h-40 sm:h-56">
+            <div class="relative h-56 sm:h-72 flex justify-center bg-white">
                 {{ $media }}
             </div>
             <div class="mt-6 px-4 sm:mt-8 sm:flex sm:items-end sm:px-6">

@@ -83,49 +83,47 @@ class WorkoutsTableSeeder extends Seeder
         );
 
         $workoutOne->exercises()->attach([
-            1,
-            2,
-            3,
-            4,
-            5
+            520,
+            542,
+            310,
+            273,
         ]);
 
         $workoutTwo->exercises()->attach([
-            6,
-            7,
-            8,
-            9,
+            130,
+            699,
+            983,
+            994,
         ]);
 
         $workoutThree->exercises()->attach([
-            10,
-            11,
-            12,
-            13,
-            14,
-            15
+            99,
+            280,
+            367,
+            521,
+            721,
         ]);
 
         $workoutFour->exercises()->attach([
-            16,
-            17,
-            18,
-            19,
+            108,
+            556,
+            975,
+            1159,
         ]);
 
         $workoutFive->exercises()->attach([
-            20,
-            21,
-            22,
-            23,
-            24
+            273,
+            666,
+            979,
+            980,
+            1009,
         ]);
 
         $workoutSix->exercises()->attach([
-            25,
-            26,
-            27,
-            28,
+            955,
+            956,
+            994,
+            1157,
         ]);
     }
 }

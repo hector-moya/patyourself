@@ -10,8 +10,10 @@ class Exercise extends Model
     use HasFactory;
 
     protected $fillable = [
+        'exercisedb_id',	
         'name',
         'description',
+        'target_muscle_id',
         'sets',
         'reps',
         'image_path'

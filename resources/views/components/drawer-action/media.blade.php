@@ -1,7 +1,7 @@
 
     @props([
-        'photoUrl' => '',
+        'image' => '',
     ])
-    <img class="absolute h-full w-full object-cover"
-        src="{{ $photoUrl }}"
+    <img class="absolute h-full w-1/2 object-cover"
+        src="{{ $image }}"
         alt="">

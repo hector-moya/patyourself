@@ -6,18 +6,17 @@ use Livewire\Component;
 use App\Models\Exercise;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
+use Livewire\WithPagination;
 
 class ExercisePanel extends Component
 {
-    #[Computed]
-    public function getAllExercises() : Collection
-    {
-        return Exercise::all();
-    }
+    use WithPagination;
 
     public function render()
     {        
-        return view('livewire.exercises.components.exercise-panel');
+        return view('livewire.exercises.components.exercise-panel', [
+            'exercises' => Exercise::paginate(10),
+        ]);
     }
 
 
