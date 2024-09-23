@@ -1,6 +1,11 @@
 <tr>
     <x-table-workout.body-item>
+        {{ $myExercise['name'] }}
         {{ $form->name }}
+        <img src="{{$myExercise['gifUrl']}}" alt="">
+        @foreach($myExercise['instructions'] as $instruction)
+            <p>{{ $instruction }}</p>
+        @endforeach
     </x-table-workout.body-item>
     <x-table-workout.body-item>
         {{ __('Missing sets: ') . $form->sets - $this->getExerciseSessions()->count() }}
@@ -19,7 +24,7 @@
                     <x-slideover.body>
                         <x-drawer-action>
                             <x-slot:media>
-                                <x-drawer-action.media />
+                                <x-forms.unsplash :photo="$form->image_path" class="absolute h-full w-full object-cover" />
                             </x-slot:media>
                             <x-slot:title>
                                 <x-drawer-action.title :title="$form->name" :sessions="$form->sets" />

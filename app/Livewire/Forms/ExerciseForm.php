@@ -25,7 +25,7 @@ class ExerciseForm extends Form
     #[Validate('required|numeric')]
     public string $weight = '';
 
-    public string $image = '';
+    public string $image_path = '';
 
     public function save() : Exercise
     {
@@ -37,7 +37,7 @@ class ExerciseForm extends Form
             'sets' => $this->sets,
             'reps' => $this->reps,
             'weight' => $this->weight,
-            'image' => $this->image ?? '',
+            'image_path' => $this->image_path ?? '',
         ]);
 
         $this->resetForm();
@@ -55,7 +55,7 @@ class ExerciseForm extends Form
             'sets' => $this->sets ?? '',
             'reps' => $this->reps ?? '',
             'weight' => $this->weight ?? '',
-            'image' => $this->image ?? '',
+            'image_path' => $this->image_path ?? '',
         ]);
 
         $this->resetForm();
@@ -76,7 +76,7 @@ class ExerciseForm extends Form
         $this->sets = $exercise->sets ?? '';
         $this->reps = $exercise->reps ?? '';
         $this->weight = $exercise->weight ?? '';
-        $this->image = $exercise->image ?? '';
+        $this->image_path = $exercise->image_path ?? '';
     }
 
     public function delete() : void

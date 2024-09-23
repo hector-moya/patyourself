@@ -16,25 +16,27 @@ class ExercisesTableSeeder extends Seeder
 
         // Upper Body 1
         $exercise1 = Exercise::create([
-            'name' => 'Incline Dubbell Press',
+            'name' => 'barbell incline bench press',
             'description' => 'This exercise targets the upper chest',
             'sets' => 4,
             'reps' => 10,
+            'image_path' => 'u6FhFqnNTe0',
             'created_at' => now(),
             'updated_at' => now(),
         ]);
 
         $exercise2 = Exercise::create([
-            'name' => 'Chest Supported Row',
+            'name' => 'dumbbell incline row',
             'description' => 'This exercise targets the upper back',
             'sets' => 3,
             'reps' => 10,
+            'image_path' => '7oPvdWF9gi0',
             'created_at' => now(),
             'updated_at' => now(),
         ]);
 
         $exercise3 = Exercise::create([
-            'name' => 'Lean away cable lateral raise',
+            'name' => 'cable lateral raise',
             'description' => 'This exercise targets the side deltoids',
             'sets' => 3,
             'reps' => 12,
@@ -43,19 +45,21 @@ class ExercisesTableSeeder extends Seeder
         ]);
 
         $exercise4 = Exercise::create([
-            'name' => 'Lat Pull',
+            'name' => 'cable bar lateral pulldown',
             'description' => 'This exercise targets the lats',
             'sets' => 4,
             'reps' => 10,
+            'image_path' => '5zrPlR-5lP0',
             'created_at' => now(),
             'updated_at' => now(),
         ]);
 
         $exercise5 = Exercise::create([
-            'name' => 'Incline Overhead Dumbbell Extensions',
+            'name' => 'cable high pulley overhead tricep extension',
             'description' => 'This exercise targets the triceps',
             'sets' => 3,
             'reps' => 12,
+            'image_path' => 'k95uqdEe8R4',
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -63,10 +67,11 @@ class ExercisesTableSeeder extends Seeder
         // Lower Body 1
 
         $exercise6 = Exercise::create([
-            'name' => 'Back Squat',
+            'name' => 'barbell high bar squat',
             'description' => 'This exercise targets the quads',
             'sets' => 4,
             'reps' => 10,
+            'image_path' => '5_G4i0NRLx4',
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -76,6 +81,7 @@ class ExercisesTableSeeder extends Seeder
             'description' => 'This exercise targets the quads',
             'sets' => 3,
             'reps' => 12,
+            'image_path' => '3qZt1MwF4Zo',
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -85,6 +91,7 @@ class ExercisesTableSeeder extends Seeder
             'description' => 'This exercise targets the adductors',
             'sets' => 3,
             'reps' => 12,
+            'image_path' => 'IgEQ9Gx4jKM',
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -105,6 +112,7 @@ class ExercisesTableSeeder extends Seeder
             'description' => 'This exercise targets the chest',
             'sets' => 4,
             'reps' => 10,
+            'image_path' => 'i2GS_MtW9hM',
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -114,6 +122,7 @@ class ExercisesTableSeeder extends Seeder
             'description' => 'This exercise targets the upper back',
             'sets' => 3,
             'reps' => 10,
+            'image_path' => 'G3YSKeUAqoc',
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -123,6 +132,7 @@ class ExercisesTableSeeder extends Seeder
             'description' => 'This exercise targets the shoulders',
             'sets' => 3,
             'reps' => 12,
+            'image_path' => 'fl0TOkRZa4k',
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -132,6 +142,7 @@ class ExercisesTableSeeder extends Seeder
             'description' => 'This exercise targets the rear deltoids',
             'sets' => 4,
             'reps' => 10,
+            'image_path' => 'WdoQio6HPVA',
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -141,6 +152,7 @@ class ExercisesTableSeeder extends Seeder
             'description' => 'This exercise targets the chest',
             'sets' => 3,
             'reps' => 12,
+            'image_path' => 'wXBK9JrM0iU',
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -150,6 +162,7 @@ class ExercisesTableSeeder extends Seeder
             'description' => 'This exercise targets the biceps',
             'sets' => 3,
             'reps' => 12,
+            'image_path' => '2yKcNJFwxug',
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -161,6 +174,7 @@ class ExercisesTableSeeder extends Seeder
             'description' => 'This exercise targets the hamstrings',
             'sets' => 4,
             'reps' => 10,
+            'image_path' => 'j_YmEH6sB38',
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -170,6 +184,7 @@ class ExercisesTableSeeder extends Seeder
             'description' => 'This exercise targets the quads',
             'sets' => 3,
             'reps' => 12,
+            'image_path' => '6k1Zv6Z9W5A',
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -179,6 +194,7 @@ class ExercisesTableSeeder extends Seeder
             'description' => 'This exercise targets the quads per side',
             'sets' => 3,
             'reps' => 12,
+            'image_path' => 'ujV0eawGWEA',
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -199,6 +215,7 @@ class ExercisesTableSeeder extends Seeder
             'description' => 'This exercise targets the chest',
             'sets' => 4,
             'reps' => 10,
+            'image_path' => 'ohQiBoCqViM',
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -208,6 +225,7 @@ class ExercisesTableSeeder extends Seeder
             'description' => 'This exercise targets the lats',
             'sets' => 3,
             'reps' => 10,
+            'image_path' => 'X2WCrBMeuY',
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -264,6 +282,7 @@ class ExercisesTableSeeder extends Seeder
             'description' => 'This exercise targets the quads',
             'sets' => 3,
             'reps' => 12,
+            'image_path' => 'wUyiLNXnNHY',
             'created_at' => now(),
             'updated_at' => now(),
         ]);
