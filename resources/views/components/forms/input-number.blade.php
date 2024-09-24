@@ -4,7 +4,7 @@
     'size' => 'w-10',
 ])
 
-<div class="{{ $span }} text-start pb-4">
+<div class="{{ $span }} text-start">
     @if ($label)
         <x-forms.label for="{{ $label }}" class="flex" />
     @endif

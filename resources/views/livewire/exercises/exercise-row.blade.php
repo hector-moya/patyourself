@@ -3,7 +3,7 @@
         <flux:input wire:model.live.debounce.500ms="form.name" />
         {{-- <x-forms.input name="exercise-name" wire:model.live.debounce.500ms="form.name"/> --}}
     </x-table.body-item>
-    <x-table.body-item class="px-3 items-center">        
+    <x-table.body-item class="px-3">        
         <x-forms.input-number name="exercise-sets" wire:model.live="form.sets"/>
     </x-table.body-item>
     <x-table.body-item class="px-3">
@@ -13,6 +13,6 @@
         <x-forms.input-number name="exercise-weight" wire:model.live="form.weight" size="w-12" />
     </x-table.body-item>
     <x-table.body-item actionButton="true">
-        <a href="{{ route('exercises.edit', $exercise) }}"><x-button>Edit</x-button></a>
+        <flux:button href="{{ route('exercises.edit', $exercise) }}">{{ __('Edit')}}</flux:button>
     </x-table.body-item>
 </tr>
