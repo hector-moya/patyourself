@@ -13,6 +13,7 @@
         "laravel/octane": "^2.5",
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^2.9",
+        "livewire/flux-pro": "^1.0",
         "livewire/livewire": "^3.0",
         "marksitko/laravel-unsplash": "^2.2",
         "themesberg/flowbite-blade-icons": "^1.1",
@@ -72,5 +73,11 @@
         }
     },
     "minimum-stability": "stable",
-    "prefer-stable": true
+    "prefer-stable": true,
+    "repositories": {
+        "flux-pro": {
+            "type": "composer",
+            "url": "https://composer.fluxui.dev"
+        }
+    }
 }

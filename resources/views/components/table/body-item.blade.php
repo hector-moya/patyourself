@@ -3,7 +3,7 @@
 ])
 
 @if (!$actionButton)
-    <td {{ $attributes->merge(['class' => 'whitespace-nowrap py-4 text-sm text-gray-500 dark:text-white']) }}>
+    <td {{ $attributes->merge(['class' => '']) }}>
         {{ $slot }}
     </td>
 @endif

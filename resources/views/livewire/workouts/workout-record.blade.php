@@ -1,7 +1,11 @@
 <div class="bg-gray-900">
     <x-table-workout :$workout >
         <x-slot:head>
-            <x-table-workout.head-item>Exercise</x-table-workout.head-item>
+            <x-table-workout.head-item>
+                <flux:heading size="lg">
+                Exercise
+                </flux:heading>
+            </x-table-workout.head-item>
             <x-table-workout.head-item>Sets</x-table-workout.head-item>
             <x-table-workout.head-item actionButton>Edit</x-table-workout.head-item>
         </x-slot:head>

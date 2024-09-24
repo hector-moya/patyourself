@@ -2,8 +2,9 @@
     <div class="">
         <ul role="list" class="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
             @foreach ($workouts as $workout)
-                <li class="col-span-1 flex flex-col divide-y divide-gray-200 rounded-lg bg-white text-center shadow hover:shadow-xl dark:divide-gray-700 dark:bg-gray-800">
-                    <img class="mx-auto w-full flex-shrink-0 rounded-t-lg" src="{{ $workout->image }}" alt="{{ $workout->name }}">
+                <li class="col-span-1 flex flex-col overflow-hidden divide-y divide-gray-200 rounded-lg bg-white text-center shadow hover:shadow-xl dark:divide-gray-700 dark:bg-gray-800">
+                    <x-forms.unsplash class="transition ease-in-out object-cover h-40 hover:scale-105" :photo="$workout->image_path" />
+                    {{-- <img class="mx-auto w-full flex-shrink-0 rounded-t-lg" src="{{ $workout->image }}" alt="{{ $workout->name }}"> --}}
                     <div class="flex flex-1 flex-col p-8">
                         <h3 class="mt-6 text-sm font-medium text-gray-900 dark:text-gray-500">{{ $workout->name }}</h3>
                         <dl class="mt-1 flex flex-grow flex-col justify-between">

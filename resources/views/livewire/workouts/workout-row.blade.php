@@ -1,6 +1,8 @@
 <tr>
     <x-table-workout.body-item>
-        {{ $form->name }}
+        <flux:heading>
+            {{ Str::title($form->name) }}
+        </flux:heading>
     </x-table-workout.body-item>
     <x-table-workout.body-item>
         {{ __('Missing sets: ') . $form->sets - $this->getExerciseSessions()->count() }}
@@ -9,7 +11,7 @@
     <x-table-workout.body-item actionButton="true">
         <x-slideover>
             <x-slideover.open-button>
-                <x-button>Record</x-button>
+                <flux:button icon="arrow-right-end-on-rectangle">{{ __('Record')}}</flux:button>
             </x-slideover.open-button>
             @if ($showSlideover)
                 <x-slideover.overlay>

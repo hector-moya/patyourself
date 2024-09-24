@@ -13,7 +13,7 @@ class Workout extends Model
         'name',
         'description',
         'category_id',
-        'image'
+        'image_path'
     ];
 
     public function exercises()
