@@ -5,18 +5,23 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Plan;
 use App\Models\Workout;
+use Illuminate\Support\Collection;
 
 class WorkoutController extends Controller
 {
-    public ?Plan $plan = null;
+    public ?Plan $plan;
+    public ?Collection $workouts;
 
 
     public function index(Request $request)
     {
         $this->plan = $request->user()->enrolledExcersisePlan->first();
 
+        $this->workouts = $this->plan->workouts()->with('category')->get();
+
         return view('workouts.index',[
-            'plan' => $this->plan
+            'workouts' => $this->workouts,
+            'plan' => $this->plan,
         ]);
     }
 

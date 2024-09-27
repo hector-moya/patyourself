@@ -19,6 +19,7 @@ class PlansTableSeeder extends Seeder
             'name' => 'Beginner Phase 2',
             'description' => 'This plan is for beginners who have completed the Beginner Phase 1 plan.',
             'objective_id' => 1,
+            'image_path' => 'wd2vDD2n_xo',
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -32,10 +33,7 @@ class PlansTableSeeder extends Seeder
             6
         ]);
 
-        // Find the test user
         $testUser = User::where('email', 'nokure@gmail.com')->firstOrFail();
-
-        // Enroll the test user in the specific plan
         $testUser->enrolledExcersisePlan()->attach($beginnerPlan); 
     }
 }

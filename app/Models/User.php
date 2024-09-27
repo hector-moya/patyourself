@@ -10,6 +10,8 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
 use Laravel\Jetstream\HasProfilePhoto;
 use Laravel\Jetstream\HasTeams;
 use Laravel\Sanctum\HasApiTokens;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class User extends Authenticatable
 {
@@ -55,12 +57,17 @@ class User extends Authenticatable
         ];
     }
 
-    public function enrolledExcersisePlan()
+    public function enrolledExcersisePlan(): BelongsToMany
     {
         return $this->belongsToMany(Plan::class, 'enrolled_plan');
     }
 
-    public function exerciseSession()
+    public function enrolledPlans(): BelongsToMany
+    {
+        return $this->belongsToMany(Plan::class, 'enrolled_plan');
+    }
+
+    public function exerciseSession(): HasMany
     {
         return $this->hasMany(ExerciseSession::class);
     }

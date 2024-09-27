@@ -15,6 +15,7 @@ return new class extends Migration
             $table->id();
             $table->string('name');
             $table->string('description')->nullable();
+            $table->string('image_path')->nullable();
             $table->foreignId('objective_id')->constrained();
             $table->timestamps();
         });

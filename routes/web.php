@@ -13,6 +13,8 @@ Route::get('/', function () {
 Route::group(['middleware' => ['auth:sanctum', 'verified']], function ()
 {
     Route::get('/plans',                    [PlanController::class, 'index'])->name('plans.index');
+    Route::get('/plan/{plan}',              [PlanController::class, 'show'])->name('plans.show');
+    Route::get('/plan/{plan}/edit',         [PlanController::class, 'edit'])->name('plans.edit');
     Route::get('/workouts',                 [WorkoutController::class, 'index'])->name('workouts.index');
     Route::get('/workout/{workout}',        [WorkoutController::class, 'show'])->name('workouts.show');
     Route::get('/workout/{workout}/edit',   [WorkoutController::class, 'edit'])->name('workouts.edit');

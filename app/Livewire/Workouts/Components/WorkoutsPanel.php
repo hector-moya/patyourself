@@ -9,7 +9,7 @@ use Illuminate\Support\Collection;
 class WorkoutsPanel extends Component
 {
 
-    public ?Plan $plan = null;
+    public ?Plan $plan;
     public Collection $workouts;
 
     public function mount()

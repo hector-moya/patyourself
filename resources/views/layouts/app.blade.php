@@ -37,11 +37,11 @@
 
             <flux:menu>
                 <flux:menu.item href="{{ route('profile.show') }}" checked>{{ __('Profile') }}</flux:menu.item>
-
                 <flux:menu.separator />
-
                 <flux:menu.item href="{{ route('logout') }}" icon="arrow-right-start-on-rectangle"
-                    @click.prevent="$root.submit();">{{ __('Log Out') }}</flux:menu.item>
+                    @click.prevent="$root.submit();">
+                    {{ __('Log Out') }}
+                </flux:menu.item>
             </flux:menu>
         </flux:dropdown>
     </flux:header>
@@ -54,7 +54,7 @@
 
             @isset($subheading)
                 <flux:subheading size="lg" class="mb-6">{{ $subheading }}</flux:subheading>
-            @endisset
+            @endisset`
         </div>
 
         <flux:separator variant="subtle" />
@@ -62,7 +62,6 @@
         {{ $slot }}
     </flux:main>
     @stack('modals')
-
     @livewireScripts
     @bukScripts
     @fluxScripts
