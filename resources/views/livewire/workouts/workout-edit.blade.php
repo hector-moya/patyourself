@@ -45,21 +45,19 @@
         @foreach ($form->exercises as $exercise)
             <x-stacked-list.list-wrapper>
                 <div class="flex min-w-0 gap-x-4">
-                    <x-stacked-list.image :option="$exercise" />
+                    <x-forms.unsplash :photo="$exercise->image_path" />
                     <div class="min-w-0 flex-auto">
                         <x-stacked-list.text :option="$exercise" />
                     </div>
                 </div>
-                <div class="hidden shrink-0 sm:flex sm:flex-col sm:items-end">
-                    <x-button wire:click="removeExercise({{ $exercise->id }})">Remove Exercise</x-button>
-                </div>
+                <form wire:submit="editExercise({{ $exercise->id }})" class="hidden shrink-0 sm:flex sm:flex-col sm:items-end">
+                    <flux:button type="submit">{{ __('Remove') }}</flux:button>
+                </form>
             </x-stacked-list.list-wrapper>
         @endforeach
     </x-stacked-list>
 
     <div class="flex justify-start pt-4 mt-2">
-        <a href="{{ route('workouts.show', $workout->id)}}">
-            <x-button>Go Back</x-button>
-        </a>
+        <flux:button href="{{ route('workouts.show', $workout->id)}}">{{ __('Go Back') }}</flux:button>
     </div>
 </div>

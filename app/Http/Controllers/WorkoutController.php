@@ -11,6 +11,7 @@ class WorkoutController extends Controller
 {
     public ?Plan $plan;
     public ?Collection $workouts;
+    public ?Collection $exercises;
 
 
     public function index(Request $request)
@@ -27,8 +28,11 @@ class WorkoutController extends Controller
 
     public function show(Workout $workout)
     {
+        $this->exercises = $workout->exercises;
+
         return view('workouts.show',[
             'workout' => $workout,
+            'exercises' => $this->exercises,
         ]);
     }
 

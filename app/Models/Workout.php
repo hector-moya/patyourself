@@ -13,6 +13,7 @@ class Workout extends Model
         'name',
         'description',
         'category_id',
+        'intensity',
         'image_path'
     ];
 

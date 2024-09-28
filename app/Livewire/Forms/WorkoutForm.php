@@ -19,7 +19,7 @@ class WorkoutForm extends Form
     #[Validate('required|min:6')]
     public string $description = '';
 
-    public string $image = '';
+    public string $image_path = '';
 
     #[Validate('required|integer')]
     public ?int $category_id;
@@ -31,7 +31,7 @@ class WorkoutForm extends Form
         $this->workout =  Workout::create([
             'name' => $this->name,
             'description' => $this->description,
-            'image' => $this->image ?? '',
+            'image_path' => $this->image_path ?? '',
             'category_id' => $this->category_id,
         ]);
 
@@ -47,7 +47,7 @@ class WorkoutForm extends Form
         $this->workout->update([
             'name' => $this->name,
             'description' => $this->description,
-            'image' => $this->image ?? '',
+            'image_path' => $this->imag_path ?? '',
             'category_id' => $this->category_id,
         ]);
 
@@ -58,7 +58,7 @@ class WorkoutForm extends Form
 
     public function resetForm() : void
     {
-        $this->reset('name', 'description', 'image', 'category_id');
+        $this->reset('name', 'description', 'image_path', 'category_id');
     }
 
     public function setWorkout(Workout $workout) : void
@@ -66,7 +66,7 @@ class WorkoutForm extends Form
         $this->workout = $workout;
         $this->name = $workout->name;
         $this->description = $workout->description;
-        $this->image = $workout->image;
+        $this->image_path = $workout->image_path;
         $this->category_id = $workout->category_id;
         $this->exercises = $workout->exercises;
     }

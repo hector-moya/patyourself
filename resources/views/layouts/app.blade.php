@@ -54,7 +54,7 @@
 
             @isset($subheading)
                 <flux:subheading size="lg" class="mb-6">{{ $subheading }}</flux:subheading>
-            @endisset`
+            @endisset
         </div>
 
         <flux:separator variant="subtle" />

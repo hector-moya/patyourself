@@ -10,7 +10,7 @@
             Description
         </dt>
         <dd class="mt-1 text-sm text-gray-900 dark:text-gray-50 sm:col-span-2 text-start text-wrap">
-            <ul class="list-disc pl-5"> {{-- Use a list for bullet points --}}
+            <ul class="list-disc pl-5">
                 @foreach (json_decode($description, true) as $instruction)
                     <li class="leading-relaxed">{{ $instruction }}</li>
                 @endforeach

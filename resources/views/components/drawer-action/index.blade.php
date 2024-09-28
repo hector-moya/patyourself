@@ -1,5 +1,5 @@
-<div>
-    <div class="pb-1 sm:pb-6">
+<div class=" space-y-6">
+    <div class="">
         <div>
             <div class="relative h-56 sm:h-72 flex justify-center bg-white">
                 {{ $media }}
@@ -18,7 +18,12 @@
             </div>
         </div>
     </div>
-    <div class="px-4 pb-5 pt-5 sm:px-0 sm:pt-0">
-        {{ $body }}
+    <flux:separator />
+    <div class="space-y-8 px-4 sm:space-y-6 sm:px-6">
+        {{ $list}}
+    </div>
+    <flux:separator />
+    <div class="space-y-8 px-4 sm:space-y-6 sm:px-6">
+        {{ $description }}
     </div>
 </div>

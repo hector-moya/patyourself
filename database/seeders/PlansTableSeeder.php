@@ -33,7 +33,10 @@ class PlansTableSeeder extends Seeder
             6
         ]);
 
-        $testUser = User::where('email', 'nokure@gmail.com')->firstOrFail();
-        $testUser->enrolledExcersisePlan()->attach($beginnerPlan); 
+        $testUserOne = User::where('email', 'nokure@gmail.com')->firstOrFail();
+        $testUserOne->enrolledExcersisePlan()->attach($beginnerPlan); 
+
+        $testUserTwo = User::where('email', 'aliciagazmuri@gmail.com')->firstOrFail();
+        $testUserTwo->enrolledExcersisePlan()->attach($beginnerPlan);
     }
 }
