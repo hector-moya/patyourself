@@ -21,13 +21,6 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        Schema::create('exercise_workout', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('workout_id')->constrained();
-            $table->foreignId('exercise_id')->constrained();
-            $table->string('date')->default(now());
-        });
-
         Schema::create('plan_workout', function (Blueprint $table) {
             $table->id();
             $table->foreignId('workout_id')->constrained();

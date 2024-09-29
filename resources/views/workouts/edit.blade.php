@@ -1,9 +1,6 @@
 <x-app-layout>
-    <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
-            {{ __('Workout') }}
-        </h2>
-    </x-slot>
+    <x-slot:header>{{ __('Edit Workout') }}</x-slot:header>
+    <x-slot:subheading>{{ $workout->name }}</x-slot:subheading>
     <div class="mx-auto max-w-7xl py-12">
         <livewire:workouts.workout-edit :$workout @workoutEdited="$refresh" />
     </div>

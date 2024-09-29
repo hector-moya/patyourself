@@ -6,12 +6,16 @@ use App\Livewire\Forms\ExerciseForm;
 use Livewire\Component;
 use App\Models\Exercise;
 use App\Models\ExerciseSession;
+use App\Models\ExerciseWorkout;
+use App\Models\Workout;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Http;
 
 class WorkoutRow extends Component
 {
     public Exercise $exercise;
+    public Workout $workout;
+    public ExerciseWorkout $exerciseWorkout;
     public ExerciseForm $form;
     public Collection $exerciseSessions;
     public bool $showSlideover = false;
@@ -44,7 +48,11 @@ class WorkoutRow extends Component
 
     public function mountExercise()
     {
-        $this->form->setExercise($this->exercise);
+        $this->exerciseWorkout = ExerciseWorkout::where('exercise_id', $this->exercise->id)
+            ->where('workout_id', $this->workout->id)
+            ->first();
+
+        $this->form->setExercise($this->exercise, $this->exerciseWorkout);
     }
     public function render()
     {

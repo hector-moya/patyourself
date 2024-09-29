@@ -5,7 +5,8 @@ namespace App\Livewire\Workouts;
 use Livewire\Component;
 use App\Models\Workout;
 use App\Models\Exercise;
-use Illuminate\Database\Eloquent\Collection;
+use App\Models\Category;
+use Illuminate\Support\Collection;
 use Illuminate\View\View;
 use App\Livewire\Forms\WorkoutForm;
 
@@ -15,6 +16,7 @@ class WorkoutEdit extends Component
     public Workout $workout;
     public ?Collection $exercises;
     public ?Collection $allExercises;
+    public ?Collection $categories;
     public bool $showSlideover = false;
 
     protected $listeners = ['workoutUpdated' => 'setWorkout'];
@@ -27,6 +29,8 @@ class WorkoutEdit extends Component
     public function setWorkout()
     {
         $this->form->setWorkout($this->workout);
+        // dd($this->form->exercises);
+        $this->categories = Category::all();
     }
 
     public function addExercise($id)

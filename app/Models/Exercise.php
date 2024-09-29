@@ -14,8 +14,6 @@ class Exercise extends Model
         'name',
         'description',
         'target_muscle_id',
-        'sets',
-        'reps',
         'image_path'
     ];
 

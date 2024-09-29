@@ -1,13 +1,12 @@
 @props([
     'span' => 'col-span-1',
-    'label' => null,
     'size' => 'w-10',
 ])
 
 <flux:field>
-  @if ($label)
-    <flux:label>{{ $label }}</flux:label>
-  @endif
+  @isset ($label)
+  {{ $label }}
+  @endisset
   <div x-data="{
       count: 0,
       updateCount(value) {

@@ -20,22 +20,23 @@
                 <x-drawer-action.media :image="$form->image_path" />
               </x-slot:media>
               <x-slot:title>
-                <flux:label>{{ Str::title($form->name) }}</flux:label>
+                <flux:label badge="{{ $form->sets }}">{{ Str::title($form->name) }}</flux:label>
               </x-slot:title>
               <x-slot:actions>
                 <div class="grid grid-cols-3 items-end gap-4">
-                  <x-forms.input-number label="Reps" wire:model="form.reps" size="w-12" />
-                  <x-forms.input-number label="Weight" wire:model="form.weight" size="w-12" />
+                  <x-forms.input-number wire:model="form.reps" size="w-12">
+                    <x-slot:label>
+                      <flux:label badge="{{ $form->reps }}">{{ __('Reps') }}</flux:label>
+                    </x-slot:label>
+                  </x-forms.input-number>
+                  <x-forms.input-number wire:model="form.weight" size="w-12">
+                    <x-slot:label>
+                      <flux:label badge="{{ $form->weight }}">{{ __('Weight') }}</flux:label>
+                    </x-slot:label>
+                  </x-forms.input-number>                  
                   <flux:button icon="arrow-right-end-on-rectangle" wire:click="save">{{ __('Record') }}</flux:button>
                 </div>
               </x-slot:actions>
-              <x-slot:list>
-                <div class="grid grid-cols-3 items-end gap-4">
-                  <flux:label badge="{{ $form->sets }}">{{ __('Sets') }}</flux:label>
-                  <flux:label badge="{{ $form->reps }}">{{ __('Reps') }}</flux:label>
-                  <flux:label badge="{{ $form->weight }}">{{ __('Weight') }}</flux:label>
-                </div>
-              </x-slot:list>
               <x-slot:description>
                 <flux:label>{{ __('Description') }}</flux:label>
                 <div class="space-y-2">

@@ -95,47 +95,47 @@ class WorkoutsTableSeeder extends Seeder
         );
 
         $workoutOne->exercises()->attach([
-            520,
-            542,
-            310,
-            273,
+            520 => ['sets' => 3, 'reps' => 10, 'weight' => 50, 'intensity' => 'low'],
+            542 => ['sets' => 3, 'reps' => 10, 'weight' => 50, 'intensity' => 'low'],
+            310 => ['sets' => 3, 'reps' => 10, 'weight' => 50, 'intensity' => 'low'],
+            273 => ['sets' => 3, 'reps' => 10, 'weight' => 50, 'intensity' => 'low'],
         ]);
 
         $workoutTwo->exercises()->attach([
-            130,
-            699,
-            983,
-            994,
+            130 => ['sets' => 3, 'reps' => 10, 'weight' => 50, 'intensity' => 'low'],
+            699 => ['sets' => 3, 'reps' => 10, 'weight' => 50, 'intensity' => 'low'],
+            983 => ['sets' => 3, 'reps' => 10, 'weight' => 50, 'intensity' => 'low'],
+            994 => ['sets' => 3, 'reps' => 10, 'weight' => 50, 'intensity' => 'low'],
         ]);
 
         $workoutThree->exercises()->attach([
-            99,
-            280,
-            367,
-            521,
-            721,
+            99 => ['sets' => 3, 'reps' => 10, 'weight' => 50, 'intensity' => 'low'],
+            280 => ['sets' => 3, 'reps' => 10, 'weight' => 50, 'intensity' => 'low'],
+            367 => ['sets' => 3, 'reps' => 10, 'weight' => 50, 'intensity' => 'low'],
+            521 => ['sets' => 3, 'reps' => 10, 'weight' => 50, 'intensity' => 'low'],
+            721 => ['sets' => 3, 'reps' => 10, 'weight' => 50, 'intensity' => 'low'],
         ]);
 
         $workoutFour->exercises()->attach([
-            108,
-            556,
-            975,
-            1159,
+            108 => ['sets' => 3, 'reps' => 10, 'weight' => 50, 'intensity' => 'low'],
+            556 => ['sets' => 3, 'reps' => 10, 'weight' => 50, 'intensity' => 'low'],
+            975 => ['sets' => 3, 'reps' => 10, 'weight' => 50, 'intensity' => 'low'],
+            1159 => ['sets' => 3, 'reps' => 10, 'weight' => 50, 'intensity' => 'low'],
         ]);
 
         $workoutFive->exercises()->attach([
-            273,
-            666,
-            979,
-            980,
-            1009,
+            273 => ['sets' => 3, 'reps' => 10, 'weight' => 50, 'intensity' => 'low'],
+            666 => ['sets' => 3, 'reps' => 10, 'weight' => 50, 'intensity' => 'low'],
+            979 => ['sets' => 3, 'reps' => 10, 'weight' => 50, 'intensity' => 'low'],
+            980 => ['sets' => 3, 'reps' => 10, 'weight' => 50, 'intensity' => 'low'],
+            1009 => ['sets' => 3, 'reps' => 10, 'weight' => 50, 'intensity' => 'low'],
         ]);
 
         $workoutSix->exercises()->attach([
-            955,
-            956,
-            994,
-            1157,
+            955 => ['sets' => 3, 'reps' => 10, 'weight' => 50, 'intensity' => 'low'],
+            956 => ['sets' => 3, 'reps' => 10, 'weight' => 50, 'intensity' => 'low'],
+            994 => ['sets' => 3, 'reps' => 10, 'weight' => 50, 'intensity' => 'low'],
+            1157 => ['sets' => 3, 'reps' => 10, 'weight' => 50, 'intensity' => 'low'],
         ]);
     }
 }

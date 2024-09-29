@@ -6,6 +6,7 @@ use App\Models\ExerciseSession;
 use Livewire\Attributes\Validate;
 use Livewire\Form;
 use App\Models\Exercise;
+use App\Models\ExerciseWorkout;
 use Illuminate\Database\Eloquent\Collection;
 
 class ExerciseForm extends Form
@@ -19,13 +20,12 @@ class ExerciseForm extends Form
     #[Validate('required|min:6')]
     public string $description = '';
     #[Validate('required|numeric')]
-    public string $sets = '';
-    #[Validate('required|numeric')]
-    public string $reps = '';
-    #[Validate('required|numeric')]
-    public string $weight = '';
-
     public string $image_path = '';
+
+    public ?int $sets;
+    public ?int $reps;
+    public ?int $weight;
+    public string $intensity = '';
 
     public function save() : Exercise
     {
@@ -34,9 +34,6 @@ class ExerciseForm extends Form
         $this->exercise =  Exercise::create([
             'name' => $this->name,
             'description' => $this->description,
-            'sets' => $this->sets,
-            'reps' => $this->reps,
-            'weight' => $this->weight,
             'image_path' => $this->image_path ?? '',
         ]);
 
@@ -52,9 +49,6 @@ class ExerciseForm extends Form
         $this->exercise->update([
             'name' => $this->name,
             'description' => $this->description,
-            'sets' => $this->sets ?? '',
-            'reps' => $this->reps ?? '',
-            'weight' => $this->weight ?? '',
             'image_path' => $this->image_path ?? '',
         ]);
 
@@ -68,15 +62,24 @@ class ExerciseForm extends Form
         $this->reset('name', 'description', 'sets', 'reps', 'weight', 'image');
     }
 
-    public function setExercise(Exercise $exercise) : void
+    public function setExercise(Exercise $exercise, ExerciseWorkout $exerciseWorkout) : void
     {
         $this->exercise = $exercise;
         $this->name = $exercise->name;
         $this->description = $exercise->description;
-        $this->sets = $exercise->sets ?? '';
-        $this->reps = $exercise->reps ?? '';
-        $this->weight = $exercise->weight ?? '';
         $this->image_path = $exercise->image_path ?? '';
+        $this->sets = $exerciseWorkout->sets;
+        $this->reps = $exerciseWorkout->reps;
+        $this->weight = $exerciseWorkout->weight;
+        $this->intensity = $exerciseWorkout->intensity;
+    }
+
+    public function setExerciseWorkout( ExerciseWorkout $exerciseWorkout) : void
+    {
+        $this->sets = $exerciseWorkout->sets;
+        $this->reps = $exerciseWorkout->reps;
+        $this->weight = $exerciseWorkout->weight;
+        $this->intensity = $exerciseWorkout->intensity;
     }
 
     public function delete() : void

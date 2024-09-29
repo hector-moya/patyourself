@@ -7,6 +7,7 @@ use Livewire\Form;
 use App\Models\Workout;
 use App\Models\Exercise;
 use Illuminate\Database\Eloquent\Collection;
+use Str;
 
 class WorkoutForm extends Form
 {
@@ -23,6 +24,7 @@ class WorkoutForm extends Form
 
     #[Validate('required|integer')]
     public ?int $category_id;
+    public string $intensity = '';
 
     public function save() : Workout
     {
@@ -68,6 +70,7 @@ class WorkoutForm extends Form
         $this->description = $workout->description;
         $this->image_path = $workout->image_path;
         $this->category_id = $workout->category_id;
+        $this->intensity = Str::title($workout->intensity);
         $this->exercises = $workout->exercises;
     }
 

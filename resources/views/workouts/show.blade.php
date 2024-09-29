@@ -14,7 +14,7 @@
 
       <flux:rows>
         @foreach ($exercises as $exercise)
-          <livewire:workouts.workout-row :exercise="$exercise" :key="$exercise->id" />
+          <livewire:workouts.workout-row :$exercise :$workout :key="$exercise->id" />
         @endforeach
       </flux:rows>
     </flux:table>
