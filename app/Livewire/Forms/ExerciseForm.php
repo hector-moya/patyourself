@@ -62,20 +62,22 @@ class ExerciseForm extends Form
         $this->reset('name', 'description', 'sets', 'reps', 'weight', 'image');
     }
 
-    public function setExercise(Exercise $exercise, ExerciseWorkout $exerciseWorkout) : void
+    public function setExercise(Exercise $exercise) : void
     {
         $this->exercise = $exercise;
         $this->name = $exercise->name;
         $this->description = $exercise->description;
         $this->image_path = $exercise->image_path ?? '';
-        $this->sets = $exerciseWorkout->sets;
-        $this->reps = $exerciseWorkout->reps;
-        $this->weight = $exerciseWorkout->weight;
-        $this->intensity = $exerciseWorkout->intensity;
     }
 
-    public function setExerciseWorkout( ExerciseWorkout $exerciseWorkout) : void
+
+
+    public function setExerciseWorkout( Exercise $exercise, ExerciseWorkout $exerciseWorkout) : void
     {
+        $this->exercise = $exercise;
+        $this->name = $exercise->name;
+        $this->description = $exercise->description;
+        $this->image_path = $exercise->image_path ?? '';
         $this->sets = $exerciseWorkout->sets;
         $this->reps = $exerciseWorkout->reps;
         $this->weight = $exerciseWorkout->weight;

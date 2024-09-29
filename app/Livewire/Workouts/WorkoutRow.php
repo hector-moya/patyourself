@@ -52,7 +52,7 @@ class WorkoutRow extends Component
             ->where('workout_id', $this->workout->id)
             ->first();
 
-        $this->form->setExercise($this->exercise, $this->exerciseWorkout);
+        $this->form->setExerciseWorkout($this->exercise, $this->exerciseWorkout);
     }
     public function render()
     {
