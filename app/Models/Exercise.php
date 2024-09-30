@@ -37,4 +37,9 @@ class Exercise extends Model
     {
         return $this->hasMany(ExerciseSession::class);
     }
+
+    public function targetMuscle()
+    {
+        return $this->belongsTo(Muscle::class, 'target_muscle_id');
+    }
 }
