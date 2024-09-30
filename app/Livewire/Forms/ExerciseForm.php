@@ -8,6 +8,7 @@ use Livewire\Form;
 use App\Models\Exercise;
 use App\Models\ExerciseWorkout;
 use Illuminate\Database\Eloquent\Collection;
+use Exception;
 
 class ExerciseForm extends Form
 {
@@ -19,12 +20,16 @@ class ExerciseForm extends Form
 
     #[Validate('required|min:6')]
     public string $description = '';
-    #[Validate('required|numeric')]
+    #[Validate('required|image|max:1024')]
     public string $image_path = '';
 
+    #[Validate('required|integer')]
     public ?int $sets;
+    #[Validate('required|integer')]
     public ?int $reps;
+    #[Validate('required|integer')]
     public ?int $weight;
+    #[Validate('required|min:3')]
     public string $intensity = '';
 
     public function save() : Exercise
@@ -101,17 +106,20 @@ class ExerciseForm extends Form
         return $this->exercise->muscles;
     }
     
-    public function addExerciseSession(string $reps, string $weight) : ExerciseSession
-    {
-        $this->validate();
-
-        $exerciseSession = $this->exercise->exerciseSession()->create([
-            'user_id' => auth()->id(),
-            'reps' => $reps,
-            'weight' => $weight,
-        ]);
-
-        return $exerciseSession;
+    public function addExerciseSession() : ExerciseSession
+    {  
+            $this->validate([
+                'reps' => 'required|integer',
+                'weight' => 'required|integer',
+                ]); 
+    
+            $exerciseSession = $this->exercise->exerciseSession()->create([
+                'user_id' => auth()->id(),
+                'reps' => $this->reps,
+                'weight' => $this->weight,
+            ]);
+    
+            return $exerciseSession;
     }
 
     public function removeExerciseSession(int $id) : Collection

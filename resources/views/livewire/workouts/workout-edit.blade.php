@@ -52,7 +52,7 @@
     </flux:tab.panel>
   </flux:tab.group>
 
-  <div class="mt-2 flex justify-start pt-4">
-    <flux:button href="{{ route('workouts.show', $workout->id) }}">{{ __('Go Back') }}</flux:button>
+  <div class="mt-2 flex justify-start pt-4 px-4">
+    <flux:button icon="arrow-uturn-left" href="{{ route('workouts.show', $workout->id) }}">{{ __('Go Back') }}</flux:button>
   </div>
 </div>

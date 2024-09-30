@@ -12,7 +12,7 @@
       @if ($showSlideover)
         <x-slideover.overlay>
           <x-slideover.header>
-            <flux:heading size="lg">{{ __('Record Session') }}</flux:heading>
+            <flux:heading size="lg">{{ __('Record ' . Str::title($form->name) . ' Session') }}</flux:heading>
           </x-slideover.header>
           <x-slideover.body>
             <x-drawer-action>
@@ -20,7 +20,7 @@
                 <x-drawer-action.media :image="$form->image_path" />
               </x-slot:media>
               <x-slot:title>
-                <flux:label badge="{{ $form->sets }}">{{ Str::title($form->name) }}</flux:label>
+                <flux:label badge="{{ $form->sets - $this->getExerciseSessions()->count() }}">{{ __('Missing Sets: ') }}</flux:label>
               </x-slot:title>
               <x-slot:actions>
                 <div class="grid grid-cols-3 items-end gap-4">
@@ -33,8 +33,10 @@
                     <x-slot:label>
                       <flux:label badge="{{ $form->weight }}">{{ __('Weight') }}</flux:label>
                     </x-slot:label>
-                  </x-forms.input-number>                  
-                  <flux:button icon="arrow-right-end-on-rectangle" wire:click="save">{{ __('Record') }}</flux:button>
+                  </x-forms.input-number>
+                  <form wire:submit="save">
+                    <flux:button icon="arrow-right-end-on-rectangle" type="submit" >{{ __('Record') }}</flux:button>
+                  </form>
                 </div>
               </x-slot:actions>
               <x-slot:description>

@@ -29,7 +29,6 @@ class WorkoutRow extends Component
 
     public function getExerciseSessions()
     {
-        // Get all sessions for this exercise made today
         return $this->exerciseSessions = ExerciseSession::where('exercise_id', $this->exercise->id)
             ->whereDate('created_at', now()->toDateString())
             ->get();
@@ -37,7 +36,8 @@ class WorkoutRow extends Component
 
     public function save()
     {
-        $this->form->addExerciseSession($this->form->reps, $this->form->weight);
+        $this->form->addExerciseSession();
+        $this->showSlideover = false;
         $this->mountExercise();
     }
 
