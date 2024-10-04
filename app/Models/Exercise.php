@@ -10,17 +10,22 @@ class Exercise extends Model
     use HasFactory;
 
     protected $fillable = [
-        'exercisedb_id',	
+        'exercisedb_id',
         'name',
         'description',
         'target_muscle_id',
         'image_path'
     ];
 
+    protected $casts = [
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
+    ];
+
     public function workouts()
     {
         return $this->belongsToMany(Workout::class)
-                    ->withPivot('date');
+            ->withPivot('date');
     }
 
     public function muscles()
@@ -34,6 +39,10 @@ class Exercise extends Model
     }
 
     public function exerciseSession()
+    {
+        return $this->hasMany(ExerciseSession::class);
+    }
+    public function exerciseSessions()
     {
         return $this->hasMany(ExerciseSession::class);
     }

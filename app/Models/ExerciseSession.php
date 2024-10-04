@@ -19,7 +19,8 @@ class ExerciseSession extends Model
     ];
 
     protected $casts = [
-        'created_at' => 'datetime',
+        'weight' => 'integer',
+        'created_at' => 'date',
     ];
 
     public function exercise()
