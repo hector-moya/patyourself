@@ -24,7 +24,6 @@
     @bukStyles
     @fluxStyles
 </head>
-
 <body class="min-h-screen bg-white dark:bg-zinc-800">
     <x-flux-navigation-menu />
     <flux:header class="lg:hidden">
