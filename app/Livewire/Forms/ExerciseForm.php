@@ -8,6 +8,7 @@ use Livewire\Form;
 use App\Models\Exercise;
 use App\Models\ExerciseWorkout;
 use Illuminate\Database\Eloquent\Collection;
+use App\Models\Muscle;
 use Exception;
 
 class ExerciseForm extends Form
@@ -30,6 +31,9 @@ class ExerciseForm extends Form
     #[Validate('required|integer')]
     public ?int $weight;
     #[Validate('required|min:3')]
+
+    public ?Collection $secondaryMuscles;
+    public string $targetMuscleId;
     public string $intensity = '';
 
     public function save() : Exercise
@@ -70,9 +74,11 @@ class ExerciseForm extends Form
     public function setExercise(Exercise $exercise) : void
     {
         $this->exercise = $exercise;
-        $this->name = $exercise->name;
-        $this->description = $exercise->description;
-        $this->image_path = $exercise->image_path ?? '';
+        $this->name = $this->exercise->name;
+        $this->description = $this->exercise->description;
+        $this->image_path = $this->exercise->image_path ?? '';
+        $this->targetMuscleId = (string) $this->exercise->target_muscle_id;
+        $this->secondaryMuscles = $this->exercise->muscles;
     }
 
 

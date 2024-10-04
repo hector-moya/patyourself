@@ -1,9 +1,7 @@
 <x-app-layout>
-    <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
-            {{ __('Editing Exercise: ') . $exercise->name  }}
-        </h2>
-    </x-slot>
+    <x-slot:header>{{ __('Editing Exercise') }}</x-slot:header>
+    <x-slot:subheading>{{ $exercise->name }}</x-slot:subheading>
     <div class="mx-auto max-w-7xl py-12">
+        <livewire:exercises.exercise-edit :$exercise @exerciseEdited="$refresh" />
     </div>
 </x-app-layout>
