@@ -18,7 +18,7 @@
       </div>
     </flux:tab.panel>
     <flux:tab.panel name="exercises">
-      <div class="w-1/2 space-y-6">
+      <div class="w-2/3 space-y-6">
 
         <div class="flex items-center justify-between">
           <flux:heading size="lg">{{ __('Current Exercises: ') }}</flux:heading>
@@ -28,12 +28,7 @@
         </div>
         <div>
           @foreach ($form->exercises as $exercise)
-            <div class="flex items-center justify-between py-2">
-              <flux:subheading>{{ Str::title($exercise->name) }}</flux:subheading>
-              <form wire:submit="removeExercise({{ $exercise->id }})">
-                <flux:button size="sm" type="submit">{{ __('Remove') }}</flux:button>
-              </form>
-            </div>
+          <livewire:workouts.exercise-row :exercise="$exercise" :$workout :key="$exercise->id" />
           @endforeach
         </div>
         <flux:modal name="edit-profile" variant="flyout" class="space-y-6">

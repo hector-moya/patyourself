@@ -9,6 +9,7 @@ use App\Models\Category;
 use Illuminate\Support\Collection;
 use Illuminate\View\View;
 use App\Livewire\Forms\WorkoutForm;
+use App\Livewire\Forms\ExerciseForm;
 
 class WorkoutEdit extends Component
 {
@@ -29,7 +30,6 @@ class WorkoutEdit extends Component
     public function setWorkout()
     {
         $this->form->setWorkout($this->workout);
-        // dd($this->form->exercises);
         $this->categories = Category::all();
     }
 
