@@ -6,7 +6,7 @@
     </flux:tabs>
 
     <flux:tab.panel name="details">
-      <div class="w-1/2 space-y-6">
+      <div class="space-y-6">
         <flux:input wire:model.blur="form.name" label="Name" />
         <flux:textarea wire:model.blur="form.description" label="Description" rows="2" />
         <flux:input wire:model.blur="form.intensity" label="Intensity" />
@@ -18,8 +18,7 @@
       </div>
     </flux:tab.panel>
     <flux:tab.panel name="exercises">
-      <div class="w-2/3 space-y-6">
-
+      <div class="space-y-6">
         <div class="flex items-center justify-between">
           <flux:heading size="lg">{{ __('Current Exercises: ') }}</flux:heading>
           <flux:modal.trigger name="edit-profile">

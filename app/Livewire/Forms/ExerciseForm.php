@@ -95,6 +95,16 @@ class ExerciseForm extends Form
         $this->intensity = $exerciseWorkout->intensity;
     }
 
+    public function updateExerciseWorkout(ExerciseWorkout $exerciseWorkout): ExerciseWorkout
+    {
+        $exerciseWorkout->update([
+            'sets' => $this->sets,
+            'reps' => $this->reps,
+            'weight' => $this->weight,
+        ]);
+        return $exerciseWorkout;
+    }
+
     public function delete() : void
     {
         $this->exercise->delete();

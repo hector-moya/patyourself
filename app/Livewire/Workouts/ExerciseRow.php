@@ -13,19 +13,27 @@ class ExerciseRow extends Component
     public Exercise $exercise;
     public Workout $workout;
     public ExerciseForm $form;
+    public ExerciseWorkout $exerciseWorkout;
+    public bool $showSlideover = false;
 
     public function mount()
     {
         $this->mountExercise();
     }
 
+    public function save()
+    {
+        $this->form->updateExerciseWorkout($this->exerciseWorkout);
+        $this->showSlideover = false;
+    }
+
     public function mountExercise()
     {
-        $exerciseWorkout = ExerciseWorkout::where('exercise_id', $this->exercise->id)
+        $this->exerciseWorkout = ExerciseWorkout::where('exercise_id', $this->exercise->id)
         ->where('workout_id', $this->workout->id)
         ->first();
 
-        $this->form->setExerciseWorkout($this->exercise, $exerciseWorkout);
+        $this->form->setExerciseWorkout($this->exercise, $this->exerciseWorkout);
     }
     public function render()
     {
