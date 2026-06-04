@@ -1,0 +1,9 @@
+<svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="patyourself app icon">
+  <rect width="120" height="120" rx="28" fill="#E26B3E"></rect>
+  
+  <path d="M60 30 a30 30 0 1 1 -26 15" stroke="#FBF6EE" stroke-width="9" stroke-linecap="round" fill="none"></path>
+  
+  <path d="M60 30 l-12 -5 m12 5 l-5 12" stroke="#FBF6EE" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" fill="none"></path>
+  
+  <circle cx="60" cy="60" r="8" fill="#FBF6EE"></circle>
+</svg>

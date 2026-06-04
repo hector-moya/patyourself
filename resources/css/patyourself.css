@@ -1,0 +1,397 @@
+/* ============================================================
+   PATYOURSELF — design system (ported from the Claude Design
+   handoff bundle: colors_and_type.css + kit.css + shell.css +
+   desktop.css). Drives the warm, earthy coach UI.
+
+   Theming: tokens live on :root (light) with a [data-theme="dark"]
+   override. The Coach page sets data-theme on its .host wrapper, so
+   this stays self-contained and never fights the shadcn tokens used
+   by the rest of the app.
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Hanken+Grotesk:ital,wght@0,400..800;1,400..600&family=Space+Mono:wght@400;700&display=swap');
+
+.py-shell, .py-landing {
+  /* ============ RAW PALETTE — warm, earthy, calm ============ */
+  --paper:        #FBF6EE;  --paper-2:   #F4ECDF;
+  --surface:      #FFFDF9;  --surface-2: #FFFFFF;
+  --ink-900:      #241F1B;  --ink-700:   #4A423B;  --ink-500: #756B60;
+  --ink-400:      #9A9085;  --ink-300:   #C4BBAD;
+  --line:         #EAE0CF;  --line-strong: #DDD0BA;
+
+  --clay-50:#FCEDE4; --clay-100:#F8D8C5; --clay-300:#F0A77F;
+  --clay-500:#E26B3E; --clay-600:#C9572C; --clay-700:#A8451F;
+  --sage-50:#E9F1E9; --sage-100:#D2E4D4; --sage-400:#7AA888;
+  --sage-500:#5E8C6A; --sage-600:#4A7456;
+  --amber-50:#FBF0D8; --amber-400:#E5AE4E; --amber-500:#D4942E;
+  --brick-50:#F8E6E0; --brick-500:#B6452F; --brick-600:#9A3826;
+
+  /* ============ LOOP-STAGE ACCENTS — cue → craving → response → reward ============ */
+  --cue:        #5B8398;  --cue-soft:      #E4ECEF;  /* dusty teal — the signal */
+  --craving:    #8A5B79;  --craving-soft:  #EFE6EC;  /* muted plum — the pull   */
+  --response:   #E26B3E;  --response-soft: #FCEDE4;  /* clay — the action       */
+  --reward:     #5E8C6A;  --reward-soft:   #E9F1E9;  /* sage — the payoff       */
+
+  /* ============ SEMANTIC — LIGHT ============ */
+  --bg:            var(--paper);
+  --bg-sunk:       var(--paper-2);
+  --card:          var(--surface);
+  --card-2:        var(--surface-2);
+  --fg:            var(--ink-900);
+  --fg-body:       var(--ink-700);
+  --fg-muted:      var(--ink-500);
+  --fg-faint:      var(--ink-400);
+  --border:        var(--line);
+  --border-strong: var(--line-strong);
+
+  --primary:       var(--clay-500);
+  --primary-hover: var(--clay-600);
+  --primary-press: var(--clay-700);
+  --primary-soft:  var(--clay-50);
+  --on-primary:    #FFF8F3;
+
+  --success:       var(--sage-500);
+  --success-soft:  var(--sage-50);
+  --warning:       var(--amber-500);
+  --warning-soft:  var(--amber-50);
+  --danger:        var(--brick-500);
+  --danger-soft:   var(--brick-50);
+  --focus:         color-mix(in oklch, var(--clay-500) 55%, transparent);
+
+  /* ============ TYPE ============ */
+  --font-display: "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
+  --font-sans:    "Hanken Grotesk", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono:    "Space Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --text-xs:0.75rem; --text-sm:0.875rem; --text-base:1rem; --text-md:1.125rem;
+  --text-lg:1.375rem; --text-xl:1.75rem; --text-2xl:2.25rem; --text-3xl:3rem;
+  --text-4xl:3.75rem;
+
+  --leading-tight:1.08; --leading-snug:1.25; --leading-normal:1.55;
+  --tracking-tight:-0.02em; --tracking-eyebrow:0.14em;
+
+  /* ============ SPACING — 8pt base (with 4px half-steps) ============ */
+  --space-1:4px; --space-2:8px; --space-3:12px; --space-4:16px; --space-5:20px;
+  --space-6:24px; --space-8:32px; --space-10:40px; --space-12:48px;
+  --space-16:64px; --space-20:80px; --space-24:96px;
+
+  /* ============ RADII ============ */
+  --radius-xs:8px; --radius-sm:12px; --radius-md:16px; --radius-lg:22px;
+  --radius-xl:28px; --radius-pill:999px;
+
+  /* ============ ELEVATION — warm-tinted, low, soft ============ */
+  --shadow-xs:0 1px 2px rgba(74,54,38,0.06);
+  --shadow-sm:0 2px 6px rgba(74,54,38,0.07);
+  --shadow-md:0 6px 18px rgba(74,54,38,0.09);
+  --shadow-lg:0 16px 40px rgba(74,54,38,0.12);
+  --shadow-clay:0 8px 20px rgba(226,107,62,0.26);
+
+  /* ============ MOTION — gentle, never bouncy ============ */
+  --dur-fast:120ms; --dur-base:200ms; --dur-slow:320ms; --dur-slower:520ms;
+  --ease-out:cubic-bezier(0.2,0.7,0.3,1);
+  --ease-in-out:cubic-bezier(0.45,0,0.25,1);
+  --ease-entrance:cubic-bezier(0.16,1,0.3,1);
+}
+
+/* ============ DARK THEME — "evening session" ============ */
+.py-shell[data-theme="dark"], .py-landing[data-theme="dark"] {
+  --bg:            #1C1815;
+  --bg-sunk:       #161310;
+  --card:          #262017;
+  --card-2:        #2D261C;
+  --fg:            #F3ECE0;
+  --fg-body:       #D8CDBE;
+  --fg-muted:      #A89C8C;
+  --fg-faint:      #7C7264;
+  --border:        #352D22;
+  --border-strong: #463C2D;
+
+  --primary:       #EE7E50;
+  --primary-hover: #F08D63;
+  --primary-press: #D96939;
+  --primary-soft:  #3A271C;
+  --on-primary:    #211009;
+
+  --success:       #7CAE89;  --success-soft:#22301F;
+  --warning:       #E0AE54;  --warning-soft:#332715;
+  --danger:        #D2624A;  --danger-soft:#371C16;
+  --focus:         color-mix(in oklch, #EE7E50 60%, transparent);
+
+  --cue:#7BA6BB;       --cue-soft:#22303A;
+  --craving:#B587A4;   --craving-soft:#322230;
+  --response:#EE7E50;  --response-soft:#3A271C;
+  --reward:#7CAE89;    --reward-soft:#22301F;
+
+  --shadow-xs:0 1px 2px rgba(0,0,0,0.3);
+  --shadow-sm:0 2px 6px rgba(0,0,0,0.34);
+  --shadow-md:0 6px 18px rgba(0,0,0,0.4);
+  --shadow-lg:0 16px 40px rgba(0,0,0,0.5);
+  --shadow-clay:0 8px 22px rgba(238,126,80,0.32);
+}
+
+/* ============ SEMANTIC TYPE CLASSES ============ */
+.ds-eyebrow{font-family:var(--font-mono);font-size:var(--text-xs);letter-spacing:var(--tracking-eyebrow);text-transform:uppercase;color:var(--fg-muted);font-weight:400;}
+.ds-display{font-family:var(--font-display);font-size:var(--text-4xl);line-height:var(--leading-tight);letter-spacing:var(--tracking-tight);font-weight:800;color:var(--fg);}
+.ds-h1{font-family:var(--font-display);font-size:var(--text-3xl);line-height:var(--leading-tight);letter-spacing:var(--tracking-tight);font-weight:700;color:var(--fg);}
+.ds-h2{font-family:var(--font-display);font-size:var(--text-2xl);line-height:var(--leading-snug);letter-spacing:var(--tracking-tight);font-weight:700;color:var(--fg);}
+.ds-h3{font-family:var(--font-sans);font-size:var(--text-lg);line-height:var(--leading-snug);font-weight:600;color:var(--fg);}
+.ds-quote{font-family:var(--font-display);font-size:var(--text-2xl);line-height:var(--leading-snug);font-weight:500;font-style:italic;color:var(--fg);}
+.ds-lead{font-family:var(--font-sans);font-size:var(--text-md);line-height:var(--leading-normal);font-weight:400;color:var(--fg-muted);}
+.ds-body{font-family:var(--font-sans);font-size:var(--text-base);line-height:var(--leading-normal);font-weight:400;color:var(--fg-body);}
+.ds-small{font-family:var(--font-sans);font-size:var(--text-sm);line-height:var(--leading-normal);color:var(--fg-muted);}
+.ds-data{font-family:var(--font-mono);font-weight:700;letter-spacing:-0.01em;color:var(--fg);font-variant-numeric:tabular-nums;}
+.ds-label{font-family:var(--font-sans);font-size:var(--text-sm);font-weight:600;color:var(--fg);}
+
+/* ============================================================
+   COMPONENT KIT (kit.css)
+   ============================================================ */
+.py-icon{vertical-align:middle;}
+.py-icon svg{width:100%;height:100%;}
+
+/* ---------- Buttons ---------- */
+.py-btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  font-family:var(--font-sans);font-weight:600;border:1px solid transparent;
+  border-radius:var(--radius-sm);cursor:pointer;white-space:nowrap;
+  transition:background var(--dur-fast) var(--ease-out),
+             border-color var(--dur-fast) var(--ease-out),
+             box-shadow var(--dur-base) var(--ease-out),
+             transform var(--dur-fast) var(--ease-out),
+             color var(--dur-fast) var(--ease-out);
+}
+.py-btn--md{height:44px;padding:0 18px;font-size:var(--text-base);}
+.py-btn--sm{height:34px;padding:0 13px;font-size:var(--text-sm);border-radius:var(--radius-xs);}
+.py-btn--full{width:100%;}
+.py-btn:active{transform:scale(0.98);}
+.py-btn:focus-visible{outline:none;box-shadow:0 0 0 3px var(--focus);}
+
+.py-btn--primary{background:var(--primary);color:var(--on-primary);box-shadow:var(--shadow-clay);}
+.py-btn--primary:hover{background:var(--primary-hover);}
+.py-btn--primary:active{background:var(--primary-press);}
+
+.py-btn--secondary{background:var(--card);color:var(--fg);border-color:var(--border-strong);box-shadow:var(--shadow-xs);}
+.py-btn--secondary:hover{background:var(--bg-sunk);border-color:var(--fg-faint);}
+
+.py-btn--ghost{background:transparent;color:var(--fg-body);}
+.py-btn--ghost:hover{background:var(--bg-sunk);color:var(--fg);}
+
+.py-btn--danger{background:transparent;color:var(--danger);border-color:color-mix(in oklch,var(--danger) 35%,transparent);}
+.py-btn--danger:hover{background:var(--danger-soft);}
+
+.py-btn:disabled{opacity:.45;cursor:not-allowed;box-shadow:none;transform:none;}
+
+/* ---------- Icon button ---------- */
+.py-iconbtn{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:40px;height:40px;border-radius:var(--radius-sm);border:1px solid transparent;
+  background:transparent;color:var(--fg-muted);cursor:pointer;
+  transition:background var(--dur-fast),color var(--dur-fast);
+}
+.py-iconbtn:hover{background:var(--bg-sunk);color:var(--fg);}
+.py-iconbtn--solid{background:var(--card);border-color:var(--border);box-shadow:var(--shadow-xs);}
+.py-iconbtn:focus-visible{outline:none;box-shadow:0 0 0 3px var(--focus);}
+
+/* ---------- Chip ---------- */
+.py-chip{
+  display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 12px;
+  border-radius:var(--radius-pill);font-size:var(--text-sm);font-weight:600;
+  background:var(--bg-sunk);color:var(--fg-body);border:1px solid var(--border);
+}
+.py-chip--btn{cursor:pointer;transition:background var(--dur-fast),border-color var(--dur-fast);}
+.py-chip--btn:hover{border-color:var(--fg-faint);}
+.py-chip.is-active{background:var(--primary-soft);color:var(--primary);border-color:color-mix(in oklch,var(--primary) 30%,transparent);}
+.py-chip--cue{background:var(--cue-soft);color:var(--cue);border-color:transparent;}
+.py-chip--craving{background:var(--craving-soft);color:var(--craving);border-color:transparent;}
+.py-chip--response{background:var(--response-soft);color:var(--response);border-color:transparent;}
+.py-chip--reward{background:var(--reward-soft);color:var(--reward);border-color:transparent;}
+
+/* ---------- Toggle ---------- */
+.py-toggle{width:46px;height:28px;border-radius:var(--radius-pill);background:var(--line-strong);border:none;cursor:pointer;padding:3px;display:inline-flex;transition:background var(--dur-base) var(--ease-in-out);}
+.py-toggle.is-on{background:var(--success);}
+.py-toggle__knob{width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:var(--shadow-sm);transition:transform var(--dur-base) var(--ease-in-out);}
+.py-toggle.is-on .py-toggle__knob{transform:translateX(18px);}
+.py-toggle:focus-visible{outline:none;box-shadow:0 0 0 3px var(--focus);}
+
+/* ---------- Avatar ---------- */
+.py-avatar{display:inline-flex;align-items:center;justify-content:center;border-radius:50%;flex:none;}
+.py-avatar--coach{background:var(--primary);color:var(--on-primary);}
+.py-avatar--user{background:var(--bg-sunk);color:var(--fg-body);font-family:var(--font-mono);font-weight:700;border:1px solid var(--border);}
+
+/* ---------- Composer ---------- */
+.py-composer{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--border-strong);border-radius:var(--radius-pill);padding:6px 6px 6px 18px;box-shadow:var(--shadow-sm);}
+.py-composer__input{flex:1;border:none;background:transparent;outline:none;font-family:var(--font-sans);font-size:var(--text-base);color:var(--fg);min-width:0;}
+.py-composer__input::placeholder{color:var(--fg-faint);}
+.py-composer__send{flex:none;width:40px;height:40px;border-radius:50%;border:none;background:var(--primary);color:var(--on-primary);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background var(--dur-fast),transform var(--dur-fast);}
+.py-composer__send:hover{background:var(--primary-hover);}
+.py-composer__send:active{transform:scale(0.94);}
+.py-composer__send:disabled{background:var(--line-strong);color:var(--fg-faint);cursor:not-allowed;}
+
+/* ---------- Empty state ---------- */
+.py-empty{display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;padding:48px 28px;}
+.py-empty__icon{display:inline-flex;align-items:center;justify-content:center;width:60px;height:60px;border-radius:var(--radius-lg);background:var(--primary-soft);color:var(--primary);}
+.py-empty__body{max-width:30ch;}
+
+/* ---------- Eyebrow ---------- */
+.py-eyebrow{font-family:var(--font-mono);font-size:var(--text-xs);letter-spacing:var(--tracking-eyebrow);text-transform:uppercase;color:var(--fg-muted);}
+
+/* ============================================================
+   CHAT
+   ============================================================ */
+.py-msg{display:flex;gap:10px;margin:14px 0;animation:py-rise var(--dur-slow) var(--ease-entrance);}
+.py-msg--user{justify-content:flex-end;}
+.py-msg__col{display:flex;flex-direction:column;gap:4px;max-width:78%;}
+.py-msg--user .py-msg__col{align-items:flex-end;}
+.py-bubble{padding:11px 15px;font-size:var(--text-base);line-height:1.5;border-radius:var(--radius-lg);}
+.py-bubble--coach{background:var(--card);color:var(--fg);border:1px solid var(--border);border-top-left-radius:6px;box-shadow:var(--shadow-xs);}
+.py-bubble--user{background:var(--primary);color:var(--on-primary);border-top-right-radius:6px;}
+.py-msg__time{font-family:var(--font-mono);font-size:11px;color:var(--fg-faint);padding:0 6px;}
+.py-bubble em{font-style:italic;font-weight:600;color:var(--fg);}
+.py-bubble b{font-weight:700;}
+.bubble-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
+
+/* typing */
+.py-typing{display:inline-flex;gap:5px;align-items:center;padding:15px 16px;}
+.py-typing span{width:7px;height:7px;border-radius:50%;background:var(--fg-faint);animation:py-blink 1.3s var(--ease-in-out) infinite;}
+.py-typing span:nth-child(2){animation-delay:.18s;}
+.py-typing span:nth-child(3){animation-delay:.36s;}
+
+.py-systemline{display:flex;align-items:center;justify-content:center;margin:18px 0;}
+.py-systemline span{font-family:var(--font-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--fg-faint);background:var(--bg);padding:0 12px;position:relative;z-index:1;}
+.py-systemline:before{content:"";position:absolute;left:0;right:0;height:1px;background:var(--border);z-index:0;}
+
+@keyframes py-rise{from{transform:translateY(9px);}to{transform:none;}}
+@keyframes py-blink{0%,60%,100%{opacity:.3;transform:translateY(0);}30%{opacity:1;transform:translateY(-2px);}}
+
+/* ============================================================
+   APP SHELL (shell.css)
+   ============================================================ */
+.py-app{display:flex;height:100%;background:var(--bg);}
+.py-app__main{flex:1;display:flex;flex-direction:column;min-width:0;height:100%;}
+.py-app__content{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden;}
+
+/* ---------- Side nav (desktop) ---------- */
+.py-sidenav{width:232px;flex:none;background:var(--bg-sunk);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:20px 14px;gap:4px;}
+.py-sidenav__brand{display:flex;align-items:center;padding:6px 10px 20px;gap:10px;}
+.py-sidenav__brand .brand-icon{width:30px;height:30px;border-radius:9px;display:block;flex:none;}
+.py-sidenav__brand .brand-word{font-family:var(--font-display);font-weight:800;font-size:22px;letter-spacing:-0.03em;color:var(--fg);line-height:1;}
+.py-sidenav__foot{margin-top:auto;border-top:1px solid var(--border);padding-top:8px;display:flex;flex-direction:column;gap:4px;}
+.py-navitem{display:flex;align-items:center;gap:12px;width:100%;border:none;background:transparent;cursor:pointer;
+  font-family:var(--font-sans);font-size:var(--text-base);font-weight:600;color:var(--fg-body);
+  padding:11px 12px;border-radius:var(--radius-sm);transition:background var(--dur-fast),color var(--dur-fast);text-decoration:none;}
+.py-navitem:hover{background:var(--card);color:var(--fg);}
+.py-navitem.is-active{background:var(--primary-soft);color:var(--primary);}
+.py-navitem .py-navlabel{white-space:nowrap;}
+.py-navitem__count{margin-left:auto;font-family:var(--font-mono);font-size:11px;font-weight:700;color:var(--fg-faint);background:var(--card);border:1px solid var(--border);border-radius:var(--radius-pill);padding:1px 8px;}
+.py-navitem.is-active .py-navitem__count{color:var(--primary);border-color:color-mix(in oklch,var(--primary) 30%,transparent);}
+
+.py-sidenav.is-collapsed{width:72px;align-items:center;}
+.py-sidenav.is-collapsed .py-navlabel,
+.py-sidenav.is-collapsed .py-navitem__count,
+.py-sidenav.is-collapsed .brand-word{display:none;}
+.py-sidenav.is-collapsed .py-navitem{justify-content:center;padding:11px 0;}
+.py-sidenav.is-collapsed .py-sidenav__brand{padding:6px 0 20px;justify-content:center;}
+
+.py-sidenav__profile{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--radius-sm);}
+.py-sidenav.is-collapsed .py-sidenav__profile{justify-content:center;}
+.py-sidenav__profile .who{display:flex;flex-direction:column;line-height:1.2;}
+.py-sidenav.is-collapsed .py-sidenav__profile .who{display:none;}
+.py-sidenav__profile .who b{font-size:var(--text-sm);font-weight:700;color:var(--fg);}
+.py-sidenav__profile .who span{font-family:var(--font-mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--fg-faint);}
+
+/* ============================================================
+   CHAT SCREEN
+   ============================================================ */
+.screen-chat{display:flex;flex-direction:column;height:100%;min-height:0;}
+.chat-scroll{flex:1;overflow-y:auto;min-height:0;}
+.chat-inner{max-width:var(--chat-max,640px);margin:0 auto;padding:20px 20px 8px;}
+.chat-dock{flex:none;border-top:1px solid var(--border);background:color-mix(in oklch,var(--bg) 88%,transparent);backdrop-filter:blur(6px);}
+.chat-dock__inner{max-width:var(--chat-max,640px);margin:0 auto;padding:12px 16px 16px;}
+
+/* ---------- Chat header ---------- */
+.coach-head{flex:none;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 28px;border-bottom:1px solid var(--border);background:var(--bg);}
+.coach-head__title{display:flex;flex-direction:column;gap:3px;}
+.coach-head__title h1{margin:0;font-family:var(--font-display);font-weight:700;font-size:var(--text-xl);letter-spacing:var(--tracking-tight);color:var(--fg);white-space:nowrap;}
+.coach-progress{display:flex;align-items:center;gap:12px;}
+.coach-progress__label{font-family:var(--font-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--fg-muted);}
+.coach-progress__label b{color:var(--success);}
+.coach-progress__dots{display:inline-flex;gap:5px;}
+.coach-progress__dots i{width:9px;height:9px;border-radius:50%;background:var(--line-strong);display:block;transition:background var(--dur-base) var(--ease-out);}
+.coach-progress__dots i.done{background:var(--success);}
+
+.coach-body{flex:1;min-height:0;}
+
+/* ---------- Reply chips above composer ---------- */
+.reply-chips{display:flex;gap:8px;flex-wrap:wrap;padding-bottom:10px;}
+
+/* ============================================================
+   DAILY-LOG ACTION CARD (desktop.css)
+   ============================================================ */
+.daycard{
+  background:var(--card);border:1px solid var(--border-strong);
+  border-left:3px solid var(--accent,var(--response));
+  border-radius:var(--radius-md);padding:16px 16px 14px;max-width:380px;
+  box-shadow:var(--shadow-xs);margin-top:6px;
+  animation:py-rise var(--dur-slow) var(--ease-entrance);
+  transition:box-shadow var(--dur-base) var(--ease-out);
+}
+.daycard:hover{box-shadow:var(--shadow-md);}
+.daycard__head{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+.daycard__dir{display:inline-flex;align-items:center;gap:5px;height:26px;padding:0 10px;border-radius:var(--radius-pill);font-family:var(--font-mono);font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;}
+.daycard__dir--build{background:var(--reward-soft);color:var(--reward);}
+.daycard__dir--eliminate{background:var(--craving-soft);color:var(--craving);}
+.daycard__today{margin-left:auto;font-family:var(--font-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--fg-faint);}
+.daycard__title{font-family:var(--font-sans);font-weight:700;font-size:var(--text-md);color:var(--fg);line-height:1.2;}
+.daycard__action{font-size:var(--text-sm);color:var(--fg-body);line-height:1.5;margin-top:4px;}
+.daycard__opts{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:14px;}
+.daycard__opt{display:flex;flex-direction:column;align-items:center;gap:5px;padding:10px 4px;border:1px solid var(--border-strong);background:var(--card);color:var(--fg-body);border-radius:var(--radius-xs);cursor:pointer;font-family:var(--font-sans);font-size:12.5px;font-weight:600;transition:background var(--dur-fast),border-color var(--dur-fast),color var(--dur-fast),transform var(--dur-fast);}
+.daycard__opt:hover{background:var(--bg-sunk);border-color:var(--fg-faint);}
+.daycard__opt:active{transform:scale(0.97);}
+.daycard__opt.did:hover{background:var(--success-soft);border-color:var(--success);color:var(--success);}
+.daycard__opt.urge:hover{background:var(--cue-soft);border-color:var(--cue);color:var(--cue);}
+.daycard__opt.skip:hover{background:var(--bg-sunk);border-color:var(--fg-faint);color:var(--fg-muted);}
+.daycard__opt .py-icon{color:inherit;}
+
+.daycard--logged{display:flex;align-items:center;gap:12px;padding:14px 16px;border-left-color:var(--success);background:var(--success-soft);border-color:transparent;}
+.daycard--logged.is-miss{background:var(--bg-sunk);border-left-color:var(--fg-faint);}
+.daycard__check{flex:none;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--success);color:#fff;}
+.daycard--logged.is-miss .daycard__check{background:var(--fg-faint);}
+.daycard__loggedtext{display:flex;flex-direction:column;}
+.daycard__loggedtext b{font-family:var(--font-sans);font-weight:700;font-size:var(--text-sm);color:var(--fg);}
+.daycard__loggedtext span{font-size:var(--text-sm);color:var(--fg-muted);}
+
+/* ============================================================
+   APP SHELL HOST — fills the real viewport (no device frame)
+   ============================================================ */
+.py-shell{
+  height:100dvh;
+  background:var(--bg);
+  color:var(--fg);
+  font-family:var(--font-sans);
+  -webkit-font-smoothing:antialiased;
+  overflow:hidden;
+}
+
+/* ============================================================
+   LANDING (public marketing page)
+   ============================================================ */
+.py-landing{
+  min-height:100dvh;display:flex;flex-direction:column;
+  background:
+    radial-gradient(120% 80% at 50% -10%, color-mix(in oklch, var(--primary) 10%, transparent) 0%, transparent 55%),
+    var(--bg);
+  color:var(--fg);font-family:var(--font-sans);-webkit-font-smoothing:antialiased;
+}
+.py-landing__bar{display:flex;align-items:center;justify-content:space-between;padding:22px 32px;max-width:1100px;width:100%;margin:0 auto;}
+.py-landing__brand{display:flex;align-items:center;gap:10px;}
+.py-landing__brand img{width:34px;height:34px;border-radius:10px;display:block;}
+.py-landing__brand b{font-family:var(--font-display);font-weight:800;font-size:22px;letter-spacing:-0.03em;}
+.py-landing__navlinks{display:flex;align-items:center;gap:10px;}
+.py-landing__hero{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:32px 24px 96px;gap:22px;max-width:720px;margin:0 auto;}
+.py-landing__hero .ds-display{font-size:clamp(2.4rem,6vw,3.75rem);}
+.py-landing__lead{max-width:46ch;}
+.py-landing__cta{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-top:6px;}
+.py-landing__loops{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:14px;}
+
+@media (prefers-reduced-motion:reduce){
+  *{animation:none !important;transition:none !important;}
+}

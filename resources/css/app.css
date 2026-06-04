@@ -1,0 +1,209 @@
+@import 'tailwindcss';
+
+@import 'tw-animate-css';
+
+@import './patyourself.css';
+
+@source '../views';
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * PatYourSelf design tokens.
+ *
+ * Roles (primary / secondary / muted / accent / destructive) keep their
+ * shadcn semantics so every existing component adapts automatically — only
+ * the hues are branded. Habit-coaching extras (success / streak / warning)
+ * are additive tokens for action cards and strategy timelines.
+ */
+@theme {
+    --font-sans:
+        'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif,
+        'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
+        'Noto Color Emoji';
+    --font-display: 'Bricolage Grotesque', ui-sans-serif, system-ui, sans-serif;
+    --font-mono: 'Space Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+    /* Radius scale */
+    --radius-lg: var(--radius);
+    --radius-md: calc(var(--radius) - 2px);
+    --radius-sm: calc(var(--radius) - 4px);
+    --radius-xl: calc(var(--radius) + 4px);
+
+    /* App layout rhythm — the mobile-first column the screens live in */
+    --container-app: 28rem; /* max width of the app column (~md), via max-w-app */
+    --spacing-header: 3.5rem; /* sticky header height, via h-header */
+    --spacing-bottom-nav: 4rem; /* bottom tab-bar height, via h-bottom-nav */
+
+    /* Typography scale tuned for a calm, readable coaching UI */
+    --text-display: 2rem;
+    --text-display--line-height: 2.375rem;
+    --text-display--font-weight: 600;
+    --text-title: 1.375rem;
+    --text-title--line-height: 1.75rem;
+    --text-title--font-weight: 600;
+
+    --color-background: var(--background);
+    --color-foreground: var(--foreground);
+
+    --color-card: var(--card);
+    --color-card-foreground: var(--card-foreground);
+
+    --color-popover: var(--popover);
+    --color-popover-foreground: var(--popover-foreground);
+
+    --color-primary: var(--primary);
+    --color-primary-foreground: var(--primary-foreground);
+
+    --color-secondary: var(--secondary);
+    --color-secondary-foreground: var(--secondary-foreground);
+
+    --color-muted: var(--muted);
+    --color-muted-foreground: var(--muted-foreground);
+
+    --color-accent: var(--accent);
+    --color-accent-foreground: var(--accent-foreground);
+
+    --color-destructive: var(--destructive);
+    --color-destructive-foreground: var(--destructive-foreground);
+
+    /* Habit-coaching semantic colors */
+    --color-success: var(--success);
+    --color-success-foreground: var(--success-foreground);
+    --color-streak: var(--streak);
+    --color-streak-foreground: var(--streak-foreground);
+    --color-warning: var(--warning);
+    --color-warning-foreground: var(--warning-foreground);
+
+    --color-border: var(--border);
+    --color-input: var(--input);
+    --color-ring: var(--ring);
+
+    --color-chart-1: var(--chart-1);
+    --color-chart-2: var(--chart-2);
+    --color-chart-3: var(--chart-3);
+    --color-chart-4: var(--chart-4);
+    --color-chart-5: var(--chart-5);
+
+    --color-sidebar: var(--sidebar);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-ring: var(--sidebar-ring);
+}
+
+:root {
+    /* PatYourSelf warm DS — clay-coral on warm paper (matches the app + landing) */
+    --background: #FBF6EE;          /* paper */
+    --foreground: #241F1B;          /* ink-900 */
+    --card: #FFFDF9;                /* surface */
+    --card-foreground: #241F1B;
+    --popover: #FFFDF9;
+    --popover-foreground: #241F1B;
+
+    /* Primary: clay-coral */
+    --primary: #E26B3E;             /* clay-500 */
+    --primary-foreground: #FFF8F3;
+
+    --secondary: #F4ECDF;           /* paper-2 */
+    --secondary-foreground: #4A423B; /* ink-700 */
+    --muted: #F4ECDF;
+    --muted-foreground: #756B60;    /* ink-500 */
+    --accent: #FCEDE4;              /* clay-50 */
+    --accent-foreground: #A8451F;   /* clay-700 */
+
+    --destructive: #B6452F;         /* brick-500 */
+    --destructive-foreground: #FFF8F3;
+
+    /* Habit-coaching semantics */
+    --success: #5E8C6A;             /* sage-500 */
+    --success-foreground: #FFF8F3;
+    --streak: #D4942E;              /* amber — "pat yourself" celebration */
+    --streak-foreground: #2E2410;
+    --warning: #D4942E;
+    --warning-foreground: #2E2410;
+
+    --border: #EAE0CF;              /* line */
+    --input: #DDD0BA;               /* line-strong */
+    --ring: #E26B3E;
+
+    --chart-1: #E26B3E;
+    --chart-2: #5B8398;
+    --chart-3: #D4942E;
+    --chart-4: #8A5B79;
+    --chart-5: #5E8C6A;
+
+    --radius: 0.75rem;
+
+    --sidebar: #F4ECDF;
+    --sidebar-foreground: #241F1B;
+    --sidebar-primary: #E26B3E;
+    --sidebar-primary-foreground: #FFF8F3;
+    --sidebar-accent: #FCEDE4;
+    --sidebar-accent-foreground: #A8451F;
+    --sidebar-border: #EAE0CF;
+    --sidebar-ring: #E26B3E;
+}
+
+.dark {
+    /* PatYourSelf "evening session" — warm, dim, never cold black */
+    --background: #1C1815;
+    --foreground: #F3ECE0;
+    --card: #262017;
+    --card-foreground: #F3ECE0;
+    --popover: #262017;
+    --popover-foreground: #F3ECE0;
+
+    --primary: #EE7E50;
+    --primary-foreground: #211009;
+
+    --secondary: #2D261C;
+    --secondary-foreground: #F3ECE0;
+    --muted: #2D261C;
+    --muted-foreground: #A89C8C;
+    --accent: #3A271C;
+    --accent-foreground: #EE7E50;
+
+    --destructive: #D2624A;
+    --destructive-foreground: #211009;
+
+    --success: #7CAE89;
+    --success-foreground: #211009;
+    --streak: #E0AE54;
+    --streak-foreground: #211009;
+    --warning: #E0AE54;
+    --warning-foreground: #211009;
+
+    --border: #352D22;
+    --input: #463C2D;
+    --ring: #EE7E50;
+
+    --chart-1: #EE7E50;
+    --chart-2: #7BA6BB;
+    --chart-3: #E0AE54;
+    --chart-4: #B587A4;
+    --chart-5: #7CAE89;
+
+    --sidebar: #262017;
+    --sidebar-foreground: #F3ECE0;
+    --sidebar-primary: #EE7E50;
+    --sidebar-primary-foreground: #211009;
+    --sidebar-accent: #3A271C;
+    --sidebar-accent-foreground: #EE7E50;
+    --sidebar-border: #352D22;
+    --sidebar-ring: #EE7E50;
+}
+
+@layer base {
+    * {
+        @apply border-border;
+    }
+
+    body {
+        @apply bg-background text-foreground;
+    }
+}
