@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Database\Factories\ActionFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -46,6 +48,17 @@ class Action extends Model
             'scheduled_for' => 'datetime',
             'metadata' => 'array',
         ];
+    }
+
+    /**
+     * Action cards still awaiting a log — the ones a screen surfaces today.
+     *
+     * @param  Builder<Action>  $query
+     */
+    #[Scope]
+    protected function pending(Builder $query): void
+    {
+        $query->whereIn('status', [self::STATUS_PENDING, self::STATUS_ACTIVE]);
     }
 
     /** @return BelongsTo<Intention, $this> */
