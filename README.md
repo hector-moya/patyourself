@@ -81,8 +81,8 @@ sticky header / scroll area / bottom-nav + footer slots.
 - [ ] **3.** Configure SQLite, queues & env/secrets  ← _SQLite is live; queues + env/secrets still to finalize_
 - [x] **4.** Tailwind + base layout/UI system
 - [x] **5.** Design & migrate core schema
-- [ ] **6.** Eloquent models, relationships, factories & seeders
-- [ ] **7.** Provider-agnostic `CoachService` interface + first LLM driver
+- [x] **6.** Eloquent models, relationships, factories & seeders  ← _models + query scopes, factories & the `HabitDataSeeder` graph_
+- [x] **7.** Provider-agnostic `CoachService` interface + first LLM driver  ← _`CoachManager` + Anthropic driver + `FakeCoachService`; smoke-test with `php artisan coach:ping`_
 - [ ] **8.** Intention authoring (LLM → structured JSON)
 - [ ] **9.** Versioned strategy logic (stack-on-success / restrategize-on-failure)
 - [ ] **10.** Rolling-summary pattern detection

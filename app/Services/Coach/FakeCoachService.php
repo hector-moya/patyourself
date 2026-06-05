@@ -61,4 +61,13 @@ class FakeCoachService implements CoachService
             finishReason: 'stop',
         );
     }
+
+    /**
+     * The most recent request the fake received, or null if it was never
+     * called. Handy for asserting what the app sent the coach.
+     */
+    public function lastRequest(): ?CoachRequest
+    {
+        return $this->requests === [] ? null : $this->requests[array_key_last($this->requests)];
+    }
 }

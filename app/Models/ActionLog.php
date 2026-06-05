@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Database\Factories\ActionLogFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -38,6 +40,18 @@ class ActionLog extends Model
             'logged_at' => 'datetime',
             'metadata' => 'array',
         ];
+    }
+
+    /**
+     * Only the failure events — the user-stated reasons that drive a strategy
+     * to restrategize.
+     *
+     * @param  Builder<ActionLog>  $query
+     */
+    #[Scope]
+    protected function failures(Builder $query): void
+    {
+        $query->where('outcome', self::OUTCOME_FAILED);
     }
 
     /** @return BelongsTo<Action, $this> */
