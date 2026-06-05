@@ -15,7 +15,8 @@ use Illuminate\Http\Client\Response;
  */
 class AnthropicCoachService implements CoachService
 {
-    private const API_VERSION = '2023-06-01';
+    /** Default Anthropic API version; override via services.anthropic.version. */
+    private const DEFAULT_API_VERSION = '2023-06-01';
 
     /**
      * @param  array<string, mixed>  $config  The `services.anthropic` config plus shared coach defaults.
@@ -57,7 +58,7 @@ class AnthropicCoachService implements CoachService
             ->baseUrl(rtrim((string) $this->config['base_url'], '/'))
             ->withHeaders([
                 'x-api-key' => $key,
-                'anthropic-version' => self::API_VERSION,
+                'anthropic-version' => $this->config['version'] ?? self::DEFAULT_API_VERSION,
                 'content-type' => 'application/json',
             ])
             ->timeout((int) ($this->config['timeout'] ?? 60))

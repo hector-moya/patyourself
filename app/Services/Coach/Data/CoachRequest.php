@@ -26,13 +26,24 @@ final readonly class CoachRequest
     ) {}
 
     /**
-     * Convenience: a single user prompt with an optional system prompt.
+     * Convenience: a single user prompt with an optional system prompt. The
+     * model/temperature/maxTokens overrides fall back to driver defaults when
+     * left null, exactly like the full constructor.
      */
-    public static function prompt(string $prompt, ?string $system = null, bool $json = false): self
-    {
+    public static function prompt(
+        string $prompt,
+        ?string $system = null,
+        bool $json = false,
+        ?string $model = null,
+        ?float $temperature = null,
+        ?int $maxTokens = null,
+    ): self {
         return new self(
             messages: [Message::user($prompt)],
             system: $system,
+            model: $model,
+            temperature: $temperature,
+            maxTokens: $maxTokens,
             json: $json,
         );
     }

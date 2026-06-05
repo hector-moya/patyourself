@@ -135,6 +135,13 @@ Engine → API → frontend tends to work better than strict numeric order:
   php artisan migrate
   ```
 - Checks: `npm run types:check` · `npm run lint:check` · `vendor/bin/pint`
+- Tests: `php artisan test` (or `composer test`). The data layer (models,
+  relationships, scopes, the `HabitDataSeeder` graph) and the Coach engine
+  are covered.
+- Smoke-test the live coach driver end-to-end:
+  ```bash
+  php artisan coach:ping "Say hello in five words or fewer."
+  ```
 
 > Note: `public/build/` may be owned by `root` from an earlier sudo build,
 > which breaks `npm run build` (EACCES). Fix once with

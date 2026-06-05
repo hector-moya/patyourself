@@ -32,6 +32,9 @@ class Summary extends Model
 
     public const SCOPE_USER = 'user';
 
+    /** Every scope a rolling summary can cover. */
+    public const SCOPES = [self::SCOPE_INTENTION, self::SCOPE_USER];
+
     /** @return array<string, string> */
     protected function casts(): array
     {
@@ -41,6 +44,18 @@ class Summary extends Model
             'events_count' => 'integer',
             'metadata' => 'array',
         ];
+    }
+
+    /** Covers a single loop (and is therefore tied to an intention). */
+    public function isIntentionScope(): bool
+    {
+        return $this->scope === self::SCOPE_INTENTION;
+    }
+
+    /** Spans the whole account, across every loop. */
+    public function isUserScope(): bool
+    {
+        return $this->scope === self::SCOPE_USER;
     }
 
     /** @return BelongsTo<User, $this> */

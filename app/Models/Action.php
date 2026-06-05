@@ -41,6 +41,18 @@ class Action extends Model
 
     public const STATUS_ARCHIVED = 'archived';
 
+    /** Statuses that mean an action card is still awaiting a log. */
+    public const OPEN_STATUSES = [self::STATUS_PENDING, self::STATUS_ACTIVE];
+
+    /** Every status an action can hold. */
+    public const STATUSES = [
+        self::STATUS_PENDING,
+        self::STATUS_ACTIVE,
+        self::STATUS_COMPLETED,
+        self::STATUS_SKIPPED,
+        self::STATUS_ARCHIVED,
+    ];
+
     /** @return array<string, string> */
     protected function casts(): array
     {
@@ -48,6 +60,12 @@ class Action extends Model
             'scheduled_for' => 'datetime',
             'metadata' => 'array',
         ];
+    }
+
+    /** Still awaiting a log — i.e. surfaced as a live action card. */
+    public function isOpen(): bool
+    {
+        return in_array($this->status, self::OPEN_STATUSES, true);
     }
 
     /**
@@ -58,7 +76,7 @@ class Action extends Model
     #[Scope]
     protected function pending(Builder $query): void
     {
-        $query->whereIn('status', [self::STATUS_PENDING, self::STATUS_ACTIVE]);
+        $query->whereIn('status', self::OPEN_STATUSES);
     }
 
     /** @return BelongsTo<Intention, $this> */

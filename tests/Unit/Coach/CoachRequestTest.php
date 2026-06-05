@@ -20,6 +20,24 @@ class CoachRequestTest extends TestCase
         $this->assertTrue($request->json);
     }
 
+    public function test_prompt_forwards_per_request_overrides()
+    {
+        $request = CoachRequest::prompt('hi', model: 'claude-test', temperature: 0.1, maxTokens: 50);
+
+        $this->assertSame('claude-test', $request->model);
+        $this->assertSame(0.1, $request->temperature);
+        $this->assertSame(50, $request->maxTokens);
+    }
+
+    public function test_prompt_leaves_overrides_null_by_default()
+    {
+        $request = CoachRequest::prompt('hi');
+
+        $this->assertNull($request->model);
+        $this->assertNull($request->temperature);
+        $this->assertNull($request->maxTokens);
+    }
+
     public function test_message_payload_excludes_system_turns_by_default()
     {
         $request = new CoachRequest(messages: [
