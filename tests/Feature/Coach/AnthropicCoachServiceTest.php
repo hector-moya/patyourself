@@ -90,6 +90,20 @@ class AnthropicCoachServiceTest extends TestCase
         });
     }
 
+    public function test_the_api_version_header_can_be_overridden_by_config()
+    {
+        Http::fake(['*' => Http::response($this->okBody(), 200)]);
+
+        $driver = new AnthropicCoachService(app(HttpFactory::class), [
+            ...$this->config,
+            'version' => '2099-01-01',
+        ]);
+
+        $driver->chat(CoachRequest::prompt('hello'));
+
+        Http::assertSent(fn (Request $sent) => $sent->hasHeader('anthropic-version', '2099-01-01'));
+    }
+
     public function test_missing_credentials_throws_before_any_request()
     {
         Http::fake();
