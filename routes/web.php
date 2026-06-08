@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ChatController;
+use App\Http\Controllers\IntentionController;
 use Illuminate\Support\Facades\Route;
 
 Route::inertia('/', 'landing')->name('home');
@@ -12,6 +13,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Chat home: message -> coach reply + inline action cards (JSON).
     Route::post('chat', [ChatController::class, 'store'])->name('chat');
+
+    // Intention (loop) writes. The list/detail screens (Tasks 19–20) own the
+    // read views; these writes share the same Actions as the JSON API.
+    Route::resource('intentions', IntentionController::class)
+        ->only(['store', 'update', 'destroy']);
 });
 
 require __DIR__.'/settings.php';

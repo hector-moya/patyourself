@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\IntentionController;
 use Illuminate\Support\Facades\Route;
 
 // Public credential exchange — throttled to blunt password/token brute force.
@@ -10,4 +11,7 @@ Route::post('/auth/token', [AuthController::class, 'issueToken'])
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
     Route::post('/auth/logout', [AuthController::class, 'revokeToken']);
+
+    // Intentions (loops) CRUD — same shared Actions as the web side.
+    Route::apiResource('intentions', IntentionController::class);
 });
