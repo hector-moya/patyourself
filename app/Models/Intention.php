@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
@@ -73,6 +74,29 @@ class Intention extends Model
     public function summaries(): HasMany
     {
         return $this->hasMany(Summary::class);
+    }
+
+    /**
+     * Every completion / failure / skip event across this loop's actions — the
+     * structured archive the rolling summary is built from.
+     *
+     * @return HasManyThrough<ActionLog, Action, $this>
+     */
+    public function actionLogs(): HasManyThrough
+    {
+        return $this->hasManyThrough(ActionLog::class, Action::class);
+    }
+
+    /**
+     * The most recent rolling summary for this loop (if any).
+     *
+     * @return HasOne<Summary, $this>
+     */
+    public function latestSummary(): HasOne
+    {
+        return $this->hasOne(Summary::class)
+            ->where('scope', Summary::SCOPE_INTENTION)
+            ->latestOfMany();
     }
 
     /**
