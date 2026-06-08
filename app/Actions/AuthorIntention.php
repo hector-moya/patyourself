@@ -59,6 +59,7 @@ final readonly class AuthorIntention
                 'approach' => $authored->strategy->approach,
                 'rationale' => $authored->strategy->rationale,
                 'change_reason' => Strategy::REASON_INITIAL,
+                'metadata' => array_filter(['prompt_version' => $authored->promptVersion]),
             ]);
 
             $intention->setRelation('activeStrategy', $intention->activeStrategy()->first());

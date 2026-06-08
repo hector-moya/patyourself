@@ -18,6 +18,7 @@ final readonly class AuthoredSummary
         public string $content,
         public array $patterns,
         public string $model,
+        public ?string $promptVersion = null,
     ) {}
 
     /**
@@ -25,7 +26,7 @@ final readonly class AuthoredSummary
      *
      * @throws SummaryException
      */
-    public static function fromResponse(array $payload, CoachResponse $response): self
+    public static function fromResponse(array $payload, CoachResponse $response, ?string $promptVersion = null): self
     {
         $data = PatternSummarySchema::validate($payload);
 
@@ -33,6 +34,7 @@ final readonly class AuthoredSummary
             content: (string) $data['content'],
             patterns: array_values(array_map('strval', $data['patterns'] ?? [])),
             model: $response->model,
+            promptVersion: $promptVersion,
         );
     }
 
@@ -43,9 +45,10 @@ final readonly class AuthoredSummary
      */
     public function metadata(): array
     {
-        return [
+        return array_filter([
             'model' => $this->model,
+            'prompt_version' => $this->promptVersion,
             'patterns' => $this->patterns,
-        ];
+        ], static fn ($value): bool => $value !== null);
     }
 }

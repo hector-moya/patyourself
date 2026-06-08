@@ -13,17 +13,19 @@ final readonly class AuthoredStrategy
         public string $interventionPoint,
         public string $approach,
         public ?string $rationale = null,
+        public ?string $promptVersion = null,
     ) {}
 
     /**
      * @param  array<string, mixed>  $data  A validated `strategy` sub-array.
      */
-    public static function fromValidated(array $data): self
+    public static function fromValidated(array $data, ?string $promptVersion = null): self
     {
         return new self(
             interventionPoint: (string) $data['intervention_point'],
             approach: (string) $data['approach'],
             rationale: isset($data['rationale']) ? (string) $data['rationale'] : null,
+            promptVersion: $promptVersion,
         );
     }
 }

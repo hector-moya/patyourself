@@ -8,6 +8,7 @@ use App\Services\Coach\Contracts\CoachService;
 use App\Services\Coach\Data\CoachRequest;
 use App\Services\Coach\Data\Message;
 use App\Services\Coach\Exceptions\CoachException;
+use App\Services\Coach\Prompts\CoachPrompts;
 
 /**
  * Authors the *next* version of a strategy with the LLM. Given the current
@@ -57,17 +58,19 @@ final readonly class StrategyReviser
      */
     private function revise(Strategy $current, string $mode, ?string $reason, array $context): AuthoredStrategy
     {
+        $prompt = CoachPrompts::strategyRevision($mode);
+
         $request = new CoachRequest(
             messages: [Message::user($this->userPrompt($current, $mode, $reason, $context))],
-            system: StrategyRevisionSchema::instructions($mode),
+            system: $prompt->system,
             temperature: 0.4,
             json: true,
-            metadata: ['purpose' => 'strategy_revision', 'mode' => $mode],
+            metadata: ['purpose' => 'strategy_revision', 'mode' => $mode, 'prompt_version' => $prompt->version],
         );
 
         $data = StrategyRevisionSchema::validate($this->coach->chat($request)->json());
 
-        return AuthoredStrategy::fromValidated($data);
+        return AuthoredStrategy::fromValidated($data, $prompt->version);
     }
 
     /**

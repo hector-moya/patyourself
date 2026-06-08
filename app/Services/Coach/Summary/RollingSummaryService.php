@@ -9,6 +9,7 @@ use App\Services\Coach\Contracts\CoachService;
 use App\Services\Coach\Data\CoachRequest;
 use App\Services\Coach\Data\Message;
 use App\Services\Coach\Exceptions\CoachException;
+use App\Services\Coach\Prompts\CoachPrompts;
 use Illuminate\Support\Carbon;
 
 /**
@@ -31,18 +32,20 @@ final readonly class RollingSummaryService
      */
     public function summarize(Intention $intention, iterable $events, ?Summary $previous): AuthoredSummary
     {
+        $prompt = CoachPrompts::rollingSummary();
+
         $request = new CoachRequest(
             messages: [Message::user($this->userPrompt($intention, $events, $previous))],
-            system: PatternSummarySchema::instructions(),
+            system: $prompt->system,
             // Summarising is a distillation task — keep it tight and factual.
             temperature: 0.3,
             json: true,
-            metadata: ['purpose' => 'rolling_summary', 'intention_id' => $intention->id],
+            metadata: ['purpose' => 'rolling_summary', 'intention_id' => $intention->id, 'prompt_version' => $prompt->version],
         );
 
         $response = $this->coach->chat($request);
 
-        return AuthoredSummary::fromResponse($response->json(), $response);
+        return AuthoredSummary::fromResponse($response->json(), $response, $prompt->version);
     }
 
     /**

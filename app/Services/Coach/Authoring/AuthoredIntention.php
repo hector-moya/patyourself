@@ -26,6 +26,7 @@ final readonly class AuthoredIntention
         public array $tags,
         public ?AuthoredStrategy $strategy,
         public string $model,
+        public ?string $promptVersion = null,
     ) {}
 
     /**
@@ -35,7 +36,7 @@ final readonly class AuthoredIntention
      *
      * @throws IntentionAuthoringException
      */
-    public static function fromResponse(array $payload, CoachResponse $response): self
+    public static function fromResponse(array $payload, CoachResponse $response, ?string $promptVersion = null): self
     {
         $data = IntentionSchema::validate($payload);
 
@@ -50,9 +51,10 @@ final readonly class AuthoredIntention
             confidence: isset($data['confidence']) ? (float) $data['confidence'] : null,
             tags: array_values(array_map('strval', $data['tags'] ?? [])),
             strategy: isset($data['strategy'])
-                ? AuthoredStrategy::fromValidated($data['strategy'])
+                ? AuthoredStrategy::fromValidated($data['strategy'], $promptVersion)
                 : null,
             model: $response->model,
+            promptVersion: $promptVersion,
         );
     }
 
@@ -66,6 +68,7 @@ final readonly class AuthoredIntention
     {
         return array_filter([
             'authored_by' => $this->model,
+            'prompt_version' => $this->promptVersion,
             'confidence' => $this->confidence,
             'tags' => $this->tags === [] ? null : $this->tags,
         ], static fn ($value): bool => $value !== null);

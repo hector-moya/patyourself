@@ -95,13 +95,14 @@ final readonly class ReviseStrategy
             'rationale' => $next->rationale,
             'parent_strategy_id' => $current->id,
             'change_reason' => $changeReason,
-            'metadata' => [
+            'metadata' => array_filter([
                 'previous_point' => $current->intervention_point,
                 'direction' => BehavioralChain::direction(
                     $current->intervention_point,
                     $next->interventionPoint,
                 ),
-            ],
+                'prompt_version' => $next->promptVersion,
+            ], static fn ($value): bool => $value !== null),
         ]);
     }
 }

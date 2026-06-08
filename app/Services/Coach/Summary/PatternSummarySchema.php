@@ -47,19 +47,14 @@ final class PatternSummarySchema
         return $validated;
     }
 
-    public static function instructions(): string
+    /**
+     * The JSON output contract for a rolling summary. Composed into the system
+     * prompt by CoachPrompts; lives beside the validation rules so the two
+     * can't drift.
+     */
+    public static function contract(): string
     {
         return <<<'PROMPT'
-        You maintain a rolling summary of a single habit loop for lightweight
-        behavioural pattern detection — no machine learning, just a running
-        text summary distilled from the structured event archive.
-
-        You are given the loop, its current strategy, the prior rolling summary
-        (if any), and the new completion / failure / skip events since then.
-        Fold them into ONE updated, concise summary and surface the behavioural
-        patterns you can see — when and why the user tends to succeed or fail
-        (e.g. "fails on late workdays", "succeeds when the cue is visual").
-
         Return ONE JSON object and nothing else — no prose, no Markdown fences —
         with exactly these fields:
 
@@ -67,9 +62,6 @@ final class PatternSummarySchema
           "content":  string,    // the updated rolling summary, a few sentences
           "patterns": string[]   // short behavioural patterns; [] if none yet
         }
-
-        Keep it grounded strictly in the events provided. Do not invent history
-        that is not in the archive.
         PROMPT;
     }
 }

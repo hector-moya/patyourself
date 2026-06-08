@@ -90,19 +90,16 @@ final class IntentionSchema
     }
 
     /**
-     * The instructions embedded in the coach's system prompt. Describes the
-     * exact JSON shape the model must return — and nothing but that JSON.
+     * The JSON output contract — the exact shape the model must return, and
+     * nothing but that JSON. Composed into the system prompt by CoachPrompts;
+     * lives here beside the validation rules so the two can't drift.
      */
-    public static function instructions(): string
+    public static function contract(): string
     {
         $types = implode(' | ', self::TYPES);
         $points = implode(' | ', self::INTERVENTION_POINTS);
 
         return <<<PROMPT
-        You are PatYourSelf's habit coach. The user describes a habit they want
-        to build or break. Author a single structured "Intention" — a habit loop
-        modelled on the Atomic Habits chain (cue -> craving -> response -> reward).
-
         Return ONE JSON object and nothing else — no prose, no Markdown fences —
         with exactly these fields:
 
@@ -122,13 +119,6 @@ final class IntentionSchema
             "rationale": string   // why intervening there should help
           }
         }
-
-        Rules:
-        - For a "break" loop, cue/craving/response/reward describe the UNWANTED
-          loop as it happens today; the strategy is how to disrupt it.
-        - Pick the single intervention_point most likely to move the behaviour.
-        - Keep every field grounded in what the user actually said; do not invent
-          unrelated specifics.
         PROMPT;
     }
 }

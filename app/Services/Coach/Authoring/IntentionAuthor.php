@@ -6,6 +6,7 @@ use App\Services\Coach\Contracts\CoachService;
 use App\Services\Coach\Data\CoachRequest;
 use App\Services\Coach\Data\Message;
 use App\Services\Coach\Exceptions\CoachException;
+use App\Services\Coach\Prompts\CoachPrompts;
 
 /**
  * Turns a user's free-text habit goal into a validated, structured Intention.
@@ -28,18 +29,20 @@ final readonly class IntentionAuthor
      */
     public function author(string $goal, array $context = []): AuthoredIntention
     {
+        $prompt = CoachPrompts::intentionAuthoring();
+
         $request = new CoachRequest(
             messages: [Message::user($this->userPrompt($goal, $context))],
-            system: IntentionSchema::instructions(),
+            system: $prompt->system,
             // Lower temperature: authoring is a structuring task, not a creative one.
             temperature: 0.4,
             json: true,
-            metadata: ['purpose' => 'intention_authoring'],
+            metadata: ['purpose' => 'intention_authoring', 'prompt_version' => $prompt->version],
         );
 
         $response = $this->coach->chat($request);
 
-        return AuthoredIntention::fromResponse($response->json(), $response);
+        return AuthoredIntention::fromResponse($response->json(), $response, $prompt->version);
     }
 
     /**
