@@ -79,6 +79,11 @@ class AnthropicCoachService implements CoachService
 
         $data = $response->json();
 
+        // A 200 with a non-JSON (or empty) body is still unusable to us.
+        if (! is_array($data)) {
+            throw CoachException::emptyResponse($this->name());
+        }
+
         // Concatenate all text blocks in the content array.
         $content = collect($data['content'] ?? [])
             ->where('type', 'text')
@@ -95,7 +100,7 @@ class AnthropicCoachService implements CoachService
             promptTokens: (int) ($data['usage']['input_tokens'] ?? 0),
             completionTokens: (int) ($data['usage']['output_tokens'] ?? 0),
             finishReason: $data['stop_reason'] ?? null,
-            raw: is_array($data) ? $data : [],
+            raw: $data,
         );
     }
 }

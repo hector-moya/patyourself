@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Database\Factories\IntentionFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -50,6 +52,18 @@ class Intention extends Model
         return [
             'metadata' => 'array',
         ];
+    }
+
+    /**
+     * Only the loops a user is currently working — excludes paused, archived
+     * and completed ones.
+     *
+     * @param  Builder<Intention>  $query
+     */
+    #[Scope]
+    protected function active(Builder $query): void
+    {
+        $query->where('status', self::STATUS_ACTIVE);
     }
 
     /** @return BelongsTo<User, $this> */

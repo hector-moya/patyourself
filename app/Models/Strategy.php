@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Database\Factories\StrategyFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -59,6 +61,28 @@ class Strategy extends Model
             'version' => 'integer',
             'metadata' => 'array',
         ];
+    }
+
+    /**
+     * The live version(s) — those not yet superseded or retired.
+     *
+     * @param  Builder<Strategy>  $query
+     */
+    #[Scope]
+    protected function active(Builder $query): void
+    {
+        $query->where('status', self::STATUS_ACTIVE);
+    }
+
+    /**
+     * Oldest version first — the order a strategy's history reads in.
+     *
+     * @param  Builder<Strategy>  $query
+     */
+    #[Scope]
+    protected function orderedByVersion(Builder $query): void
+    {
+        $query->orderBy('version');
     }
 
     /** @return BelongsTo<Intention, $this> */
