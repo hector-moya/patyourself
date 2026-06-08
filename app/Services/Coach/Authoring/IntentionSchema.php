@@ -96,13 +96,20 @@ final class IntentionSchema
      */
     public static function contract(): string
     {
+        return 'Return ONE JSON object and nothing else — no prose, no Markdown fences — '
+            ."with exactly these fields:\n\n".self::fields();
+    }
+
+    /**
+     * Just the Intention field block, so it can be embedded inside other
+     * contracts (e.g. an Intention card nested in a chat reply).
+     */
+    public static function fields(): string
+    {
         $types = implode(' | ', self::TYPES);
         $points = implode(' | ', self::INTERVENTION_POINTS);
 
         return <<<PROMPT
-        Return ONE JSON object and nothing else — no prose, no Markdown fences —
-        with exactly these fields:
-
         {
           "title":       string,  // short, concrete name for the loop
           "description": string,  // one or two sentences on the loop and why it matters

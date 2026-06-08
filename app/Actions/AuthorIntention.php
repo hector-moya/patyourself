@@ -25,13 +25,15 @@ final readonly class AuthorIntention
 
     /**
      * @param  array<string, mixed>  $context  Optional extra signal for the prompt.
+     * @param  AuthoredIntention|null  $authored  A pre-authored loop (e.g. from the
+     *                                            chat flow); when null the coach authors one.
      *
      * @throws CoachException
      * @throws IntentionAuthoringException
      */
-    public function handle(User $user, string $goal, array $context = []): Intention
+    public function handle(User $user, string $goal, array $context = [], ?AuthoredIntention $authored = null): Intention
     {
-        $authored = $this->author->author($goal, $context);
+        $authored ??= $this->author->author($goal, $context);
 
         return DB::transaction(fn (): Intention => $this->persist($user, $authored));
     }

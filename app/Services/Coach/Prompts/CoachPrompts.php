@@ -3,6 +3,7 @@
 namespace App\Services\Coach\Prompts;
 
 use App\Services\Coach\Authoring\IntentionSchema;
+use App\Services\Coach\Chat\ChatReplySchema;
 use App\Services\Coach\Strategy\StrategyRevisionSchema;
 use App\Services\Coach\Summary\PatternSummarySchema;
 
@@ -49,6 +50,15 @@ final class CoachPrompts
             'rolling-summary',
             'rolling-summary@1',
             self::compose(self::summaryFraming(), PatternSummarySchema::contract()),
+        );
+    }
+
+    public static function chat(): CoachPrompt
+    {
+        return new CoachPrompt(
+            'chat',
+            'chat@1',
+            self::compose(self::chatFraming(), ChatReplySchema::contract()),
         );
     }
 
@@ -112,6 +122,18 @@ final class CoachPrompts
         response -> reward chain to a point that addresses why it failed — e.g. if
         the response was too hard, intervene earlier on the cue; if motivation was
         missing, intervene on the craving.
+        TXT;
+    }
+
+    private static function chatFraming(): string
+    {
+        return <<<'TXT'
+        Task: talk with the user about their habits on the chat home screen.
+        Reply conversationally — warm, concrete, and brief. When the user
+        describes a habit they want to build or break and you have enough to act,
+        ALSO author a structured Intention as an action card the UI renders
+        inline; otherwise keep the card null and simply continue the conversation
+        (ask one clarifying question if you need more).
         TXT;
     }
 
