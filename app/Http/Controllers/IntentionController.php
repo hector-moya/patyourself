@@ -29,7 +29,11 @@ class IntentionController extends Controller
         $intentions = $request->user()->intentions()
             ->with('activeStrategy')
             ->latest()
-            ->get();
+            ->get()
+            // Surface the loops the user is actively working first; the rest
+            // (paused / completed / archived) settle below, newest-first within.
+            ->sortBy(fn (Intention $intention): int => $intention->status === Intention::STATUS_ACTIVE ? 0 : 1)
+            ->values();
 
         return Inertia::render('intentions/index', [
             'intentions' => IntentionResource::collection($intentions)->resolve(),

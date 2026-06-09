@@ -1,7 +1,9 @@
 import { Link } from '@inertiajs/react';
 
 import CoachLayout from '@/layouts/coach-layout';
+import { cn } from '@/lib/utils';
 import { BottomNav } from '@/patyourself/bottom-nav';
+import { Icon } from '@/patyourself/primitives';
 import type { IntentionData } from '@/patyourself/types';
 
 interface LoopsIndexProps {
@@ -9,51 +11,102 @@ interface LoopsIndexProps {
 }
 
 /**
- * Loops list — every loop the user is working, linking through to its detail
- * screen. The habit-anatomy and richer card treatment land in Task 19; this is
- * the routed, navigable scaffold the rest of the app hangs off.
+ * Loops list — every loop the user is working, status at a glance, each tapping
+ * through to its detail screen. Active loops surface first (ordered server-side).
  */
 export default function LoopsIndex({ intentions }: LoopsIndexProps) {
+    const activeCount = intentions.filter(
+        (loop) => loop.status === 'active',
+    ).length;
+
     return (
         <CoachLayout title="Loops" bottomNav={<BottomNav />}>
             {intentions.length === 0 ? (
                 <EmptyState />
             ) : (
-                <ul className="flex flex-col gap-3">
-                    {intentions.map((loop) => (
-                        <li key={loop.id}>
-                            <LoopRow loop={loop} />
-                        </li>
-                    ))}
-                </ul>
+                <>
+                    <p className="mb-3 text-sm text-muted-foreground">
+                        {intentions.length}{' '}
+                        {intentions.length === 1 ? 'loop' : 'loops'}
+                        {activeCount > 0 && ` · ${activeCount} active`}
+                    </p>
+                    <ul className="flex flex-col gap-2">
+                        {intentions.map((loop) => (
+                            <li key={loop.id}>
+                                <LoopRow loop={loop} />
+                            </li>
+                        ))}
+                    </ul>
+                </>
             )}
         </CoachLayout>
     );
 }
 
 function LoopRow({ loop }: { loop: IntentionData }) {
+    const build = loop.type === 'build';
+    const tactic = loop.strategy?.approach ?? loop.response;
+
     return (
         <Link
             href={`/intentions/${loop.id}`}
-            className="block rounded-xl border border-border bg-card p-4 transition-colors hover:border-foreground/20 hover:bg-accent/40"
+            className="flex items-center gap-3 rounded-xl border border-border bg-card p-3 transition-colors hover:border-foreground/20 hover:bg-accent/40"
         >
-            <div className="flex items-center justify-between gap-3">
-                <h2 className="truncate font-semibold text-foreground">
-                    {loop.title}
-                </h2>
-                <span className="shrink-0 rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground capitalize">
-                    {loop.type}
+            <span
+                className={cn(
+                    'flex size-9 shrink-0 items-center justify-center rounded-lg',
+                    build
+                        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                        : 'bg-rose-500/10 text-rose-600 dark:text-rose-400',
+                )}
+                aria-hidden="true"
+            >
+                <Icon
+                    name={build ? 'trending-up' : 'trending-down'}
+                    size={18}
+                />
+            </span>
+
+            <span className="min-w-0 flex-1">
+                <span className="flex items-center gap-2">
+                    <span className="truncate font-semibold text-foreground">
+                        {loop.title}
+                    </span>
+                    {loop.strategy && (
+                        <span className="shrink-0 rounded border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground capitalize">
+                            {loop.strategy.intervention_point}
+                        </span>
+                    )}
                 </span>
-            </div>
-            {loop.strategy && (
-                <p className="mt-1 truncate text-sm text-muted-foreground">
-                    {loop.strategy.approach}
-                </p>
-            )}
-            <p className="mt-2 text-xs text-muted-foreground/80 capitalize">
-                {loop.status}
-            </p>
+                <span className="mt-0.5 block truncate text-sm text-muted-foreground">
+                    {tactic}
+                </span>
+            </span>
+
+            <StatusPill status={loop.status} />
         </Link>
+    );
+}
+
+const STATUS_DOT: Record<string, string> = {
+    active: 'bg-emerald-500',
+    paused: 'bg-amber-500',
+    completed: 'bg-sky-500',
+    archived: 'bg-zinc-400',
+};
+
+function StatusPill({ status }: { status: string }) {
+    return (
+        <span className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground capitalize">
+            <span
+                className={cn(
+                    'size-2 rounded-full',
+                    STATUS_DOT[status] ?? 'bg-zinc-400',
+                )}
+                aria-hidden="true"
+            />
+            {status}
+        </span>
     );
 }
 

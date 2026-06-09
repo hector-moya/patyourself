@@ -64,6 +64,22 @@ class IntentionScreensTest extends TestCase
             );
     }
 
+    public function test_loops_list_surfaces_active_loops_first(): void
+    {
+        $user = User::factory()->create();
+        $archived = Intention::factory()->for($user)->create(['status' => Intention::STATUS_ARCHIVED]);
+        $active = Intention::factory()->for($user)->create(['status' => Intention::STATUS_ACTIVE]);
+
+        $this->actingAs($user)
+            ->get('/intentions')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('intentions/index')
+                ->where('intentions.0.id', $active->id)
+                ->where('intentions.1.id', $archived->id)
+            );
+    }
+
     public function test_loop_detail_renders_the_loop_and_its_strategy_history(): void
     {
         $user = User::factory()->create();
