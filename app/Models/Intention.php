@@ -124,4 +124,18 @@ class Intention extends Model
             ->where('status', Strategy::STATUS_ACTIVE)
             ->latestOfMany('version');
     }
+
+    /**
+     * The one action a card can log right now — the most recent action still
+     * awaiting an outcome (pending or active). Completed / skipped actions are
+     * closed out, so they never surface as the loggable one.
+     *
+     * @return HasOne<Action, $this>
+     */
+    public function activeAction(): HasOne
+    {
+        return $this->hasOne(Action::class)
+            ->whereIn('status', [Action::STATUS_PENDING, Action::STATUS_ACTIVE])
+            ->latestOfMany();
+    }
 }

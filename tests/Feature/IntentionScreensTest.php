@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Action;
 use App\Models\Intention;
 use App\Models\Strategy;
 use App\Models\User;
@@ -41,6 +42,44 @@ class IntentionScreensTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('coach')
                 ->has('intentions', 2)
+            );
+    }
+
+    public function test_chat_home_exposes_each_loops_loggable_active_action(): void
+    {
+        $user = User::factory()->create();
+        $intention = Intention::factory()->for($user)->create(['status' => Intention::STATUS_ACTIVE]);
+
+        // An already-logged action must not be the loggable one.
+        Action::factory()->for($intention)->create(['status' => Action::STATUS_COMPLETED]);
+        $pending = Action::factory()->for($intention)->create([
+            'status' => Action::STATUS_ACTIVE,
+            'title' => 'Set your shoes by the door',
+        ]);
+
+        $this->actingAs($user)
+            ->get('/dashboard')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('coach')
+                ->where('intentions.0.active_action.id', $pending->id)
+                ->where('intentions.0.active_action.title', 'Set your shoes by the door')
+                ->where('intentions.0.active_action.status', Action::STATUS_ACTIVE)
+            );
+    }
+
+    public function test_chat_home_exposes_a_null_active_action_when_none_is_pending(): void
+    {
+        $user = User::factory()->create();
+        $intention = Intention::factory()->for($user)->create(['status' => Intention::STATUS_ACTIVE]);
+        Action::factory()->for($intention)->create(['status' => Action::STATUS_COMPLETED]);
+
+        $this->actingAs($user)
+            ->get('/dashboard')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('coach')
+                ->where('intentions.0.active_action', null)
             );
     }
 

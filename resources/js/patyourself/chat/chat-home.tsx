@@ -1,43 +1,142 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { cn } from '@/lib/utils';
-import type { ChatMessage, IntentionData } from '@/patyourself/types';
+import type {
+    ChatMessage,
+    IntentionData,
+    LogOutcome,
+} from '@/patyourself/types';
 import { ActionCard } from './action-card';
+import { httpCoachClient } from './coach-client';
+import type { CoachClient, CoachTurn } from './coach-client';
 
 let counter = 0;
 const nextId = (): string => `m${++counter}`;
 
+const FALLBACK_REPLY =
+    "I couldn't reach the coach just now — give that another try in a moment.";
+
 /**
- * The chat thread state. Seeds a greeting plus one inline action card per
- * active loop, and handles sending: the user turn appends immediately and a
- * stubbed coach turn follows after a short beat.
+ * The chat thread. Seeds a greeting plus one inline action card per active loop,
+ * then drives the live loop: a sent message posts to the coach (POST /chat) and
+ * appends the reply plus any authored cards; logging an outcome posts to the
+ * action's log endpoint and reflects the result back as a new coaching turn.
  *
- * The stub is the swappable seam — Task 22 replaces `replyTo` with a real
- * POST /chat round-trip that returns the coach's reply and any authored cards.
+ * All I/O goes through an injected {@see CoachClient}, so this hook stays pure
+ * UI state and is exercised in tests with a fake client.
  */
-export function useChatThread(initialIntentions: IntentionData[]) {
+export function useChatThread(
+    initialIntentions: IntentionData[],
+    client: CoachClient = httpCoachClient,
+) {
     const [messages, setMessages] = useState<ChatMessage[]>(() =>
         seedThread(initialIntentions),
     );
 
-    const send = useCallback((raw: string) => {
-        const text = raw.trim();
+    // Mirror committed messages so a turn can read prior history without
+    // threading it through every call.
+    const historyRef = useRef<ChatMessage[]>(messages);
+    useEffect(() => {
+        historyRef.current = messages;
+    }, [messages]);
 
-        if (!text) {
-            return;
-        }
+    const converse = useCallback(
+        async (text: string): Promise<void> => {
+            const trimmed = text.trim();
 
-        setMessages((prev) => [...prev, { id: nextId(), role: 'user', text }]);
+            if (!trimmed) {
+                return;
+            }
 
-        window.setTimeout(() => {
+            const history = toHistory(historyRef.current);
+
             setMessages((prev) => [
                 ...prev,
-                { id: nextId(), role: 'coach', text: replyTo() },
+                { id: nextId(), role: 'user', text: trimmed },
             ]);
-        }, 320);
-    }, []);
 
-    return { messages, send };
+            try {
+                const reply = await client.sendMessage(trimmed, history);
+
+                setMessages((prev) => [
+                    ...prev,
+                    { id: nextId(), role: 'coach', text: reply.message },
+                    ...reply.cards.map(
+                        (card): ChatMessage => ({
+                            id: nextId(),
+                            role: 'card',
+                            intention: card.intention,
+                        }),
+                    ),
+                ]);
+            } catch {
+                setMessages((prev) => [
+                    ...prev,
+                    { id: nextId(), role: 'coach', text: FALLBACK_REPLY },
+                ]);
+            }
+        },
+        [client],
+    );
+
+    const send = useCallback(
+        (raw: string): void => {
+            void converse(raw);
+        },
+        [converse],
+    );
+
+    const log = useCallback(
+        async (
+            intention: IntentionData,
+            outcome: LogOutcome,
+            reason?: string,
+        ): Promise<void> => {
+            const action = intention.active_action;
+
+            if (!action) {
+                return;
+            }
+
+            await client.logOutcome(action.id, outcome, reason);
+            await converse(acknowledgement(action.title, outcome, reason));
+        },
+        [client, converse],
+    );
+
+    return { messages, send, log };
+}
+
+/** Map the visible thread to the role/content history the coach expects. */
+function toHistory(messages: ChatMessage[]): CoachTurn[] {
+    return messages
+        .flatMap((message): CoachTurn[] =>
+            message.role === 'card'
+                ? []
+                : [
+                      {
+                          role: message.role === 'user' ? 'user' : 'assistant',
+                          content: message.text,
+                      },
+                  ],
+        )
+        .slice(-50);
+}
+
+/** The user-voiced note that reflects a logged outcome back to the coach. */
+function acknowledgement(
+    title: string,
+    outcome: LogOutcome,
+    reason?: string,
+): string {
+    switch (outcome) {
+        case 'completed':
+            return `Done: ${title}`;
+        case 'skipped':
+            return `Skipping: ${title}`;
+        case 'failed':
+            return reason ? `Missed: ${title} — ${reason}` : `Missed: ${title}`;
+    }
 }
 
 function seedThread(intentions: IntentionData[]): ChatMessage[] {
@@ -58,24 +157,55 @@ function seedThread(intentions: IntentionData[]): ChatMessage[] {
     return [greeting, ...cards];
 }
 
-/** Placeholder coach reply until the real coach is wired in Task 22. */
-function replyTo(): string {
-    return 'Heard. Want me to pull up a specific loop, or keep talking?';
-}
-
-export function ChatThread({ messages }: { messages: ChatMessage[] }) {
+export function ChatThread({
+    messages,
+    onLog,
+}: {
+    messages: ChatMessage[];
+    onLog?: (
+        intention: IntentionData,
+        outcome: LogOutcome,
+        reason?: string,
+    ) => void;
+}) {
     const endRef = useRef<HTMLDivElement>(null);
+    // The loop currently awaiting a failure reason, if any.
+    const [reasonFor, setReasonFor] = useState<IntentionData | null>(null);
 
     useEffect(() => {
         endRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages.length]);
+
+    const handleOutcome = (
+        intention: IntentionData,
+        outcome: LogOutcome,
+    ): void => {
+        if (outcome === 'failed') {
+            setReasonFor(intention);
+
+            return;
+        }
+
+        onLog?.(intention, outcome, undefined);
+    };
 
     return (
         <div className="flex flex-col gap-3">
             {messages.map((message) =>
                 message.role === 'card' ? (
                     <div key={message.id} className="flex justify-start">
-                        <ActionCard intention={message.intention} />
+                        <ActionCard
+                            intention={message.intention}
+                            onLog={
+                                onLog && message.intention.active_action
+                                    ? (outcome) =>
+                                          handleOutcome(
+                                              message.intention,
+                                              outcome,
+                                          )
+                                    : undefined
+                            }
+                        />
                     </div>
                 ) : (
                     <Bubble key={message.id} role={message.role}>
@@ -83,8 +213,79 @@ export function ChatThread({ messages }: { messages: ChatMessage[] }) {
                     </Bubble>
                 ),
             )}
+
+            {reasonFor && (
+                <ReasonPrompt
+                    title={reasonFor.title}
+                    onCancel={() => setReasonFor(null)}
+                    onSubmit={(reason) => {
+                        onLog?.(reasonFor, 'failed', reason);
+                        setReasonFor(null);
+                    }}
+                />
+            )}
+
             <div ref={endRef} />
         </div>
+    );
+}
+
+function ReasonPrompt({
+    title,
+    onSubmit,
+    onCancel,
+}: {
+    title: string;
+    onSubmit: (reason: string) => void;
+    onCancel: () => void;
+}) {
+    const [reason, setReason] = useState('');
+
+    const submit = (event: React.FormEvent) => {
+        event.preventDefault();
+        const trimmed = reason.trim();
+
+        if (trimmed) {
+            onSubmit(trimmed);
+        }
+    };
+
+    return (
+        <form
+            onSubmit={submit}
+            className="max-w-[85%] rounded-2xl border border-border bg-card p-3"
+        >
+            <label
+                htmlFor="log-reason"
+                className="text-xs font-medium text-muted-foreground"
+            >
+                What got in the way of “{title}”?
+            </label>
+            <input
+                id="log-reason"
+                type="text"
+                value={reason}
+                onChange={(event) => setReason(event.target.value)}
+                placeholder="A word or two is plenty…"
+                className="mt-2 h-9 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-foreground/30"
+            />
+            <div className="mt-2 flex justify-end gap-2">
+                <button
+                    type="button"
+                    onClick={onCancel}
+                    className="rounded-lg px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground"
+                >
+                    Cancel
+                </button>
+                <button
+                    type="submit"
+                    disabled={!reason.trim()}
+                    className="rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-40"
+                >
+                    Save
+                </button>
+            </div>
+        </form>
     );
 }
 

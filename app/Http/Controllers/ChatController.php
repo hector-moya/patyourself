@@ -26,7 +26,7 @@ class ChatController extends Controller
     {
         $intentions = $request->user()->intentions()
             ->active()
-            ->with('activeStrategy')
+            ->with(['activeStrategy', 'activeAction'])
             ->latest()
             ->get();
 
@@ -58,7 +58,7 @@ class ChatController extends Controller
             return [];
         }
 
-        $result->intention->loadMissing('activeStrategy');
+        $result->intention->loadMissing(['activeStrategy', 'activeAction']);
 
         return [[
             'type' => 'intention',

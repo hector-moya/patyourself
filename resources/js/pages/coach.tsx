@@ -16,11 +16,11 @@ interface CoachProps {
 /**
  * Chat home — the primary daily-driver screen. A message thread with inline
  * action cards (rendered from the user's LLM-authored loops) and a composer,
- * inside the shared CoachLayout shell. Sending is stubbed locally; Task 22
- * wires it to the live coach (POST /chat).
+ * inside the shared CoachLayout shell. Messages post to the live coach
+ * (POST /chat) and quick-log taps post to the action's log endpoint.
  */
 export default function Coach({ intentions }: CoachProps) {
-    const { messages, send } = useChatThread(intentions);
+    const { messages, send, log } = useChatThread(intentions);
 
     return (
         <CoachLayout
@@ -29,7 +29,7 @@ export default function Coach({ intentions }: CoachProps) {
             bottomNav={<BottomNav />}
         >
             <Head title="Coach" />
-            <ChatThread messages={messages} />
+            <ChatThread messages={messages} onLog={log} />
         </CoachLayout>
     );
 }

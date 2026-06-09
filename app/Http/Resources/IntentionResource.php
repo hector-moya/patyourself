@@ -39,6 +39,13 @@ class IntentionResource extends JsonResource
                 'rationale' => $this->activeStrategy->rationale,
                 'version' => $this->activeStrategy->version,
             ]),
+            // The loggable action a card posts an outcome against (null when the
+            // loop has no open action). Only embedded when eager-loaded.
+            'active_action' => $this->whenLoaded('activeAction', fn () => $this->activeAction === null ? null : [
+                'id' => $this->activeAction->id,
+                'title' => $this->activeAction->title,
+                'status' => $this->activeAction->status,
+            ]),
         ];
     }
 }

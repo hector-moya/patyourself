@@ -27,6 +27,13 @@ export interface ActiveStrategySummary {
     version: number;
 }
 
+/** The loggable action embedded in an IntentionResource (the card's quick-log target). */
+export interface ActiveActionData {
+    id: number;
+    title: string;
+    status: string;
+}
+
 export interface IntentionData {
     id: number;
     title: string;
@@ -41,6 +48,7 @@ export interface IntentionData {
     created_at: string | null;
     updated_at: string | null;
     strategy?: ActiveStrategySummary | null;
+    active_action?: ActiveActionData | null;
 }
 
 /**
