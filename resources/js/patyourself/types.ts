@@ -44,6 +44,12 @@ export interface IntentionData {
 }
 
 /**
+ * The outcome a user records against an action. Mirrors ActionLog's
+ * OUTCOME_* constants on the server (the only values LogAction accepts).
+ */
+export type LogOutcome = 'completed' | 'failed' | 'skipped';
+
+/**
  * One item in the chat thread. Coach/user turns are text; a `card` turn renders
  * an inline action card from an LLM-authored Intention object. The same shape
  * carries both the loops seeded on load and the ones the coach authors live.
