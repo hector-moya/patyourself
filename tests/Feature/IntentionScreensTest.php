@@ -28,14 +28,20 @@ class IntentionScreensTest extends TestCase
         $this->withoutVite();
     }
 
-    public function test_chat_home_renders_the_coach_screen(): void
+    public function test_chat_home_renders_the_coach_screen_with_active_loops(): void
     {
         $user = User::factory()->create();
+        Intention::factory()->count(2)->for($user)->create(['status' => Intention::STATUS_ACTIVE]);
+        Intention::factory()->for($user)->create(['status' => Intention::STATUS_ARCHIVED]);
+        Intention::factory()->create(); // another user's
 
         $this->actingAs($user)
             ->get('/dashboard')
             ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page->component('coach'));
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('coach')
+                ->has('intentions', 2)
+            );
     }
 
     public function test_guests_are_redirected_from_the_loops_list(): void

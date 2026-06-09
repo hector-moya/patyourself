@@ -4,17 +4,37 @@ namespace App\Http\Controllers;
 
 use App\Actions\RespondToChat;
 use App\Http\Requests\ChatRequest;
-use App\Models\Intention;
+use App\Http\Resources\IntentionResource;
 use App\Services\Coach\Chat\ChatResult;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Inertia\Response;
 
 /**
- * The chat home screen endpoint: takes a user message, runs it through the
- * coach, and returns the reply plus any structured action cards (authored
- * Intention loops) to render inline.
+ * The chat home screen: renders the daily-driver thread, and the endpoint that
+ * runs a user message through the coach and returns the reply plus any
+ * structured action cards (LLM-authored Intention loops) to render inline.
+ *
+ * Action cards — both the loops seeded on load and the ones the coach authors
+ * mid-conversation — share one shape (IntentionResource), so the UI renders
+ * them identically.
  */
 class ChatController extends Controller
 {
+    public function home(Request $request): Response
+    {
+        $intentions = $request->user()->intentions()
+            ->active()
+            ->with('activeStrategy')
+            ->latest()
+            ->get();
+
+        return Inertia::render('coach', [
+            'intentions' => IntentionResource::collection($intentions)->resolve(),
+        ]);
+    }
+
     public function store(ChatRequest $request, RespondToChat $respond): JsonResponse
     {
         $result = $respond->handle(
@@ -38,37 +58,11 @@ class ChatController extends Controller
             return [];
         }
 
+        $result->intention->loadMissing('activeStrategy');
+
         return [[
             'type' => 'intention',
-            'intention' => $this->intentionCard($result->intention),
+            'intention' => (new IntentionResource($result->intention))->resolve(),
         ]];
-    }
-
-    /**
-     * A lightweight inline card payload. Full API resources arrive in Task 16.
-     *
-     * @return array<string, mixed>
-     */
-    private function intentionCard(Intention $intention): array
-    {
-        $strategy = $intention->activeStrategy;
-
-        return [
-            'id' => $intention->id,
-            'title' => $intention->title,
-            'description' => $intention->description,
-            'type' => $intention->type,
-            'status' => $intention->status,
-            'cue' => $intention->cue,
-            'craving' => $intention->craving,
-            'response' => $intention->response,
-            'reward' => $intention->reward,
-            'metadata' => $intention->metadata,
-            'strategy' => $strategy === null ? null : [
-                'intervention_point' => $strategy->intervention_point,
-                'approach' => $strategy->approach,
-                'rationale' => $strategy->rationale,
-            ],
-        ];
     }
 }

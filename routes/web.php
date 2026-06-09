@@ -8,11 +8,12 @@ use Illuminate\Support\Facades\Route;
 Route::inertia('/', 'landing')->name('home');
 
 Route::middleware(['auth', 'verified'])->group(function () {
-    // The PatYourSelf app (Coach + Loops). Named `dashboard` so Fortify's
-    // post-login redirect (config/fortify.php → home) lands here.
-    Route::inertia('dashboard', 'coach')->name('dashboard');
+    // Chat home (the daily-driver screen). Named `dashboard` so Fortify's
+    // post-login redirect (config/fortify.php → home) lands here. The screen
+    // is seeded with the user's active loops as inline action cards.
+    Route::get('dashboard', [ChatController::class, 'home'])->name('dashboard');
 
-    // Chat home: message -> coach reply + inline action cards (JSON).
+    // Chat turn: message -> coach reply + inline action cards (JSON).
     Route::post('chat', [ChatController::class, 'store'])->name('chat');
 
     // Intentions (loops): the list + detail screens and the write endpoints,

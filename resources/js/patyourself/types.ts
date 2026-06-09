@@ -42,3 +42,12 @@ export interface IntentionData {
     updated_at: string | null;
     strategy?: ActiveStrategySummary | null;
 }
+
+/**
+ * One item in the chat thread. Coach/user turns are text; a `card` turn renders
+ * an inline action card from an LLM-authored Intention object. The same shape
+ * carries both the loops seeded on load and the ones the coach authors live.
+ */
+export type ChatMessage =
+    | { id: string; role: 'coach' | 'user'; text: string }
+    | { id: string; role: 'card'; intention: IntentionData };
