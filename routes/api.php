@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\ActionLogController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\IntentionController;
+use App\Http\Controllers\Api\StrategyController;
 use Illuminate\Support\Facades\Route;
 
 // Public credential exchange — throttled to blunt password/token brute force.
@@ -19,4 +20,8 @@ Route::middleware('auth:sanctum')->group(function () {
     // Log an action's outcome (completion / failure + reason).
     Route::post('actions/{action}/logs', [ActionLogController::class, 'store'])
         ->name('actions.logs.store');
+
+    // Versioned strategy timeline for a loop (read-only).
+    Route::get('intentions/{intention}/strategies', [StrategyController::class, 'index'])
+        ->name('intentions.strategies.index');
 });
