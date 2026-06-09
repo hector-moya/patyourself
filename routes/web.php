@@ -15,10 +15,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Chat home: message -> coach reply + inline action cards (JSON).
     Route::post('chat', [ChatController::class, 'store'])->name('chat');
 
-    // Intention (loop) writes. The list/detail screens (Tasks 19–20) own the
-    // read views; these writes share the same Actions as the JSON API.
+    // Intentions (loops): the list + detail screens and the write endpoints,
+    // all sharing the same Actions as the JSON API.
     Route::resource('intentions', IntentionController::class)
-        ->only(['store', 'update', 'destroy']);
+        ->only(['index', 'show', 'store', 'update', 'destroy']);
 
     // Log an action's outcome (completion / failure + reason).
     Route::post('actions/{action}/logs', [ActionLogController::class, 'store'])

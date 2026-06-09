@@ -11,7 +11,9 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Hanken+Grotesk:ital,wght@0,400..800;1,400..600&family=Space+Mono:wght@400;700&display=swap');
 
-.py-shell, .py-landing {
+/* `.py-host` carries the same tokens without the full-viewport shell layout,
+   so py-* screens (e.g. the Coach chat) can nest inside CoachLayout's frame. */
+.py-shell, .py-landing, .py-host {
   /* ============ RAW PALETTE — warm, earthy, calm ============ */
   --paper:        #FBF6EE;  --paper-2:   #F4ECDF;
   --surface:      #FFFDF9;  --surface-2: #FFFFFF;
@@ -94,7 +96,7 @@
 }
 
 /* ============ DARK THEME — "evening session" ============ */
-.py-shell[data-theme="dark"], .py-landing[data-theme="dark"] {
+.py-shell[data-theme="dark"], .py-landing[data-theme="dark"], .py-host[data-theme="dark"] {
   --bg:            #1C1815;
   --bg-sunk:       #161310;
   --card:          #262017;
