@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ActionLogController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\IntentionController;
 use Illuminate\Support\Facades\Route;
@@ -18,6 +19,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // read views; these writes share the same Actions as the JSON API.
     Route::resource('intentions', IntentionController::class)
         ->only(['store', 'update', 'destroy']);
+
+    // Log an action's outcome (completion / failure + reason).
+    Route::post('actions/{action}/logs', [ActionLogController::class, 'store'])
+        ->name('actions.logs.store');
 });
 
 require __DIR__.'/settings.php';
