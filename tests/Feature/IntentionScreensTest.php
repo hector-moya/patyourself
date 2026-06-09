@@ -80,17 +80,28 @@ class IntentionScreensTest extends TestCase
             );
     }
 
-    public function test_loop_detail_renders_the_loop_and_its_strategy_history(): void
+    public function test_loop_detail_renders_anatomy_and_the_strategy_timeline(): void
     {
         $user = User::factory()->create();
         $intention = Intention::factory()->for($user)->create();
-        $intention->strategies()->create([
+
+        $v1 = $intention->strategies()->create([
             'version' => 1,
-            'status' => Strategy::STATUS_ACTIVE,
+            'status' => Strategy::STATUS_SUPERSEDED,
             'intervention_point' => Strategy::POINT_CUE,
             'approach' => 'Lay the book on the pillow',
             'rationale' => 'Make the cue impossible to miss',
             'change_reason' => Strategy::REASON_INITIAL,
+            'superseded_reason' => 'Kept forgetting once in bed',
+        ]);
+        $intention->strategies()->create([
+            'version' => 2,
+            'status' => Strategy::STATUS_ACTIVE,
+            'intervention_point' => Strategy::POINT_RESPONSE,
+            'approach' => 'Read a single page, no more',
+            'rationale' => 'Shrink the response',
+            'change_reason' => Strategy::REASON_RESTRATEGIZED_ON_FAILURE,
+            'parent_strategy_id' => $v1->id,
         ]);
 
         $this->actingAs($user)
@@ -99,8 +110,12 @@ class IntentionScreensTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('intentions/show')
                 ->where('intention.id', $intention->id)
-                ->has('strategies', 1)
+                // The active strategy drives which anatomy stage is highlighted.
+                ->where('intention.strategy.intervention_point', Strategy::POINT_RESPONSE)
+                // Timeline reads oldest version first.
+                ->has('strategies', 2)
                 ->where('strategies.0.version', 1)
+                ->where('strategies.1.version', 2)
             );
     }
 
