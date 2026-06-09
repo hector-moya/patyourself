@@ -6,8 +6,11 @@ use App\Services\Coach\Contracts\CoachService;
 use App\Services\Coach\Data\CoachRequest;
 use App\Services\Coach\Data\CoachResponse;
 use App\Services\Coach\Exceptions\CoachException;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Factory as HttpFactory;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\Client\Response;
+use Throwable;
 
 /**
  * Anthropic Messages API driver — the first concrete CoachService. All calls
@@ -53,18 +56,54 @@ class AnthropicCoachService implements CoachService
             'messages' => $request->messagePayload(excludeSystem: true),
         ], static fn ($value) => $value !== null);
 
-        $response = $this->http
-            ->baseUrl(rtrim((string) $this->config['base_url'], '/'))
-            ->withHeaders([
-                'x-api-key' => $key,
-                'anthropic-version' => self::API_VERSION,
-                'content-type' => 'application/json',
-            ])
-            ->timeout((int) ($this->config['timeout'] ?? 60))
-            ->retry((int) ($this->config['retries'] ?? 2), 250, throw: false)
-            ->post('/v1/messages', $payload);
+        try {
+            $response = $this->http
+                ->baseUrl(rtrim((string) $this->config['base_url'], '/'))
+                ->withHeaders([
+                    'x-api-key' => $key,
+                    'anthropic-version' => self::API_VERSION,
+                    'content-type' => 'application/json',
+                ])
+                ->timeout((int) ($this->config['timeout'] ?? 60))
+                ->retry(
+                    (int) ($this->config['retries'] ?? 2),
+                    250,
+                    when: fn (Throwable $e): bool => $this->isRetryable($e),
+                    throw: true,
+                )
+                ->post('/v1/messages', $payload);
+        } catch (ConnectionException $e) {
+            throw CoachException::requestFailed($this->name(), 0, $e->getMessage());
+        } catch (RequestException $e) {
+            throw CoachException::requestFailed(
+                $this->name(),
+                (int) ($e->response?->status() ?? 0),
+                (string) ($e->response?->body() ?? ''),
+            );
+        }
 
         return $this->parse($response);
+    }
+
+    /**
+     * Retry only failures worth retrying — a dropped connection or a transient
+     * provider error (429 / 5xx). Client errors (4xx) fail fast.
+     */
+    private function isRetryable(Throwable $e): bool
+    {
+        if ($e instanceof ConnectionException) {
+            return true;
+        }
+
+        if ($e instanceof RequestException) {
+            return in_array(
+                (int) ($e->response?->status() ?? 0),
+                [429, 500, 502, 503, 504, 529],
+                true,
+            );
+        }
+
+        return false;
     }
 
     private function parse(Response $response): CoachResponse

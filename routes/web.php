@@ -13,8 +13,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // is seeded with the user's active loops as inline action cards.
     Route::get('dashboard', [ChatController::class, 'home'])->name('dashboard');
 
-    // Chat turn: message -> coach reply + inline action cards (JSON).
-    Route::post('chat', [ChatController::class, 'store'])->name('chat');
+    // Chat turn: message -> coach reply + inline action cards (JSON). Rate
+    // limited per user (the `coach` limiter) since each turn is an LLM call.
+    Route::post('chat', [ChatController::class, 'store'])
+        ->middleware('throttle:coach')
+        ->name('chat');
 
     // Intentions (loops): the list + detail screens and the write endpoints,
     // all sharing the same Actions as the JSON API.

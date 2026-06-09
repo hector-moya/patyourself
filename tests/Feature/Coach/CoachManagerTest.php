@@ -6,6 +6,7 @@ use App\Services\Coach\CoachManager;
 use App\Services\Coach\Contracts\CoachService;
 use App\Services\Coach\Drivers\AnthropicCoachService;
 use App\Services\Coach\Exceptions\CoachException;
+use App\Services\Coach\GuardedCoachService;
 use Tests\TestCase;
 
 class CoachManagerTest extends TestCase
@@ -40,11 +41,16 @@ class CoachManagerTest extends TestCase
         $this->assertInstanceOf(AnthropicCoachService::class, $this->manager()->driver('anthropic'));
     }
 
-    public function test_the_container_resolves_the_coach_service_contract()
+    public function test_the_container_resolves_the_guarded_coach_service_contract()
     {
         config()->set('services.coach.driver', 'anthropic');
 
-        $this->assertInstanceOf(AnthropicCoachService::class, $this->app->make(CoachService::class));
+        // The contract resolves to the cost-guard decorator wrapping the
+        // configured driver, so every LLM call is metered and capped.
+        $service = $this->app->make(CoachService::class);
+
+        $this->assertInstanceOf(GuardedCoachService::class, $service);
+        $this->assertSame('anthropic', $service->name());
     }
 
     public function test_the_deferred_openai_driver_throws_a_clear_exception()

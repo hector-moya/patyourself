@@ -54,6 +54,14 @@ return [
         'temperature' => (float) env('COACH_TEMPERATURE', 0.7),
         'timeout' => (int) env('COACH_TIMEOUT', 60),
         'retries' => (int) env('COACH_RETRIES', 2),
+
+        // Cost guard: the rolling-24h per-user token budget (prompt + completion)
+        // across all LLM calls. 0 disables the cap. Over budget → HTTP 429.
+        'daily_token_budget' => (int) env('COACH_DAILY_TOKEN_BUDGET', 200000),
+
+        // Rate limit: max coach requests per user per minute (the `coach`
+        // limiter applied to the chat endpoint). 0 disables it.
+        'rate_per_minute' => (int) env('COACH_RATE_PER_MINUTE', 20),
     ],
 
     'anthropic' => [
