@@ -5,7 +5,8 @@ namespace App\Http\Requests;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
- * Validates a chat turn: the user's message and any prior conversation turns.
+ * Validates a chat turn. History is now stored server-side in the durable
+ * conversation; only the current message is sent by the client.
  */
 class ChatRequest extends FormRequest
 {
@@ -22,20 +23,6 @@ class ChatRequest extends FormRequest
     {
         return [
             'message' => ['required', 'string', 'max:2000'],
-            'history' => ['nullable', 'array', 'max:50'],
-            'history.*.role' => ['required', 'string', 'in:user,assistant'],
-            'history.*.content' => ['required', 'string', 'max:4000'],
         ];
-    }
-
-    /**
-     * @return list<array{role: string, content: string}>
-     */
-    public function history(): array
-    {
-        /** @var list<array{role: string, content: string}> $history */
-        $history = $this->validated('history') ?? [];
-
-        return $history;
     }
 }

@@ -2,39 +2,41 @@
 
 namespace App\Actions;
 
+use App\Ai\Agents\Coach;
+use App\Ai\TurnCollector;
+use App\Models\Intention;
 use App\Models\User;
-use App\Services\Coach\Chat\ChatCoach;
-use App\Services\Coach\Chat\ChatException;
 use App\Services\Coach\Chat\ChatResult;
-use App\Services\Coach\Exceptions\CoachException;
 
 /**
- * Handles one chat turn end to end: runs the message through the coach and, when
- * the coach authors an Intention card, persists it for the user (reusing
- * AuthorIntention with the already-authored loop, so there is no second LLM
- * call). Returns the reply plus any persisted Intention to render inline.
+ * Handles one chat turn end to end: prompts the Coach orchestrator inside the
+ * user's durable conversation and collects any loops its tools authored. The
+ * coach reads and writes through tools; this action just runs the turn.
+ *
+ * continueLastConversation() resolves the user's latest conversation ID from
+ * the store (null for a fresh user). A null ID causes RemembersConversations
+ * to start from an empty history; RememberConversation middleware then creates
+ * the first conversation row after the turn completes.
  */
 final readonly class RespondToChat
 {
-    public function __construct(
-        private ChatCoach $chat,
-        private AuthorIntention $author,
-    ) {}
+    public function __construct(private TurnCollector $collector) {}
 
-    /**
-     * @param  list<array{role?: string, content?: string}>  $history  Prior turns, oldest first.
-     *
-     * @throws CoachException
-     * @throws ChatException
-     */
-    public function handle(User $user, string $message, array $history = []): ChatResult
+    public function handle(User $user, string $message): ChatResult
     {
-        $reply = $this->chat->respond($message, $history);
+        $this->collector->flush();
 
-        $intention = $reply->intention === null
-            ? null
-            : $this->author->handle($user, $message, [], $reply->intention);
+        $response = (new Coach)
+            ->forUser($user)
+            ->continueLastConversation($user)
+            ->prompt($message);
 
-        return new ChatResult($reply->message, $intention);
+        $intention = Intention::query()
+            ->whereIn('id', $this->collector->intentionIds())
+            ->where('user_id', $user->id)
+            ->latest()
+            ->first();
+
+        return new ChatResult($response->text, $intention);
     }
 }

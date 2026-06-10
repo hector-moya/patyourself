@@ -3,7 +3,6 @@
 namespace App\Services\Coach\Prompts;
 
 use App\Services\Coach\Authoring\IntentionSchema;
-use App\Services\Coach\Chat\ChatReplySchema;
 
 /**
  * The single home for the coach's system prompts. Each is versioned and built
@@ -14,6 +13,9 @@ use App\Services\Coach\Chat\ChatReplySchema;
  * Each prompt = the shared charter + a purpose-specific framing + the JSON
  * output contract, which the matching schema owns (kept beside its validation
  * rules so prompt and enforcement can't drift).
+ *
+ * Note: the chat() prompt was removed in Task 8 when the Coach orchestrator
+ * took over conversation management via the SDK agent pattern.
  */
 final class CoachPrompts
 {
@@ -45,15 +47,6 @@ final class CoachPrompts
             'rolling-summary',
             'rolling-summary@1',
             self::compose(self::summaryFraming(), $contract),
-        );
-    }
-
-    public static function chat(): CoachPrompt
-    {
-        return new CoachPrompt(
-            'chat',
-            'chat@1',
-            self::compose(self::chatFraming(), ChatReplySchema::contract()),
         );
     }
 
@@ -96,18 +89,6 @@ final class CoachPrompts
         For a "break" loop, cue/craving/response/reward describe the UNWANTED loop
         as it happens today, and the strategy is how to disrupt it. Choose the
         single intervention_point most likely to move the behaviour.
-        TXT;
-    }
-
-    private static function chatFraming(): string
-    {
-        return <<<'TXT'
-        Task: talk with the user about their habits on the chat home screen.
-        Reply conversationally — warm, concrete, and brief. When the user
-        describes a habit they want to build or break and you have enough to act,
-        ALSO author a structured Intention as an action card the UI renders
-        inline; otherwise keep the card null and simply continue the conversation
-        (ask one clarifying question if you need more).
         TXT;
     }
 
