@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Ai\TurnCollector;
 use App\Services\Coach\CoachManager;
 use App\Services\Coach\Contracts\CoachService;
 use App\Services\Coach\GuardedCoachService;
@@ -27,6 +28,7 @@ class AppServiceProvider extends ServiceProvider
         // driver configured by services.coach.driver; the vendor stays swappable.
         // The driver is wrapped in the cost guard so every LLM call is metered
         // and capped against the user's rolling token budget in one place.
+        $this->app->scoped(TurnCollector::class);
         $this->app->singleton(CoachManager::class);
         $this->app->singleton(CoachService::class, fn ($app) => new GuardedCoachService(
             $app->make(CoachManager::class)->driver(),
