@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { cn } from '@/lib/utils';
 import type {
@@ -178,6 +178,10 @@ export function ChatThread({
     const endRef = useRef<HTMLDivElement>(null);
     // The loop currently awaiting a failure reason, if any.
     const [reasonFor, setReasonFor] = useState<IntentionData | null>(null);
+
+    useEffect(() => {
+        endRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [messages.length]);
 
     const handleOutcome = (
         intention: IntentionData,
