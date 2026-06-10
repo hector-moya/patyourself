@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Actions\AuthorIntention;
 use App\Actions\ReviseStrategy;
 use App\Actions\UpdateRollingSummary;
+use App\Ai\Agents\IntentionAuthor;
 use App\Ai\Agents\Strategist;
 use App\Ai\Agents\Summarizer;
 use App\Models\Action;
@@ -12,8 +13,6 @@ use App\Models\ActionLog;
 use App\Models\Intention;
 use App\Models\Strategy;
 use App\Models\User;
-use App\Services\Coach\Contracts\CoachService;
-use App\Services\Coach\FakeCoachService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -25,19 +24,9 @@ class PromptVersioningTest extends TestCase
 {
     use RefreshDatabase;
 
-    private FakeCoachService $coach;
-
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        $this->coach = new FakeCoachService;
-        $this->app->instance(CoachService::class, $this->coach);
-    }
-
     public function test_authored_intention_records_the_prompt_version(): void
     {
-        $this->coach->pushJson([
+        IntentionAuthor::fake([[
             'title' => 'Morning walk',
             'description' => 'Start the day moving.',
             'type' => 'build',
@@ -45,12 +34,12 @@ class PromptVersioningTest extends TestCase
             'craving' => 'Feel awake',
             'response' => 'Walk 15 minutes',
             'reward' => 'Energy',
-        ]);
+        ]]);
 
         $intention = app(AuthorIntention::class)->handle(User::factory()->create(), 'more energy');
 
         $this->assertSame(
-            'intention-authoring@1',
+            IntentionAuthor::PROMPT_VERSION,
             $intention->metadata['prompt_version'],
         );
     }

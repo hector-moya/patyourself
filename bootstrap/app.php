@@ -2,7 +2,6 @@
 
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
-use App\Services\Coach\Chat\ChatException;
 use App\Services\Coach\Exceptions\CoachException;
 use App\Services\Coach\Exceptions\CoachQuotaException;
 use Illuminate\Foundation\Application;
@@ -48,15 +47,5 @@ return Application::configure(basePath: dirname(__DIR__))
                 : response()->json([
                     'message' => 'The coach is unavailable right now. Please try again in a moment.',
                 ], 503);
-        });
-
-        $exceptions->render(function (ChatException $e, Request $request): ?JsonResponse {
-            if (! $request->is('api/*') && ! $request->expectsJson()) {
-                return null;
-            }
-
-            return response()->json([
-                'message' => 'The coach is unavailable right now. Please try again in a moment.',
-            ], 503);
         });
     })->create();

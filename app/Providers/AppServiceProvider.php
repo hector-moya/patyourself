@@ -3,13 +3,8 @@
 namespace App\Providers;
 
 use App\Ai\TurnCollector;
-use App\Services\Coach\CoachManager;
-use App\Services\Coach\Contracts\CoachService;
-use App\Services\Coach\GuardedCoachService;
-use App\Services\Coach\Usage\CoachUsageGuard;
 use Carbon\CarbonImmutable;
 use Illuminate\Cache\RateLimiting\Limit;
-use Illuminate\Contracts\Auth\Factory as AuthFactory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
@@ -26,19 +21,6 @@ class AppServiceProvider extends ServiceProvider
     {
         // Request-scoped collector; drained by ChatController after each coach turn.
         $this->app->scoped(TurnCollector::class);
-
-        // Provider-agnostic coaching engine. Resolve CoachService to get the
-        // driver configured by services.coach.driver; the vendor stays swappable.
-        // The driver is wrapped in the cost guard so every LLM call is metered
-        // and capped against the user's rolling token budget in one place.
-        $this->app->singleton(CoachManager::class);
-        $this->app->singleton(CoachService::class, fn ($app) => new GuardedCoachService(
-            $app->make(CoachManager::class)->driver(),
-            new CoachUsageGuard(
-                (int) $app->make('config')->get('services.coach.daily_token_budget', 0),
-            ),
-            $app->make(AuthFactory::class),
-        ));
     }
 
     /**

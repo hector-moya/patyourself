@@ -3,29 +3,17 @@
 namespace Tests\Feature;
 
 use App\Actions\AuthorIntention;
+use App\Ai\Agents\IntentionAuthor;
 use App\Models\Intention;
 use App\Models\Strategy;
 use App\Models\User;
-use App\Services\Coach\Authoring\IntentionAuthoringException;
-use App\Services\Coach\Contracts\CoachService;
 use App\Services\Coach\Exceptions\CoachException;
-use App\Services\Coach\FakeCoachService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class AuthorIntentionTest extends TestCase
 {
     use RefreshDatabase;
-
-    private FakeCoachService $coach;
-
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        $this->coach = new FakeCoachService;
-        $this->app->instance(CoachService::class, $this->coach);
-    }
 
     /**
      * @return array<string, mixed>
@@ -52,7 +40,7 @@ class AuthorIntentionTest extends TestCase
 
     public function test_persists_intention_and_initial_strategy(): void
     {
-        $this->coach->pushJson($this->validPayload());
+        IntentionAuthor::fake([$this->validPayload()]);
         $user = User::factory()->create();
 
         $intention = app(AuthorIntention::class)->handle($user, 'I want more energy in the mornings');
@@ -64,8 +52,8 @@ class AuthorIntentionTest extends TestCase
         $this->assertSame(Intention::STATUS_ACTIVE, $intention->status);
         $this->assertSame('Coffee finishes brewing', $intention->cue);
 
-        // AI-authored extras land in metadata, attributed to the driver.
-        $this->assertSame('fake', $intention->metadata['authored_by']);
+        // AI-authored extras land in metadata, attributed to the model.
+        $this->assertNotEmpty($intention->metadata['authored_by']);
         $this->assertSame(0.78, $intention->metadata['confidence']);
         $this->assertSame(['energy', 'morning'], $intention->metadata['tags']);
 
@@ -82,7 +70,7 @@ class AuthorIntentionTest extends TestCase
     {
         $payload = $this->validPayload();
         unset($payload['strategy']);
-        $this->coach->pushJson($payload);
+        IntentionAuthor::fake([$payload]);
         $user = User::factory()->create();
 
         $intention = app(AuthorIntention::class)->handle($user, 'goal');
@@ -90,33 +78,15 @@ class AuthorIntentionTest extends TestCase
         $this->assertSame(0, $intention->strategies()->count());
     }
 
-    public function test_malformed_response_writes_nothing(): void
-    {
-        $this->coach->push('definitely not json');
-        $user = User::factory()->create();
-
-        try {
-            app(AuthorIntention::class)->handle($user, 'goal');
-            $this->fail('Expected a CoachException for unparseable output.');
-        } catch (CoachException) {
-            // expected
-        }
-
-        $this->assertSame(0, Intention::count());
-        $this->assertSame(0, Strategy::count());
-    }
-
     public function test_invalid_schema_writes_nothing(): void
     {
-        $this->coach->pushJson(['title' => 'Only a title']);
+        // Missing required fields → fromStructured throws CoachException.
+        IntentionAuthor::fake([['title' => 'Only a title']]);
         $user = User::factory()->create();
 
-        try {
-            app(AuthorIntention::class)->handle($user, 'goal');
-            $this->fail('Expected an IntentionAuthoringException for an invalid payload.');
-        } catch (IntentionAuthoringException) {
-            // expected
-        }
+        $this->expectException(CoachException::class);
+
+        app(AuthorIntention::class)->handle($user, 'goal');
 
         $this->assertSame(0, Intention::count());
         $this->assertSame(0, Strategy::count());

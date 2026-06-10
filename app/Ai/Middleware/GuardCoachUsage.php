@@ -3,7 +3,6 @@
 namespace App\Ai\Middleware;
 
 use App\Models\User;
-use App\Services\Coach\Data\CoachResponse;
 use App\Services\Coach\Usage\CoachUsageGuard;
 use Closure;
 use Illuminate\Contracts\Auth\Factory as AuthFactory;
@@ -50,12 +49,13 @@ class GuardCoachUsage
         // NOTE: if $next throws mid-tool-loop, partially accrued provider spend is
         // not recorded (SDK exposes no usage on failure) — accepted, same as the old decorator.
         return $next($prompt)->then(function ($response) use ($guard, $user, $purpose) {
-            $guard->record($user, new CoachResponse(
-                content: '',
-                model: $response->meta->model ?? 'unknown',
-                promptTokens: $response->usage->promptTokens,
-                completionTokens: $response->usage->completionTokens,
-            ), $purpose);
+            $guard->record(
+                $user,
+                $response->meta->model ?? 'unknown',
+                $response->usage->promptTokens,
+                $response->usage->completionTokens,
+                $purpose,
+            );
         });
     }
 

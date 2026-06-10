@@ -4,7 +4,6 @@ namespace Tests\Feature\Ai;
 
 use App\Ai\Middleware\GuardCoachUsage;
 use App\Models\User;
-use App\Services\Coach\Data\CoachResponse;
 use App\Services\Coach\Exceptions\CoachQuotaException;
 use App\Services\Coach\Usage\CoachUsageGuard;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -81,9 +80,7 @@ class GuardCoachUsageTest extends TestCase
     {
         $user = User::factory()->create();
         $this->actingAs($user);
-        (new CoachUsageGuard(100))->record($user, new CoachResponse(
-            content: '{}', model: 'fake', promptTokens: 100, completionTokens: 0,
-        ), 'chat');
+        (new CoachUsageGuard(100))->record($user, 'fake', 100, 0, 'chat');
 
         $called = false;
 

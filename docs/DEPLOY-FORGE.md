@@ -38,8 +38,14 @@ Open the site's **Environment** tab and paste the contents of
 - `APP_KEY` — Forge generates one on first deploy; if blank, run
   `php artisan key:generate` from the site's **Commands** tab.
 - `DB_DATABASE` / `DB_USERNAME` / `DB_PASSWORD` — the database from step 2.
-- `ANTHROPIC_API_KEY` — the coach key.
+- `ANTHROPIC_API_KEY` — the Anthropic API key for all LLM agents.
+- `COACH_DAILY_TOKEN_BUDGET` — rolling 24h per-user token cap (default 200000; 0 disables).
+- `COACH_RATE_PER_MINUTE` — chat requests per user per minute (default 20; 0 disables).
 - `MAIL_*` — your transactional mail provider (verification emails).
+
+Note: the model is configured per-agent via `#[Model]` attributes in code; no
+`ANTHROPIC_MODEL` env var is needed. Provider credentials are read by
+`config/ai.php` (the `laravel/ai` package).
 
 `SESSION_DRIVER`, `CACHE_STORE`, and `QUEUE_CONNECTION` are all `database`; the
 required tables ship in the default migrations, so there is nothing else to

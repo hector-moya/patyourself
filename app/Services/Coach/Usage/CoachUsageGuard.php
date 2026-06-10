@@ -4,15 +4,13 @@ namespace App\Services\Coach\Usage;
 
 use App\Models\CoachUsage;
 use App\Models\User;
-use App\Services\Coach\Data\CoachResponse;
 use App\Services\Coach\Exceptions\CoachQuotaException;
 use Illuminate\Support\Facades\Date;
 
 /**
  * The cost guard. Records every server-side LLM call's token usage and enforces
  * a rolling 24-hour per-user token budget — the single place spend is metered
- * and capped, so wrapping the CoachService in {@see GuardedCoachService} covers
- * every call site at once.
+ * and capped, so the GuardCoachUsage middleware covers every agent call at once.
  */
 final readonly class CoachUsageGuard
 {
@@ -21,15 +19,15 @@ final readonly class CoachUsageGuard
     /**
      * Append a usage row for a completed call.
      */
-    public function record(User $user, CoachResponse $response, ?string $purpose = null): CoachUsage
+    public function record(User $user, string $model, int $promptTokens, int $completionTokens, ?string $purpose = null): CoachUsage
     {
         return CoachUsage::create([
             'user_id' => $user->id,
-            'model' => $response->model,
+            'model' => $model,
             'purpose' => $purpose,
-            'prompt_tokens' => $response->promptTokens,
-            'completion_tokens' => $response->completionTokens,
-            'total_tokens' => $response->totalTokens(),
+            'prompt_tokens' => $promptTokens,
+            'completion_tokens' => $completionTokens,
+            'total_tokens' => $promptTokens + $completionTokens,
         ]);
     }
 

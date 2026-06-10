@@ -2,40 +2,60 @@
 
 namespace App\Actions;
 
+use App\Ai\Agents\IntentionAuthor;
 use App\Models\Intention;
 use App\Models\Strategy;
 use App\Models\User;
 use App\Services\Coach\Authoring\AuthoredIntention;
-use App\Services\Coach\Authoring\IntentionAuthor;
-use App\Services\Coach\Authoring\IntentionAuthoringException;
 use App\Services\Coach\Exceptions\CoachException;
 use Illuminate\Support\Facades\DB;
 
 /**
  * Authors an Intention for a user and persists it. This is the only place the
- * authoring flow writes to the database: it asks the coach for a structured
- * Intention, then records the loop and seeds version 1 of its strategy.
+ * authoring flow writes to the database: it asks the IntentionAuthor agent for a
+ * structured Intention, then records the loop and seeds version 1 of its strategy.
  *
- * Validation happens in the author (before the transaction), so a malformed or
- * schema-invalid coach response throws and writes nothing.
+ * Validation happens before the transaction (in AuthoredIntention::fromStructured),
+ * so a malformed or schema-invalid agent response throws and writes nothing.
  */
 final readonly class AuthorIntention
 {
-    public function __construct(private IntentionAuthor $author) {}
-
     /**
      * @param  array<string, mixed>  $context  Optional extra signal for the prompt.
      * @param  AuthoredIntention|null  $authored  A pre-authored loop (e.g. from the
-     *                                            chat flow); when null the coach authors one.
+     *                                            chat flow); when null the agent authors one.
      *
      * @throws CoachException
-     * @throws IntentionAuthoringException
      */
     public function handle(User $user, string $goal, array $context = [], ?AuthoredIntention $authored = null): Intention
     {
-        $authored ??= $this->author->author($goal, $context);
+        if ($authored === null) {
+            $response = (new IntentionAuthor)->prompt($this->userPrompt($goal, $context));
+            $authored = AuthoredIntention::fromStructured(
+                $response->structured,
+                $response->meta->model ?? 'unknown',
+                IntentionAuthor::PROMPT_VERSION,
+            );
+        }
 
         return DB::transaction(fn (): Intention => $this->persist($user, $authored));
+    }
+
+    /**
+     * @param  array<string, mixed>  $context
+     */
+    private function userPrompt(string $goal, array $context): string
+    {
+        $prompt = "The user wants help with this habit:\n\n".trim($goal);
+
+        if ($context !== []) {
+            $prompt .= "\n\nAdditional context:\n".json_encode(
+                $context,
+                JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES,
+            );
+        }
+
+        return $prompt;
     }
 
     private function persist(User $user, AuthoredIntention $authored): Intention

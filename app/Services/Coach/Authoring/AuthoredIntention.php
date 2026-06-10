@@ -2,7 +2,9 @@
 
 namespace App\Services\Coach\Authoring;
 
-use App\Services\Coach\Data\CoachResponse;
+use App\Models\Intention;
+use App\Models\Strategy;
+use App\Services\Coach\Exceptions\CoachException;
 
 /**
  * A validated, structured Intention authored by the LLM — the data half of the
@@ -30,30 +32,81 @@ final readonly class AuthoredIntention
     ) {}
 
     /**
-     * Validate a decoded coach payload against the schema and build the DTO.
+     * Build the DTO from a structured SDK agent response payload.
      *
-     * @param  array<string, mixed>  $payload  The model's decoded JSON.
+     * Used by both CreateLoop (tool) and AuthorIntention (direct authoring path)
+     * so the mapping and guards live in one place.
      *
-     * @throws IntentionAuthoringException
+     * @param  array<string, mixed>  $data  The agent's ->structured array.
+     *
+     * @throws CoachException when required fields are missing or invalid.
+     * @throws IntentionAuthoringException when the schema is structurally invalid.
      */
-    public static function fromResponse(array $payload, CoachResponse $response, ?string $promptVersion = null): self
+    public static function fromStructured(array $data, string $model, ?string $promptVersion = null): self
     {
-        $data = IntentionSchema::validate($payload);
+        $validTypes = [Intention::TYPE_BUILD, Intention::TYPE_BREAK];
+
+        $title = is_string($data['title'] ?? null) ? trim($data['title']) : '';
+        $type = is_string($data['type'] ?? null) ? trim($data['type']) : '';
+        $cue = is_string($data['cue'] ?? null) ? trim($data['cue']) : '';
+        $craving = is_string($data['craving'] ?? null) ? trim($data['craving']) : '';
+        $response = is_string($data['response'] ?? null) ? trim($data['response']) : '';
+        $reward = is_string($data['reward'] ?? null) ? trim($data['reward']) : '';
+
+        if (
+            $title === '' ||
+            $type === '' || ! in_array($type, $validTypes, true) ||
+            $cue === '' ||
+            $craving === '' ||
+            $response === '' ||
+            $reward === ''
+        ) {
+            throw CoachException::emptyResponse('intention-author');
+        }
+
+        $authoredStrategy = null;
+        if (isset($data['strategy']) && is_array($data['strategy'])) {
+            $strategyData = $data['strategy'];
+            $validPoints = [
+                Strategy::POINT_CUE,
+                Strategy::POINT_CRAVING,
+                Strategy::POINT_RESPONSE,
+                Strategy::POINT_REWARD,
+            ];
+
+            $interventionPoint = is_string($strategyData['intervention_point'] ?? null)
+                ? trim($strategyData['intervention_point'])
+                : '';
+            $approach = is_string($strategyData['approach'] ?? null) ? trim($strategyData['approach']) : '';
+
+            if (
+                $interventionPoint === '' ||
+                ! in_array($interventionPoint, $validPoints, true) ||
+                $approach === ''
+            ) {
+                throw CoachException::emptyResponse('intention-author');
+            }
+
+            $authoredStrategy = new AuthoredStrategy(
+                interventionPoint: $interventionPoint,
+                approach: $approach,
+                rationale: isset($strategyData['rationale']) ? trim((string) $strategyData['rationale']) : null,
+                promptVersion: $promptVersion,
+            );
+        }
 
         return new self(
-            title: (string) $data['title'],
-            description: isset($data['description']) ? (string) $data['description'] : null,
-            type: (string) $data['type'],
-            cue: (string) $data['cue'],
-            craving: (string) $data['craving'],
-            response: (string) $data['response'],
-            reward: (string) $data['reward'],
+            title: $title,
+            description: isset($data['description']) ? (($d = trim((string) $data['description'])) !== '' ? $d : null) : null,
+            type: $type,
+            cue: $cue,
+            craving: $craving,
+            response: $response,
+            reward: $reward,
             confidence: isset($data['confidence']) ? (float) $data['confidence'] : null,
             tags: array_values(array_map('strval', $data['tags'] ?? [])),
-            strategy: isset($data['strategy'])
-                ? AuthoredStrategy::fromValidated($data['strategy'], $promptVersion)
-                : null,
-            model: $response->model,
+            strategy: $authoredStrategy,
+            model: $model,
             promptVersion: $promptVersion,
         );
     }

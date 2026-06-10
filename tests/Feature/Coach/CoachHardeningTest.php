@@ -4,7 +4,6 @@ namespace Tests\Feature\Coach;
 
 use App\Ai\Agents\Coach;
 use App\Models\User;
-use App\Services\Coach\Data\CoachResponse;
 use App\Services\Coach\Exceptions\CoachException;
 use App\Services\Coach\Usage\CoachUsageGuard;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -49,9 +48,7 @@ class CoachHardeningTest extends TestCase
         Coach::fake(['should not run']);
 
         // Pre-spend the budget entirely.
-        (new CoachUsageGuard(100))->record($user, new CoachResponse(
-            content: '{}', model: 'fake', promptTokens: 100, completionTokens: 0,
-        ), 'chat');
+        (new CoachUsageGuard(100))->record($user, 'fake', 100, 0, 'chat');
 
         config()->set('services.coach.daily_token_budget', 100);
 
