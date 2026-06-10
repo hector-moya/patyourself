@@ -69,4 +69,44 @@ class CreateLoopTest extends TestCase
             $this->assertSame([], $this->app->make(TurnCollector::class)->intentionIds());
         }
     }
+
+    public function test_whitespace_only_fields_create_nothing(): void
+    {
+        $user = User::factory()->create();
+        $this->actingAs($user);
+        $payload = $this->authoredPayload();
+        $payload['title'] = '   ';
+        IntentionAuthor::fake([$payload]);
+
+        $tool = $this->app->make(CreateLoop::class);
+
+        $this->expectException(CoachException::class);
+
+        try {
+            $tool->handle(new ToolRequest(['goal' => 'anything']));
+        } finally {
+            $this->assertSame(0, Intention::count());
+            $this->assertSame([], $this->app->make(TurnCollector::class)->intentionIds());
+        }
+    }
+
+    public function test_an_invalid_nested_strategy_creates_nothing(): void
+    {
+        $user = User::factory()->create();
+        $this->actingAs($user);
+        $payload = $this->authoredPayload();
+        $payload['strategy']['intervention_point'] = 'nonsense';
+        IntentionAuthor::fake([$payload]);
+
+        $tool = $this->app->make(CreateLoop::class);
+
+        $this->expectException(CoachException::class);
+
+        try {
+            $tool->handle(new ToolRequest(['goal' => 'anything']));
+        } finally {
+            $this->assertSame(0, Intention::count());
+            $this->assertSame([], $this->app->make(TurnCollector::class)->intentionIds());
+        }
+    }
 }

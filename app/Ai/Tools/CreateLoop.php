@@ -50,13 +50,20 @@ class CreateLoop implements Tool
         // Guard: all required loop fields must be non-empty strings and type valid.
         $validTypes = [Intention::TYPE_BUILD, Intention::TYPE_BREAK];
 
+        $title = is_string($data['title'] ?? null) ? trim($data['title']) : '';
+        $type = is_string($data['type'] ?? null) ? trim($data['type']) : '';
+        $cue = is_string($data['cue'] ?? null) ? trim($data['cue']) : '';
+        $craving = is_string($data['craving'] ?? null) ? trim($data['craving']) : '';
+        $response = is_string($data['response'] ?? null) ? trim($data['response']) : '';
+        $reward = is_string($data['reward'] ?? null) ? trim($data['reward']) : '';
+
         if (
-            empty($data['title']) || ! is_string($data['title']) ||
-            empty($data['type']) || ! is_string($data['type']) || ! in_array($data['type'], $validTypes, true) ||
-            empty($data['cue']) || ! is_string($data['cue']) ||
-            empty($data['craving']) || ! is_string($data['craving']) ||
-            empty($data['response']) || ! is_string($data['response']) ||
-            empty($data['reward']) || ! is_string($data['reward'])
+            $title === '' ||
+            $type === '' || ! in_array($type, $validTypes, true) ||
+            $cue === '' ||
+            $craving === '' ||
+            $response === '' ||
+            $reward === ''
         ) {
             throw CoachException::emptyResponse('intention-author');
         }
@@ -72,30 +79,33 @@ class CreateLoop implements Tool
                 Strategy::POINT_REWARD,
             ];
 
+            $interventionPoint = is_string($strategyData['intervention_point'] ?? null) ? trim($strategyData['intervention_point']) : '';
+            $approach = is_string($strategyData['approach'] ?? null) ? trim($strategyData['approach']) : '';
+
             if (
-                empty($strategyData['intervention_point']) ||
-                ! in_array($strategyData['intervention_point'], $validPoints, true) ||
-                empty($strategyData['approach'])
+                $interventionPoint === '' ||
+                ! in_array($interventionPoint, $validPoints, true) ||
+                $approach === ''
             ) {
                 throw CoachException::emptyResponse('intention-author');
             }
 
             $authoredStrategy = new AuthoredStrategy(
-                interventionPoint: (string) $strategyData['intervention_point'],
-                approach: (string) $strategyData['approach'],
-                rationale: isset($strategyData['rationale']) ? (string) $strategyData['rationale'] : null,
+                interventionPoint: $interventionPoint,
+                approach: $approach,
+                rationale: isset($strategyData['rationale']) ? trim((string) $strategyData['rationale']) : null,
                 promptVersion: IntentionAuthor::PROMPT_VERSION,
             );
         }
 
         $authored = new AuthoredIntention(
-            title: (string) $data['title'],
-            description: isset($data['description']) && $data['description'] !== '' ? (string) $data['description'] : null,
-            type: (string) $data['type'],
-            cue: (string) $data['cue'],
-            craving: (string) $data['craving'],
-            response: (string) $data['response'],
-            reward: (string) $data['reward'],
+            title: $title,
+            description: isset($data['description']) && trim((string) $data['description']) !== '' ? trim((string) $data['description']) : null,
+            type: $type,
+            cue: $cue,
+            craving: $craving,
+            response: $response,
+            reward: $reward,
             confidence: isset($data['confidence']) ? (float) $data['confidence'] : null,
             tags: [],
             strategy: $authoredStrategy,
