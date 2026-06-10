@@ -17,11 +17,12 @@ class SdkInstallTest extends TestCase
         $user = User::factory()->create();
 
         $conversation = $user->conversations()->create([
-            'id' => (string) Str::uuid(),
+            'id' => (string) Str::uuid7(),
             'title' => 'Coach',
         ]);
 
         $this->assertInstanceOf(Conversation::class, $conversation);
-        $this->assertTrue($user->conversations()->whereKey($conversation->id)->exists());
+        $this->assertSame($user->id, $conversation->user_id);
+        $this->assertDatabaseHas('agent_conversations', ['id' => $conversation->id, 'user_id' => $user->id]);
     }
 }
