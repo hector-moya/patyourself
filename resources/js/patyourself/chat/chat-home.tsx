@@ -1,14 +1,15 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 
 import { cn } from '@/lib/utils';
 import type {
     ChatMessage,
     IntentionData,
     LogOutcome,
+    ThreadMessage,
 } from '@/patyourself/types';
 import { ActionCard } from './action-card';
 import { httpCoachClient } from './coach-client';
-import type { CoachClient, CoachTurn } from './coach-client';
+import type { CoachClient } from './coach-client';
 
 let counter = 0;
 const nextId = (): string => `m${++counter}`;
@@ -17,28 +18,26 @@ const FALLBACK_REPLY =
     "I couldn't reach the coach just now — give that another try in a moment.";
 
 /**
- * The chat thread. Seeds a greeting plus one inline action card per active loop,
- * then drives the live loop: a sent message posts to the coach (POST /chat) and
- * appends the reply plus any authored cards; logging an outcome posts to the
- * action's log endpoint and reflects the result back as a new coaching turn.
+ * The chat thread. Seeds either from a server-provided conversation history
+ * (`initialThread`) or a synthetic greeting, then appends one inline action card
+ * per active loop. Drives the live loop: a sent message posts to the coach
+ * (POST /chat) and appends the reply plus any authored cards; logging an outcome
+ * posts to the action's log endpoint and reflects the result back as a new
+ * coaching turn.
  *
  * All I/O goes through an injected {@see CoachClient}, so this hook stays pure
  * UI state and is exercised in tests with a fake client.
+ *
+ * Signature: useChatThread(initialIntentions, initialThread, client)
  */
 export function useChatThread(
     initialIntentions: IntentionData[],
+    initialThread: ThreadMessage[] = [],
     client: CoachClient = httpCoachClient,
 ) {
     const [messages, setMessages] = useState<ChatMessage[]>(() =>
-        seedThread(initialIntentions),
+        seedThread(initialIntentions, initialThread),
     );
-
-    // Mirror committed messages so a turn can read prior history without
-    // threading it through every call.
-    const historyRef = useRef<ChatMessage[]>(messages);
-    useEffect(() => {
-        historyRef.current = messages;
-    }, [messages]);
 
     const converse = useCallback(
         async (text: string): Promise<void> => {
@@ -48,15 +47,13 @@ export function useChatThread(
                 return;
             }
 
-            const history = toHistory(historyRef.current);
-
             setMessages((prev) => [
                 ...prev,
                 { id: nextId(), role: 'user', text: trimmed },
             ]);
 
             try {
-                const reply = await client.sendMessage(trimmed, history);
+                const reply = await client.sendMessage(trimmed);
 
                 setMessages((prev) => [
                     ...prev,
@@ -107,22 +104,6 @@ export function useChatThread(
     return { messages, send, log };
 }
 
-/** Map the visible thread to the role/content history the coach expects. */
-function toHistory(messages: ChatMessage[]): CoachTurn[] {
-    return messages
-        .flatMap((message): CoachTurn[] =>
-            message.role === 'card'
-                ? []
-                : [
-                      {
-                          role: message.role === 'user' ? 'user' : 'assistant',
-                          content: message.text,
-                      },
-                  ],
-        )
-        .slice(-50);
-}
-
 /** The user-voiced note that reflects a logged outcome back to the coach. */
 function acknowledgement(
     title: string,
@@ -139,7 +120,30 @@ function acknowledgement(
     }
 }
 
-function seedThread(intentions: IntentionData[]): ChatMessage[] {
+/**
+ * Build the initial message list. When the server supplies stored history,
+ * map those turns directly (keeping their server ids) and append loop cards.
+ * Otherwise emit a synthetic greeting plus loop cards.
+ */
+function seedThread(
+    intentions: IntentionData[],
+    initialThread: ThreadMessage[],
+): ChatMessage[] {
+    const cards: ChatMessage[] = intentions.map((intention) => ({
+        id: nextId(),
+        role: 'card',
+        intention,
+    }));
+
+    if (initialThread.length > 0) {
+        return [
+            ...initialThread.map(
+                (m): ChatMessage => ({ id: m.id, role: m.role, text: m.text }),
+            ),
+            ...cards,
+        ];
+    }
+
     const greeting: ChatMessage = {
         id: nextId(),
         role: 'coach',
@@ -147,12 +151,6 @@ function seedThread(intentions: IntentionData[]): ChatMessage[] {
             ? `You have ${intentions.length} ${intentions.length === 1 ? 'loop' : 'loops'} going. Want to run through them, or just give me a quick all-clear?`
             : "Let's build your first loop. Tell me a habit you want to start or stop.",
     };
-
-    const cards: ChatMessage[] = intentions.map((intention) => ({
-        id: nextId(),
-        role: 'card',
-        intention,
-    }));
 
     return [greeting, ...cards];
 }
@@ -180,10 +178,6 @@ export function ChatThread({
     const endRef = useRef<HTMLDivElement>(null);
     // The loop currently awaiting a failure reason, if any.
     const [reasonFor, setReasonFor] = useState<IntentionData | null>(null);
-
-    useEffect(() => {
-        endRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [messages.length]);
 
     const handleOutcome = (
         intention: IntentionData,
@@ -304,7 +298,7 @@ function ReasonPrompt({
                 htmlFor="log-reason"
                 className="text-xs font-medium text-muted-foreground"
             >
-                What got in the way of “{title}”?
+                What got in the way of "{title}"?
             </label>
             <input
                 id="log-reason"

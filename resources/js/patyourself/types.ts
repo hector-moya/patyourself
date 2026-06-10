@@ -65,3 +65,10 @@ export type LogOutcome = 'completed' | 'failed' | 'skipped';
 export type ChatMessage =
     | { id: string; role: 'coach' | 'user'; text: string }
     | { id: string; role: 'card'; intention: IntentionData };
+
+/** One stored turn from the server-side coach conversation (dashboard `thread` prop). */
+export interface ThreadMessage {
+    id: string;
+    role: 'user' | 'coach';
+    text: string;
+}

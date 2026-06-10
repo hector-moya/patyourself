@@ -1,11 +1,5 @@
 import type { IntentionData, LogOutcome } from '@/patyourself/types';
 
-/** One prior turn sent back to the coach for context. */
-export interface CoachTurn {
-    role: 'user' | 'assistant';
-    content: string;
-}
-
 /** An inline action card the coach authored, mirroring the /chat payload. */
 export interface CoachCard {
     type: string;
@@ -22,9 +16,11 @@ export interface CoachReply {
  * The seam between the chat UI and the server. The hook depends only on this
  * interface, so tests inject a fake and the live screen uses the HTTP client
  * below. Keeps "AI authors, UI renders" — the client only ferries data.
+ *
+ * History is stored server-side; the client sends only the current message.
  */
 export interface CoachClient {
-    sendMessage(message: string, history: CoachTurn[]): Promise<CoachReply>;
+    sendMessage(message: string): Promise<CoachReply>;
     logOutcome(
         actionId: number,
         outcome: LogOutcome,
@@ -64,8 +60,8 @@ async function post(
 
 /** The production client — talks to the session-authenticated web routes. */
 export const httpCoachClient: CoachClient = {
-    async sendMessage(message, history) {
-        const response = await post('/chat', { message, history });
+    async sendMessage(message) {
+        const response = await post('/chat', { message });
         const data = (await response.json()) as Partial<CoachReply>;
 
         return {

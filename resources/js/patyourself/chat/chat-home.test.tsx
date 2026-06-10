@@ -12,6 +12,7 @@ import type {
     ChatMessage,
     IntentionData,
     LogOutcome,
+    ThreadMessage,
 } from '@/patyourself/types';
 import { ChatThread, useChatThread } from './chat-home';
 import type { CoachClient } from './coach-client';
@@ -50,7 +51,9 @@ function texts(messages: ChatMessage[]): string[] {
 
 describe('useChatThread', () => {
     it('appends the user message immediately on send', () => {
-        const { result } = renderHook(() => useChatThread([], fakeClient()));
+        const { result } = renderHook(() =>
+            useChatThread([], [], fakeClient()),
+        );
 
         act(() => result.current.send('hello coach'));
 
@@ -64,7 +67,7 @@ describe('useChatThread', () => {
                 cards: [],
             })),
         });
-        const { result } = renderHook(() => useChatThread([], client));
+        const { result } = renderHook(() => useChatThread([], [], client));
 
         act(() => result.current.send('done my run'));
 
@@ -83,7 +86,7 @@ describe('useChatThread', () => {
                 cards: [{ type: 'intention', intention: authored }],
             })),
         });
-        const { result } = renderHook(() => useChatThread([], client));
+        const { result } = renderHook(() => useChatThread([], [], client));
 
         act(() => result.current.send('help me floss'));
 
@@ -93,30 +96,58 @@ describe('useChatThread', () => {
         });
     });
 
-    it('sends prior turns as history', async () => {
+    it('seeds from server-provided thread history instead of a greeting', () => {
+        const thread: ThreadMessage[] = [
+            { id: 'h1', role: 'user' as const, text: 'hello' },
+            {
+                id: 'h2',
+                role: 'coach' as const,
+                text: 'Hi — how did the run go?',
+            },
+        ];
+        const { result } = renderHook(() =>
+            useChatThread([makeIntention()], thread, fakeClient()),
+        );
+
+        const threadTexts = result.current.messages.map((m) =>
+            m.role === 'card' ? '[card]' : m.text,
+        );
+        expect(threadTexts).toContain('hello');
+        expect(threadTexts).toContain('Hi — how did the run go?');
+        // No synthetic greeting when real history exists.
+        expect(threadTexts.join(' ')).not.toMatch(/loops going/i);
+    });
+
+    it('still renders loop cards when seeding from history', () => {
+        const thread: ThreadMessage[] = [
+            { id: 'h1', role: 'coach' as const, text: 'Welcome back.' },
+        ];
+        const { result } = renderHook(() =>
+            useChatThread([makeIntention()], thread, fakeClient()),
+        );
+
+        expect(result.current.messages.some((m) => m.role === 'card')).toBe(
+            true,
+        );
+    });
+
+    it('sends only the message — no history payload', async () => {
         const send = vi.fn<CoachClient['sendMessage']>(async () => ({
             message: 'ok',
             cards: [],
         }));
-        const client = fakeClient({ sendMessage: send });
-        // One seeded greeting turn exists for a user with loops.
         const { result } = renderHook(() =>
-            useChatThread([makeIntention()], client),
+            useChatThread([], [], fakeClient({ sendMessage: send })),
         );
 
         act(() => result.current.send('morning'));
 
-        await waitFor(() => expect(send).toHaveBeenCalled());
-        const [message, history] = send.mock.calls[0];
-        expect(message).toBe('morning');
-        expect(Array.isArray(history)).toBe(true);
-        // The seeded coach greeting is carried as an assistant turn.
-        expect(history.some((turn) => turn.role === 'assistant')).toBe(true);
+        await waitFor(() => expect(send).toHaveBeenCalledWith('morning'));
     });
 
     it('logs an outcome through the client', async () => {
         const client = fakeClient();
-        const { result } = renderHook(() => useChatThread([], client));
+        const { result } = renderHook(() => useChatThread([], [], client));
 
         await act(async () => {
             await result.current.log(makeIntention(), 'completed');
@@ -131,7 +162,7 @@ describe('useChatThread', () => {
 
     it('carries the reason when logging a failure', async () => {
         const client = fakeClient();
-        const { result } = renderHook(() => useChatThread([], client));
+        const { result } = renderHook(() => useChatThread([], [], client));
 
         await act(async () => {
             await result.current.log(
@@ -150,7 +181,7 @@ describe('useChatThread', () => {
 
     it('posts a coach acknowledgement turn after a successful log', async () => {
         const client = fakeClient();
-        const { result } = renderHook(() => useChatThread([], client));
+        const { result } = renderHook(() => useChatThread([], [], client));
 
         await act(async () => {
             await result.current.log(makeIntention(), 'completed');
@@ -162,7 +193,7 @@ describe('useChatThread', () => {
 
     it('does not log when the loop has no active action', async () => {
         const client = fakeClient();
-        const { result } = renderHook(() => useChatThread([], client));
+        const { result } = renderHook(() => useChatThread([], [], client));
 
         await act(async () => {
             await result.current.log(
