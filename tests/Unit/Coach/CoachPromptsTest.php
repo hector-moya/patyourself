@@ -3,7 +3,6 @@
 namespace Tests\Unit\Coach;
 
 use App\Services\Coach\Prompts\CoachPrompts;
-use App\Services\Coach\Strategy\StrategyRevisionSchema;
 use PHPUnit\Framework\TestCase;
 
 class CoachPromptsTest extends TestCase
@@ -13,8 +12,6 @@ class CoachPromptsTest extends TestCase
     {
         return [
             CoachPrompts::intentionAuthoring()->system,
-            CoachPrompts::strategyRevision(StrategyRevisionSchema::MODE_STACK)->system,
-            CoachPrompts::strategyRevision(StrategyRevisionSchema::MODE_RESTRATEGIZE)->system,
             CoachPrompts::rollingSummary()->system,
         ];
     }
@@ -37,8 +34,6 @@ class CoachPromptsTest extends TestCase
     {
         $prompts = [
             CoachPrompts::intentionAuthoring(),
-            CoachPrompts::strategyRevision(StrategyRevisionSchema::MODE_STACK),
-            CoachPrompts::strategyRevision(StrategyRevisionSchema::MODE_RESTRATEGIZE),
             CoachPrompts::rollingSummary(),
         ];
 
@@ -60,16 +55,6 @@ class CoachPromptsTest extends TestCase
         foreach (['title', 'type', 'cue', 'craving', 'response', 'reward', 'intervention_point'] as $field) {
             $this->assertStringContainsString($field, $system);
         }
-    }
-
-    public function test_stack_and_restrategize_framings_differ(): void
-    {
-        $stack = CoachPrompts::strategyRevision(StrategyRevisionSchema::MODE_STACK)->system;
-        $restrategize = CoachPrompts::strategyRevision(StrategyRevisionSchema::MODE_RESTRATEGIZE)->system;
-
-        $this->assertNotSame($stack, $restrategize);
-        $this->assertMatchesRegularExpression('/harder|stack|succeeded/i', $stack);
-        $this->assertMatchesRegularExpression('/reason|failed|move/i', $restrategize);
     }
 
     public function test_rolling_summary_prompt_describes_pattern_detection(): void

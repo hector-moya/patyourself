@@ -3,11 +3,11 @@
 namespace Tests\Feature;
 
 use App\Actions\ReviseStrategy;
+use App\Ai\Agents\Strategist;
 use App\Models\Intention;
 use App\Models\Strategy;
 use App\Services\Coach\Authoring\AuthoredStrategy;
-use App\Services\Coach\Contracts\CoachService;
-use App\Services\Coach\FakeCoachService;
+use App\Services\Coach\Exceptions\CoachException;
 use App\Services\Coach\Strategy\StrategyTransitionException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -15,16 +15,6 @@ use Tests\TestCase;
 class ReviseStrategyTest extends TestCase
 {
     use RefreshDatabase;
-
-    private FakeCoachService $coach;
-
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        $this->coach = new FakeCoachService;
-        $this->app->instance(CoachService::class, $this->coach);
-    }
 
     private function activeStrategy(string $point = Strategy::POINT_RESPONSE): Strategy
     {
@@ -49,7 +39,7 @@ class ReviseStrategyTest extends TestCase
     public function test_restrategize_on_failure_creates_new_version_and_keeps_history(): void
     {
         $current = $this->activeStrategy(Strategy::POINT_RESPONSE);
-        $this->coach->pushJson($this->revision(Strategy::POINT_CUE, 'Lay shoes out the night before.'));
+        Strategist::fake([$this->revision(Strategy::POINT_CUE, 'Lay shoes out the night before.')]);
 
         $next = app(ReviseStrategy::class)->restrategizeOnFailure(
             $current,
@@ -82,7 +72,7 @@ class ReviseStrategyTest extends TestCase
     public function test_stack_on_success_creates_harder_next_version(): void
     {
         $current = $this->activeStrategy(Strategy::POINT_RESPONSE);
-        $this->coach->pushJson($this->revision(Strategy::POINT_RESPONSE, 'Walk for 25 minutes after coffee.'));
+        Strategist::fake([$this->revision(Strategy::POINT_RESPONSE, 'Walk for 25 minutes after coffee.')]);
 
         $next = app(ReviseStrategy::class)->stackOnSuccess($current);
 
@@ -101,6 +91,7 @@ class ReviseStrategyTest extends TestCase
     public function test_accepts_a_preauthored_strategy_without_calling_the_coach(): void
     {
         $current = $this->activeStrategy(Strategy::POINT_RESPONSE);
+        Strategist::fake([]);
 
         $next = app(ReviseStrategy::class)->restrategizeOnFailure(
             $current,
@@ -109,7 +100,7 @@ class ReviseStrategyTest extends TestCase
         );
 
         $this->assertSame(Strategy::POINT_CRAVING, $next->intervention_point);
-        $this->assertSame([], $this->coach->requests, 'a pre-authored strategy must not hit the coach');
+        Strategist::assertNeverPrompted();
     }
 
     public function test_only_an_active_strategy_can_transition(): void
@@ -127,6 +118,24 @@ class ReviseStrategyTest extends TestCase
         } finally {
             // No new version was written.
             $this->assertSame(1, $current->intention->strategies()->count());
+        }
+    }
+
+    public function test_malformed_payload_throws_coach_exception_and_persists_nothing(): void
+    {
+        $current = $this->activeStrategy(Strategy::POINT_RESPONSE);
+        // Empty array → structured fields are missing → emptyResponse guard fires.
+        Strategist::fake([[]]);
+
+        $strategyCountBefore = $current->intention->strategies()->count();
+
+        $this->expectException(CoachException::class);
+
+        try {
+            app(ReviseStrategy::class)->stackOnSuccess($current);
+        } finally {
+            // No new Strategy version was written.
+            $this->assertSame($strategyCountBefore, $current->intention->strategies()->count());
         }
     }
 }

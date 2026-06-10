@@ -4,7 +4,6 @@ namespace App\Services\Coach\Prompts;
 
 use App\Services\Coach\Authoring\IntentionSchema;
 use App\Services\Coach\Chat\ChatReplySchema;
-use App\Services\Coach\Strategy\StrategyRevisionSchema;
 
 /**
  * The single home for the coach's system prompts. Each is versioned and built
@@ -27,19 +26,6 @@ final class CoachPrompts
             'intention-authoring',
             'intention-authoring@1',
             self::compose(self::authoringFraming(), IntentionSchema::contract()),
-        );
-    }
-
-    public static function strategyRevision(string $mode): CoachPrompt
-    {
-        [$framing, $version] = $mode === StrategyRevisionSchema::MODE_STACK
-            ? [self::stackFraming(), 'strategy-stack@1']
-            : [self::restrategizeFraming(), 'strategy-restrategize@1'];
-
-        return new CoachPrompt(
-            'strategy-'.$mode,
-            $version,
-            self::compose($framing, StrategyRevisionSchema::contract()),
         );
     }
 
@@ -110,27 +96,6 @@ final class CoachPrompts
         For a "break" loop, cue/craving/response/reward describe the UNWANTED loop
         as it happens today, and the strategy is how to disrupt it. Choose the
         single intervention_point most likely to move the behaviour.
-        TXT;
-    }
-
-    private static function stackFraming(): string
-    {
-        return <<<'TXT'
-        Task: the current strategy SUCCEEDED. Stack toward a harder goal — raise
-        the challenge while keeping the loop achievable. You may keep the same
-        intervention_point (a tougher version of the same tactic) or advance it
-        if that makes the next step land better.
-        TXT;
-    }
-
-    private static function restrategizeFraming(): string
-    {
-        return <<<'TXT'
-        Task: the current strategy FAILED. Read the user's stated reason and move
-        the intervention_point UP (earlier) or DOWN (later) the cue -> craving ->
-        response -> reward chain to a point that addresses why it failed — e.g. if
-        the response was too hard, intervene earlier on the cue; if motivation was
-        missing, intervene on the craving.
         TXT;
     }
 

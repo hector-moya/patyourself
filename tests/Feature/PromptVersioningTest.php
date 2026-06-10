@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Actions\AuthorIntention;
 use App\Actions\ReviseStrategy;
 use App\Actions\UpdateRollingSummary;
+use App\Ai\Agents\Strategist;
 use App\Ai\Agents\Summarizer;
 use App\Models\Action;
 use App\Models\ActionLog;
@@ -13,8 +14,6 @@ use App\Models\Strategy;
 use App\Models\User;
 use App\Services\Coach\Contracts\CoachService;
 use App\Services\Coach\FakeCoachService;
-use App\Services\Coach\Prompts\CoachPrompts;
-use App\Services\Coach\Strategy\StrategyRevisionSchema;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -51,7 +50,7 @@ class PromptVersioningTest extends TestCase
         $intention = app(AuthorIntention::class)->handle(User::factory()->create(), 'more energy');
 
         $this->assertSame(
-            CoachPrompts::intentionAuthoring()->version,
+            'intention-authoring@1',
             $intention->metadata['prompt_version'],
         );
     }
@@ -60,16 +59,16 @@ class PromptVersioningTest extends TestCase
     {
         $intention = Intention::factory()->create();
         $current = Strategy::factory()->initial()->for($intention)->create();
-        $this->coach->pushJson([
+        Strategist::fake([[
             'intervention_point' => Strategy::POINT_CUE,
             'approach' => 'Lay shoes out the night before.',
             'rationale' => 'Make the cue obvious.',
-        ]);
+        ]]);
 
         $next = app(ReviseStrategy::class)->restrategizeOnFailure($current, 'too tired');
 
         $this->assertSame(
-            CoachPrompts::strategyRevision(StrategyRevisionSchema::MODE_RESTRATEGIZE)->version,
+            Strategist::PROMPT_VERSION,
             $next->metadata['prompt_version'],
         );
     }

@@ -2,10 +2,11 @@
 
 namespace App\Actions;
 
+use App\Ai\Agents\Strategist;
 use App\Models\Strategy;
 use App\Services\Coach\Authoring\AuthoredStrategy;
+use App\Services\Coach\Exceptions\CoachException;
 use App\Services\Coach\Strategy\BehavioralChain;
-use App\Services\Coach\Strategy\StrategyReviser;
 use App\Services\Coach\Strategy\StrategyTransitionException;
 use Illuminate\Support\Facades\DB;
 
@@ -20,20 +21,19 @@ use Illuminate\Support\Facades\DB;
  */
 final readonly class ReviseStrategy
 {
-    public function __construct(private StrategyReviser $reviser) {}
-
     /**
      * The current strategy succeeded — stack toward a harder goal.
      *
-     * @param  AuthoredStrategy|null  $next  A pre-authored revision; when null the coach authors one.
+     * @param  AuthoredStrategy|null  $next  A pre-authored revision; when null the Strategist agent authors one.
      * @param  array<string, mixed>  $context
      *
      * @throws StrategyTransitionException
+     * @throws CoachException
      */
     public function stackOnSuccess(Strategy $current, ?AuthoredStrategy $next = null, array $context = []): Strategy
     {
         $this->guardActive($current);
-        $next ??= $this->reviser->stack($current, $context);
+        $next ??= $this->revise($current, 'stack', null, $context);
 
         return DB::transaction(fn (): Strategy => $this->supersedeAndCreate(
             $current,
@@ -46,15 +46,16 @@ final readonly class ReviseStrategy
     /**
      * The current strategy failed — restrategize from the user-stated reason.
      *
-     * @param  AuthoredStrategy|null  $next  A pre-authored revision; when null the coach authors one.
+     * @param  AuthoredStrategy|null  $next  A pre-authored revision; when null the Strategist agent authors one.
      * @param  array<string, mixed>  $context
      *
      * @throws StrategyTransitionException
+     * @throws CoachException
      */
     public function restrategizeOnFailure(Strategy $current, string $reason, ?AuthoredStrategy $next = null, array $context = []): Strategy
     {
         $this->guardActive($current);
-        $next ??= $this->reviser->restrategize($current, $reason, $context);
+        $next ??= $this->revise($current, 'restrategize', $reason, $context);
 
         return DB::transaction(fn (): Strategy => $this->supersedeAndCreate(
             $current,
@@ -72,6 +73,73 @@ final readonly class ReviseStrategy
         if ($current->status !== Strategy::STATUS_ACTIVE) {
             throw StrategyTransitionException::notActive($current);
         }
+    }
+
+    /**
+     * Calls the Strategist agent and maps the structured response into an
+     * AuthoredStrategy value object.
+     *
+     * @param  array<string, mixed>  $context
+     *
+     * @throws CoachException
+     */
+    private function revise(Strategy $current, string $mode, ?string $reason, array $context): AuthoredStrategy
+    {
+        $userPrompt = $this->userPrompt($current, $mode, $reason, $context);
+        $response = (new Strategist)->prompt($userPrompt);
+
+        $interventionPoint = trim((string) ($response->structured['intervention_point'] ?? ''));
+        $approach = trim((string) ($response->structured['approach'] ?? ''));
+
+        if ($approach === '' || $interventionPoint === '') {
+            throw CoachException::emptyResponse('strategist');
+        }
+
+        $validPoints = [Strategy::POINT_CUE, Strategy::POINT_CRAVING, Strategy::POINT_RESPONSE, Strategy::POINT_REWARD];
+        if (! in_array($interventionPoint, $validPoints, strict: true)) {
+            throw CoachException::emptyResponse('strategist');
+        }
+
+        return new AuthoredStrategy(
+            interventionPoint: $interventionPoint,
+            approach: $approach,
+            rationale: isset($response->structured['rationale']) ? trim((string) $response->structured['rationale']) : null,
+            promptVersion: Strategist::PROMPT_VERSION,
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>  $context
+     */
+    private function userPrompt(Strategy $current, string $mode, ?string $reason, array $context): string
+    {
+        $intention = $current->intention;
+
+        $lines = [
+            'Mode: '.($mode === 'stack' ? 'STACK' : 'RESTRATEGIZE'),
+            '',
+            'Habit loop: '.$intention->title.' ('.$intention->type.')',
+            'Cue: '.$intention->cue,
+            'Craving: '.$intention->craving,
+            'Response: '.$intention->response,
+            'Reward: '.$intention->reward,
+            '',
+            'Current strategy (version '.$current->version.'):',
+            'Intervention point: '.$current->intervention_point,
+            'Approach: '.$current->approach,
+            '',
+            $mode === 'stack'
+                ? 'Outcome: the user SUCCEEDED with this strategy. Stack toward a harder goal.'
+                : 'Outcome: the user FAILED this strategy. Their stated reason: "'.trim((string) $reason).'"',
+        ];
+
+        if ($context !== []) {
+            $lines[] = '';
+            $lines[] = 'Additional context:';
+            $lines[] = (string) json_encode($context, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        }
+
+        return implode("\n", $lines);
     }
 
     private function supersedeAndCreate(
