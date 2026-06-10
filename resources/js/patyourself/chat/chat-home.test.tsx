@@ -225,3 +225,53 @@ describe('ChatThread quick-log wiring', () => {
         ).not.toBeInTheDocument();
     });
 });
+
+describe('first-loop suggestions', () => {
+    const greeting: ChatMessage = {
+        id: 'g1',
+        role: 'coach',
+        text: "Let's build your first loop.",
+    };
+
+    it('offers starter suggestions when the thread has no loops yet', () => {
+        render(<ChatThread messages={[greeting]} onSuggest={vi.fn()} />);
+
+        expect(screen.getByText(/start your first loop/i)).toBeInTheDocument();
+        expect(
+            screen.getAllByRole('button', { name: /./ }).length,
+        ).toBeGreaterThanOrEqual(3);
+    });
+
+    it('sends the picked suggestion to the coach', async () => {
+        const onSuggest = vi.fn();
+        render(<ChatThread messages={[greeting]} onSuggest={onSuggest} />);
+
+        const [first] = screen.getAllByRole('button');
+        await userEvent.click(first);
+
+        expect(onSuggest).toHaveBeenCalledTimes(1);
+        expect(typeof onSuggest.mock.calls[0][0]).toBe('string');
+        expect(onSuggest.mock.calls[0][0].length).toBeGreaterThan(0);
+    });
+
+    it('disappears once the thread contains a loop card', () => {
+        render(
+            <ChatThread
+                messages={[greeting, cardMessage(makeIntention())]}
+                onSuggest={vi.fn()}
+            />,
+        );
+
+        expect(
+            screen.queryByText(/start your first loop/i),
+        ).not.toBeInTheDocument();
+    });
+
+    it('is absent when no onSuggest handler is given', () => {
+        render(<ChatThread messages={[greeting]} />);
+
+        expect(
+            screen.queryByText(/start your first loop/i),
+        ).not.toBeInTheDocument();
+    });
+});

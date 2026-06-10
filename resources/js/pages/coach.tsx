@@ -29,7 +29,7 @@ export default function Coach({ intentions }: CoachProps) {
             bottomNav={<BottomNav />}
         >
             <Head title="Coach" />
-            <ChatThread messages={messages} onLog={log} />
+            <ChatThread messages={messages} onLog={log} onSuggest={send} />
         </CoachLayout>
     );
 }
