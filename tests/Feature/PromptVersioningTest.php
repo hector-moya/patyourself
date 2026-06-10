@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Actions\AuthorIntention;
 use App\Actions\ReviseStrategy;
 use App\Actions\UpdateRollingSummary;
+use App\Ai\Agents\Summarizer;
 use App\Models\Action;
 use App\Models\ActionLog;
 use App\Models\Intention;
@@ -83,12 +84,12 @@ class PromptVersioningTest extends TestCase
             'outcome' => ActionLog::OUTCOME_COMPLETED,
             'logged_at' => '2026-06-01 22:00:00',
         ]);
-        $this->coach->pushJson(['content' => 'Summary.', 'patterns' => []]);
+        Summarizer::fake([['content' => 'Summary.', 'patterns' => []]]);
 
         $summary = app(UpdateRollingSummary::class)->handle($intention);
 
         $this->assertSame(
-            CoachPrompts::rollingSummary()->version,
+            Summarizer::PROMPT_VERSION,
             $summary->metadata['prompt_version'],
         );
     }

@@ -5,7 +5,6 @@ namespace App\Services\Coach\Prompts;
 use App\Services\Coach\Authoring\IntentionSchema;
 use App\Services\Coach\Chat\ChatReplySchema;
 use App\Services\Coach\Strategy\StrategyRevisionSchema;
-use App\Services\Coach\Summary\PatternSummarySchema;
 
 /**
  * The single home for the coach's system prompts. Each is versioned and built
@@ -46,10 +45,20 @@ final class CoachPrompts
 
     public static function rollingSummary(): CoachPrompt
     {
+        $contract = <<<'PROMPT'
+        Return ONE JSON object and nothing else — no prose, no Markdown fences —
+        with exactly these fields:
+
+        {
+          "content":  string,    // the updated rolling summary, a few sentences
+          "patterns": string[]   // short behavioural patterns; [] if none yet
+        }
+        PROMPT;
+
         return new CoachPrompt(
             'rolling-summary',
             'rolling-summary@1',
-            self::compose(self::summaryFraming(), PatternSummarySchema::contract()),
+            self::compose(self::summaryFraming(), $contract),
         );
     }
 

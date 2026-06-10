@@ -3,21 +3,18 @@
 namespace Tests\Feature;
 
 use App\Actions\UpdateRollingSummary;
+use App\Ai\Agents\Summarizer;
 use App\Models\Action;
 use App\Models\ActionLog;
 use App\Models\Intention;
 use App\Models\Strategy;
 use App\Models\Summary;
-use App\Services\Coach\Contracts\CoachService;
-use App\Services\Coach\FakeCoachService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class UpdateRollingSummaryTest extends TestCase
 {
     use RefreshDatabase;
-
-    private FakeCoachService $coach;
 
     private Intention $intention;
 
@@ -26,9 +23,6 @@ class UpdateRollingSummaryTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-
-        $this->coach = new FakeCoachService;
-        $this->app->instance(CoachService::class, $this->coach);
 
         $this->intention = Intention::factory()->create();
         $strategy = Strategy::factory()->initial()->for($this->intention)->create();
@@ -55,7 +49,7 @@ class UpdateRollingSummaryTest extends TestCase
     {
         $this->log(ActionLog::OUTCOME_FAILED, 'Got home too late', '2026-06-01 22:00:00');
         $this->log(ActionLog::OUTCOME_COMPLETED, null, '2026-06-02 22:00:00');
-        $this->coach->pushJson($this->payload('Misses on late workdays.'));
+        Summarizer::fake([$this->payload('Misses on late workdays.')]);
 
         $summary = app(UpdateRollingSummary::class)->handle($this->intention);
 
@@ -66,25 +60,25 @@ class UpdateRollingSummaryTest extends TestCase
         $this->assertSame('Misses on late workdays.', $summary->content);
         $this->assertSame(2, $summary->events_count);
         $this->assertSame(['Fails on late workdays'], $summary->metadata['patterns']);
-        $this->assertSame('fake', $summary->metadata['model']);
+        $this->assertSame('claude-sonnet-4-6', $summary->metadata['model']);
 
         // It becomes the intention's current rolling summary.
         $this->assertSame($summary->id, $this->intention->fresh()->latestSummary->id);
 
-        // The failure reason reached the model.
-        $this->assertStringContainsString('Got home too late', $this->coach->requests[0]->messagePayload()[0]['content']);
+        // The failure reason reached the Summarizer agent.
+        Summarizer::assertPrompted(fn ($p) => str_contains($p->prompt, 'Got home too late'));
     }
 
     public function test_rolling_update_folds_prior_summary_and_counts_only_new_events(): void
     {
         $this->log(ActionLog::OUTCOME_COMPLETED, null, '2026-06-01 22:00:00');
         $this->log(ActionLog::OUTCOME_COMPLETED, null, '2026-06-02 22:00:00');
-        $this->coach->pushJson($this->payload('FIRST_SUMMARY'));
+        Summarizer::fake([$this->payload('FIRST_SUMMARY')]);
         $first = app(UpdateRollingSummary::class)->handle($this->intention);
 
         // A new event after the first window.
         $this->log(ActionLog::OUTCOME_FAILED, 'Travelling', '2026-06-05 22:00:00');
-        $this->coach->pushJson($this->payload('SECOND_SUMMARY'));
+        Summarizer::fake([$this->payload('SECOND_SUMMARY')]);
         $second = app(UpdateRollingSummary::class)->handle($this->intention);
 
         $this->assertNotNull($second);
@@ -96,8 +90,8 @@ class UpdateRollingSummaryTest extends TestCase
             'windows are contiguous',
         );
 
-        // The prior rolling summary was fed back to the model.
-        $this->assertStringContainsString('FIRST_SUMMARY', $this->coach->requests[1]->messagePayload()[0]['content']);
+        // The prior rolling summary was fed back to the Summarizer agent.
+        Summarizer::assertPrompted(fn ($p) => str_contains($p->prompt, 'FIRST_SUMMARY'));
 
         $this->assertSame(2, Summary::count());
     }
@@ -105,7 +99,7 @@ class UpdateRollingSummaryTest extends TestCase
     public function test_returns_null_when_there_are_no_new_events(): void
     {
         $this->log(ActionLog::OUTCOME_COMPLETED, null, '2026-06-01 22:00:00');
-        $this->coach->pushJson($this->payload());
+        Summarizer::fake([$this->payload()]);
         app(UpdateRollingSummary::class)->handle($this->intention);
 
         // No new events logged since the first summary.

@@ -2,24 +2,24 @@
 
 namespace App\Actions;
 
+use App\Ai\Agents\Summarizer;
+use App\Models\ActionLog;
 use App\Models\Intention;
 use App\Models\Summary;
-use App\Services\Coach\Summary\RollingSummaryService;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Date;
 
 /**
  * Refreshes a loop's rolling summary. Gathers the action-log events that have
  * happened since the last snapshot, folds them (with the prior summary) into an
- * updated one via the coach, and stores a new Summary snapshot covering that
- * window. This is the only place the rolling summary is written.
+ * updated one via the Summarizer agent, and stores a new Summary snapshot
+ * covering that window. This is the only place the rolling summary is written.
  *
  * Returns null when there is nothing new to fold, so callers can fire it freely
  * after each logged event without creating empty snapshots.
  */
 final readonly class UpdateRollingSummary
 {
-    public function __construct(private RollingSummaryService $summarizer) {}
-
     public function handle(Intention $intention): ?Summary
     {
         // Fetch fresh (not the cached property) so repeated calls on the same
@@ -45,16 +45,63 @@ final readonly class UpdateRollingSummary
         $windowStart = $previous?->window_end ?? $events->first()->logged_at;
         $windowEnd = $events->last()->logged_at;
 
-        $authored = $this->summarizer->summarize($intention, $events, $previous);
+        $userPrompt = $this->userPrompt($intention, $events, $previous);
+        $response = (new Summarizer)->prompt($userPrompt);
+
+        $content = (string) $response['content'];
+        $patterns = array_values(array_map('strval', $response['patterns'] ?? []));
 
         return $intention->summaries()->create([
             'user_id' => $intention->user_id,
             'scope' => Summary::SCOPE_INTENTION,
-            'content' => $authored->content,
+            'content' => $content,
             'window_start' => $windowStart,
             'window_end' => $windowEnd,
             'events_count' => $events->count(),
-            'metadata' => $authored->metadata(),
+            'metadata' => array_filter([
+                'model' => $response->meta->model ?? null,
+                'prompt_version' => Summarizer::PROMPT_VERSION,
+                'patterns' => $patterns,
+            ], static fn ($value): bool => $value !== null),
         ]);
+    }
+
+    /**
+     * @param  iterable<ActionLog>  $events
+     */
+    private function userPrompt(Intention $intention, iterable $events, ?Summary $previous): string
+    {
+        $lines = [
+            'Habit loop: '.$intention->title.' ('.$intention->type.')',
+            'Cue: '.$intention->cue,
+            'Craving: '.$intention->craving,
+            'Response: '.$intention->response,
+            'Reward: '.$intention->reward,
+        ];
+
+        if ($previous !== null && $previous->content !== '') {
+            $lines[] = '';
+            $lines[] = 'Prior rolling summary:';
+            $lines[] = $previous->content;
+        }
+
+        $lines[] = '';
+        $lines[] = 'New events since then (oldest first):';
+
+        foreach ($events as $event) {
+            $when = $event->logged_at instanceof Carbon
+                ? $event->logged_at->toDateString()
+                : (string) $event->logged_at;
+
+            $line = '- ['.$when.'] '.$event->outcome;
+
+            if ($event->reason !== null && $event->reason !== '') {
+                $line .= ' — reason: '.$event->reason;
+            }
+
+            $lines[] = $line;
+        }
+
+        return implode("\n", $lines);
     }
 }
