@@ -7,7 +7,7 @@ use Tests\TestCase;
 
 class TurnCollectorTest extends TestCase
 {
-    public function test_collects_intention_ids_and_is_a_singleton(): void
+    public function test_container_returns_same_accumulating_instance_within_scope(): void
     {
         $collector = $this->app->make(TurnCollector::class);
         $collector->addIntention(7);
