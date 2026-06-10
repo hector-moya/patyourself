@@ -100,7 +100,7 @@ class CreateLoop implements Tool
 
         $authored = new AuthoredIntention(
             title: $title,
-            description: isset($data['description']) && trim((string) $data['description']) !== '' ? trim((string) $data['description']) : null,
+            description: isset($data['description']) ? (($d = trim((string) $data['description'])) !== '' ? $d : null) : null,
             type: $type,
             cue: $cue,
             craving: $craving,

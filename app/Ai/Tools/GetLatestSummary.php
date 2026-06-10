@@ -34,7 +34,13 @@ class GetLatestSummary implements Tool
             return 'Loop not found.';
         }
 
-        $intention = Intention::where('id', $request['intention_id'])
+        $id = $request->integer('intention_id');
+
+        if ($id === 0) {
+            return 'Loop not found.';
+        }
+
+        $intention = Intention::where('id', $id)
             ->where('user_id', $user->id)
             ->with('latestSummary')
             ->first();
