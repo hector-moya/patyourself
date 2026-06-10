@@ -22,7 +22,7 @@ use Laravel\Ai\Promptable;
 #[Provider(Lab::Anthropic)]
 #[Model('claude-sonnet-4-6')]
 #[Temperature(0.3)]
-#[MaxTokens(1024)]
+#[MaxTokens(2048)]
 class Summarizer implements Agent, HasMiddleware, HasStructuredOutput
 {
     use Promptable;
@@ -73,7 +73,7 @@ class Summarizer implements Agent, HasMiddleware, HasStructuredOutput
     {
         return [
             'content' => $schema->string()->max(4000)->required(),
-            'patterns' => $schema->array()->items($schema->string())->max(12),
+            'patterns' => $schema->array()->items($schema->string()->max(200))->max(12),
         ];
     }
 

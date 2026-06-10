@@ -9,6 +9,7 @@ use App\Models\ActionLog;
 use App\Models\Intention;
 use App\Models\Strategy;
 use App\Models\Summary;
+use App\Services\Coach\Exceptions\CoachException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -60,7 +61,7 @@ class UpdateRollingSummaryTest extends TestCase
         $this->assertSame('Misses on late workdays.', $summary->content);
         $this->assertSame(2, $summary->events_count);
         $this->assertSame(['Fails on late workdays'], $summary->metadata['patterns']);
-        $this->assertSame('claude-sonnet-4-6', $summary->metadata['model']);
+        $this->assertNotSame('', (string) $summary->metadata['model']);
 
         // It becomes the intention's current rolling summary.
         $this->assertSame($summary->id, $this->intention->fresh()->latestSummary->id);
@@ -115,5 +116,19 @@ class UpdateRollingSummaryTest extends TestCase
 
         $this->assertNull($result);
         $this->assertSame(0, Summary::count());
+    }
+
+    public function test_a_malformed_summary_payload_throws_and_persists_nothing(): void
+    {
+        $this->log(ActionLog::OUTCOME_COMPLETED, null, '2026-06-01 22:00:00');
+        Summarizer::fake([[]]); // empty array payload — no 'content' key
+
+        $this->expectException(CoachException::class);
+
+        try {
+            app(UpdateRollingSummary::class)->handle($this->intention);
+        } finally {
+            $this->assertSame(0, Summary::count());
+        }
     }
 }

@@ -6,6 +6,7 @@ use App\Ai\Agents\Summarizer;
 use App\Models\ActionLog;
 use App\Models\Intention;
 use App\Models\Summary;
+use App\Services\Coach\Exceptions\CoachException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Date;
 
@@ -48,8 +49,13 @@ final readonly class UpdateRollingSummary
         $userPrompt = $this->userPrompt($intention, $events, $previous);
         $response = (new Summarizer)->prompt($userPrompt);
 
-        $content = (string) $response['content'];
-        $patterns = array_values(array_map('strval', $response['patterns'] ?? []));
+        $content = trim((string) ($response->structured['content'] ?? ''));
+
+        if ($content === '') {
+            throw CoachException::emptyResponse('summarizer');
+        }
+
+        $patterns = array_values(array_map('strval', $response->structured['patterns'] ?? []));
 
         return $intention->summaries()->create([
             'user_id' => $intention->user_id,
