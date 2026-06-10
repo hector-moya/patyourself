@@ -89,10 +89,10 @@ class ChatController extends Controller
         }
 
         return $conversation->messages()
-            ->latest('created_at')
+            ->latest('id')
             ->limit(50)
             ->get()
-            ->sortBy('created_at')
+            ->sortBy('id')
             ->values()
             ->map(fn (ConversationMessage $m): array => [
                 'id' => 'h'.$m->id,

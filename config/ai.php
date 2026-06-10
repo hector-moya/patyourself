@@ -31,6 +31,22 @@ return [
     |
     */
 
+    /*
+    |--------------------------------------------------------------------------
+    | Conversations
+    |--------------------------------------------------------------------------
+    |
+    | Configuration for the durable conversation store. Title generation is
+    | disabled to avoid an unmetered provider call on every new conversation
+    | (the call happens outside the GuardCoachUsage pipeline and would hit the
+    | real Anthropic API in production without going through the cost guard).
+    |
+    */
+
+    'conversations' => [
+        'generate_title' => false,
+    ],
+
     'caching' => [
         'embeddings' => [
             'cache' => false,

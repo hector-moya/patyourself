@@ -7,6 +7,9 @@ use App\Ai\TurnCollector;
 use App\Models\Intention;
 use App\Models\User;
 use App\Services\Coach\Chat\ChatResult;
+use App\Services\Coach\Exceptions\CoachException;
+use Illuminate\Http\Client\RequestException;
+use Laravel\Ai\Exceptions\AiException;
 
 /**
  * Handles one chat turn end to end: prompts the Coach orchestrator inside the
@@ -26,10 +29,18 @@ final readonly class RespondToChat
     {
         $this->collector->flush();
 
-        $response = (new Coach)
-            ->forUser($user)
-            ->continueLastConversation($user)
-            ->prompt($message);
+        try {
+            $response = (new Coach)
+                ->forUser($user)
+                ->continueLastConversation($user)
+                ->prompt($message);
+        } catch (AiException|RequestException $e) {
+            throw new CoachException(
+                'The coach provider failed: '.$e->getMessage(),
+                0,
+                $e,
+            );
+        }
 
         $intention = Intention::query()
             ->whereIn('id', $this->collector->intentionIds())

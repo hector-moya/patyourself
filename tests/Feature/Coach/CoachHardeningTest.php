@@ -8,6 +8,7 @@ use App\Services\Coach\Data\CoachResponse;
 use App\Services\Coach\Exceptions\CoachException;
 use App\Services\Coach\Usage\CoachUsageGuard;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Laravel\Ai\Exceptions\AiException;
 use Tests\TestCase;
 
 /**
@@ -67,6 +68,22 @@ class CoachHardeningTest extends TestCase
         // exception renderer in bootstrap/app.php converts to 503.
         Coach::fake(function (): never {
             throw new CoachException('provider down');
+        });
+
+        $this->actingAs($user)
+            ->postJson('/chat', ['message' => 'hello'])
+            ->assertStatus(503)
+            ->assertJsonStructure(['message']);
+    }
+
+    public function test_a_provider_exception_degrades_to_503_not_500(): void
+    {
+        $user = User::factory()->create();
+
+        // Real laravel/ai provider failures throw AiException (or subclasses).
+        // They must NOT bubble as a raw 500 — the app must map them to 503.
+        Coach::fake(function (): never {
+            throw new AiException('upstream exploded');
         });
 
         $this->actingAs($user)
