@@ -20,7 +20,7 @@ use Laravel\Ai\Promptable;
  * data only; UpdateRollingSummary persists it.
  */
 #[Provider(Lab::Anthropic)]
-#[Model('claude-sonnet-4-6')]
+#[Model('claude-haiku-4-5')]
 #[Temperature(0.3)]
 #[MaxTokens(2048)]
 class Summarizer implements Agent, HasMiddleware, HasStructuredOutput

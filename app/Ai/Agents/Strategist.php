@@ -29,7 +29,7 @@ use Laravel\Ai\Promptable;
  * The user prompt must declare which mode applies (see ReviseStrategy).
  */
 #[Provider(Lab::Anthropic)]
-#[Model('claude-sonnet-4-6')]
+#[Model('claude-haiku-4-5')]
 #[Temperature(0.5)]
 #[MaxTokens(2048)]
 class Strategist implements Agent, HasMiddleware, HasStructuredOutput

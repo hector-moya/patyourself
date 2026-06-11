@@ -25,7 +25,7 @@ use Laravel\Ai\Promptable;
  * every LLM call is metered into the coach_usages ledger.
  */
 #[Provider(Lab::Anthropic)]
-#[Model('claude-sonnet-4-6')]
+#[Model('claude-haiku-4-5')]
 #[Temperature(0.7)]
 #[MaxTokens(2048)]
 class IntentionAuthor implements Agent, HasMiddleware, HasStructuredOutput
