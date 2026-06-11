@@ -8,7 +8,7 @@ use App\Models\Intention;
 use App\Models\User;
 use App\Services\Coach\Chat\ChatResult;
 use App\Services\Coach\Exceptions\CoachException;
-use Illuminate\Http\Client\RequestException;
+use Illuminate\Http\Client\HttpClientException;
 use Laravel\Ai\Exceptions\AiException;
 
 /**
@@ -34,7 +34,9 @@ final readonly class RespondToChat
                 ->forUser($user)
                 ->continueLastConversation($user)
                 ->prompt($message);
-        } catch (AiException|RequestException $e) {
+        } catch (AiException|HttpClientException $e) {
+            // HttpClientException covers both RequestException (HTTP error
+            // status) and ConnectionException (timeout / DNS / refused).
             throw new CoachException(
                 'The coach provider failed: '.$e->getMessage(),
                 0,
