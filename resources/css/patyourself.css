@@ -397,3 +397,40 @@
 @media (prefers-reduced-motion:reduce){
   *{animation:none !important;transition:none !important;}
 }
+
+/* ============================================================
+   APP-SHELL BACKDROP — warms the desktop gutters around the
+   mobile-first column (CoachLayout). Replaces a flat translucent
+   fill so the frame reads as an intentional, atmospheric surround
+   instead of dead space. Self-contained: literal palette values so
+   it works outside the .py-* token scope.
+   ============================================================ */
+.py-frame-bg{
+  background-color:#F4ECDF;
+  background-image:
+    radial-gradient(125% 85% at 15% -5%, rgba(226,107,62,0.12), transparent 55%),
+    radial-gradient(95% 75% at 105% 105%, rgba(94,140,106,0.10), transparent 60%),
+    radial-gradient(70% 60% at 50% 45%, rgba(212,148,46,0.06), transparent 72%);
+}
+.py-frame-bg::before{
+  content:"";position:absolute;inset:0;z-index:0;pointer-events:none;
+  opacity:0.35;mix-blend-mode:multiply;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+}
+.py-frame-mark{display:none;}
+@media (min-width:1024px){
+  .py-frame-mark{
+    display:block;position:absolute;top:50%;left:2.75rem;z-index:0;
+    transform:translateY(-50%);writing-mode:vertical-rl;
+    font-family:var(--font-display);font-weight:700;
+    font-size:clamp(1.25rem,1.6vw,1.75rem);letter-spacing:0.08em;
+    color:#241F1B;opacity:0.06;user-select:none;
+  }
+}
+.dark .py-frame-bg{
+  background-color:#1C1815;
+  background-image:
+    radial-gradient(125% 85% at 15% -5%, rgba(238,126,80,0.12), transparent 55%),
+    radial-gradient(95% 75% at 105% 105%, rgba(124,174,137,0.08), transparent 60%);
+}
+.dark .py-frame-mark{color:#F3ECE0;opacity:0.05;}

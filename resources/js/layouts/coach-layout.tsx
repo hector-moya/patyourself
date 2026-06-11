@@ -52,8 +52,11 @@ export default function CoachLayout({
     return (
         <>
             {title && <Head title={title} />}
-            <div className="flex min-h-dvh justify-center bg-muted/40">
-                <div className="relative flex min-h-dvh w-full max-w-app flex-col bg-background shadow-sm sm:my-0">
+            <div className="py-frame-bg relative flex min-h-dvh justify-center">
+                <span aria-hidden className="py-frame-mark">
+                    patyourself
+                </span>
+                <div className="relative z-10 flex min-h-dvh w-full max-w-app flex-col bg-background shadow-[0_0_60px_-15px_rgba(36,31,27,0.22)] sm:my-0">
                     {showDefaultHeader ? (
                         <CoachHeader
                             title={title}

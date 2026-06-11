@@ -222,9 +222,10 @@ export function ChatThread({
             )}
 
             {onSuggest &&
-                !messages.some((message) => message.role === 'card') && (
-                    <FirstLoopSuggestions onPick={onSuggest} />
-                )}
+                !messages.some(
+                    (message) =>
+                        message.role === 'user' || message.role === 'card',
+                ) && <FirstLoopSuggestions onPick={onSuggest} />}
 
             {reasonFor && (
                 <ReasonPrompt
@@ -243,29 +244,39 @@ export function ChatThread({
 }
 
 /**
- * The fresh-account empty state: explains that the coach builds loops from a
- * plain sentence and offers tappable starters. Disappears as soon as the thread
- * holds its first loop card — the coach takes it from there.
+ * The fresh-account welcome: explains that the coach builds loops from a plain
+ * sentence and offers tappable starters so the user never faces a blank
+ * composer. Disappears the moment the user sends anything (or a loop card lands)
+ * — the conversation takes it from there.
  */
 function FirstLoopSuggestions({ onPick }: { onPick: (text: string) => void }) {
     return (
-        <div className="max-w-[85%] rounded-2xl border border-dashed border-border p-4">
-            <h3 className="text-sm font-semibold text-foreground">
+        <div className="rounded-2xl border border-border bg-card/70 p-5 shadow-sm">
+            <p className="font-mono text-[0.7rem] tracking-[0.16em] text-primary/80 uppercase">
+                New here
+            </p>
+            <h3 className="mt-1.5 font-display text-xl font-semibold text-foreground">
                 Start your first loop
             </h3>
-            <p className="mt-1 text-sm text-muted-foreground">
+            <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
                 Tell the coach a habit you want to build or break — it designs
-                the loop for you. Try one of these to see how it works:
+                the loop for you. Tap one to see how it works:
             </p>
-            <div className="mt-3 flex flex-col items-start gap-2">
+            <div className="mt-4 flex flex-col gap-2">
                 {FIRST_LOOP_SUGGESTIONS.map((suggestion) => (
                     <button
                         key={suggestion}
                         type="button"
                         onClick={() => onPick(suggestion)}
-                        className="rounded-full border border-border px-3 py-1.5 text-left text-sm text-foreground transition-colors hover:border-primary/40 hover:bg-primary/5"
+                        className="group flex items-center justify-between gap-3 rounded-xl border border-border bg-background px-4 py-2.5 text-left text-sm text-foreground transition-all hover:border-primary/50 hover:bg-primary/5"
                     >
-                        {suggestion}
+                        <span>{suggestion}</span>
+                        <span
+                            aria-hidden
+                            className="text-primary opacity-0 transition-all group-hover:translate-x-0.5 group-hover:opacity-100"
+                        >
+                            →
+                        </span>
                     </button>
                 ))}
             </div>

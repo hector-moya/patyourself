@@ -298,6 +298,22 @@ describe('first-loop suggestions', () => {
         ).not.toBeInTheDocument();
     });
 
+    it('disappears once the user has sent a message', () => {
+        const userTurn: ChatMessage = {
+            id: 'u1',
+            role: 'user',
+            text: 'I want to start doing more exercise',
+        };
+
+        render(
+            <ChatThread messages={[greeting, userTurn]} onSuggest={vi.fn()} />,
+        );
+
+        expect(
+            screen.queryByText(/start your first loop/i),
+        ).not.toBeInTheDocument();
+    });
+
     it('is absent when no onSuggest handler is given', () => {
         render(<ChatThread messages={[greeting]} />);
 
