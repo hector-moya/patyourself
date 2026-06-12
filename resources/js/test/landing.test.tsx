@@ -2,7 +2,7 @@ import type * as InertiaReact from '@inertiajs/react';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-import Landing from './landing';
+import Landing from '@/pages/landing';
 
 // `Head` needs Inertia's head-manager context, which isn't mounted in a bare
 // component render. Stub it (keeping the real `Link` so href assertions below
