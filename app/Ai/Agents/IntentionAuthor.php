@@ -78,8 +78,26 @@ class IntentionAuthor implements Agent, HasMiddleware, HasStructuredOutput
             "intervention_point": "cue | craving | response | reward",
             "approach":  string,  // the concrete tactic at that point in the chain
             "rationale": string   // why intervening there should help
+          },
+          "action": {            // the single concrete thing to do, and when
+            "title":       string,  // imperative, e.g. "Set your shoes by the door"
+            "description": string,  // optional one-liner
+            "schedule": {
+              "kind":       "clock | anchored",
+              "time":       "HH:MM",   // 24h local time, when kind=clock
+              "recurrence": "once | daily | weekdays | weekly",  // when kind=clock
+              "anchor":     string     // event phrase, when kind=anchored, e.g. "after morning coffee"
+            }
           }
         }
+
+        Also propose the first concrete action and WHEN to do it:
+        - If the user states or clearly implies a clock time, set schedule.kind
+          to "clock" with that time and a recurrence.
+        - If the habit is naturally anchored to an existing routine, set
+          schedule.kind to "anchored" with a short anchor phrase and omit time.
+        - Otherwise pick a sensible default time and "daily" — the user can adjust.
+        The action.title is an imperative restatement of the strategy's approach.
         TXT;
     }
 
@@ -101,6 +119,16 @@ class IntentionAuthor implements Agent, HasMiddleware, HasStructuredOutput
                 'approach' => $schema->string()->max(2000)->required(),
                 'rationale' => $schema->string()->max(2000),
             ]),
+            'action' => $schema->object(fn ($schema) => [
+                'title' => $schema->string()->max(255)->required(),
+                'description' => $schema->string()->max(2000),
+                'schedule' => $schema->object(fn ($schema) => [
+                    'kind' => $schema->string()->enum(['clock', 'anchored'])->required(),
+                    'time' => $schema->string(),
+                    'recurrence' => $schema->string()->enum(['once', 'daily', 'weekdays', 'weekly']),
+                    'anchor' => $schema->string()->max(255),
+                ])->required(),
+            ])->required(),
         ];
     }
 
