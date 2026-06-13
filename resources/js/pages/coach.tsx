@@ -1,6 +1,5 @@
 import { useEffect } from 'react';
-import { Head } from '@inertiajs/react';
-import { router } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
 
 import CoachLayout from '@/layouts/coach-layout';
 import { BottomNav } from '@/patyourself/bottom-nav';
@@ -27,7 +26,7 @@ interface CoachProps {
  * when present the hook hydrates the UI from that history instead of a greeting.
  */
 export default function Coach({ intentions, thread = [], userTimezone }: CoachProps) {
-    const { messages, send, log } = useChatThread(intentions, thread);
+    const { messages, send, log, reschedule } = useChatThread(intentions, thread);
 
     useEffect(() => {
         if (userTimezone) {
@@ -46,7 +45,7 @@ export default function Coach({ intentions, thread = [], userTimezone }: CoachPr
             bottomNav={<BottomNav />}
         >
             <Head title="Coach" />
-            <ChatThread messages={messages} onLog={log} onSuggest={send} />
+            <ChatThread messages={messages} onLog={log} onReschedule={reschedule} onSuggest={send} />
         </CoachLayout>
     );
 }

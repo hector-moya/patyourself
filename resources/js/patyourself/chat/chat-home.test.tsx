@@ -41,6 +41,7 @@ function fakeClient(overrides: Partial<CoachClient> = {}): CoachClient {
     return {
         sendMessage: vi.fn(async () => ({ message: 'Coach here.', cards: [] })),
         logOutcome: vi.fn(async () => {}),
+        rescheduleAction: vi.fn(async () => {}),
         ...overrides,
     };
 }

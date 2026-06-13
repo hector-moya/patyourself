@@ -12,6 +12,13 @@ export interface CoachReply {
     cards: CoachCard[];
 }
 
+export interface ReschedulePayload {
+    kind: 'clock' | 'anchored';
+    time?: string | null;
+    recurrence?: string | null;
+    anchor?: string | null;
+}
+
 /**
  * The seam between the chat UI and the server. The hook depends only on this
  * interface, so tests inject a fake and the live screen uses the HTTP client
@@ -26,6 +33,7 @@ export interface CoachClient {
         outcome: LogOutcome,
         reason?: string,
     ): Promise<void>;
+    rescheduleAction(actionId: number, schedule: ReschedulePayload): Promise<void>;
 }
 
 /** Laravel sets an XSRF-TOKEN cookie; echo it back as the CSRF header. */
@@ -41,6 +49,26 @@ async function post(
 ): Promise<Response> {
     const response = await fetch(url, {
         method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-XSRF-TOKEN': csrfToken(),
+        },
+        credentials: 'same-origin',
+        body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+        throw new Error(`Request to ${url} failed: ${response.status}`);
+    }
+
+    return response;
+}
+
+async function patch(url: string, body: Record<string, unknown>): Promise<Response> {
+    const response = await fetch(url, {
+        method: 'PATCH',
         headers: {
             'Content-Type': 'application/json',
             Accept: 'application/json',
@@ -74,6 +102,15 @@ export const httpCoachClient: CoachClient = {
         await post(`/actions/${actionId}/logs`, {
             outcome,
             reason: reason ?? null,
+        });
+    },
+
+    async rescheduleAction(actionId, schedule) {
+        await patch(`/actions/${actionId}`, {
+            kind: schedule.kind,
+            time: schedule.time ?? null,
+            recurrence: schedule.recurrence ?? null,
+            anchor: schedule.anchor ?? null,
         });
     },
 };

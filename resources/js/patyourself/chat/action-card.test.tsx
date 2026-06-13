@@ -117,4 +117,74 @@ describe('ActionCard', () => {
         await userEvent.click(screen.getByRole('button', { name: /skip/i }));
         expect(onLog).toHaveBeenCalledWith('skipped');
     });
+
+    // Task 13: schedule chip tests
+    it('renders a recurring clock schedule chip', () => {
+        render(
+            <ActionCard
+                intention={makeIntention({
+                    active_action: {
+                        id: 5,
+                        title: 'Walk',
+                        description: null,
+                        status: 'pending',
+                        scheduled_for: '2026-06-15T11:00:00.000000Z',
+                        recurrence: 'daily',
+                        schedule_kind: 'clock',
+                        anchor: null,
+                    },
+                })}
+            />,
+        );
+
+        expect(screen.getByText(/Daily/)).toBeInTheDocument();
+    });
+
+    it('renders an anchored schedule chip', () => {
+        render(
+            <ActionCard
+                intention={makeIntention({
+                    active_action: {
+                        id: 6,
+                        title: 'Push-ups',
+                        description: null,
+                        status: 'pending',
+                        scheduled_for: null,
+                        recurrence: null,
+                        schedule_kind: 'anchored',
+                        anchor: 'after coffee',
+                    },
+                })}
+            />,
+        );
+
+        expect(screen.getByText(/after coffee/)).toBeInTheDocument();
+    });
+
+    // Task 14: editor test
+    it('submitting the editor calls onReschedule', async () => {
+        const onReschedule = vi.fn();
+        const intention = makeIntention({
+            active_action: {
+                id: 7,
+                title: 'Walk',
+                description: null,
+                status: 'pending',
+                scheduled_for: '2026-06-15T11:00:00.000000Z',
+                recurrence: 'daily',
+                schedule_kind: 'clock',
+                anchor: null,
+            },
+        });
+
+        render(<ActionCard intention={intention} onReschedule={onReschedule} />);
+
+        await userEvent.click(screen.getByRole('button', { name: /edit time/i }));
+        await userEvent.click(screen.getByRole('button', { name: /save time/i }));
+
+        expect(onReschedule).toHaveBeenCalledWith(
+            intention,
+            expect.objectContaining({ kind: 'clock' }),
+        );
+    });
 });

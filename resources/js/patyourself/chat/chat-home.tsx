@@ -9,7 +9,7 @@ import type {
 } from '@/patyourself/types';
 import { ActionCard } from './action-card';
 import { httpCoachClient } from './coach-client';
-import type { CoachClient } from './coach-client';
+import type { CoachClient, ReschedulePayload } from './coach-client';
 
 let counter = 0;
 const nextId = (): string => `m${++counter}`;
@@ -101,7 +101,20 @@ export function useChatThread(
         [client, converse],
     );
 
-    return { messages, send, log };
+    const reschedule = useCallback(
+        async (intention: IntentionData, schedule: ReschedulePayload): Promise<void> => {
+            const action = intention.active_action;
+
+            if (!action) {
+                return;
+            }
+
+            await client.rescheduleAction(action.id, schedule);
+        },
+        [client],
+    );
+
+    return { messages, send, log, reschedule };
 }
 
 /** The user-voiced note that reflects a logged outcome back to the coach. */
@@ -165,6 +178,7 @@ const FIRST_LOOP_SUGGESTIONS = [
 export function ChatThread({
     messages,
     onLog,
+    onReschedule,
     onSuggest,
 }: {
     messages: ChatMessage[];
@@ -173,6 +187,7 @@ export function ChatThread({
         outcome: LogOutcome,
         reason?: string,
     ) => void;
+    onReschedule?: (intention: IntentionData, schedule: ReschedulePayload) => void;
     onSuggest?: (text: string) => void;
 }) {
     const endRef = useRef<HTMLDivElement>(null);
@@ -210,6 +225,12 @@ export function ChatThread({
                                               message.intention,
                                               outcome,
                                           )
+                                    : undefined
+                            }
+                            onReschedule={
+                                onReschedule && message.intention.active_action
+                                    ? (intention, schedule) =>
+                                          onReschedule(intention, schedule)
                                     : undefined
                             }
                         />
