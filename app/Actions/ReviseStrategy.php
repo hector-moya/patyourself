@@ -3,12 +3,19 @@
 namespace App\Actions;
 
 use App\Ai\Agents\Strategist;
+use App\Models\Action;
+use App\Models\Intention;
 use App\Models\Strategy;
+use App\Services\Coach\Authoring\AuthoredAction;
 use App\Services\Coach\Authoring\AuthoredStrategy;
 use App\Services\Coach\Exceptions\CoachException;
 use App\Services\Coach\Strategy\BehavioralChain;
 use App\Services\Coach\Strategy\StrategyTransitionException;
+use App\Services\Scheduling\Recurrence;
+use App\Services\Scheduling\Schedule;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 /**
  * The heart of the coaching loop: advancing a strategy to its next version.
@@ -19,8 +26,10 @@ use Illuminate\Support\Facades\DB;
  * chain it now intervenes, and which direction it moved. This action is the
  * only place these writes happen.
  */
-final readonly class ReviseStrategy
+final class ReviseStrategy
 {
+    private ?AuthoredAction $revisedAction = null;
+
     /**
      * The current strategy succeeded — stack toward a harder goal.
      *
@@ -100,6 +109,10 @@ final readonly class ReviseStrategy
             throw CoachException::emptyResponse('strategist');
         }
 
+        $this->revisedAction = AuthoredAction::tryFromStructured(
+            is_array($response->structured['action'] ?? null) ? $response->structured['action'] : null,
+        );
+
         return new AuthoredStrategy(
             interventionPoint: $interventionPoint,
             approach: $approach,
@@ -155,7 +168,7 @@ final readonly class ReviseStrategy
 
         $nextVersion = (int) $current->intention->strategies()->max('version') + 1;
 
-        return $current->intention->strategies()->create([
+        $newStrategy = $current->intention->strategies()->create([
             'version' => $nextVersion,
             'status' => Strategy::STATUS_ACTIVE,
             'intervention_point' => $next->interventionPoint,
@@ -171,6 +184,49 @@ final readonly class ReviseStrategy
                 ),
                 'prompt_version' => $next->promptVersion,
             ], static fn ($value): bool => $value !== null),
+        ]);
+
+        $this->authorActionFor($current->intention, $newStrategy, $next);
+
+        return $newStrategy;
+    }
+
+    private function authorActionFor(Intention $intention, Strategy $strategy, AuthoredStrategy $next): void
+    {
+        $prior = $intention->activeAction;
+
+        $intention->actions()
+            ->whereIn('status', [Action::STATUS_PENDING, Action::STATUS_ACTIVE])
+            ->update(['status' => Action::STATUS_ARCHIVED]);
+
+        $action = $this->revisedAction;
+        $timezone = $intention->user?->timezone ?? (string) config('app.timezone');
+
+        if ($action !== null) {
+            $recurrence = Recurrence::tryFromToken($action->recurrence);
+            $scheduledFor = (new Schedule)->firstOccurrence(CarbonImmutable::now(), $action->time, $recurrence, $timezone);
+            $title = $action->title;
+            $metadata = array_filter(['schedule_kind' => $action->kind, 'anchor' => $action->anchor], static fn ($v): bool => $v !== null);
+        } else {
+            // Inherit the prior cadence; retitle from the new tactic.
+            $scheduledFor = $prior?->scheduled_for;
+            $recurrence = Recurrence::tryFromToken($prior?->recurrence);
+            $title = Str::limit($next->approach, 250, '');
+            $metadata = array_filter([
+                'schedule_kind' => $prior?->metadata['schedule_kind'] ?? null,
+                'anchor' => $prior?->metadata['anchor'] ?? null,
+                'inherited_from_action_id' => $prior?->id,
+            ], static fn ($v): bool => $v !== null);
+        }
+
+        $strategy->actions()->create([
+            'intention_id' => $intention->id,
+            'title' => $title,
+            'description' => $next->rationale,
+            'scheduled_for' => $scheduledFor,
+            'recurrence' => $recurrence?->value,
+            'status' => Action::STATUS_PENDING,
+            'metadata' => $metadata,
         ]);
     }
 }

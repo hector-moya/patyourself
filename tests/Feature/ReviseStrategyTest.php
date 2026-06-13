@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Actions\ReviseStrategy;
 use App\Ai\Agents\Strategist;
+use App\Models\Action;
 use App\Models\Intention;
 use App\Models\Strategy;
 use App\Services\Coach\Authoring\AuthoredStrategy;
@@ -137,5 +138,62 @@ class ReviseStrategyTest extends TestCase
             // No new Strategy version was written.
             $this->assertSame($strategyCountBefore, $current->intention->strategies()->count());
         }
+    }
+
+    public function test_revision_archives_the_old_action_and_inherits_the_cadence(): void
+    {
+        $current = $this->activeStrategy(Strategy::POINT_RESPONSE);
+        $oldAction = Action::factory()->for($current->intention)->create([
+            'strategy_id' => $current->id,
+            'status' => Action::STATUS_PENDING,
+            'recurrence' => 'daily',
+            'scheduled_for' => now()->addDay(),
+            'metadata' => ['schedule_kind' => 'clock'],
+        ]);
+
+        Strategist::fake([$this->revision(Strategy::POINT_CUE, 'Lay shoes out the night before.')]);
+
+        $next = app(ReviseStrategy::class)->restrategizeOnFailure($current, 'Too tired after work');
+
+        $oldAction->refresh();
+        $this->assertSame(Action::STATUS_ARCHIVED, $oldAction->status);
+
+        $newAction = $current->intention->actions()
+            ->where('status', Action::STATUS_PENDING)->first();
+        $this->assertNotNull($newAction);
+        $this->assertSame($next->id, $newAction->strategy_id);
+        $this->assertSame('daily', $newAction->recurrence); // inherited
+        $this->assertStringContainsString('Lay shoes', $newAction->title); // from the new approach
+
+        // One active Action per active Strategy.
+        $this->assertSame(1, $current->intention->actions()
+            ->whereIn('status', [Action::STATUS_PENDING, Action::STATUS_ACTIVE])->count());
+    }
+
+    public function test_revision_uses_a_reproposed_schedule_when_given(): void
+    {
+        $current = $this->activeStrategy(Strategy::POINT_RESPONSE);
+        Action::factory()->for($current->intention)->create([
+            'strategy_id' => $current->id,
+            'status' => Action::STATUS_PENDING,
+            'recurrence' => 'daily',
+        ]);
+
+        Strategist::fake([[
+            'intervention_point' => Strategy::POINT_CUE,
+            'approach' => 'Walk in the morning instead.',
+            'rationale' => 'Mornings have more energy.',
+            'action' => [
+                'title' => 'Morning walk',
+                'schedule' => ['kind' => 'clock', 'time' => '06:30', 'recurrence' => 'weekdays'],
+            ],
+        ]]);
+
+        app(ReviseStrategy::class)->restrategizeOnFailure($current, 'No energy in the evening');
+
+        $newAction = $current->intention->actions()
+            ->where('status', Action::STATUS_PENDING)->first();
+        $this->assertSame('weekdays', $newAction->recurrence); // re-proposed, not inherited
+        $this->assertSame('Morning walk', $newAction->title);
     }
 }
