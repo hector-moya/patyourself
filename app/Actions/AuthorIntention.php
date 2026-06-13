@@ -3,11 +3,16 @@
 namespace App\Actions;
 
 use App\Ai\Agents\IntentionAuthor;
+use App\Models\Action;
 use App\Models\Intention;
 use App\Models\Strategy;
 use App\Models\User;
+use App\Services\Coach\Authoring\AuthoredAction;
 use App\Services\Coach\Authoring\AuthoredIntention;
 use App\Services\Coach\Exceptions\CoachException;
+use App\Services\Scheduling\Recurrence;
+use App\Services\Scheduling\Schedule;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -74,7 +79,7 @@ final readonly class AuthorIntention
         ]);
 
         if ($authored->strategy !== null) {
-            $intention->strategies()->create([
+            $strategy = $intention->strategies()->create([
                 'version' => 1,
                 'status' => Strategy::STATUS_ACTIVE,
                 'intervention_point' => $authored->strategy->interventionPoint,
@@ -85,8 +90,38 @@ final readonly class AuthorIntention
             ]);
 
             $intention->setRelation('activeStrategy', $intention->activeStrategy()->first());
+
+            if ($authored->action !== null) {
+                $this->persistAction($intention, $strategy, $user, $authored->action);
+            }
         }
 
         return $intention;
+    }
+
+    private function persistAction(Intention $intention, Strategy $strategy, User $user, AuthoredAction $action): void
+    {
+        $timezone = $user->timezone ?? (string) config('app.timezone');
+        $recurrence = Recurrence::tryFromToken($action->recurrence);
+
+        $scheduledFor = (new Schedule)->firstOccurrence(
+            CarbonImmutable::now(),
+            $action->time,
+            $recurrence,
+            $timezone,
+        );
+
+        $intention->actions()->create([
+            'strategy_id' => $strategy->id,
+            'title' => $action->title,
+            'description' => $action->description,
+            'scheduled_for' => $scheduledFor,
+            'recurrence' => $recurrence?->value,
+            'status' => Action::STATUS_PENDING,
+            'metadata' => array_filter([
+                'schedule_kind' => $action->kind,
+                'anchor' => $action->anchor,
+            ], static fn ($value): bool => $value !== null),
+        ]);
     }
 }
