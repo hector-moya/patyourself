@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\ActionController;
 use App\Http\Controllers\Api\ActionLogController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\IntentionController;
@@ -23,6 +24,9 @@ Route::name('api.')->group(function () {
         // Log an action's outcome (completion / failure + reason).
         Route::post('actions/{action}/logs', [ActionLogController::class, 'store'])
             ->name('actions.logs.store');
+
+        // Edit an action's schedule (time + recurrence, or an anchored cue).
+        Route::patch('actions/{action}', [ActionController::class, 'update'])->name('actions.update');
 
         // Versioned strategy timeline for a loop (read-only).
         Route::get('intentions/{intention}/strategies', [StrategyController::class, 'index'])

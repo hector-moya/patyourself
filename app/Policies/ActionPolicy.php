@@ -15,4 +15,9 @@ class ActionPolicy
     {
         return $action->intention->user_id === $user->id;
     }
+
+    public function update(User $user, Action $action): bool
+    {
+        return $action->intention->user_id === $user->id;
+    }
 }

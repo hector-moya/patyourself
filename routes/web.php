@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ActionController;
 use App\Http\Controllers\ActionLogController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\IntentionController;
@@ -27,6 +28,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Log an action's outcome (completion / failure + reason).
     Route::post('actions/{action}/logs', [ActionLogController::class, 'store'])
         ->name('actions.logs.store');
+
+    // Edit an action's schedule (time + recurrence, or an anchored cue).
+    Route::patch('actions/{action}', [ActionController::class, 'update'])->name('actions.update');
 });
 
 require __DIR__.'/settings.php';
