@@ -39,6 +39,7 @@ class ChatController extends Controller
         return Inertia::render('coach', [
             'intentions' => IntentionResource::collection($intentions)->resolve(),
             'thread' => $this->recentThread($user),
+            'userTimezone' => $user->timezone,
         ]);
     }
 

@@ -1,4 +1,6 @@
+import { useEffect } from 'react';
 import { Head } from '@inertiajs/react';
+import { router } from '@inertiajs/react';
 
 import CoachLayout from '@/layouts/coach-layout';
 import { BottomNav } from '@/patyourself/bottom-nav';
@@ -12,6 +14,7 @@ import type { IntentionData, ThreadMessage } from '@/patyourself/types';
 interface CoachProps {
     intentions: IntentionData[];
     thread?: ThreadMessage[];
+    userTimezone?: string | null;
 }
 
 /**
@@ -23,8 +26,18 @@ interface CoachProps {
  * The `thread` prop carries the server-side stored conversation (max 50 turns);
  * when present the hook hydrates the UI from that history instead of a greeting.
  */
-export default function Coach({ intentions, thread = [] }: CoachProps) {
+export default function Coach({ intentions, thread = [], userTimezone }: CoachProps) {
     const { messages, send, log } = useChatThread(intentions, thread);
+
+    useEffect(() => {
+        if (userTimezone) {
+            return;
+        }
+        const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        if (tz) {
+            router.patch('/settings/timezone', { timezone: tz }, { preserveScroll: true, preserveState: true });
+        }
+    }, [userTimezone]);
 
     return (
         <CoachLayout
