@@ -32,7 +32,16 @@ function makeIntention(overrides: Partial<IntentionData> = {}): IntentionData {
         created_at: null,
         updated_at: null,
         strategy: null,
-        active_action: { id: 99, title: 'Run one block', description: null, status: 'active', scheduled_for: null, recurrence: null, schedule_kind: null, anchor: null },
+        active_action: {
+            id: 99,
+            title: 'Run one block',
+            description: null,
+            status: 'active',
+            scheduled_for: null,
+            recurrence: null,
+            schedule_kind: null,
+            anchor: null,
+        },
         ...overrides,
     };
 }

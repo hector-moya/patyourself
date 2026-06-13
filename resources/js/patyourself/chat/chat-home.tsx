@@ -102,7 +102,10 @@ export function useChatThread(
     );
 
     const reschedule = useCallback(
-        async (intention: IntentionData, schedule: ReschedulePayload): Promise<void> => {
+        async (
+            intention: IntentionData,
+            schedule: ReschedulePayload,
+        ): Promise<void> => {
             const action = intention.active_action;
 
             if (!action) {
@@ -187,7 +190,10 @@ export function ChatThread({
         outcome: LogOutcome,
         reason?: string,
     ) => void;
-    onReschedule?: (intention: IntentionData, schedule: ReschedulePayload) => void;
+    onReschedule?: (
+        intention: IntentionData,
+        schedule: ReschedulePayload,
+    ) => void;
     onSuggest?: (text: string) => void;
 }) {
     const endRef = useRef<HTMLDivElement>(null);

@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
 import { Head, router } from '@inertiajs/react';
+import { useEffect } from 'react';
 
 import CoachLayout from '@/layouts/coach-layout';
 import { BottomNav } from '@/patyourself/bottom-nav';
@@ -25,16 +25,29 @@ interface CoachProps {
  * The `thread` prop carries the server-side stored conversation (max 50 turns);
  * when present the hook hydrates the UI from that history instead of a greeting.
  */
-export default function Coach({ intentions, thread = [], userTimezone }: CoachProps) {
-    const { messages, send, log, reschedule } = useChatThread(intentions, thread);
+export default function Coach({
+    intentions,
+    thread = [],
+    userTimezone,
+}: CoachProps) {
+    const { messages, send, log, reschedule } = useChatThread(
+        intentions,
+        thread,
+    );
 
     useEffect(() => {
         if (userTimezone) {
             return;
         }
+
         const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
         if (tz) {
-            router.patch('/settings/timezone', { timezone: tz }, { preserveScroll: true, preserveState: true });
+            router.patch(
+                '/settings/timezone',
+                { timezone: tz },
+                { preserveScroll: true, preserveState: true },
+            );
         }
     }, [userTimezone]);
 
@@ -45,7 +58,12 @@ export default function Coach({ intentions, thread = [], userTimezone }: CoachPr
             bottomNav={<BottomNav />}
         >
             <Head title="Coach" />
-            <ChatThread messages={messages} onLog={log} onReschedule={reschedule} onSuggest={send} />
+            <ChatThread
+                messages={messages}
+                onLog={log}
+                onReschedule={reschedule}
+                onSuggest={send}
+            />
         </CoachLayout>
     );
 }

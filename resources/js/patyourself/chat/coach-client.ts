@@ -33,7 +33,10 @@ export interface CoachClient {
         outcome: LogOutcome,
         reason?: string,
     ): Promise<void>;
-    rescheduleAction(actionId: number, schedule: ReschedulePayload): Promise<void>;
+    rescheduleAction(
+        actionId: number,
+        schedule: ReschedulePayload,
+    ): Promise<void>;
 }
 
 /** Laravel sets an XSRF-TOKEN cookie; echo it back as the CSRF header. */
@@ -66,7 +69,10 @@ async function post(
     return response;
 }
 
-async function patch(url: string, body: Record<string, unknown>): Promise<Response> {
+async function patch(
+    url: string,
+    body: Record<string, unknown>,
+): Promise<Response> {
     const response = await fetch(url, {
         method: 'PATCH',
         headers: {

@@ -23,7 +23,10 @@ export function ActionCard({
 }: {
     intention: IntentionData;
     onLog?: (outcome: LogOutcome) => void;
-    onReschedule?: (intention: IntentionData, schedule: ReschedulePayload) => void;
+    onReschedule?: (
+        intention: IntentionData,
+        schedule: ReschedulePayload,
+    ) => void;
 }) {
     const tactic = intention.strategy?.approach ?? intention.response;
 
@@ -41,7 +44,9 @@ export function ActionCard({
                 </div>
             </header>
 
-            {intention.active_action && <ScheduleChip action={intention.active_action} />}
+            {intention.active_action && (
+                <ScheduleChip action={intention.active_action} />
+            )}
 
             {onReschedule && intention.active_action && (
                 <ScheduleEditor
@@ -144,8 +149,13 @@ const RECURRENCE_LABEL: Record<string, string> = {
     weekly: 'Weekly',
 };
 
-function formatSchedule(action: NonNullable<IntentionData['active_action']>): string | null {
-    if (action.schedule_kind === 'anchored' || (!action.scheduled_for && action.anchor)) {
+function formatSchedule(
+    action: NonNullable<IntentionData['active_action']>,
+): string | null {
+    if (
+        action.schedule_kind === 'anchored' ||
+        (!action.scheduled_for && action.anchor)
+    ) {
         return action.anchor ?? null;
     }
 
@@ -154,15 +164,25 @@ function formatSchedule(action: NonNullable<IntentionData['active_action']>): st
     }
 
     const when = new Date(action.scheduled_for);
-    const time = when.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+    const time = when.toLocaleTimeString(undefined, {
+        hour: 'numeric',
+        minute: '2-digit',
+    });
     const cadence = action.recurrence
         ? (RECURRENCE_LABEL[action.recurrence] ?? action.recurrence)
-        : when.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+        : when.toLocaleDateString(undefined, {
+              month: 'short',
+              day: 'numeric',
+          });
 
     return `${cadence} · ${time}`;
 }
 
-function ScheduleChip({ action }: { action: NonNullable<IntentionData['active_action']> }) {
+function ScheduleChip({
+    action,
+}: {
+    action: NonNullable<IntentionData['active_action']>;
+}) {
     const label = formatSchedule(action);
 
     if (!label) {
@@ -185,7 +205,11 @@ function ScheduleEditor({
 }) {
     const [open, setOpen] = useState(false);
     const initialTime = action.scheduled_for
-        ? new Date(action.scheduled_for).toLocaleTimeString(undefined, { hour12: false, hour: '2-digit', minute: '2-digit' })
+        ? new Date(action.scheduled_for).toLocaleTimeString(undefined, {
+              hour12: false,
+              hour: '2-digit',
+              minute: '2-digit',
+          })
         : '07:00';
     const [time, setTime] = useState(initialTime);
     const [recurrence, setRecurrence] = useState(action.recurrence ?? 'daily');

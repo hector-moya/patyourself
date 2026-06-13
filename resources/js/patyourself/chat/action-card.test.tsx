@@ -177,10 +177,16 @@ describe('ActionCard', () => {
             },
         });
 
-        render(<ActionCard intention={intention} onReschedule={onReschedule} />);
+        render(
+            <ActionCard intention={intention} onReschedule={onReschedule} />,
+        );
 
-        await userEvent.click(screen.getByRole('button', { name: /edit time/i }));
-        await userEvent.click(screen.getByRole('button', { name: /save time/i }));
+        await userEvent.click(
+            screen.getByRole('button', { name: /edit time/i }),
+        );
+        await userEvent.click(
+            screen.getByRole('button', { name: /save time/i }),
+        );
 
         expect(onReschedule).toHaveBeenCalledWith(
             intention,
