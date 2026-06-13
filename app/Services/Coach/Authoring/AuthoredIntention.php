@@ -29,6 +29,7 @@ final readonly class AuthoredIntention
         public ?AuthoredStrategy $strategy,
         public string $model,
         public ?string $promptVersion = null,
+        public ?AuthoredAction $action = null,
     ) {}
 
     /**
@@ -95,6 +96,10 @@ final readonly class AuthoredIntention
             );
         }
 
+        $authoredAction = AuthoredAction::fromStructured(
+            is_array($data['action'] ?? null) ? $data['action'] : null,
+        );
+
         return new self(
             title: $title,
             description: isset($data['description']) ? (($d = trim((string) $data['description'])) !== '' ? $d : null) : null,
@@ -108,6 +113,7 @@ final readonly class AuthoredIntention
             strategy: $authoredStrategy,
             model: $model,
             promptVersion: $promptVersion,
+            action: $authoredAction,
         );
     }
 
