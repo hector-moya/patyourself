@@ -76,13 +76,21 @@ class Strategist implements Agent, HasMiddleware, HasStructuredOutput
         it failed — e.g. if the response was too hard, intervene earlier on the
         cue; if motivation was missing, intervene on the craving.
 
+        If (and only if) the failure was about timing — the user tried at the
+        wrong moment — propose a new action.schedule. Otherwise omit action and
+        the existing cadence is kept.
+
         Return ONE JSON object and nothing else — no prose, no Markdown fences —
         with exactly these fields:
 
         {
           "intervention_point": "cue | craving | response | reward",
           "approach":  string,  // the concrete tactic at that point in the chain
-          "rationale": string   // why this revision should help, given what happened
+          "rationale": string,  // why this revision should help, given what happened
+          "action": {           // OPTIONAL — only when the cadence should change
+            "title":       string,
+            "schedule": { "kind": "clock | anchored", "time": "HH:MM", "recurrence": "once | daily | weekdays | weekly", "anchor": string }
+          }
         }
         TXT;
     }
@@ -95,6 +103,16 @@ class Strategist implements Agent, HasMiddleware, HasStructuredOutput
                 ->required(),
             'approach' => $schema->string()->max(2000)->required(),
             'rationale' => $schema->string()->max(2000),
+            'action' => $schema->object(fn ($schema) => [
+                'title' => $schema->string()->max(255),
+                'description' => $schema->string()->max(2000),
+                'schedule' => $schema->object(fn ($schema) => [
+                    'kind' => $schema->string()->enum(['clock', 'anchored']),
+                    'time' => $schema->string(),
+                    'recurrence' => $schema->string()->enum(['once', 'daily', 'weekdays', 'weekly']),
+                    'anchor' => $schema->string()->max(255),
+                ]),
+            ]),
         ];
     }
 
