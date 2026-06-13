@@ -33,7 +33,7 @@ class ActionFactory extends Factory
             'scheduled_for' => fake()->dateTimeBetween('-3 days', '+4 days'),
             'recurrence' => fake()->randomElement([null, 'daily', 'weekdays']),
             'status' => Action::STATUS_ACTIVE,
-            'metadata' => ['card' => ['style' => 'default']],
+            'metadata' => ['schedule_kind' => 'clock', 'card' => ['style' => 'default']],
         ];
     }
 

@@ -50,7 +50,7 @@ class IntentionController extends Controller
     {
         Gate::authorize('view', $intention);
 
-        return new IntentionResource($intention->load('activeStrategy'));
+        return new IntentionResource($intention->load(['activeStrategy', 'activeAction']));
     }
 
     public function update(UpdateIntentionRequest $request, Intention $intention, UpdateIntention $update): IntentionResource

@@ -31,7 +31,12 @@ export interface ActiveStrategySummary {
 export interface ActiveActionData {
     id: number;
     title: string;
+    description: string | null;
     status: string;
+    scheduled_for: string | null;
+    recurrence: string | null;
+    schedule_kind: 'clock' | 'anchored' | null;
+    anchor: string | null;
 }
 
 export interface IntentionData {

@@ -44,7 +44,12 @@ class IntentionResource extends JsonResource
             'active_action' => $this->whenLoaded('activeAction', fn () => $this->activeAction === null ? null : [
                 'id' => $this->activeAction->id,
                 'title' => $this->activeAction->title,
+                'description' => $this->activeAction->description,
                 'status' => $this->activeAction->status,
+                'scheduled_for' => $this->activeAction->scheduled_for,
+                'recurrence' => $this->activeAction->recurrence,
+                'schedule_kind' => $this->activeAction->metadata['schedule_kind'] ?? null,
+                'anchor' => $this->activeAction->metadata['anchor'] ?? null,
             ]),
         ];
     }
