@@ -54,6 +54,28 @@ final readonly class Schedule
         };
     }
 
+    /**
+     * The next fire time strictly after `now`, in UTC — fast-forwarding past any
+     * occurrences missed while the app was down. Repeatedly applies advance()
+     * (which preserves wall-clock time in the user's timezone, so it is
+     * DST-correct and keeps weekly's weekday). Null for a one-off, which is never
+     * re-armed.
+     */
+    public function nextAfter(CarbonImmutable $from, CarbonImmutable $now, ?Recurrence $recurrence, string $timezone): ?CarbonImmutable
+    {
+        if ($recurrence === null) {
+            return null;
+        }
+
+        $next = $from;
+
+        do {
+            $next = $this->advance($next, $recurrence, $timezone);
+        } while ($next !== null && $next->lessThanOrEqualTo($now));
+
+        return $next;
+    }
+
     private function skipWeekend(CarbonImmutable $date): CarbonImmutable
     {
         while ($date->isWeekend()) {
