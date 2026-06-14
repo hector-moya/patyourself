@@ -193,4 +193,46 @@ describe('ActionCard', () => {
             expect.objectContaining({ kind: 'clock' }),
         );
     });
+
+    it('shows a "Due now" badge when the active action has fired', () => {
+        render(
+            <ActionCard
+                intention={makeIntention({
+                    active_action: {
+                        id: 8,
+                        title: 'Walk',
+                        description: null,
+                        status: 'active',
+                        scheduled_for: '2026-06-15T11:00:00.000000Z',
+                        recurrence: 'daily',
+                        schedule_kind: 'clock',
+                        anchor: null,
+                    },
+                })}
+            />,
+        );
+
+        expect(screen.getByText('Due now')).toBeInTheDocument();
+    });
+
+    it('omits the "Due now" badge when the action is only pending', () => {
+        render(
+            <ActionCard
+                intention={makeIntention({
+                    active_action: {
+                        id: 9,
+                        title: 'Walk',
+                        description: null,
+                        status: 'pending',
+                        scheduled_for: '2026-06-15T11:00:00.000000Z',
+                        recurrence: 'daily',
+                        schedule_kind: 'clock',
+                        anchor: null,
+                    },
+                })}
+            />,
+        );
+
+        expect(screen.queryByText('Due now')).not.toBeInTheDocument();
+    });
 });

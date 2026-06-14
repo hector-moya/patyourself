@@ -45,7 +45,14 @@ export function ActionCard({
             </header>
 
             {intention.active_action && (
-                <ScheduleChip action={intention.active_action} />
+                <div className="mt-2 flex items-center gap-2">
+                    <ScheduleChip action={intention.active_action} />
+                    {intention.active_action.status === 'active' && (
+                        <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
+                            Due now
+                        </span>
+                    )}
+                </div>
             )}
 
             {onReschedule && intention.active_action && (
