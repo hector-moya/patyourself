@@ -20,9 +20,16 @@ class ActionLogTest extends TestCase
 
     private function action(User $user): Action
     {
+        // A one-off (no recurrence): completing it closes it out, which is what
+        // these controller tests assert. A recurring action would instead roll
+        // forward to pending (covered by tests/Feature/Actions/LogActionTest).
         return Action::factory()
             ->for(Intention::factory()->for($user))
-            ->create(['status' => Action::STATUS_ACTIVE]);
+            ->create([
+                'status' => Action::STATUS_ACTIVE,
+                'recurrence' => null,
+                'scheduled_for' => null,
+            ]);
     }
 
     public function test_guests_are_unauthorized(): void
