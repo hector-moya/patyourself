@@ -197,7 +197,7 @@ function ScheduleChip({
     }
 
     return (
-        <p className="mt-2 inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
+        <p className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
             {label}
         </p>
     );
