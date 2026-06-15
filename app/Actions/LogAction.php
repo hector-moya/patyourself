@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Services\Scheduling\Recurrence;
 use App\Services\Scheduling\Schedule;
 use Carbon\CarbonImmutable;
+use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 
@@ -20,6 +21,9 @@ use Illuminate\Support\Facades\DB;
  * A recurring action does not close when an occurrence is completed or skipped:
  * it rolls forward in place to its next occurrence (the SP2 trigger engine's
  * recurrence mechanic). One-off and anchored actions close as before.
+ *
+ * Logging an outcome also marks the action's in-app "due now" notification read
+ * (the cue is answered). It remains free of LLM side-effects.
  *
  * This is the only place the logging flow writes to the database. It is
  * deliberately free of LLM side-effects — revising a strategy and refolding a
@@ -48,6 +52,8 @@ final readonly class LogAction
             if ($status !== null) {
                 $this->closeOrRearm($user, $action, $status);
             }
+
+            $this->markCueAnswered($user, $action);
 
             return $log;
         });
@@ -100,5 +106,17 @@ final readonly class LogAction
             ActionLog::OUTCOME_SKIPPED => Action::STATUS_SKIPPED,
             default => null,
         };
+    }
+
+    /**
+     * Logging any outcome answers the "do this now" cue, so mark this action's
+     * unread notification(s) read. Filtered in memory (unread sets are tiny) to
+     * stay portable across database drivers.
+     */
+    private function markCueAnswered(User $user, Action $action): void
+    {
+        $user->unreadNotifications()->get()
+            ->filter(fn (DatabaseNotification $notification): bool => ($notification->data['action_id'] ?? null) === $action->id)
+            ->each->markAsRead();
     }
 }

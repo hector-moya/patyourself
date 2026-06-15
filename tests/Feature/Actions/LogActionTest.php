@@ -7,6 +7,7 @@ use App\Models\Action;
 use App\Models\ActionLog;
 use App\Models\Intention;
 use App\Models\User;
+use App\Notifications\ActionDueNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -176,5 +177,66 @@ class LogActionTest extends TestCase
         $fresh = $action->fresh();
         $this->assertSame(Action::STATUS_PENDING, $fresh->status);
         $this->assertTrue($fresh->scheduled_for->isFuture()); // not a past slot
+    }
+
+    public function test_logging_marks_the_actions_unread_notification_read(): void
+    {
+        $user = User::factory()->create();
+        $action = $this->action($user);   // one-off; mark-read applies to any shape
+        $user->notify(new ActionDueNotification($action));
+        $this->assertCount(1, $user->unreadNotifications);
+
+        app(LogAction::class)->handle($user, $action, ['outcome' => ActionLog::OUTCOME_COMPLETED]);
+
+        $this->assertCount(0, $user->fresh()->unreadNotifications);
+    }
+
+    public function test_logging_a_failure_also_marks_the_cue_read(): void
+    {
+        $user = User::factory()->create();
+        $action = $this->action($user);
+        $user->notify(new ActionDueNotification($action));
+
+        app(LogAction::class)->handle($user, $action, [
+            'outcome' => ActionLog::OUTCOME_FAILED,
+            'reason' => 'Ran out of time',
+        ]);
+
+        $this->assertCount(0, $user->fresh()->unreadNotifications);
+    }
+
+    public function test_logging_leaves_other_actions_notifications_unread(): void
+    {
+        $user = User::factory()->create();
+        $logged = $this->action($user);
+        $other = $this->action($user);
+        $user->notify(new ActionDueNotification($logged));
+        $user->notify(new ActionDueNotification($other));
+
+        app(LogAction::class)->handle($user, $logged, ['outcome' => ActionLog::OUTCOME_COMPLETED]);
+
+        $this->assertCount(1, $user->fresh()->unreadNotifications);
+    }
+
+    public function test_logging_does_not_touch_another_users_notifications(): void
+    {
+        $owner = User::factory()->create();
+        $action = $this->action($owner);
+        $other = User::factory()->create();
+        $other->notify(new ActionDueNotification($action));
+
+        app(LogAction::class)->handle($owner, $action, ['outcome' => ActionLog::OUTCOME_COMPLETED]);
+
+        $this->assertCount(1, $other->fresh()->unreadNotifications);
+    }
+
+    public function test_logging_without_a_notification_still_succeeds(): void
+    {
+        $user = User::factory()->create();
+        $action = $this->action($user);
+
+        $log = app(LogAction::class)->handle($user, $action, ['outcome' => ActionLog::OUTCOME_COMPLETED]);
+
+        $this->assertSame(ActionLog::OUTCOME_COMPLETED, $log->outcome);
     }
 }
