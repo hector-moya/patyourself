@@ -2,11 +2,13 @@
 
 namespace Tests\Feature\Scheduling;
 
+use App\Events\ActionFired;
 use App\Models\Action;
 use App\Models\Intention;
 use App\Models\Strategy;
 use App\Services\Scheduling\TriggerEngine;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Event;
 use Tests\TestCase;
 
 class TriggerEngineTest extends TestCase
@@ -101,5 +103,30 @@ class TriggerEngineTest extends TestCase
         $this->dueAction(['scheduled_for' => now()->addHour()]); // future, not fired
 
         $this->assertSame(2, app(TriggerEngine::class)->fireDueActions());
+    }
+
+    public function test_firing_dispatches_action_fired_once(): void
+    {
+        Event::fake([ActionFired::class]);
+        $action = $this->dueAction();
+
+        app(TriggerEngine::class)->fireDueActions();
+
+        Event::assertDispatchedTimes(ActionFired::class, 1);
+        Event::assertDispatched(
+            ActionFired::class,
+            fn (ActionFired $event): bool => $event->action->is($action),
+        );
+    }
+
+    public function test_no_fire_dispatches_no_event(): void
+    {
+        Event::fake([ActionFired::class]);
+        // A future pending action is not due, so nothing fires.
+        $this->dueAction(['scheduled_for' => now()->addHour()]);
+
+        app(TriggerEngine::class)->fireDueActions();
+
+        Event::assertNotDispatched(ActionFired::class);
     }
 }

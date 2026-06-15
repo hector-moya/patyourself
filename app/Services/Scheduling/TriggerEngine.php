@@ -2,6 +2,7 @@
 
 namespace App\Services\Scheduling;
 
+use App\Events\ActionFired;
 use App\Models\Action;
 use App\Models\Intention;
 use Illuminate\Database\Eloquent\Builder;
@@ -14,8 +15,8 @@ use Illuminate\Database\Eloquent\Builder;
  * actions:fire command runs this every minute.
  *
  * SP2 does nothing beyond this in-app state transition. Recurrence roll-forward
- * happens when an occurrence is resolved (see App\Actions\LogAction); rich
- * notification delivery is SP3.
+ * happens when an occurrence is resolved (see App\Actions\LogAction). Firing
+ * raises App\Events\ActionFired, on which SP3 delivers the in-app cue.
  */
 final class TriggerEngine
 {
@@ -26,6 +27,7 @@ final class TriggerEngine
     public function fireDueActions(): int
     {
         $due = Action::query()
+            ->with('intention.user')
             ->where('status', Action::STATUS_PENDING)
             ->whereNotNull('scheduled_for')
             ->where('scheduled_for', '<=', now())
@@ -64,6 +66,13 @@ final class TriggerEngine
                 'metadata' => json_encode($metadata),
             ]);
 
-        return $affected === 1;
+        if ($affected === 1) {
+            $action->refresh();
+            ActionFired::dispatch($action);
+
+            return true;
+        }
+
+        return false;
     }
 }
