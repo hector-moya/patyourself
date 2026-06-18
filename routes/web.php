@@ -3,6 +3,7 @@
 use App\Http\Controllers\ActionController;
 use App\Http\Controllers\ActionLogController;
 use App\Http\Controllers\ChatController;
+use App\Http\Controllers\InboxController;
 use App\Http\Controllers\IntentionController;
 use Illuminate\Support\Facades\Route;
 
@@ -31,6 +32,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Edit an action's schedule (time + recurrence, or an anchored cue).
     Route::patch('actions/{action}', [ActionController::class, 'update'])->name('actions.update');
+
+    // The in-app inbox: delivered cues + read state.
+    Route::get('inbox', [InboxController::class, 'index'])->name('inbox');
+    Route::patch('inbox/read-all', [InboxController::class, 'markAllRead'])->name('inbox.read-all');
+    Route::patch('inbox/{notification}/read', [InboxController::class, 'markRead'])->name('inbox.read');
 });
 
 require __DIR__.'/settings.php';
