@@ -77,3 +77,13 @@ export interface ThreadMessage {
     role: 'user' | 'coach';
     text: string;
 }
+
+/** One delivered cue in the inbox (mirrors InboxController's mapped payload). */
+export interface NotificationData {
+    id: string;
+    action_id: number | null;
+    intention_id: number | null;
+    title: string | null;
+    fired_at: string | null;
+    read_at: string | null;
+}
