@@ -1,8 +1,8 @@
 /**
  * PatYourSelf — the app's primary navigation. Renders inside CoachLayout's
- * reserved bottom-nav slot and links the three screens: Coach (chat home) and
- * Loops (the loops list). The loop-detail screen is reached from a loop, so it
- * has no top-level tab and keeps the Loops tab active.
+ * reserved bottom-nav slot and links the app's screens: Coach (chat home),
+ * Loops (the loops list), and Inbox (delivered cues, with an unread badge). The
+ * loop-detail screen is reached from a loop, so it keeps the Loops tab active.
  */
 import { Link, usePage } from '@inertiajs/react';
 
@@ -15,6 +15,8 @@ interface Tab {
     href: string;
     /** A tab is active when the current path starts with one of these. */
     match: string[];
+    /** When true, the tab surfaces the unread-cues count as a badge. */
+    showUnreadBadge?: boolean;
 }
 
 const TABS: Tab[] = [
@@ -30,11 +32,19 @@ const TABS: Tab[] = [
         href: '/intentions',
         match: ['/intentions'],
     },
+    {
+        label: 'Inbox',
+        icon: 'bell',
+        href: '/inbox',
+        match: ['/inbox'],
+        showUnreadBadge: true,
+    },
 ];
 
 export function BottomNav() {
-    const { url } = usePage();
+    const { url, props } = usePage();
     const path = url.split('?')[0];
+    const unread = props.unread_notifications_count ?? 0;
 
     return (
         <>
@@ -42,6 +52,7 @@ export function BottomNav() {
                 const active = tab.match.some(
                     (m) => path === m || path.startsWith(`${m}/`),
                 );
+                const showBadge = !!tab.showUnreadBadge && unread > 0;
 
                 return (
                     <Link
@@ -55,7 +66,20 @@ export function BottomNav() {
                         )}
                         aria-current={active ? 'page' : undefined}
                     >
-                        <Icon name={tab.icon} size={20} />
+                        <span className="relative">
+                            <Icon name={tab.icon} size={20} />
+                            {showBadge && (
+                                <span
+                                    data-testid="inbox-badge"
+                                    aria-label={`${unread} unread cues`}
+                                    className="absolute -top-1.5 -right-2.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground"
+                                >
+                                    <span aria-hidden="true">
+                                        {unread > 9 ? '9+' : unread}
+                                    </span>
+                                </span>
+                            )}
+                        </span>
                         <span>{tab.label}</span>
                     </Link>
                 );

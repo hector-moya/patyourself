@@ -6,6 +6,7 @@
  */
 import {
     ArrowUp,
+    Bell,
     Check,
     Footprints,
     GitBranch,
@@ -23,6 +24,7 @@ import type { CSSProperties, ReactNode } from 'react';
 
 const ICONS: Record<string, LucideIcon> = {
     'arrow-up': ArrowUp,
+    bell: Bell,
     check: Check,
     footprints: Footprints,
     'git-branch': GitBranch,
