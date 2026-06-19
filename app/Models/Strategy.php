@@ -54,6 +54,27 @@ class Strategy extends Model
 
     public const REASON_RESTRATEGIZED_ON_FAILURE = 'restrategized_on_failure';
 
+    /** Every status a strategy version can hold. */
+    public const STATUSES = [self::STATUS_ACTIVE, self::STATUS_SUPERSEDED, self::STATUS_RETIRED];
+
+    /**
+     * The behavioural chain, upstream → downstream. The order matters: a
+     * restrategy shifts the intervention point along this sequence.
+     */
+    public const INTERVENTION_POINTS = [
+        self::POINT_CUE,
+        self::POINT_CRAVING,
+        self::POINT_RESPONSE,
+        self::POINT_REWARD,
+    ];
+
+    /** Every reason a new version gets created. */
+    public const CHANGE_REASONS = [
+        self::REASON_INITIAL,
+        self::REASON_STACKED_ON_SUCCESS,
+        self::REASON_RESTRATEGIZED_ON_FAILURE,
+    ];
+
     /** @return array<string, string> */
     protected function casts(): array
     {
@@ -61,6 +82,23 @@ class Strategy extends Model
             'version' => 'integer',
             'metadata' => 'array',
         ];
+    }
+
+    public function isActive(): bool
+    {
+        return $this->status === self::STATUS_ACTIVE;
+    }
+
+    /**
+     * Where this version sits in the cue → craving → response → reward chain
+     * (0 = cue ... 3 = reward), or null if the point is unrecognised. Lets the
+     * coach reason about shifting the intervention upstream or downstream.
+     */
+    public function interventionPointIndex(): ?int
+    {
+        $index = array_search($this->intervention_point, self::INTERVENTION_POINTS, true);
+
+        return $index === false ? null : $index;
     }
 
     /**

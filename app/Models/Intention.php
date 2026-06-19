@@ -46,12 +46,47 @@ class Intention extends Model
 
     public const STATUS_COMPLETED = 'completed';
 
+    /** Every habit-loop direction (build a good habit / break a bad one). */
+    public const TYPES = [self::TYPE_BUILD, self::TYPE_BREAK];
+
+    /** Every lifecycle status a loop can hold. */
+    public const STATUSES = [
+        self::STATUS_ACTIVE,
+        self::STATUS_PAUSED,
+        self::STATUS_ARCHIVED,
+        self::STATUS_COMPLETED,
+    ];
+
     /** @return array<string, string> */
     protected function casts(): array
     {
         return [
             'metadata' => 'array',
         ];
+    }
+
+    public function isBuild(): bool
+    {
+        return $this->type === self::TYPE_BUILD;
+    }
+
+    public function isBreaking(): bool
+    {
+        return $this->type === self::TYPE_BREAK;
+    }
+
+    public function isActive(): bool
+    {
+        return $this->status === self::STATUS_ACTIVE;
+    }
+
+    /**
+     * The next monotonic version number for this loop's strategy history —
+     * versioning never reuses or rewrites a number.
+     */
+    public function nextStrategyVersion(): int
+    {
+        return (int) $this->strategies()->max('version') + 1;
     }
 
     /**

@@ -33,6 +33,9 @@ class ActionLog extends Model
 
     public const OUTCOME_SKIPPED = 'skipped';
 
+    /** Every outcome a log event can record. */
+    public const OUTCOMES = [self::OUTCOME_COMPLETED, self::OUTCOME_FAILED, self::OUTCOME_SKIPPED];
+
     /** @return array<string, string> */
     protected function casts(): array
     {
@@ -40,6 +43,23 @@ class ActionLog extends Model
             'logged_at' => 'datetime',
             'metadata' => 'array',
         ];
+    }
+
+    /** A win for the streak — the action was completed. */
+    public function isWin(): bool
+    {
+        return $this->outcome === self::OUTCOME_COMPLETED;
+    }
+
+    /** A failure that should carry a user-stated reason. */
+    public function isFailure(): bool
+    {
+        return $this->outcome === self::OUTCOME_FAILED;
+    }
+
+    public function isSkip(): bool
+    {
+        return $this->outcome === self::OUTCOME_SKIPPED;
     }
 
     /**

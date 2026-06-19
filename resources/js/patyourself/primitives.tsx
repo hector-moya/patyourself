@@ -252,7 +252,9 @@ export function Composer({
                 placeholder={placeholder}
                 onChange={(e) => set(e.target.value)}
                 onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
+                    // `isComposing` guards IME input (CJK, accents): Enter then
+                    // commits the composition rather than firing a send.
+                    if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
                         send();
                     }
                 }}
