@@ -3,12 +3,14 @@
 namespace Tests\Feature\Actions;
 
 use App\Actions\LogAction;
+use App\Events\ActionLogged;
 use App\Models\Action;
 use App\Models\ActionLog;
 use App\Models\Intention;
 use App\Models\User;
 use App\Notifications\ActionDueNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Event;
 use Tests\TestCase;
 
 /**
@@ -238,5 +240,37 @@ class LogActionTest extends TestCase
         $log = app(LogAction::class)->handle($user, $action, ['outcome' => ActionLog::OUTCOME_COMPLETED]);
 
         $this->assertSame(ActionLog::OUTCOME_COMPLETED, $log->outcome);
+    }
+
+    public function test_logging_dispatches_the_action_logged_event(): void
+    {
+        Event::fake([ActionLogged::class]);
+
+        $user = User::factory()->create();
+        $action = $this->action($user);
+
+        $log = app(LogAction::class)->handle($user, $action, [
+            'outcome' => ActionLog::OUTCOME_FAILED,
+            'reason' => 'Too tired',
+        ]);
+
+        Event::assertDispatched(ActionLogged::class, function (ActionLogged $event) use ($user, $action, $log): bool {
+            return $event->user->is($user)
+                && $event->action->is($action)
+                && $event->log->is($log);
+        });
+    }
+
+    public function test_logging_dispatches_the_event_for_every_outcome(): void
+    {
+        Event::fake([ActionLogged::class]);
+
+        $user = User::factory()->create();
+
+        foreach ([ActionLog::OUTCOME_COMPLETED, ActionLog::OUTCOME_SKIPPED] as $outcome) {
+            app(LogAction::class)->handle($user, $this->action($user), ['outcome' => $outcome]);
+        }
+
+        Event::assertDispatchedTimes(ActionLogged::class, 2);
     }
 }
