@@ -47,7 +47,7 @@ is the **closure wiring** around the primitives SP1–SP3 already shipped.
 |---|----------|--------|
 | 1 | Autonomy | **Fully automatic.** On a qualifying signal the job revises the strategy outright (supersede active version, author a new action) — no propose/approve step. The user is told after the fact (Decision 5). |
 | 2 | Revision trigger | **Threshold streaks.** Deterministic consecutive-outcome counts on the active strategy decide when to revise — not every log, not LLM-judged. Avoids per-occurrence churn; trivially testable. |
-| 3 | Thresholds | **Fail fast / stack slow: 2 & 5.** `2` consecutive `failed` → `restrategizeOnFailure`; `5` consecutive `completed` → `stackOnSuccess`. `skipped` outcomes are ignored entirely. Both values are config (`config/coach.php`). |
+| 3 | Thresholds | **Fail fast / stack slow: 2 & 5.** `2` consecutive `failed` → `restrategizeOnFailure`; `5` consecutive `completed` → `stackOnSuccess`. `skipped` outcomes are ignored entirely. Both values are config — `services.coach.fail_streak` / `services.coach.stack_streak`, alongside the existing `services.coach.*` keys. |
 | 4 | Summary cadence | **Every log.** The job always calls `UpdateRollingSummary`, which already returns `null` when there is nothing new to fold — safe to fire after each event. |
 | 5 | User notification | **Inbox cue, reusing SP3.** A new `StrategyRevisedNotification` (`database` channel) lands in the existing `/inbox` and contributes to the unread badge. No new delivery plumbing. |
 | 6 | Execution | **After-commit queued job.** `LogAction` dispatches an `ActionLogged` event (`ShouldDispatchAfterCommit`); a queued, auto-discovered listener runs the LLM-bearing pass off the request. Queue connection is the existing `database`. |
@@ -75,7 +75,7 @@ committed, so a rolled-back transaction never triggers coaching.
 | `App\Actions\LogAction` | action (modify) | After writing the log + close/re-arm + mark-cue-read (all existing), dispatch `ActionLogged`. One line; no other change. | `ActionLogged` |
 | `App\Listeners\RunCoachingClosure` | listener (new) | On `ActionLogged`: update the rolling summary; compute the active strategy's streak; revise if a threshold is met; notify on revision. `implements ShouldQueue`, `$afterCommit = true`, `$tries = 3`, backoff. Auto-discovered. | `UpdateRollingSummary`, `ReviseStrategy`, `StrategyRevisedNotification` |
 | `App\Notifications\StrategyRevisedNotification` | notification (new) | `via() = ['database']`; `toArray()` payload for the inbox row describing the revision. | `Strategy` |
-| `config/coach.php` | config (modify) | `revise.fail_streak` (2) and `revise.stack_streak` (5), env-overridable. | — |
+| `config/services.php` | config (modify) | `coach.fail_streak` (2) and `coach.stack_streak` (5) under the existing `coach` array, env-overridable. | — |
 | `App\Actions\ReviseStrategy` | action (reuse, unchanged) | `restrategizeOnFailure` / `stackOnSuccess` — already supersede + author. | — |
 | `App\Actions\UpdateRollingSummary` | action (reuse, unchanged) | Refold rolling summary; returns `null` on no-op. | — |
 | `resources/js/pages/inbox.tsx` | page (modify) | Render the new notification type's rows (a revision cue links to its loop). | shared props |
@@ -113,10 +113,10 @@ public function handle(ActionLogged $event): void
         [$outcome, $run, $latestFailureReason] = $this->streak($active);
 
         try {
-            if ($outcome === ActionLog::OUTCOME_FAILED && $run >= config('coach.revise.fail_streak', 2)) {
+            if ($outcome === ActionLog::OUTCOME_FAILED && $run >= config('services.coach.fail_streak', 2)) {
                 $new = app(ReviseStrategy::class)->restrategizeOnFailure($active, $latestFailureReason ?? '');
                 $this->notifyRevised($intention->user, $new, $active);
-            } elseif ($outcome === ActionLog::OUTCOME_COMPLETED && $run >= config('coach.revise.stack_streak', 5)) {
+            } elseif ($outcome === ActionLog::OUTCOME_COMPLETED && $run >= config('services.coach.stack_streak', 5)) {
                 $new = app(ReviseStrategy::class)->stackOnSuccess($active);
                 $this->notifyRevised($intention->user, $new, $active);
             }
@@ -193,11 +193,14 @@ public function toArray(object $notifiable): array
 }
 ```
 
-The inbox already lists notifications generically (SP3 maps `data` fields). SP4 adds
-a `type` discriminator so `inbox.tsx` renders a revision row ("Your plan for _X_
-changed — now: _approach_") distinctly from a due-cue row, both linking to
-`/intentions/{intention_id}`. SP3's `ActionDueNotification` predates the `type` key;
-the inbox treats a missing `type` as a due cue (backward compatible).
+SP3's `InboxController::index` maps a fixed set of `data` fields per row
+(`action_id`, `intention_id`, `title`, `fired_at`, `read_at`). SP4 extends that map
+with a `type` discriminator (`$notification->data['type'] ?? 'action_due'`) plus the
+revision-only fields `change_reason` and `approach` (null for due cues), and widens
+the `NotificationData` TS interface to match. `inbox.tsx` then renders a revision row
+("Your plan for _X_ changed — now: _approach_") distinctly from a due-cue row, both
+linking to `/intentions/{intention_id}`. SP3's `ActionDueNotification` predates the
+`type` key, so a missing `type` falls back to `'action_due'` (backward compatible).
 
 ### 5. Idempotency, concurrency, failure & cost
 
@@ -250,10 +253,13 @@ Drive the listener directly with `Strategist::fake([...])` / `Summarizer::fake([
 - `toArray()` shape: `type='strategy_revised'`, `intention_id`, `strategy_id`,
   `change_reason`, `title`, `approach`.
 
-**Feature — end to end (`tests/Feature/Coach/CoachingClosureFlowTest.php`, new):**
-- With the queue run synchronously and agents faked, posting two failure logs through
-  the real logging endpoint results in a revised strategy and an inbox notification —
-  proving the event → queued listener → revision → inbox chain end to end.
+**Feature — the wiring (`tests/Feature/Coach/RunCoachingClosureTest.php`, same):**
+- `Event::assertListening(ActionLogged::class, RunCoachingClosure::class)` — proves
+  the listener is auto-discovered for the event, so dispatch (tested in
+  `LogActionTest`) + handler (tested above) form a connected chain. (Avoids the
+  `ShouldDispatchAfterCommit` + `RefreshDatabase` interaction, where after-commit
+  callbacks never fire inside a test's wrapping transaction — so the chain is proven
+  by dispatch + listening + handler, not a flaky HTTP round-trip.)
 
 **Frontend (vitest) — `resources/js/pages/inbox.test.tsx`, extend:**
 - A `strategy_revised` notification renders its revision row (distinct copy, links to
@@ -268,12 +274,13 @@ Drive the listener directly with `Strategist::fake([...])` / `Summarizer::fake([
 - `app/Listeners/RunCoachingClosure.php`
 - `app/Notifications/StrategyRevisedNotification.php`
 - `tests/Feature/Coach/RunCoachingClosureTest.php`
-- `tests/Feature/Coach/CoachingClosureFlowTest.php`
 - `tests/Feature/Notifications/StrategyRevisedNotificationTest.php`
 
 **Modified**
 - `app/Actions/LogAction.php` — dispatch `ActionLogged` after commit.
-- `config/coach.php` — `revise.fail_streak`, `revise.stack_streak`.
+- `config/services.php` — `coach.fail_streak`, `coach.stack_streak`.
+- `app/Http/Controllers/InboxController.php` — map `type` + revision fields (`change_reason`, `approach`) in `index`.
+- `resources/js/patyourself/types.ts` — widen `NotificationData` (`type`, `change_reason`, `approach`).
 - `resources/js/pages/inbox.tsx` — render the `strategy_revised` row type.
 - `resources/js/pages/inbox.test.tsx` — row-type tests.
 - `tests/Feature/Actions/LogActionTest.php` — `ActionLogged` dispatch tests.
