@@ -63,6 +63,8 @@ function InboxItem({ notification }: { notification: NotificationData }) {
         !unread && 'opacity-70',
     );
 
+    const isRevision = notification.type === 'strategy_revised';
+
     const content = (
         <>
             {unread && (
@@ -72,17 +74,28 @@ function InboxItem({ notification }: { notification: NotificationData }) {
                     className="size-2 shrink-0 rounded-full bg-primary"
                 />
             )}
-            <span
-                className={cn(
-                    'flex-1 text-sm text-foreground',
-                    unread && 'font-medium',
+            <span className="flex flex-1 flex-col gap-0.5">
+                <span
+                    className={cn(
+                        'text-sm text-foreground',
+                        unread && 'font-medium',
+                    )}
+                >
+                    {isRevision
+                        ? `${notification.title ?? 'Your plan'} — plan updated`
+                        : `${notification.title ?? 'Action'} — due now`}
+                </span>
+                {isRevision && notification.approach && (
+                    <span className="text-xs text-muted-foreground">
+                        {notification.approach}
+                    </span>
                 )}
-            >
-                {notification.title ?? 'Action'} — due now
             </span>
-            <span className="shrink-0 text-xs text-muted-foreground">
-                {formatFiredAt(notification.fired_at)}
-            </span>
+            {!isRevision && (
+                <span className="shrink-0 text-xs text-muted-foreground">
+                    {formatFiredAt(notification.fired_at)}
+                </span>
+            )}
         </>
     );
 

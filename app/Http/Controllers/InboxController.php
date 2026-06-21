@@ -23,10 +23,13 @@ class InboxController extends Controller
             ->get()
             ->map(fn (DatabaseNotification $notification): array => [
                 'id' => $notification->id,
+                'type' => $notification->data['type'] ?? 'action_due',
                 'action_id' => $notification->data['action_id'] ?? null,
                 'intention_id' => $notification->data['intention_id'] ?? null,
                 'title' => $notification->data['title'] ?? null,
                 'fired_at' => $notification->data['fired_at'] ?? null,
+                'change_reason' => $notification->data['change_reason'] ?? null,
+                'approach' => $notification->data['approach'] ?? null,
                 'read_at' => $notification->read_at?->toIso8601String(),
             ])
             ->values();

@@ -4,8 +4,10 @@ namespace Tests\Feature\Inbox;
 
 use App\Models\Action;
 use App\Models\Intention;
+use App\Models\Strategy;
 use App\Models\User;
 use App\Notifications\ActionDueNotification;
+use App\Notifications\StrategyRevisedNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
@@ -103,5 +105,37 @@ class InboxControllerTest extends TestCase
     {
         $this->get('/inbox')->assertRedirect();
         $this->patch('/inbox/read-all')->assertRedirect();
+    }
+
+    public function test_index_maps_strategy_revised_notification_fields(): void
+    {
+        $user = User::factory()->create();
+        $strategy = Strategy::factory()->stacked()
+            ->for(Intention::factory()->for($user)->create(['title' => 'Evening reading']))
+            ->create(['approach' => 'Read 10 pages before bed.']);
+
+        $user->notify(new StrategyRevisedNotification($strategy));
+
+        $this->actingAs($user)
+            ->get('/inbox')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('inbox')
+                ->where('notifications.0.type', 'strategy_revised')
+                ->where('notifications.0.change_reason', Strategy::REASON_STACKED_ON_SUCCESS)
+                ->where('notifications.0.approach', 'Read 10 pages before bed.')
+                ->where('notifications.0.intention_id', $strategy->intention_id)
+            );
+    }
+
+    public function test_index_defaults_type_to_action_due_for_legacy_cues(): void
+    {
+        $user = User::factory()->create();
+        $this->notify($user);
+
+        $this->actingAs($user)
+            ->get('/inbox')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->where('notifications.0.type', 'action_due'));
     }
 }
