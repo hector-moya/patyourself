@@ -210,9 +210,15 @@ SP3's `ActionDueNotification` predates the `type` key, so a missing `type` falls
   revision attempt sees the now-superseded strategy and `ReviseStrategy::guardActive`
   throws `StrategyTransitionException`, caught as benign. The per-intention
   `Cache::lock` additionally prevents concurrent LLM spend.
-- **Quota.** The `GuardCoachUsage` AI middleware throws `CoachQuotaException` when the
-  user is over budget; the job catches it and ends without revising. The streak is
-  unchanged, so the next qualifying log retries once budget frees up.
+- **Quota.** The listener catches `CoachQuotaException` around the revision and ends
+  without revising; the streak is unchanged, so the next qualifying log retries once
+  budget frees up. **Known follow-up:** `GuardCoachUsage` resolves the billed user from
+  `auth()` or the agent's `conversationParticipant()`, neither of which is set on this
+  queued, session-less path (`Strategist`/`Summarizer` don't use `RemembersConversations`),
+  so today the background coaching pass runs **unmetered** — the guard never actually
+  throws here. To enforce the per-user budget on auto-coaching, the queued agents must be
+  attributed to the loop owner (set the conversation participant, or `auth()->setUser()`
+  in the listener with cleanup). Until then this catch is exercised only by tests.
 - **Transient LLM errors** (other `CoachException`s, network) propagate → the queued
   job retries up to `$tries = 3` with backoff, then lands in `failed_jobs`. The
   committed `ActionLog` is never affected — logging always succeeds regardless of
