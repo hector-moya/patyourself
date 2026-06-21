@@ -55,6 +55,11 @@ return [
         // Rate limit: max coach requests per user per minute (the `coach`
         // limiter applied to the chat endpoint). 0 disables it.
         'rate_per_minute' => (int) env('COACH_RATE_PER_MINUTE', 20),
+
+        // SP4 auto-coaching closure: consecutive-outcome thresholds on the active
+        // strategy that trigger an automatic revision. Skips are ignored.
+        'fail_streak' => (int) env('COACH_FAIL_STREAK', 2),
+        'stack_streak' => (int) env('COACH_STACK_STREAK', 5),
     ],
 
 ];
