@@ -198,9 +198,10 @@ SP3's `InboxController::index` maps a fixed set of `data` fields per row
 with a `type` discriminator (`$notification->data['type'] ?? 'action_due'`) plus the
 revision-only fields `change_reason` and `approach` (null for due cues), and widens
 the `NotificationData` TS interface to match. `inbox.tsx` then renders a revision row
-("Your plan for _X_ changed — now: _approach_") distinctly from a due-cue row, both
-linking to `/intentions/{intention_id}`. SP3's `ActionDueNotification` predates the
-`type` key, so a missing `type` falls back to `'action_due'` (backward compatible).
+(title line "_X_ — plan updated", with the new _approach_ on a muted sub-line and no
+fired-at time) distinctly from a due-cue row, both linking to `/intentions/{intention_id}`.
+SP3's `ActionDueNotification` predates the `type` key, so a missing `type` falls back to
+`'action_due'` (backward compatible).
 
 ### 5. Idempotency, concurrency, failure & cost
 
