@@ -5,6 +5,7 @@ use App\Http\Controllers\ActionLogController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\InboxController;
 use App\Http\Controllers\IntentionController;
+use App\Http\Controllers\ProgressController;
 use Illuminate\Support\Facades\Route;
 
 Route::inertia('/', 'landing')->name('home');
@@ -37,6 +38,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('inbox', [InboxController::class, 'index'])->name('inbox');
     Route::patch('inbox/read-all', [InboxController::class, 'markAllRead'])->name('inbox.read-all');
     Route::patch('inbox/{notification}/read', [InboxController::class, 'markRead'])->name('inbox.read');
+
+    // The progress dashboard: active-loop metric cards (index) and a per-loop
+    // drill-in (detail). Read-only aggregation over the loop's own data.
+    Route::get('progress', [ProgressController::class, 'index'])->name('progress');
 });
 
 require __DIR__.'/settings.php';
