@@ -81,9 +81,12 @@ export interface ThreadMessage {
 /** One delivered cue in the inbox (mirrors InboxController's mapped payload). */
 export interface NotificationData {
     id: string;
+    type?: 'action_due' | 'strategy_revised';
     action_id: number | null;
     intention_id: number | null;
     title: string | null;
     fired_at: string | null;
+    change_reason?: string | null;
+    approach?: string | null;
     read_at: string | null;
 }

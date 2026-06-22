@@ -98,4 +98,37 @@ describe('Inbox', () => {
 
         expect(patch).not.toHaveBeenCalled();
     });
+
+    it('renders a strategy_revised cue with its new approach and links to the loop', () => {
+        render(
+            <Inbox
+                notifications={[
+                    notif({
+                        id: 'n-rev',
+                        type: 'strategy_revised',
+                        action_id: null,
+                        intention_id: 7,
+                        title: 'Morning run',
+                        fired_at: null,
+                        change_reason: 'stacked_on_success',
+                        approach: 'Run 25 minutes after coffee.',
+                    }),
+                ]}
+            />,
+        );
+
+        expect(screen.getByText(/plan updated/i)).toBeInTheDocument();
+        expect(
+            screen.getByText('Run 25 minutes after coffee.'),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('link', { name: /morning run/i }),
+        ).toHaveAttribute('href', '/intentions/7');
+    });
+
+    it('still renders a cue with no type as a due cue', () => {
+        render(<Inbox notifications={[notif()]} />);
+
+        expect(screen.getByText(/due now/i)).toBeInTheDocument();
+    });
 });

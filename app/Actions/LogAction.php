@@ -2,6 +2,7 @@
 
 namespace App\Actions;
 
+use App\Events\ActionLogged;
 use App\Models\Action;
 use App\Models\ActionLog;
 use App\Models\User;
@@ -54,6 +55,8 @@ final readonly class LogAction
             }
 
             $this->markCueAnswered($user, $action);
+
+            ActionLogged::dispatch($user, $action, $log);
 
             return $log;
         });
