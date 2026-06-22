@@ -1,4 +1,4 @@
-import * as InertiaReact from '@inertiajs/react';
+import type * as InertiaReact from '@inertiajs/react';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
