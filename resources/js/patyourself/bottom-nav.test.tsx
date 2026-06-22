@@ -41,4 +41,22 @@ describe('BottomNav', () => {
 
         expect(screen.getByTestId('inbox-badge')).toHaveTextContent('9+');
     });
+
+    it('renders the Progress tab', () => {
+        page.url = '/dashboard';
+        render(<BottomNav />);
+
+        expect(screen.getByText('Progress')).toBeInTheDocument();
+    });
+
+    it('marks the Progress tab active on a progress detail route', () => {
+        page.url = '/progress/7';
+        render(<BottomNav />);
+
+        expect(screen.getByText('Progress').closest('a')).toHaveAttribute(
+            'aria-current',
+            'page',
+        );
+        page.url = '/dashboard';
+    });
 });

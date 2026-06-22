@@ -33,6 +33,12 @@ const TABS: Tab[] = [
         match: ['/intentions'],
     },
     {
+        label: 'Progress',
+        icon: 'trending-up',
+        href: '/progress',
+        match: ['/progress'],
+    },
+    {
         label: 'Inbox',
         icon: 'bell',
         href: '/inbox',
