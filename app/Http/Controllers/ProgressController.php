@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Resources\StrategyResource;
 use App\Models\Intention;
 use App\Services\Progress\LoopProgress;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -34,6 +36,25 @@ class ProgressController extends Controller
             ->values();
 
         return Inertia::render('progress/index', ['loops' => $loops]);
+    }
+
+    public function show(Intention $intention, LoopProgress $progress): Response
+    {
+        Gate::authorize('view', $intention);
+
+        $intention->load(['activeStrategy', 'latestSummary', 'actionLogs']);
+        $strategies = $intention->strategies()->orderedByVersion()->get();
+
+        return Inertia::render('progress/show', [
+            'intention' => [
+                'id' => $intention->id,
+                'title' => $intention->title,
+                'type' => $intention->type,
+                ...$progress->forLoop($intention),
+            ],
+            'strategies' => StrategyResource::collection($strategies)->resolve(),
+            'summary' => $intention->latestSummary?->content,
+        ]);
     }
 
     /** First line of the rolling summary, trimmed for the index card. */

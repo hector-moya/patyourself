@@ -42,6 +42,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // The progress dashboard: active-loop metric cards (index) and a per-loop
     // drill-in (detail). Read-only aggregation over the loop's own data.
     Route::get('progress', [ProgressController::class, 'index'])->name('progress');
+    Route::get('progress/{intention}', [ProgressController::class, 'show'])->name('progress.show');
 });
 
 require __DIR__.'/settings.php';
