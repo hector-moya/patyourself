@@ -90,3 +90,28 @@ export interface NotificationData {
     approach?: string | null;
     read_at: string | null;
 }
+
+/** One outcome mark in a progress sparkline. Mirrors ActionLog's OUTCOME_* values. */
+export type OutcomeMark = 'completed' | 'failed' | 'skipped';
+
+/** The active strategy's leading run (from OutcomeStreak), as shown on a progress card. */
+export interface LoopStreak {
+    outcome: 'completed' | 'failed' | null;
+    length: number;
+}
+
+/** One active loop's metric card on the progress index (mirrors ProgressController@index). */
+export interface LoopProgressCard {
+    id: number;
+    title: string;
+    type: string;
+    streak: LoopStreak;
+    completion_rate: number | null; // 0–100, null when no decided logs
+    totals: { completed: number; failed: number; skipped: number };
+    recent: OutcomeMark[]; // oldest → newest, max 10
+    last_logged_at: string | null;
+    summary_excerpt: string | null;
+}
+
+/** The same metric block on the detail screen (no index-only excerpt). */
+export type LoopProgressDetail = Omit<LoopProgressCard, 'summary_excerpt'>;
