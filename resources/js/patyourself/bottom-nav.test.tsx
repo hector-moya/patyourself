@@ -1,6 +1,6 @@
 import type * as InertiaReact from '@inertiajs/react';
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 // usePage needs Inertia's context, which isn't mounted in a bare render. Stub it
 // with a mutable page object (keeping the real Link so hrefs stay meaningful).
@@ -14,6 +14,11 @@ vi.mock('@inertiajs/react', async (importOriginal) => {
 import { BottomNav } from './bottom-nav';
 
 describe('BottomNav', () => {
+    afterEach(() => {
+        page.url = '/dashboard';
+        page.props.unread_notifications_count = 0;
+    });
+
     it('renders the Inbox tab', () => {
         page.props.unread_notifications_count = 0;
         render(<BottomNav />);
@@ -47,6 +52,10 @@ describe('BottomNav', () => {
         render(<BottomNav />);
 
         expect(screen.getByText('Progress')).toBeInTheDocument();
+        expect(screen.getByText('Progress').closest('a')).toHaveAttribute(
+            'href',
+            '/progress',
+        );
     });
 
     it('marks the Progress tab active on a progress detail route', () => {
@@ -57,6 +66,5 @@ describe('BottomNav', () => {
             'aria-current',
             'page',
         );
-        page.url = '/dashboard';
     });
 });

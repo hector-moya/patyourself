@@ -16,6 +16,7 @@ const MARK: Record<
 
 /** The recent-activity sparkline: the last N outcomes, oldest → newest. */
 export function OutcomeStrip({ recent }: { recent: OutcomeMark[] }) {
+    // The empty state is a distinct element; the outcome-strip testid marks a rendered strip only.
     if (recent.length === 0) {
         return <p className="text-xs text-muted-foreground">No activity yet</p>;
     }
