@@ -103,4 +103,16 @@ describe('ProgressShow', () => {
             screen.getByText(/hasn't summarized this loop yet/i),
         ).toBeInTheDocument();
     });
+
+    it('renders an em dash when the completion rate is null', () => {
+        render(
+            <ProgressShow
+                intention={detail({ completion_rate: null })}
+                strategies={[strategy()]}
+                summary={null}
+            />,
+        );
+
+        expect(screen.getByText('—')).toBeInTheDocument();
+    });
 });

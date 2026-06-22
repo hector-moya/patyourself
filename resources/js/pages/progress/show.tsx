@@ -72,7 +72,7 @@ export default function ProgressShow({
                         </p>
                     ) : (
                         <p className="text-sm text-muted-foreground">
-                            Your coach hasn&apos;t summarized this loop yet.
+                            Your coach hasn't summarized this loop yet.
                         </p>
                     )}
                 </section>
