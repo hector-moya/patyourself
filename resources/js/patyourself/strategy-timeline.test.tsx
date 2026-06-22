@@ -48,7 +48,7 @@ describe('StrategyTimeline', () => {
         expect(
             screen.getByText('Restrategized after a setback'),
         ).toBeInTheDocument();
-        expect(screen.getByText(/kept missing it/)).toBeInTheDocument();
+        expect(screen.getByText('“kept missing it”')).toBeInTheDocument();
     });
 
     it('shows an empty state when there are no strategies', () => {

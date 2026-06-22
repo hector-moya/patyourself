@@ -95,7 +95,7 @@ function TimelineNode({
 
                 {strategy.superseded_reason && (
                     <p className="mt-1 text-xs text-muted-foreground/80 italic">
-                        "{strategy.superseded_reason}"
+                        “{strategy.superseded_reason}”
                     </p>
                 )}
             </div>
