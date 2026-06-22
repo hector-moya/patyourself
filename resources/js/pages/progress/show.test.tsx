@@ -100,7 +100,7 @@ describe('ProgressShow', () => {
         );
 
         expect(
-            screen.getByText(/hasn't summarized this loop yet/i),
+            screen.getByText(/hasn’t summarized this loop yet/i),
         ).toBeInTheDocument();
     });
 
