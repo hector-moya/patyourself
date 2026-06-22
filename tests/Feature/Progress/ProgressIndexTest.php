@@ -28,7 +28,7 @@ class ProgressIndexTest extends TestCase
         Intention::factory()->count(2)->for($user)->create(['status' => Intention::STATUS_ACTIVE]);
         Intention::factory()->for($user)->create(['status' => Intention::STATUS_PAUSED]);
         Intention::factory()->for($user)->completed()->create();
-        Intention::factory()->create(); // another user's active loop
+        Intention::factory()->create(['status' => Intention::STATUS_ACTIVE]); // another user's active loop
 
         $this->actingAs($user)
             ->get('/progress')
@@ -45,6 +45,8 @@ class ProgressIndexTest extends TestCase
         $loop = Intention::factory()->for($user)->create(['status' => Intention::STATUS_ACTIVE, 'title' => 'Morning walk']);
         $strategy = Strategy::factory()->initial()->for($loop)->create();
         $action = Action::factory()->for($loop)->for($strategy)->create();
+        // Pin timestamps: OutcomeStreak orders by logged_at DESC, so the failed
+        // log must be newest for the leading streak outcome to be "failed".
         ActionLog::factory()->for($action)->completed()->count(2)->create(['logged_at' => now()->subDay()]);
         ActionLog::factory()->for($action)->failed()->create(['logged_at' => now()]);
 
