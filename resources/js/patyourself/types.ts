@@ -115,3 +115,11 @@ export interface LoopProgressCard {
 
 /** The same metric block on the detail screen (no index-only excerpt). */
 export type LoopProgressDetail = Omit<LoopProgressCard, 'summary_excerpt'>;
+
+/** The per-user coach token usage block on the progress index (mirrors CoachUsageGuard::snapshotFor). */
+export interface CoachUsageSnapshot {
+    used: number;
+    budget: number; // 0 or less = uncapped
+    remaining: number | null; // null when uncapped
+    breakdown: Record<string, number>; // purpose => tokens in the rolling 24h
+}
