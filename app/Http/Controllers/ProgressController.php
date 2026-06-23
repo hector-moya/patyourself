@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Resources\StrategyResource;
 use App\Models\Intention;
+use App\Services\Coach\Usage\CoachUsageGuard;
 use App\Services\Progress\LoopProgress;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -19,7 +20,7 @@ use Inertia\Response;
  */
 class ProgressController extends Controller
 {
-    public function index(Request $request, LoopProgress $progress): Response
+    public function index(Request $request, LoopProgress $progress, CoachUsageGuard $guard): Response
     {
         $loops = $request->user()->intentions()
             ->active()
@@ -35,7 +36,10 @@ class ProgressController extends Controller
             ])
             ->values();
 
-        return Inertia::render('progress/index', ['loops' => $loops]);
+        return Inertia::render('progress/index', [
+            'loops' => $loops,
+            'usage' => $guard->snapshotFor($request->user()),
+        ]);
     }
 
     public function show(Intention $intention, LoopProgress $progress): Response
