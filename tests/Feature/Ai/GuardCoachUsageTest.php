@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Ai;
 
+use App\Ai\Concerns\MetersUsageToUser;
 use App\Ai\Middleware\GuardCoachUsage;
 use App\Models\User;
 use App\Services\Coach\Exceptions\CoachQuotaException;
@@ -103,6 +104,45 @@ class GuardCoachUsageTest extends TestCase
         $this->assertSame('ok', $result->text);
         $this->assertDatabaseCount('coach_usages', 0);
     }
+
+    public function test_records_usage_for_the_billed_user_when_unauthenticated(): void
+    {
+        // No actingAs — the session-less queued path.
+        $user = User::factory()->create();
+        $prompt = $this->agentPrompt((new StubAttributed)->forUser($user));
+
+        $result = $this->middleware(200000)->handle($prompt, $this->respond());
+
+        $this->assertSame('ok', $result->text);
+        $this->assertDatabaseHas('coach_usages', [
+            'user_id' => $user->id,
+            'purpose' => 'stubattributed',
+            'prompt_tokens' => 80,
+            'completion_tokens' => 20,
+            'total_tokens' => 100,
+        ]);
+    }
+
+    public function test_rejects_an_over_budget_billed_user_when_unauthenticated(): void
+    {
+        $user = User::factory()->create();
+        (new CoachUsageGuard(100))->record($user, 'fake', 100, 0, 'summarizer');
+
+        $called = false;
+
+        $this->expectException(CoachQuotaException::class);
+
+        try {
+            $this->middleware(100)->handle(
+                $this->agentPrompt((new StubAttributed)->forUser($user)),
+                function () use (&$called) {
+                    $called = true;
+                },
+            );
+        } finally {
+            $this->assertFalse($called);
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -123,6 +163,17 @@ final class StubCoach implements Agent
 final class StubPassthrough implements Agent
 {
     use Promptable;
+
+    public function instructions(): string
+    {
+        return 'test';
+    }
+}
+
+/** An agent that carries an explicitly billed user, like Strategist/Summarizer on the queued path. */
+final class StubAttributed implements Agent
+{
+    use MetersUsageToUser, Promptable;
 
     public function instructions(): string
     {
