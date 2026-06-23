@@ -196,6 +196,29 @@ class RunCoachingClosureTest extends TestCase
         Notification::assertNothingSent();
     }
 
+    public function test_over_budget_on_the_summary_skips_the_entire_pass(): void
+    {
+        Notification::fake();
+
+        // The summary's Summarizer call trips the budget guard before any revision.
+        Summarizer::fake(function (): never {
+            throw CoachQuotaException::dailyTokenBudget($this->intention->user, 200000, 200001);
+        });
+        Strategist::fake([]);
+
+        $log = $this->logs([
+            [ActionLog::OUTCOME_FAILED, 'one'],
+            [ActionLog::OUTCOME_FAILED, 'two'],
+        ]);
+
+        $this->fire($log); // must not throw
+
+        $this->assertSame(0, $this->intention->summaries()->count());
+        $this->assertSame(1, $this->intention->strategies()->count());
+        Strategist::assertNeverPrompted();
+        Notification::assertNothingSent();
+    }
+
     public function test_listener_is_registered_for_the_event(): void
     {
         Event::fake();
