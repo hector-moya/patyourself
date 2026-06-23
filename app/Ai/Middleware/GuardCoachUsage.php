@@ -26,7 +26,10 @@ use Laravel\Ai\Prompts\AgentPrompt;
  */
 class GuardCoachUsage
 {
-    public function __construct(private readonly AuthFactory $auth) {}
+    public function __construct(
+        private readonly AuthFactory $auth,
+        private readonly CoachUsageGuard $guard,
+    ) {}
 
     public function handle(AgentPrompt $prompt, Closure $next)
     {
@@ -41,15 +44,14 @@ class GuardCoachUsage
             return $next($prompt);
         }
 
-        $guard = $this->guard();
-        $guard->ensureWithinBudget($user);
+        $this->guard->ensureWithinBudget($user);
 
         $purpose = strtolower(class_basename($prompt->agent));
 
         // NOTE: if $next throws mid-tool-loop, partially accrued provider spend is
         // not recorded (SDK exposes no usage on failure) — accepted, same as the old decorator.
-        return $next($prompt)->then(function ($response) use ($guard, $user, $purpose) {
-            $guard->record(
+        return $next($prompt)->then(function ($response) use ($user, $purpose) {
+            $this->guard->record(
                 $user,
                 $response->meta->model ?? 'unknown',
                 $response->usage->promptTokens,
@@ -57,12 +59,5 @@ class GuardCoachUsage
                 $purpose,
             );
         });
-    }
-
-    private function guard(): CoachUsageGuard
-    {
-        return new CoachUsageGuard(
-            (int) config('services.coach.daily_token_budget', 0),
-        );
     }
 }

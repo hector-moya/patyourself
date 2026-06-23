@@ -68,4 +68,31 @@ final readonly class CoachUsageGuard
             );
         }
     }
+
+    /**
+     * Today's usage for the per-user card: total spent, the budget, remaining
+     * (null when uncapped), and a per-purpose breakdown of the rolling window.
+     *
+     * @return array{used:int, budget:int, remaining:?int, breakdown:array<string,int>}
+     */
+    public function snapshotFor(User $user): array
+    {
+        $used = $this->tokensUsedToday($user);
+
+        $breakdown = CoachUsage::query()
+            ->where('user_id', $user->id)
+            ->since(Date::now()->subDay())
+            ->selectRaw('purpose, SUM(total_tokens) as tokens')
+            ->groupBy('purpose')
+            ->pluck('tokens', 'purpose')
+            ->mapWithKeys(fn ($tokens, $purpose): array => [(string) ($purpose ?? 'other') => (int) $tokens])
+            ->all();
+
+        return [
+            'used' => $used,
+            'budget' => $this->dailyTokenBudget,
+            'remaining' => $this->dailyTokenBudget > 0 ? max(0, $this->dailyTokenBudget - $used) : null,
+            'breakdown' => $breakdown,
+        ];
+    }
 }
