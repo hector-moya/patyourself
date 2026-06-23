@@ -2,6 +2,7 @@
 
 namespace App\Ai\Agents;
 
+use App\Ai\Concerns\MetersUsageToUser;
 use App\Ai\Middleware\GuardCoachUsage;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Ai\Attributes\MaxTokens;
@@ -25,7 +26,7 @@ use Laravel\Ai\Promptable;
 #[MaxTokens(2048)]
 class Summarizer implements Agent, HasMiddleware, HasStructuredOutput
 {
-    use Promptable;
+    use MetersUsageToUser, Promptable;
 
     public const PROMPT_VERSION = 'rolling-summary@1';
 
