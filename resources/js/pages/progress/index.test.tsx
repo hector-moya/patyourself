@@ -2,7 +2,7 @@ import type * as InertiaReact from '@inertiajs/react';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-import type { LoopProgressCard } from '@/patyourself/types';
+import type { CoachUsageSnapshot, LoopProgressCard } from '@/patyourself/types';
 
 const page = { url: '/progress', props: { unread_notifications_count: 0 } };
 vi.mock('@inertiajs/react', async (importOriginal) => {
@@ -28,9 +28,21 @@ function card(overrides: Partial<LoopProgressCard> = {}): LoopProgressCard {
     };
 }
 
+function usage(
+    overrides: Partial<CoachUsageSnapshot> = {},
+): CoachUsageSnapshot {
+    return {
+        used: 0,
+        budget: 200000,
+        remaining: 200000,
+        breakdown: {},
+        ...overrides,
+    };
+}
+
 describe('ProgressIndex', () => {
     it('renders a card per active loop with its streak, rate and sparkline', () => {
-        render(<ProgressIndex loops={[card()]} />);
+        render(<ProgressIndex loops={[card()]} usage={usage()} />);
 
         expect(screen.getByText('Morning walk')).toBeInTheDocument();
         expect(screen.getByText('82%')).toBeInTheDocument();
@@ -39,7 +51,7 @@ describe('ProgressIndex', () => {
     });
 
     it('links a card to its detail screen', () => {
-        render(<ProgressIndex loops={[card({ id: 7 })]} />);
+        render(<ProgressIndex loops={[card({ id: 7 })]} usage={usage()} />);
 
         expect(screen.getByText('Morning walk').closest('a')).toHaveAttribute(
             'href',
@@ -57,6 +69,7 @@ describe('ProgressIndex', () => {
                         streak: { outcome: null, length: 0 },
                     }),
                 ]}
+                usage={usage()}
             />,
         );
 
@@ -65,7 +78,7 @@ describe('ProgressIndex', () => {
     });
 
     it('shows the empty state with a coach CTA when there are no loops', () => {
-        render(<ProgressIndex loops={[]} />);
+        render(<ProgressIndex loops={[]} usage={usage()} />);
 
         expect(screen.getByText(/no active loops yet/i)).toBeInTheDocument();
         expect(

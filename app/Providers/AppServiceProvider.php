@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Ai\TurnCollector;
+use App\Services\Coach\Usage\CoachUsageGuard;
 use Carbon\CarbonImmutable;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -21,6 +22,14 @@ class AppServiceProvider extends ServiceProvider
     {
         // Request-scoped collector; drained by ChatController after each coach turn.
         $this->app->scoped(TurnCollector::class);
+
+        // The single cost guard, sourced from config so the middleware and the
+        // progress dashboard share one construction. Bound (not singleton) so it
+        // re-reads the budget per resolve — tests set it per case.
+        $this->app->bind(
+            CoachUsageGuard::class,
+            fn (): CoachUsageGuard => new CoachUsageGuard((int) config('services.coach.daily_token_budget', 0)),
+        );
     }
 
     /**

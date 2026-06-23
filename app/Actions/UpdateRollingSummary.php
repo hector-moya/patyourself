@@ -47,7 +47,7 @@ final readonly class UpdateRollingSummary
         $windowEnd = $events->last()->logged_at;
 
         $userPrompt = $this->userPrompt($intention, $events, $previous);
-        $response = (new Summarizer)->prompt($userPrompt);
+        $response = (new Summarizer)->forUser($intention->user)->prompt($userPrompt);
 
         $content = trim((string) ($response->structured['content'] ?? ''));
 

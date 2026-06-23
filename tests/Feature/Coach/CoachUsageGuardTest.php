@@ -94,4 +94,61 @@ class CoachUsageGuardTest extends TestCase
         $this->assertFalse($guard->exceedsBudget($light));
         $this->assertSame(0, CoachUsage::query()->where('user_id', $light->id)->count());
     }
+
+    public function test_snapshot_reports_used_budget_remaining_and_breakdown(): void
+    {
+        $user = User::factory()->create();
+        $guard = new CoachUsageGuard(dailyTokenBudget: 1000);
+
+        $guard->record($user, 'claude-haiku-4-5', 100, 50, 'summarizer'); // 150
+        $guard->record($user, 'claude-haiku-4-5', 40, 10, 'strategist');   // 50
+        $guard->record($user, 'claude-sonnet-4-6', 100, 100, 'coach');     // 200
+
+        // An older call outside the window must not count.
+        $old = $guard->record($user, 'claude-haiku-4-5', 500, 500, 'summarizer');
+        $old->forceFill(['created_at' => Date::now()->subDays(2)])->save();
+
+        $snapshot = $guard->snapshotFor($user);
+
+        $this->assertSame(400, $snapshot['used']);
+        $this->assertSame(1000, $snapshot['budget']);
+        $this->assertSame(600, $snapshot['remaining']);
+        $this->assertSame(150, $snapshot['breakdown']['summarizer']);
+        $this->assertSame(50, $snapshot['breakdown']['strategist']);
+        $this->assertSame(200, $snapshot['breakdown']['coach']);
+    }
+
+    public function test_snapshot_remaining_is_null_when_uncapped(): void
+    {
+        $user = User::factory()->create();
+        $guard = new CoachUsageGuard(dailyTokenBudget: 0);
+
+        $guard->record($user, 'claude-haiku-4-5', 100, 100, 'summarizer');
+
+        $snapshot = $guard->snapshotFor($user);
+
+        $this->assertSame(200, $snapshot['used']);
+        $this->assertSame(0, $snapshot['budget']);
+        $this->assertNull($snapshot['remaining']);
+    }
+
+    public function test_snapshot_for_an_unused_account_is_zero(): void
+    {
+        $user = User::factory()->create();
+        $snapshot = (new CoachUsageGuard(1000))->snapshotFor($user);
+
+        $this->assertSame(0, $snapshot['used']);
+        $this->assertSame(1000, $snapshot['remaining']);
+        $this->assertSame([], $snapshot['breakdown']);
+    }
+
+    public function test_guard_resolves_from_the_container_with_the_config_budget(): void
+    {
+        config()->set('services.coach.daily_token_budget', 4242);
+
+        $guard = $this->app->make(CoachUsageGuard::class);
+        $user = User::factory()->create();
+
+        $this->assertSame(4242, $guard->snapshotFor($user)['budget']);
+    }
 }

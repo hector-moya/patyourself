@@ -2,6 +2,7 @@
 
 namespace App\Ai\Agents;
 
+use App\Ai\Concerns\MetersUsageToUser;
 use App\Ai\Middleware\GuardCoachUsage;
 use App\Models\Strategy;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
@@ -34,7 +35,7 @@ use Laravel\Ai\Promptable;
 #[MaxTokens(2048)]
 class Strategist implements Agent, HasMiddleware, HasStructuredOutput
 {
-    use Promptable;
+    use MetersUsageToUser, Promptable;
 
     /**
      * Combined identifier for both modes — they share the same charter and

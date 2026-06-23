@@ -50,30 +50,39 @@ final class RunCoachingClosure implements ShouldQueue
         // LLM tokens; the 75s TTL outlives one coaching pass (LLM timeout is 60s) so
         // the lock isn't released mid-call. The work is idempotent if it cannot be held.
         Cache::lock("coaching:intention:{$intention->id}", 75)->block(5, function () use ($intention): void {
-            $this->updateSummary->handle($intention);
-
-            $active = $intention->activeStrategy()->first();
-
-            if ($active === null) {
-                return;
-            }
-
-            [$outcome, $run, $reason] = $this->streak->forStrategy($active);
-
             try {
-                $revised = $this->reviseFor($active, $outcome, $run, $reason);
-            } catch (StrategyTransitionException|CoachQuotaException $e) {
-                // Already superseded by a concurrent run, or over budget — skip.
-                // The streak persists, so the next qualifying log retries.
-                Log::info('Coaching closure skipped revision: '.$e->getMessage(), [
+                $this->updateSummary->handle($intention);
+
+                $active = $intention->activeStrategy()->first();
+
+                if ($active === null) {
+                    return;
+                }
+
+                [$outcome, $run, $reason] = $this->streak->forStrategy($active);
+
+                try {
+                    $revised = $this->reviseFor($active, $outcome, $run, $reason);
+                } catch (StrategyTransitionException $e) {
+                    // Already superseded by a concurrent run — skip the revision.
+                    // The streak persists, so the next qualifying log retries.
+                    Log::info('Coaching closure skipped revision: '.$e->getMessage(), [
+                        'intention_id' => $intention->id,
+                    ]);
+
+                    return;
+                }
+
+                if ($revised !== null) {
+                    $intention->user->notify(new StrategyRevisedNotification($revised));
+                }
+            } catch (CoachQuotaException $e) {
+                // The loop owner is over budget — skip the whole pass (summary and
+                // revision). The streak persists, so the next qualifying log retries
+                // once the rolling-24h window frees.
+                Log::info('Coaching closure skipped (over budget): '.$e->getMessage(), [
                     'intention_id' => $intention->id,
                 ]);
-
-                return;
-            }
-
-            if ($revised !== null) {
-                $intention->user->notify(new StrategyRevisedNotification($revised));
             }
         });
     }

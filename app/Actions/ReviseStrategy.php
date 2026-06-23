@@ -95,7 +95,7 @@ final class ReviseStrategy
     private function revise(Strategy $current, string $mode, ?string $reason, array $context): AuthoredStrategy
     {
         $userPrompt = $this->userPrompt($current, $mode, $reason, $context);
-        $response = (new Strategist)->prompt($userPrompt);
+        $response = (new Strategist)->forUser($current->intention->user)->prompt($userPrompt);
 
         $interventionPoint = trim((string) ($response->structured['intervention_point'] ?? ''));
         $approach = trim((string) ($response->structured['approach'] ?? ''));
