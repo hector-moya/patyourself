@@ -18,13 +18,13 @@ interface ProgressIndexProps {
  */
 export default function ProgressIndex({ loops, usage }: ProgressIndexProps) {
     return (
-        <CoachLayout title="Progress" bottomNav={<BottomNav />}>
-            <div className="flex flex-col gap-3">
+        <CoachLayout title="Progress" bottomNav={<BottomNav />} wide>
+            <div className="flex flex-col gap-3 lg:gap-5">
                 <CoachUsageCard usage={usage} />
                 {loops.length === 0 ? (
                     <EmptyState />
                 ) : (
-                    <ul className="flex flex-col gap-3">
+                    <ul className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:gap-4 xl:grid-cols-3">
                         {loops.map((loop) => (
                             <li key={loop.id}>
                                 <ProgressCard loop={loop} />
