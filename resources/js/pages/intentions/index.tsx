@@ -20,7 +20,7 @@ export default function LoopsIndex({ intentions }: LoopsIndexProps) {
     ).length;
 
     return (
-        <CoachLayout title="Loops" bottomNav={<BottomNav />}>
+        <CoachLayout title="Loops" bottomNav={<BottomNav />} wide>
             {intentions.length === 0 ? (
                 <EmptyState />
             ) : (
@@ -30,7 +30,7 @@ export default function LoopsIndex({ intentions }: LoopsIndexProps) {
                         {intentions.length === 1 ? 'loop' : 'loops'}
                         {activeCount > 0 && ` · ${activeCount} active`}
                     </p>
-                    <ul className="flex flex-col gap-2">
+                    <ul className="grid grid-cols-1 gap-2 md:grid-cols-2 md:gap-3">
                         {intentions.map((loop) => (
                             <li key={loop.id}>
                                 <LoopRow loop={loop} />
@@ -112,7 +112,7 @@ function StatusPill({ status }: { status: string }) {
 
 function EmptyState() {
     return (
-        <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
+        <div className="flex flex-1 flex-col items-center justify-center gap-2 text-center">
             <h2 className="text-lg font-semibold text-foreground">
                 No loops yet
             </h2>

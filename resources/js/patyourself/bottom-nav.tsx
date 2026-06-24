@@ -1,51 +1,15 @@
 /**
- * PatYourSelf — the app's primary navigation. Renders inside CoachLayout's
- * reserved bottom-nav slot and links the app's screens: Coach (chat home),
- * Loops (the loops list), and Inbox (delivered cues, with an unread badge). The
- * loop-detail screen is reached from a loop, so it keeps the Loops tab active.
+ * PatYourSelf — the app's primary navigation on phones. Renders inside
+ * CoachLayout's reserved bottom-nav slot (hidden on desktop, where the side
+ * rail takes over) and links the app's screens: Coach (chat home), Loops (the
+ * loops list), Progress, and Inbox (delivered cues, with an unread badge). The
+ * tab definitions live in `nav-tabs` so the rail and bar never drift apart.
  */
 import { Link, usePage } from '@inertiajs/react';
 
 import { cn } from '@/lib/utils';
+import { NAV_TABS, isTabActive } from './nav-tabs';
 import { Icon } from './primitives';
-
-interface Tab {
-    label: string;
-    icon: string;
-    href: string;
-    /** A tab is active when the current path starts with one of these. */
-    match: string[];
-    /** When true, the tab surfaces the unread-cues count as a badge. */
-    showUnreadBadge?: boolean;
-}
-
-const TABS: Tab[] = [
-    {
-        label: 'Coach',
-        icon: 'message-circle',
-        href: '/dashboard',
-        match: ['/dashboard'],
-    },
-    {
-        label: 'Loops',
-        icon: 'git-branch',
-        href: '/intentions',
-        match: ['/intentions'],
-    },
-    {
-        label: 'Progress',
-        icon: 'trending-up',
-        href: '/progress',
-        match: ['/progress'],
-    },
-    {
-        label: 'Inbox',
-        icon: 'bell',
-        href: '/inbox',
-        match: ['/inbox'],
-        showUnreadBadge: true,
-    },
-];
 
 export function BottomNav() {
     const { url, props } = usePage();
@@ -54,10 +18,8 @@ export function BottomNav() {
 
     return (
         <>
-            {TABS.map((tab) => {
-                const active = tab.match.some(
-                    (m) => path === m || path.startsWith(`${m}/`),
-                );
+            {NAV_TABS.map((tab) => {
+                const active = isTabActive(tab, path);
                 const showBadge = !!tab.showUnreadBadge && unread > 0;
 
                 return (
