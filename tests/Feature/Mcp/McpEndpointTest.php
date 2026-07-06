@@ -49,6 +49,24 @@ class McpEndpointTest extends TestCase
         $this->assertStringContainsString('PatYourSelf', $response->getContent());
     }
 
+    public function test_advertises_all_five_tools_over_http(): void
+    {
+        Passport::actingAs(User::factory()->create(), ['mcp:use']);
+
+        $response = $this->postJson('/mcp', [
+            'jsonrpc' => '2.0',
+            'id' => 2,
+            'method' => 'tools/list',
+            'params' => [],
+        ], ['Accept' => 'application/json, text/event-stream']);
+
+        $response->assertOk();
+
+        foreach (['list-loops', 'get-loop', 'today-actions', 'log-action-outcome', 'loop-progress'] as $tool) {
+            $this->assertStringContainsString($tool, $response->getContent());
+        }
+    }
+
     /**
      * @return array<string, mixed>
      */
