@@ -8,11 +8,25 @@ use App\Models\Action;
 use App\Models\Intention;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Laravel\Mcp\Server\Testing\TestResponse;
 use Tests\TestCase;
 
 class TodayActionsToolTest extends TestCase
 {
     use RefreshDatabase;
+
+    /**
+     * @return array<mixed>
+     */
+    private function payload(TestResponse $response): array
+    {
+        $content = new \ReflectionMethod($response, 'content');
+
+        /** @var array<int, string> $text */
+        $text = $content->invoke($response);
+
+        return json_decode($text[0], true, flags: JSON_THROW_ON_ERROR);
+    }
 
     private function loopFor(User $user, string $status = Intention::STATUS_ACTIVE): Intention
     {
@@ -35,13 +49,26 @@ class TodayActionsToolTest extends TestCase
             'scheduled_for' => now()->endOfDay()->subMinutes(10),
         ]);
 
-        PatYourSelfServer::actingAs($user)
-            ->tool(TodayActionsTool::class)
-            ->assertOk()
-            ->assertSee('Fired earlier today')
-            ->assertSee('due_now')
-            ->assertSee('Later today')
-            ->assertSee('upcoming');
+        $response = PatYourSelfServer::actingAs($user)->tool(TodayActionsTool::class);
+
+        $response->assertOk();
+
+        $payload = $this->payload($response);
+
+        foreach ($payload as $item) {
+            $this->assertSame([
+                'id', 'loop_id', 'loop_title', 'title', 'description', 'status', 'due', 'scheduled_for', 'recurrence',
+            ], array_keys($item));
+        }
+
+        $fired = collect($payload)->firstWhere('title', 'Fired earlier today');
+        $pending = collect($payload)->firstWhere('title', 'Later today');
+
+        $this->assertNotNull($fired);
+        $this->assertNotNull($pending);
+        $this->assertSame('due_now', $fired['due']);
+        $this->assertSame('upcoming', $pending['due']);
+        $this->assertStringEndsWith('+00:00', $fired['scheduled_for']);
     }
 
     public function test_includes_unscheduled_anchored_actions(): void
@@ -54,10 +81,15 @@ class TodayActionsToolTest extends TestCase
             'scheduled_for' => null,
         ]);
 
-        PatYourSelfServer::actingAs($user)
-            ->tool(TodayActionsTool::class)
-            ->assertOk()
-            ->assertSee('Anchored to brushing teeth');
+        $response = PatYourSelfServer::actingAs($user)->tool(TodayActionsTool::class);
+
+        $response->assertOk();
+
+        $payload = $this->payload($response);
+        $anchored = collect($payload)->firstWhere('title', 'Anchored to brushing teeth');
+
+        $this->assertNotNull($anchored);
+        $this->assertNull($anchored['scheduled_for']);
     }
 
     public function test_excludes_tomorrows_actions(): void

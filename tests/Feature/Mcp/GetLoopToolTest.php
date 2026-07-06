@@ -8,11 +8,25 @@ use App\Models\Intention;
 use App\Models\Strategy;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Laravel\Mcp\Server\Testing\TestResponse;
 use Tests\TestCase;
 
 class GetLoopToolTest extends TestCase
 {
     use RefreshDatabase;
+
+    /**
+     * @return array<mixed>
+     */
+    private function payload(TestResponse $response): array
+    {
+        $content = new \ReflectionMethod($response, 'content');
+
+        /** @var array<int, string> $text */
+        $text = $content->invoke($response);
+
+        return json_decode($text[0], true, flags: JSON_THROW_ON_ERROR);
+    }
 
     public function test_returns_the_loop_with_its_strategy_timeline(): void
     {
@@ -32,13 +46,35 @@ class GetLoopToolTest extends TestCase
             'approach' => 'Phone charges outside the bedroom',
         ]);
 
-        PatYourSelfServer::actingAs($user)
-            ->tool(GetLoopTool::class, ['intention_id' => $loop->id])
-            ->assertOk()
-            ->assertSee('Read before bed')
-            ->assertSee('After brushing teeth')
-            ->assertSee('Book on the pillow')
-            ->assertSee('Phone charges outside the bedroom');
+        $response = PatYourSelfServer::actingAs($user)
+            ->tool(GetLoopTool::class, ['intention_id' => $loop->id]);
+
+        $response->assertOk();
+
+        $payload = $this->payload($response);
+
+        $this->assertSame([
+            'id', 'title', 'description', 'type', 'status', 'loop', 'active_strategy_version', 'strategies',
+        ], array_keys($payload));
+
+        $this->assertSame('Read before bed', $payload['title']);
+        $this->assertSame([
+            'cue', 'craving', 'response', 'reward',
+        ], array_keys($payload['loop']));
+        $this->assertSame('After brushing teeth', $payload['loop']['cue']);
+
+        $this->assertSame(2, $payload['active_strategy_version']);
+
+        $this->assertSame([1, 2], array_column($payload['strategies'], 'version'));
+
+        foreach ($payload['strategies'] as $strategy) {
+            $this->assertSame([
+                'version', 'status', 'intervention_point', 'approach', 'rationale', 'change_reason', 'superseded_reason',
+            ], array_keys($strategy));
+        }
+
+        $this->assertSame('Book on the pillow', $payload['strategies'][0]['approach']);
+        $this->assertSame('Phone charges outside the bedroom', $payload['strategies'][1]['approach']);
     }
 
     public function test_rejects_an_unknown_loop(): void
