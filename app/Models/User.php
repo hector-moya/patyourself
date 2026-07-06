@@ -20,7 +20,28 @@ use Laravel\Sanctum\HasApiTokens;
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
 class User extends Authenticatable implements PasskeyUser
 {
-    /** @use HasFactory<UserFactory> */
+    /**
+     * This model deliberately does NOT also compose Laravel\Passport\HasApiTokens
+     * or implement Laravel\Passport\Contracts\OAuthenticatable. Sanctum's and
+     * Passport's HasApiTokens traits both declare a protected $accessToken
+     * property with incompatible signatures (Sanctum's is untyped, Passport's
+     * is `?ScopeAuthorizable`), which is a hard PHP fatal error when both
+     * traits are used on the same class — `insteadof`/`as` only resolve
+     * method conflicts, not property conflicts, so there is no way to compose
+     * both traits here.
+     *
+     * This is safe to skip: Passport's `api` guard (config/auth.php) only
+     * ever calls `withAccessToken()` on this model (see
+     * Laravel\Passport\Guards\TokenGuard and Laravel\Passport\Passport::actingAs),
+     * and its scope-checking middleware reads `currentAccessToken()` — both
+     * already provided by Sanctum's trait below. Passport's token/scope
+     * objects (AccessToken, TransientToken) implement their own can()/cant(),
+     * which Sanctum's tokenCan() delegates to, so scope checks on an
+     * OAuth-authenticated request work without any Passport-specific code
+     * on the model.
+     *
+     * @use HasFactory<UserFactory>
+     */
     use HasApiTokens, HasConversations, HasFactory, Notifiable, PasskeyAuthenticatable, TwoFactorAuthenticatable;
 
     /**
