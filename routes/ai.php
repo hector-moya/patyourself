@@ -2,10 +2,11 @@
 
 use App\Mcp\Servers\PatYourSelfServer;
 use Laravel\Mcp\Facades\Mcp;
+use Laravel\Passport\Http\Middleware\CheckToken;
 
 // OAuth 2.1 discovery + dynamic client registration — what lets claude.ai
 // register itself as a client and walk the user through authorization.
 Mcp::oauthRoutes();
 
 Mcp::web('/mcp', PatYourSelfServer::class)
-    ->middleware('auth:api');
+    ->middleware(['auth:api', CheckToken::using('mcp:use')]);

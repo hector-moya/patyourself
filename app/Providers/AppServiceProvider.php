@@ -44,6 +44,9 @@ class AppServiceProvider extends ServiceProvider
         Passport::authorizationView(
             fn (array $parameters) => view('mcp.authorize', $parameters),
         );
+
+        Passport::tokensExpireIn(now()->addDay());
+        Passport::refreshTokensExpireIn(now()->addDays(30));
     }
 
     /**

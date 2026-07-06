@@ -175,6 +175,43 @@ class LogActionOutcomeToolTest extends TestCase
         $this->assertDatabaseMissing('action_logs', ['action_id' => $action->id]);
     }
 
+    public function test_a_failure_reason_at_the_2000_character_limit_is_accepted(): void
+    {
+        $user = User::factory()->create(['timezone' => 'UTC']);
+        $action = $this->oneOffAction($user);
+        $reason = str_repeat('a', 2000);
+
+        PatYourSelfServer::actingAs($user)
+            ->tool(LogActionOutcomeTool::class, [
+                'action_id' => $action->id,
+                'outcome' => ActionLog::OUTCOME_FAILED,
+                'reason' => $reason,
+            ])
+            ->assertOk();
+
+        $this->assertDatabaseHas('action_logs', [
+            'action_id' => $action->id,
+            'outcome' => ActionLog::OUTCOME_FAILED,
+            'reason' => $reason,
+        ]);
+    }
+
+    public function test_a_failure_reason_over_2000_characters_is_rejected(): void
+    {
+        $user = User::factory()->create(['timezone' => 'UTC']);
+        $action = $this->oneOffAction($user);
+
+        PatYourSelfServer::actingAs($user)
+            ->tool(LogActionOutcomeTool::class, [
+                'action_id' => $action->id,
+                'outcome' => ActionLog::OUTCOME_FAILED,
+                'reason' => str_repeat('a', 2001),
+            ])
+            ->assertHasErrors();
+
+        $this->assertDatabaseMissing('action_logs', ['action_id' => $action->id]);
+    }
+
     public function test_rejects_an_unknown_outcome(): void
     {
         $user = User::factory()->create(['timezone' => 'UTC']);

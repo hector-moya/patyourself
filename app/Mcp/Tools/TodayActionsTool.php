@@ -23,7 +23,7 @@ class TodayActionsTool extends Tool
         $endOfToday = Date::now($timezone)->endOfDay()->utc();
 
         $actions = Action::query()
-            ->whereIn('status', Action::OPEN_STATUSES)
+            ->pending()
             ->whereHas('intention', fn (Builder $query) => $query
                 ->where('user_id', $user->id)
                 ->where('status', Intention::STATUS_ACTIVE))

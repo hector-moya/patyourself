@@ -49,6 +49,17 @@ class McpEndpointTest extends TestCase
         $this->assertStringContainsString('PatYourSelf', $response->getContent());
     }
 
+    public function test_a_token_without_the_mcp_use_scope_is_rejected(): void
+    {
+        Passport::actingAs(User::factory()->create(), []);
+
+        $response = $this->postJson('/mcp', $this->initializePayload(), [
+            'Accept' => 'application/json, text/event-stream',
+        ]);
+
+        $response->assertForbidden();
+    }
+
     public function test_advertises_all_five_tools_over_http(): void
     {
         Passport::actingAs(User::factory()->create(), ['mcp:use']);

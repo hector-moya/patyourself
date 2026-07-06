@@ -103,7 +103,7 @@ Constraints:
 - Run Passport migrations; generate keys (`passport:keys` or env vars).
 - Publish the `mcp-views` authorization view; register it in `AppServiceProvider`.
 - Configure the `api` auth guard for Passport in `config/auth.php`.
-- Route caching remains safe (all routes named).
+- Route caching remains safe (Laravel 13 serializes closure routes).
 - HTTPS already provided by Forge; claude.ai requires it.
 
 ## Out of scope (YAGNI)
