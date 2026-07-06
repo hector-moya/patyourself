@@ -2,6 +2,7 @@
 
 namespace App\Mcp\Servers;
 
+use App\Mcp\Tools\GetLoopTool;
 use App\Mcp\Tools\ListLoopsTool;
 use Laravel\Mcp\Server;
 use Laravel\Mcp\Server\Attributes\Instructions;
@@ -34,5 +35,6 @@ class PatYourSelfServer extends Server
      */
     protected array $tools = [
         ListLoopsTool::class,
+        GetLoopTool::class,
     ];
 }
