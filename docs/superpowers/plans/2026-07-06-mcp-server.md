@@ -1482,3 +1482,6 @@ EOF
 4. Confirm `https://<domain>/.well-known/oauth-authorization-server` returns metadata.
 5. In claude.ai → Settings → Connectors → Add custom connector → URL `https://<domain>/mcp`.
 6. Complete the OAuth approval screen; ask Claude "what loops am I working on?" to verify.
+7. If the connector gets a permanent 403 after authorization, the client didn't request the
+   `mcp:use` scope (now enforced by `CheckToken` on `/mcp`) — set
+   `Passport::defaultScopes(['mcp:use'])` in `AppServiceProvider::boot()` as the fallback.

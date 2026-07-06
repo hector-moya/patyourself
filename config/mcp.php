@@ -11,7 +11,9 @@ return [
     | for redirect URIs. Each domain should be specified with its scheme
     | and host. Domains not in this list will raise validation errors.
     |
-    | An "*" may be used to allow all domains.
+    | Never add "*" here: dynamic client registration is unauthenticated, so
+    | a wildcard would let anyone register a client with an attacker-owned
+    | redirect URI and phish authorization codes. McpConfigTest enforces this.
     |
     */
 
