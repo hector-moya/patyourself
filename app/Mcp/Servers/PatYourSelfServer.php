@@ -4,6 +4,7 @@ namespace App\Mcp\Servers;
 
 use App\Mcp\Tools\GetLoopTool;
 use App\Mcp\Tools\ListLoopsTool;
+use App\Mcp\Tools\LogActionOutcomeTool;
 use App\Mcp\Tools\TodayActionsTool;
 use Laravel\Mcp\Server;
 use Laravel\Mcp\Server\Attributes\Instructions;
@@ -38,5 +39,6 @@ class PatYourSelfServer extends Server
         ListLoopsTool::class,
         GetLoopTool::class,
         TodayActionsTool::class,
+        LogActionOutcomeTool::class,
     ];
 }
