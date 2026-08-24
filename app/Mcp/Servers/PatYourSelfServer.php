@@ -2,6 +2,7 @@
 
 namespace App\Mcp\Servers;
 
+use App\Mcp\Tools\CreateLoopTool;
 use App\Mcp\Tools\GetLoopTool;
 use App\Mcp\Tools\ListLoopsTool;
 use App\Mcp\Tools\LogActionOutcomeTool;
@@ -27,7 +28,9 @@ must carry the user's reason.
 Use list-loops / get-loop to see what the user is working on, today-actions to
 see what is due, log-action-outcome to check things off, and loop-progress for
 streaks and completion rates. Always ask the user for their reason before
-logging a failed outcome.
+logging a failed outcome. Use create-loop to add a new loop once the user has
+agreed on its cue, craving, response and reward — it is created paused, for
+the user to review and activate in the app.
 TEXT)]
 class PatYourSelfServer extends Server
 {
@@ -42,5 +45,6 @@ class PatYourSelfServer extends Server
         TodayActionsTool::class,
         LogActionOutcomeTool::class,
         LoopProgressTool::class,
+        CreateLoopTool::class,
     ];
 }
