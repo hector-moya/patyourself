@@ -28,9 +28,13 @@ must carry the user's reason.
 Use list-loops / get-loop to see what the user is working on, today-actions to
 see what is due, log-action-outcome to check things off, and loop-progress for
 streaks and completion rates. Always ask the user for their reason before
-logging a failed outcome. Use create-loop to add a new loop once the user has
-agreed on its cue, craving, response and reward — it is created paused, for
-the user to review and activate in the app.
+logging a failed outcome.
+
+Use create-loop when the user wants to start a new habit. Ask them for their
+real cue, craving, response and reward and get their agreement on the
+wording — do not invent the chain for them, because the loop only works if it
+describes their actual behaviour. New loops are created paused; tell the user
+to open the app to review and activate.
 TEXT)]
 class PatYourSelfServer extends Server
 {

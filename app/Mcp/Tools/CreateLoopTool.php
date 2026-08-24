@@ -58,7 +58,7 @@ class CreateLoopTool extends Tool
             ])],
             'strategy.approach' => ['required', 'string', 'max:1000'],
             'strategy.rationale' => ['nullable', 'string', 'max:2000'],
-            'action' => ['nullable', 'array'],
+            'action' => ['nullable', 'array', 'min:1'],
             'action.title' => ['required_with:action', 'string', 'max:255'],
             'action.description' => ['nullable', 'string', 'max:1000'],
             'action.kind' => ['required_with:action', 'string', Rule::in(self::KINDS)],

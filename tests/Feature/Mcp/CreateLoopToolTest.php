@@ -144,7 +144,7 @@ class CreateLoopToolTest extends TestCase
     {
         PatYourSelfServer::actingAs(User::factory()->create())
             ->tool(CreateLoopTool::class, $this->arguments(['type' => 'sideways']))
-            ->assertHasErrors();
+            ->assertHasErrors(['The selected type is invalid.']);
     }
 
     public function test_rejects_an_unknown_intervention_point(): void
@@ -153,7 +153,7 @@ class CreateLoopToolTest extends TestCase
             ->tool(CreateLoopTool::class, $this->arguments([
                 'strategy' => ['intervention_point' => 'vibes', 'approach' => 'x'],
             ]))
-            ->assertHasErrors();
+            ->assertHasErrors(['The selected strategy.intervention point is invalid.']);
     }
 
     public function test_rejects_a_clock_action_without_a_time(): void
@@ -162,7 +162,7 @@ class CreateLoopToolTest extends TestCase
             ->tool(CreateLoopTool::class, $this->arguments([
                 'action' => ['title' => 'Read', 'kind' => 'clock', 'recurrence' => 'daily'],
             ]))
-            ->assertHasErrors();
+            ->assertHasErrors(['The action.time field is required.']);
     }
 
     public function test_rejects_an_anchored_action_without_an_anchor(): void
@@ -171,7 +171,14 @@ class CreateLoopToolTest extends TestCase
             ->tool(CreateLoopTool::class, $this->arguments([
                 'action' => ['title' => 'Read', 'kind' => 'anchored'],
             ]))
-            ->assertHasErrors();
+            ->assertHasErrors(['The action.anchor field is required.']);
+    }
+
+    public function test_rejects_an_empty_action_block(): void
+    {
+        PatYourSelfServer::actingAs(User::factory()->create())
+            ->tool(CreateLoopTool::class, $this->arguments(['action' => []]))
+            ->assertHasErrors(['The action field must have at least 1 items.']);
     }
 
     public function test_returns_a_tool_error_when_the_strategy_block_is_structurally_invalid(): void
@@ -183,7 +190,7 @@ class CreateLoopToolTest extends TestCase
                     'approach' => '   ',
                 ],
             ]))
-            ->assertHasErrors();
+            ->assertHasErrors(['The strategy.approach field is required.']);
     }
 
     public function test_prompts_no_agent(): void
