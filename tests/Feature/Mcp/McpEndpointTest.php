@@ -65,7 +65,7 @@ class McpEndpointTest extends TestCase
      * Exact names, not substrings: `list-loops-tool` contains `list-loops`, so a
      * containment check silently accepts the wrong name and Claude's calls 404.
      */
-    public function test_advertises_all_five_tools_under_their_documented_names(): void
+    public function test_advertises_all_six_tools_under_their_documented_names(): void
     {
         Passport::actingAs(User::factory()->create(), ['mcp:use']);
 
@@ -74,7 +74,7 @@ class McpEndpointTest extends TestCase
         $response->assertOk();
 
         $this->assertSame(
-            ['list-loops', 'get-loop', 'today-actions', 'log-action-outcome', 'loop-progress'],
+            ['list-loops', 'get-loop', 'today-actions', 'log-action-outcome', 'loop-progress', 'create-loop'],
             array_column($response->json('result.tools'), 'name'),
         );
     }

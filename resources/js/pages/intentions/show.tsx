@@ -1,14 +1,21 @@
-import { Link } from '@inertiajs/react';
+import { Form, Link } from '@inertiajs/react';
 import { ChevronLeft } from 'lucide-react';
 
+import { update } from '@/actions/App/Http/Controllers/IntentionController';
 import CoachLayout from '@/layouts/coach-layout';
 import { cn } from '@/lib/utils';
 import { BottomNav } from '@/patyourself/bottom-nav';
+import { Button } from '@/patyourself/primitives';
 import {
     SectionHeading,
     StrategyTimeline,
 } from '@/patyourself/strategy-timeline';
 import type { IntentionData, StrategyData } from '@/patyourself/types';
+
+/** Mirrors CreateLoopTool::AUTHORED_BY — the provenance stamp an MCP-created
+ * loop's metadata carries, distinguishing it from one the in-app coach or the
+ * user authored. */
+const MCP_AUTHORED_BY = 'mcp-client';
 
 interface LoopShowProps {
     intention: IntentionData;
@@ -44,6 +51,33 @@ export default function LoopShow({ intention, strategies }: LoopShowProps) {
                     </Badge>
                     <Badge>{intention.status}</Badge>
                 </section>
+
+                {intention.status === 'paused' && (
+                    <Form
+                        {...update.form(intention.id)}
+                        className="flex flex-col gap-2"
+                    >
+                        {({ processing }) => (
+                            <>
+                                <input
+                                    type="hidden"
+                                    name="status"
+                                    value="active"
+                                />
+                                <Button type="submit" disabled={processing}>
+                                    Activate loop
+                                </Button>
+                                <p className="text-xs text-muted-foreground">
+                                    {intention.metadata?.authored_by ===
+                                        MCP_AUTHORED_BY &&
+                                        'Claude drafted this loop. '}
+                                    Activating it starts its schedule and
+                                    notifications.
+                                </p>
+                            </>
+                        )}
+                    </Form>
+                )}
 
                 {intention.description && (
                     <p className="text-sm text-muted-foreground">

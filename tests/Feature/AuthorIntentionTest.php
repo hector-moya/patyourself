@@ -8,6 +8,7 @@ use App\Models\Action;
 use App\Models\Intention;
 use App\Models\Strategy;
 use App\Models\User;
+use App\Services\Coach\Authoring\AuthoredIntention;
 use App\Services\Coach\Exceptions\CoachException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -15,6 +16,22 @@ use Tests\TestCase;
 class AuthorIntentionTest extends TestCase
 {
     use RefreshDatabase;
+
+    private function authored(): AuthoredIntention
+    {
+        return AuthoredIntention::fromStructured([
+            'title' => 'Read before bed',
+            'type' => Intention::TYPE_BUILD,
+            'cue' => 'Phone goes on the charger',
+            'craving' => 'Wind down',
+            'response' => 'Read ten pages',
+            'reward' => 'Calmer sleep',
+            'strategy' => [
+                'intervention_point' => Strategy::POINT_CUE,
+                'approach' => 'Put the book on the pillow',
+            ],
+        ], 'test-model', 'test@1');
+    }
 
     /**
      * @return array<string, mixed>
@@ -132,5 +149,29 @@ class AuthorIntentionTest extends TestCase
         $this->assertNull($action->scheduled_for);
         $this->assertNull($action->recurrence);
         $this->assertSame('after morning coffee', $action->metadata['anchor']);
+    }
+
+    public function test_persists_the_requested_status(): void
+    {
+        $user = User::factory()->create();
+
+        $intention = app(AuthorIntention::class)->handle(
+            $user,
+            'read more',
+            [],
+            $this->authored(),
+            Intention::STATUS_PAUSED,
+        );
+
+        $this->assertSame(Intention::STATUS_PAUSED, $intention->status);
+    }
+
+    public function test_defaults_to_active_when_no_status_is_given(): void
+    {
+        $user = User::factory()->create();
+
+        $intention = app(AuthorIntention::class)->handle($user, 'read more', [], $this->authored());
+
+        $this->assertSame(Intention::STATUS_ACTIVE, $intention->status);
     }
 }
