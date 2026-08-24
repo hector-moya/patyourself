@@ -36,8 +36,9 @@ class DigestDispatcher
             ->cursor()
             ->each(function (User $user) use (&$sent): void {
                 $localNow = Date::now($user->timezone ?? config('app.timezone'));
+                $localMinutes = ($localNow->hour * 60) + $localNow->minute;
 
-                if ($localNow->format('H:i') < $user->digest_time) {
+                if ($localMinutes < $this->minutesSinceMidnight($user->digest_time)) {
                     return;
                 }
 
@@ -61,5 +62,18 @@ class DigestDispatcher
             });
 
         return $sent;
+    }
+
+    /**
+     * Parses "H:i" — zero-padded or not, e.g. "07:00" or "9:00" — into
+     * minutes since midnight, so the at-or-past comparison never depends on
+     * the digest_time column's string padding (a plain string comparison
+     * would put "9:00" after "23:59", locking that user out forever).
+     */
+    private function minutesSinceMidnight(string $time): int
+    {
+        [$hour, $minute] = array_map('intval', explode(':', $time));
+
+        return ($hour * 60) + $minute;
     }
 }

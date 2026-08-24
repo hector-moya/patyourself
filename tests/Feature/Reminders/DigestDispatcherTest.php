@@ -162,4 +162,70 @@ class DigestDispatcherTest extends TestCase
 
         Notification::assertSentTo($user, DailyDigestNotification::class);
     }
+
+    public function test_respects_the_users_configured_digest_time(): void
+    {
+        Notification::fake();
+        Carbon::setTestNow('2026-08-24 10:00:00');
+
+        $user = $this->userWithDueAction(['digest_time' => '19:00']);
+
+        $this->assertSame(0, app(DigestDispatcher::class)->dispatchDue());
+        Notification::assertNothingSentTo($user);
+
+        Carbon::setTestNow('2026-08-24 19:00:00');
+
+        $this->assertSame(1, app(DigestDispatcher::class)->dispatchDue());
+        Notification::assertSentTo($user, DailyDigestNotification::class);
+    }
+
+    public function test_handles_a_non_zero_padded_digest_time(): void
+    {
+        Notification::fake();
+        Carbon::setTestNow('2026-08-24 08:00:00');
+
+        $user = $this->userWithDueAction(['digest_time' => '9:00']);
+
+        $this->assertSame(0, app(DigestDispatcher::class)->dispatchDue());
+        Notification::assertNothingSentTo($user);
+
+        Carbon::setTestNow('2026-08-24 09:00:00');
+
+        $this->assertSame(1, app(DigestDispatcher::class)->dispatchDue());
+        Notification::assertSentTo($user, DailyDigestNotification::class);
+    }
+
+    public function test_the_digest_email_lists_actions_and_links_to_the_app(): void
+    {
+        $user = User::factory()->create(['timezone' => 'UTC']);
+        $loop = Intention::factory()->for($user)->create([
+            'title' => 'Read before bed',
+            'status' => Intention::STATUS_ACTIVE,
+        ]);
+
+        $scheduled = Action::factory()->for($loop)->create([
+            'title' => 'Read ten pages',
+            'status' => Action::STATUS_PENDING,
+            'scheduled_for' => Carbon::parse('2026-08-24 07:30:00', 'UTC'),
+        ]);
+        $scheduled->loadMissing('intention');
+
+        $cueAnchored = Action::factory()->for($loop)->create([
+            'title' => 'Stretch',
+            'status' => Action::STATUS_PENDING,
+            'scheduled_for' => null,
+        ]);
+        $cueAnchored->loadMissing('intention');
+
+        $mail = (new DailyDigestNotification(collect([$scheduled, $cueAnchored])))
+            ->toMail($user)
+            ->render();
+
+        $this->assertStringContainsString('Read ten pages', $mail);
+        $this->assertStringContainsString('Read before bed', $mail);
+        $this->assertStringContainsString('7:30am', $mail);
+        $this->assertStringContainsString('Stretch', $mail);
+        $this->assertStringContainsString('when the cue happens', $mail);
+        $this->assertStringContainsString(route('dashboard'), $mail);
+    }
 }
