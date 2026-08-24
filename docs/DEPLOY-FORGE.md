@@ -41,7 +41,10 @@ Open the site's **Environment** tab and paste the contents of
 - `ANTHROPIC_API_KEY` — the Anthropic API key for all LLM agents.
 - `COACH_DAILY_TOKEN_BUDGET` — rolling 24h per-user token cap (default 200000; 0 disables).
 - `COACH_RATE_PER_MINUTE` — chat requests per user per minute (default 20; 0 disables).
-- `MAIL_*` — your transactional mail provider (verification emails).
+- `MAIL_*` — set `MAIL_MAILER=ses` and fill `AWS_ACCESS_KEY_ID` /
+  `AWS_SECRET_ACCESS_KEY` (IAM permission `ses:SendRawEmail`) for verification
+  emails and reminder emails to actually deliver; `MAIL_FROM_ADDRESS` must be
+  an SES-verified identity.
 
 Note: the model is configured per-agent via `#[Model]` attributes in code; no
 `ANTHROPIC_MODEL` env var is needed. Provider credentials are read by
@@ -94,13 +97,24 @@ Forge supervises it and restarts it on each deploy (via `queue:restart`).
 
 ## 6. Scheduler
 
+**Required** — skipping this tab silently disables both action cues and email
+reminders; nothing errors, they simply never fire.
+
 In the server's **Scheduler** tab, add the Laravel scheduler for this site:
 
 - Command: `php artisan schedule:run`
 - Frequency: every minute.
 
-(No scheduled jobs ship in Phase 1; this readies the cron for future rolling
-summaries / digests.)
+Two commands ship on this schedule (`routes/console.php`), both `everyMinute()`:
+
+- `actions:fire` — fires any action whose scheduled moment has arrived (drives
+  the in-app cue and the every-cue email).
+- `reminders:digest` — sends the daily digest email to any user whose local
+  `digest_time` has arrived.
+
+A queue worker (step 5) is **also required** for reminder emails and for the
+coaching closure — both are `ShouldQueue`. Without a running worker, queued
+mail and coaching jobs pile up in the `jobs` table and never deliver.
 
 ## 7. SSL
 

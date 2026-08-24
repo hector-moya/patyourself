@@ -115,8 +115,12 @@ Validation: `email_reminders` must be in `User::EMAIL_REMINDER_MODES`; `digest_t
 - A user with `timezone = null` falls back to `config('app.timezone')`, as everywhere else.
 - A mail send that throws is a queued-job failure and retries on the queue; it must not abort the
   digest run for other users, so each user is dispatched independently.
-- `digest_last_sent_on` is stamped only after a successful dispatch, so a failed run retries on the
-  next minute rather than silently skipping the day.
+- `digest_last_sent_on` is stamped right after `notify()`, which only *enqueues* the job — the
+  stamp does not wait for delivery. If the queued job then exhausts its retries and lands in
+  `failed_jobs`, the stamp already prevents a retry on the next minute, so the user loses that
+  day's digest with no automatic recovery. This is the accepted trade-off: it keeps one user's
+  slow or failing mail from blocking or double-sending to everyone else. A queue-failure alert
+  (e.g. on `failed_jobs`) is the mitigation, not a dispatcher retry.
 
 ## Testing (PHPUnit + vitest)
 

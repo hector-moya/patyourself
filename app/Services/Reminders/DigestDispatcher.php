@@ -54,8 +54,15 @@ class DigestDispatcher
 
                 $user->notify(new DailyDigestNotification($actions));
 
-                // Stamped only after a successful dispatch, so a failure retries
-                // on the next minute rather than silently skipping the day.
+                // DailyDigestNotification is ShouldQueue, so notify() only enqueues
+                // the job — it does not confirm delivery. The stamp below commits
+                // right after, regardless of whether the queued send later succeeds.
+                // If that job then exhausts its retries and lands in failed_jobs,
+                // the stamp already prevents a retry on the next minute; the user
+                // loses that day's digest. That is the accepted trade-off: it keeps
+                // one slow/failing user's mail from blocking or re-sending to
+                // everyone else, at the cost of no automatic recovery for a fully
+                // failed job (see docs/superpowers/specs/2026-08-24-email-reminders-design.md).
                 $user->forceFill(['digest_last_sent_on' => $localNow->toDateString()])->save();
 
                 $sent++;

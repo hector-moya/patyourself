@@ -39,6 +39,13 @@ class ActionDueNotificationTest extends TestCase
         $this->assertSame(['database'], $notification->via(new User));
     }
 
+    public function test_the_database_channel_stays_synchronous(): void
+    {
+        $notification = new ActionDueNotification($this->firedAction());
+
+        $this->assertSame('sync', $notification->viaConnections()['database']);
+    }
+
     public function test_to_array_carries_the_inbox_payload(): void
     {
         $action = $this->firedAction();
