@@ -16,7 +16,7 @@ use Laravel\Fortify\PasskeyAuthenticatable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 use Laravel\Sanctum\HasApiTokens;
 
-#[Fillable(['name', 'email', 'password', 'timezone'])]
+#[Fillable(['name', 'email', 'password', 'timezone', 'email_reminders', 'digest_time'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
 class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
 {
@@ -44,6 +44,34 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
      */
     use HasApiTokens, HasConversations, HasFactory, Notifiable, PasskeyAuthenticatable, TwoFactorAuthenticatable;
 
+    /** Email cues are off entirely; the in-app inbox still receives them. */
+    public const EMAIL_REMINDERS_OFF = 'off';
+
+    /** One email each day at digest_time, listing everything due. */
+    public const EMAIL_REMINDERS_DIGEST = 'digest';
+
+    /** One email per cue, at the moment the action fires. */
+    public const EMAIL_REMINDERS_EVERY_CUE = 'every_cue';
+
+    /** @var array<int, string> */
+    public const EMAIL_REMINDER_MODES = [
+        self::EMAIL_REMINDERS_OFF,
+        self::EMAIL_REMINDERS_DIGEST,
+        self::EMAIL_REMINDERS_EVERY_CUE,
+    ];
+
+    /**
+     * These mirror the `users` migration's column defaults so a freshly
+     * instantiated (not-yet-persisted-and-reloaded) model already reflects
+     * them, instead of appearing null until the record is re-fetched.
+     *
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'email_reminders' => self::EMAIL_REMINDERS_DIGEST,
+        'digest_time' => '07:00',
+    ];
+
     /**
      * Get the attributes that should be cast.
      *
@@ -55,6 +83,7 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'two_factor_confirmed_at' => 'datetime',
+            'digest_last_sent_on' => 'date',
         ];
     }
 
