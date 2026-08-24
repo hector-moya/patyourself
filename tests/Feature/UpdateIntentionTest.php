@@ -62,4 +62,49 @@ class UpdateIntentionTest extends TestCase
 
         $this->assertTrue($action->fresh()->scheduled_for->equalTo($stale));
     }
+
+    public function test_activating_a_stale_weekly_action_keeps_its_original_weekday(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-01-21 14:00:00', 'UTC')); // a Wednesday
+
+        $user = User::factory()->create(['timezone' => 'UTC']);
+        $intention = Intention::factory()->for($user)->create(['status' => Intention::STATUS_PAUSED]);
+
+        $action = Action::factory()->for($intention)->create([
+            'status' => Action::STATUS_PENDING,
+            'recurrence' => 'weekly',
+            'scheduled_for' => Carbon::parse('2026-01-11 10:00:00', 'UTC'), // a stale Sunday
+        ]);
+
+        app(UpdateIntention::class)->handle($intention, ['status' => Intention::STATUS_ACTIVE]);
+
+        $fresh = $action->fresh();
+        $this->assertTrue($fresh->scheduled_for->isFuture());
+        $this->assertSame(Carbon::SUNDAY, $fresh->scheduled_for->dayOfWeek);
+        $this->assertSame('10:00', $fresh->scheduled_for->format('H:i'));
+    }
+
+    public function test_activating_leaves_a_future_dated_pending_action_untouched(): void
+    {
+        $user = User::factory()->create(['timezone' => 'UTC']);
+        $intention = Intention::factory()->for($user)->create(['status' => Intention::STATUS_PAUSED]);
+
+        $future = Carbon::now()->addDays(3)->setTime(9, 0);
+        $action = Action::factory()->for($intention)->create([
+            'status' => Action::STATUS_PENDING,
+            'recurrence' => 'daily',
+            'scheduled_for' => $future,
+        ]);
+
+        app(UpdateIntention::class)->handle($intention, ['status' => Intention::STATUS_ACTIVE]);
+
+        $this->assertTrue($action->fresh()->scheduled_for->equalTo($future));
+    }
+
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+
+        parent::tearDown();
+    }
 }

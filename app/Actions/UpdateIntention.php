@@ -45,8 +45,9 @@ final readonly class UpdateIntention
     /**
      * A loop can sit paused for days before the user activates it, leaving any
      * clock action scheduled in the past — it would fire the moment the loop went
-     * live. Push each one to its next real occurrence. Anchored actions carry no
-     * clock time and are left alone.
+     * live. Push each one to its next real occurrence. Only genuinely stale
+     * actions are touched; a future-dated one is left as the user scheduled it.
+     * Anchored actions carry no clock time and are left alone.
      */
     private function reanchorPendingActions(Intention $intention): void
     {
@@ -57,17 +58,24 @@ final readonly class UpdateIntention
         $intention->actions()
             ->where('status', Action::STATUS_PENDING)
             ->whereNotNull('scheduled_for')
+            ->where('scheduled_for', '<=', $now)
             ->get()
             ->each(function (Action $action) use ($schedule, $now, $timezone): void {
-                $localTime = $action->scheduled_for->setTimezone($timezone)->format('H:i');
+                $scheduledFor = $action->scheduled_for->toImmutable();
+                $recurrence = Recurrence::tryFromToken($action->recurrence);
 
+                // nextAfter() re-arms a recurring action from its own stale slot, so
+                // it preserves the weekday (and stays DST-correct) instead of
+                // collapsing to "today or tomorrow" at the same clock time. It
+                // returns null for a one-off, which firstOccurrence() then handles.
                 $action->update([
-                    'scheduled_for' => $schedule->firstOccurrence(
-                        $now,
-                        $localTime,
-                        Recurrence::tryFromToken($action->recurrence),
-                        $timezone,
-                    ),
+                    'scheduled_for' => $schedule->nextAfter($scheduledFor, $now, $recurrence, $timezone)
+                        ?? $schedule->firstOccurrence(
+                            $now,
+                            $scheduledFor->setTimezone($timezone)->format('H:i'),
+                            $recurrence,
+                            $timezone,
+                        ),
                 ]);
             });
     }

@@ -45,4 +45,42 @@ describe('LoopShow', () => {
 
         expect(screen.queryByRole('button', { name: /activate/i })).not.toBeInTheDocument();
     });
+
+    it('uses the design-system Button for the activate action', () => {
+        render(<LoopShow intention={intention({ status: 'paused' })} strategies={[]} />);
+
+        const button = screen.getByRole('button', { name: /activate/i });
+        expect(button).toHaveClass('py-btn', 'py-btn--primary');
+    });
+
+    it('credits Claude only for a loop it authored', () => {
+        render(
+            <LoopShow
+                intention={intention({
+                    status: 'paused',
+                    metadata: { authored_by: 'mcp-client' },
+                })}
+                strategies={[]}
+            />,
+        );
+
+        expect(screen.getByText(/claude drafted this loop/i)).toBeInTheDocument();
+    });
+
+    it('does not credit Claude for a paused loop it did not author', () => {
+        render(
+            <LoopShow
+                intention={intention({
+                    status: 'paused',
+                    metadata: { authored_by: 'user' },
+                })}
+                strategies={[]}
+            />,
+        );
+
+        expect(screen.queryByText(/claude drafted this loop/i)).not.toBeInTheDocument();
+        expect(
+            screen.getByText(/activating it starts its schedule and notifications/i),
+        ).toBeInTheDocument();
+    });
 });
