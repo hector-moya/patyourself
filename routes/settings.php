@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Settings\NotificationsController;
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Settings\SecurityController;
 use App\Http\Controllers\Settings\TimezoneController;
@@ -13,6 +14,9 @@ Route::middleware(['auth'])->group(function () {
     Route::patch('settings/profile', [ProfileController::class, 'update'])->name('profile.update');
 
     Route::patch('settings/timezone', [TimezoneController::class, 'update'])->name('timezone.update');
+
+    Route::get('settings/notifications', [NotificationsController::class, 'edit'])->name('notifications.edit');
+    Route::patch('settings/notifications', [NotificationsController::class, 'update'])->name('notifications.update');
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {

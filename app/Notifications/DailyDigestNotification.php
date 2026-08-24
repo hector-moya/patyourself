@@ -48,6 +48,7 @@ class DailyDigestNotification extends Notification implements ShouldQueue
             $mail->line("• {$action->title} — {$action->intention->title} ({$when})");
         }
 
-        return $mail->action('Open PatYourSelf', route('dashboard'));
+        return $mail->action('Open PatYourSelf', route('dashboard'))
+            ->line('Manage your reminders: '.route('notifications.edit'));
     }
 }
