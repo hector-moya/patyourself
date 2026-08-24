@@ -1,6 +1,7 @@
-import { Link } from '@inertiajs/react';
+import { Form, Link } from '@inertiajs/react';
 import { ChevronLeft } from 'lucide-react';
 
+import { update } from '@/actions/App/Http/Controllers/IntentionController';
 import CoachLayout from '@/layouts/coach-layout';
 import { cn } from '@/lib/utils';
 import { BottomNav } from '@/patyourself/bottom-nav';
@@ -44,6 +45,25 @@ export default function LoopShow({ intention, strategies }: LoopShowProps) {
                     </Badge>
                     <Badge>{intention.status}</Badge>
                 </section>
+
+                {intention.status === 'paused' && (
+                    <Form
+                        {...update.form(intention.id)}
+                        className="flex flex-col gap-2"
+                    >
+                        <input type="hidden" name="status" value="active" />
+                        <button
+                            type="submit"
+                            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
+                        >
+                            Activate loop
+                        </button>
+                        <p className="text-xs text-muted-foreground">
+                            Claude drafted this loop. Activating it starts its
+                            schedule and notifications.
+                        </p>
+                    </Form>
+                )}
 
                 {intention.description && (
                     <p className="text-sm text-muted-foreground">
