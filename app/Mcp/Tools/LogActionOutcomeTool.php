@@ -13,8 +13,10 @@ use Illuminate\Validation\Rule;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
 use Laravel\Mcp\Server\Attributes\Description;
+use Laravel\Mcp\Server\Attributes\Name;
 use Laravel\Mcp\Server\Tool;
 
+#[Name('log-action-outcome')]
 #[Description('Record the outcome of an action: completed, failed, or skipped. A failed outcome MUST include the user\'s stated reason — ask them why before calling this. Recurring actions automatically roll forward to their next occurrence.')]
 class LogActionOutcomeTool extends Tool
 {

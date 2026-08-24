@@ -9,8 +9,10 @@ use Illuminate\JsonSchema\Types\Type;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
 use Laravel\Mcp\Server\Attributes\Description;
+use Laravel\Mcp\Server\Attributes\Name;
 use Laravel\Mcp\Server\Tool;
 
+#[Name('loop-progress')]
 #[Description('Progress for one habit loop: current streak on the active strategy, lifetime completion rate and totals, and the recent outcome strip.')]
 class LoopProgressTool extends Tool
 {

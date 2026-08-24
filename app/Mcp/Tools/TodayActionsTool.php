@@ -11,8 +11,10 @@ use Illuminate\Support\Facades\Date;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
 use Laravel\Mcp\Server\Attributes\Description;
+use Laravel\Mcp\Server\Attributes\Name;
 use Laravel\Mcp\Server\Tool;
 
+#[Name('today-actions')]
 #[Description('List the actions the user should act on today: fired ("due_now"), scheduled later today ("upcoming"), plus unscheduled cue-anchored ones. Only actions on active loops.')]
 class TodayActionsTool extends Tool
 {
