@@ -4,6 +4,7 @@ namespace Tests\Feature\Mcp;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Testing\TestResponse;
 use Laravel\Passport\Passport;
 use Tests\TestCase;
 
@@ -60,22 +61,49 @@ class McpEndpointTest extends TestCase
         $response->assertForbidden();
     }
 
-    public function test_advertises_all_five_tools_over_http(): void
+    /**
+     * Exact names, not substrings: `list-loops-tool` contains `list-loops`, so a
+     * containment check silently accepts the wrong name and Claude's calls 404.
+     */
+    public function test_advertises_all_five_tools_under_their_documented_names(): void
     {
         Passport::actingAs(User::factory()->create(), ['mcp:use']);
 
-        $response = $this->postJson('/mcp', [
+        $response = $this->toolsList();
+
+        $response->assertOk();
+
+        $this->assertSame(
+            ['list-loops', 'get-loop', 'today-actions', 'log-action-outcome', 'loop-progress'],
+            array_column($response->json('result.tools'), 'name'),
+        );
+    }
+
+    /**
+     * The server's #[Instructions] tell Claude which tools to call by name. If a
+     * name drifts from that prose, Claude calls a tool that does not exist.
+     */
+    public function test_every_advertised_tool_name_appears_in_the_server_instructions(): void
+    {
+        Passport::actingAs(User::factory()->create(), ['mcp:use']);
+
+        $instructions = $this->postJson('/mcp', $this->initializePayload(), [
+            'Accept' => 'application/json, text/event-stream',
+        ])->json('result.instructions');
+
+        foreach (array_column($this->toolsList()->json('result.tools'), 'name') as $name) {
+            $this->assertStringContainsString($name, $instructions);
+        }
+    }
+
+    private function toolsList(): TestResponse
+    {
+        return $this->postJson('/mcp', [
             'jsonrpc' => '2.0',
             'id' => 2,
             'method' => 'tools/list',
             'params' => [],
         ], ['Accept' => 'application/json, text/event-stream']);
-
-        $response->assertOk();
-
-        foreach (['list-loops', 'get-loop', 'today-actions', 'log-action-outcome', 'loop-progress'] as $tool) {
-            $this->assertStringContainsString($tool, $response->getContent());
-        }
     }
 
     /**

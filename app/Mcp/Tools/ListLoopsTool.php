@@ -9,8 +9,10 @@ use Illuminate\Validation\Rule;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
 use Laravel\Mcp\Server\Attributes\Description;
+use Laravel\Mcp\Server\Attributes\Name;
 use Laravel\Mcp\Server\Tool;
 
+#[Name('list-loops')]
 #[Description('List the user\'s habit loops (intentions), newest first. Defaults to active loops; pass status "all" to include paused, archived and completed loops.')]
 class ListLoopsTool extends Tool
 {

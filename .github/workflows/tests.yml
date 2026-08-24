@@ -51,6 +51,12 @@ jobs:
       - name: Generate Application Key
         run: php artisan key:generate
 
+      # Passport signs and verifies the OAuth tokens the MCP endpoint runs on.
+      # Without these the whole tests/Feature/Mcp suite errors with
+      # "LogicException: Invalid key supplied".
+      - name: Generate Passport Keys
+        run: php artisan passport:keys --force
+
       - name: Build Assets
         run: npm run build
 
