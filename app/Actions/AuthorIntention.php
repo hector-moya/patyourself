@@ -32,8 +32,13 @@ final readonly class AuthorIntention
      *
      * @throws CoachException
      */
-    public function handle(User $user, string $goal, array $context = [], ?AuthoredIntention $authored = null): Intention
-    {
+    public function handle(
+        User $user,
+        string $goal,
+        array $context = [],
+        ?AuthoredIntention $authored = null,
+        string $status = Intention::STATUS_ACTIVE,
+    ): Intention {
         if ($authored === null) {
             $response = (new IntentionAuthor)->prompt($this->userPrompt($goal, $context));
             $authored = AuthoredIntention::fromStructured(
@@ -43,7 +48,7 @@ final readonly class AuthorIntention
             );
         }
 
-        return DB::transaction(fn (): Intention => $this->persist($user, $authored));
+        return DB::transaction(fn (): Intention => $this->persist($user, $authored, $status));
     }
 
     /**
@@ -63,14 +68,14 @@ final readonly class AuthorIntention
         return $prompt;
     }
 
-    private function persist(User $user, AuthoredIntention $authored): Intention
+    private function persist(User $user, AuthoredIntention $authored, string $status): Intention
     {
         $intention = Intention::create([
             'user_id' => $user->id,
             'title' => $authored->title,
             'description' => $authored->description,
             'type' => $authored->type,
-            'status' => Intention::STATUS_ACTIVE,
+            'status' => $status,
             'cue' => $authored->cue,
             'craving' => $authored->craving,
             'response' => $authored->response,
