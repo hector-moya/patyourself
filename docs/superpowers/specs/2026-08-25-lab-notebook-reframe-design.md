@@ -119,8 +119,23 @@ Tests (deleted with the code they cover):
 - `tests/Unit/Ai/MetersUsageToUserTest.php`
 - `tests/Feature/Progress/ProgressUsageTest.php`
 
-`tests/Feature/Ai/CreateLoopTest.php` is **retained** — it covers the MCP
-`create-loop` tool, not an agent. It moves to `tests/Feature/Mcp/`.
+- `tests/Feature/Ai/CreateLoopTest.php` — covers the *agent* tool
+  `App\Ai\Tools\CreateLoop`, not the MCP tool. Deleted with the agent.
+- `tests/Feature/Ai/CoachConversationTest.php`, `ReadToolsTest.php`,
+  `SdkInstallTest.php`, `StrategistTest.php`, `SummarizerTest.php`
+- `tests/Feature/Coach/AttributesCoachingUsageTest.php`
+- `tests/Feature/PromptVersioningTest.php` — asserts that agent-authored
+  artifacts record the prompt version that produced them. No agents, no prompt
+  versions.
+
+Two test files are **retained**, and confusing them with the above is the easiest
+way to break this work:
+
+- `tests/Feature/Mcp/CreateLoopToolTest.php` covers the MCP `create-loop` tool.
+  It is the regression net for the `AuthorIntention` split and must stay green
+  throughout.
+- `tests/Feature/Coach/OutcomeStreakTest.php` covers `OutcomeStreak`, which
+  survives. It moves to `tests/Feature/Strategy/` with the class.
 
 ### Survives, with changes — the subtle part
 
