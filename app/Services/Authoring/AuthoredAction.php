@@ -1,8 +1,6 @@
 <?php
 
-namespace App\Services\Coach\Authoring;
-
-use App\Services\Coach\Exceptions\CoachException;
+namespace App\Services\Authoring;
 
 /**
  * The concrete, schedulable action the coach proposes alongside a strategy: what
@@ -33,7 +31,7 @@ final readonly class AuthoredAction
      *
      * @param  array<string, mixed>|null  $data
      *
-     * @throws CoachException
+     * @throws AuthoringException
      */
     public static function fromStructured(?array $data): ?self
     {
@@ -43,13 +41,13 @@ final readonly class AuthoredAction
 
         $title = is_string($data['title'] ?? null) ? trim($data['title']) : '';
         if ($title === '') {
-            throw CoachException::emptyResponse('intention-author');
+            throw AuthoringException::emptyResponse('intention-author');
         }
 
         $schedule = is_array($data['schedule'] ?? null) ? $data['schedule'] : [];
         $kind = is_string($schedule['kind'] ?? null) ? trim($schedule['kind']) : '';
         if (! in_array($kind, self::KINDS, true)) {
-            throw CoachException::emptyResponse('intention-author');
+            throw AuthoringException::emptyResponse('intention-author');
         }
 
         $time = null;
@@ -59,17 +57,17 @@ final readonly class AuthoredAction
         if ($kind === 'clock') {
             $time = is_string($schedule['time'] ?? null) ? trim($schedule['time']) : '';
             if (! preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', $time)) {
-                throw CoachException::emptyResponse('intention-author');
+                throw AuthoringException::emptyResponse('intention-author');
             }
 
             $recurrence = is_string($schedule['recurrence'] ?? null) ? trim($schedule['recurrence']) : 'once';
             if (! in_array($recurrence, self::RECURRENCES, true)) {
-                throw CoachException::emptyResponse('intention-author');
+                throw AuthoringException::emptyResponse('intention-author');
             }
         } else {
             $anchor = is_string($schedule['anchor'] ?? null) ? trim($schedule['anchor']) : '';
             if ($anchor === '') {
-                throw CoachException::emptyResponse('intention-author');
+                throw AuthoringException::emptyResponse('intention-author');
             }
         }
 
@@ -84,9 +82,9 @@ final readonly class AuthoredAction
     }
 
     /**
-     * Lenient variant for the revision path: returns null instead of throwing on
-     * a malformed or partial block, so ReviseStrategy can fall back to inheriting
-     * the prior cadence.
+     * Lenient variant of {@see fromStructured()}: returns null instead of
+     * throwing when the block is malformed or partial, rather than failing the
+     * whole payload over one optional action.
      *
      * @param  array<string, mixed>|null  $data
      */
@@ -94,7 +92,7 @@ final readonly class AuthoredAction
     {
         try {
             return self::fromStructured($data);
-        } catch (CoachException) {
+        } catch (AuthoringException) {
             return null;
         }
     }

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Services\Coach\Authoring;
+namespace App\Services\Authoring;
 
 /**
  * The initial intervention the coach proposes alongside a freshly authored

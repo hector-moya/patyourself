@@ -1,9 +1,9 @@
 <?php
 
-namespace Tests\Unit\Coach;
+namespace Tests\Unit\Strategy;
 
 use App\Models\Strategy;
-use App\Services\Coach\Strategy\BehavioralChain;
+use App\Services\Strategy\BehavioralChain;
 use PHPUnit\Framework\TestCase;
 
 class BehavioralChainTest extends TestCase

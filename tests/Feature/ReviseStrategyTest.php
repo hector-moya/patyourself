@@ -6,9 +6,9 @@ use App\Actions\ReviseStrategy;
 use App\Models\Action;
 use App\Models\Intention;
 use App\Models\Strategy;
-use App\Services\Coach\Authoring\AuthoredAction;
-use App\Services\Coach\Authoring\AuthoredStrategy;
-use App\Services\Coach\Strategy\StrategyTransitionException;
+use App\Services\Authoring\AuthoredAction;
+use App\Services\Authoring\AuthoredStrategy;
+use App\Services\Strategy\StrategyTransitionException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 

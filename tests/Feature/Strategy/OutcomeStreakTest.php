@@ -1,12 +1,12 @@
 <?php
 
-namespace Tests\Feature\Coach;
+namespace Tests\Feature\Strategy;
 
 use App\Models\Action;
 use App\Models\ActionLog;
 use App\Models\Intention;
 use App\Models\Strategy;
-use App\Services\Coach\OutcomeStreak;
+use App\Services\Strategy\OutcomeStreak;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 

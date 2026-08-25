@@ -1,13 +1,13 @@
 <?php
 
-namespace App\Services\Coach\Authoring;
+namespace App\Services\Authoring;
 
 use RuntimeException;
 
 /**
  * Raised when the LLM returns parseable JSON that does not satisfy the
  * Intention schema (missing chain fields, bad enum, etc.). Distinct from
- * CoachException, which covers transport / unparseable-output failures.
+ * AuthoringException, which covers transport / unparseable-output failures.
  */
 class IntentionAuthoringException extends RuntimeException
 {

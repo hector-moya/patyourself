@@ -1,9 +1,9 @@
 <?php
 
-namespace Tests\Unit\Coach;
+namespace Tests\Unit\Authoring;
 
-use App\Services\Coach\Authoring\AuthoredAction;
-use App\Services\Coach\Exceptions\CoachException;
+use App\Services\Authoring\AuthoredAction;
+use App\Services\Authoring\AuthoringException;
 use PHPUnit\Framework\TestCase;
 
 class AuthoredActionTest extends TestCase
@@ -44,7 +44,7 @@ class AuthoredActionTest extends TestCase
 
     public function test_rejects_a_bad_clock_time(): void
     {
-        $this->expectException(CoachException::class);
+        $this->expectException(AuthoringException::class);
 
         AuthoredAction::fromStructured([
             'title' => 'x',
@@ -54,7 +54,7 @@ class AuthoredActionTest extends TestCase
 
     public function test_rejects_anchored_without_anchor(): void
     {
-        $this->expectException(CoachException::class);
+        $this->expectException(AuthoringException::class);
 
         AuthoredAction::fromStructured(['title' => 'x', 'schedule' => ['kind' => 'anchored']]);
     }

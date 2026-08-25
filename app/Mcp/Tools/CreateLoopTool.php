@@ -5,8 +5,8 @@ namespace App\Mcp\Tools;
 use App\Actions\PersistAuthoredIntention;
 use App\Models\Intention;
 use App\Models\Strategy;
-use App\Services\Coach\Authoring\AuthoredIntention;
-use App\Services\Coach\Exceptions\CoachException;
+use App\Services\Authoring\AuthoredIntention;
+use App\Services\Authoring\AuthoringException;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\JsonSchema\Types\Type;
 use Illuminate\Validation\Rule;
@@ -74,7 +74,7 @@ class CreateLoopTool extends Tool
                 self::AUTHORED_BY,
                 self::PROMPT_VERSION,
             );
-        } catch (CoachException) {
+        } catch (AuthoringException) {
             return Response::error('That loop is missing required structure. Provide title, type, cue, craving, response, reward and a strategy.');
         }
 

@@ -1,8 +1,8 @@
 <?php
 
-namespace Tests\Unit\Coach;
+namespace Tests\Unit\Authoring;
 
-use App\Services\Coach\Authoring\AuthoredIntention;
+use App\Services\Authoring\AuthoredIntention;
 use PHPUnit\Framework\TestCase;
 
 class AuthoredIntentionActionTest extends TestCase

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Services\Coach;
+namespace App\Services\Strategy;
 
 use App\Models\ActionLog;
 use App\Models\Strategy;

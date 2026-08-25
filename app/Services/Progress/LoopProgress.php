@@ -4,7 +4,7 @@ namespace App\Services\Progress;
 
 use App\Models\ActionLog;
 use App\Models\Intention;
-use App\Services\Coach\OutcomeStreak;
+use App\Services\Strategy\OutcomeStreak;
 
 /**
  * Read-side aggregation for one loop's progress card. Pure: no writes, no model

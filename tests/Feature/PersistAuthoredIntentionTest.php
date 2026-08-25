@@ -7,8 +7,8 @@ use App\Models\Action;
 use App\Models\Intention;
 use App\Models\Strategy;
 use App\Models\User;
-use App\Services\Coach\Authoring\AuthoredIntention;
-use App\Services\Coach\Exceptions\CoachException;
+use App\Services\Authoring\AuthoredIntention;
+use App\Services\Authoring\AuthoringException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use RuntimeException;
 use Tests\TestCase;
@@ -106,7 +106,7 @@ class PersistAuthoredIntentionTest extends TestCase
     {
         // Missing required fields → fromStructured throws before a
         // PersistAuthoredIntention DTO can even be built.
-        $this->expectException(CoachException::class);
+        $this->expectException(AuthoringException::class);
 
         AuthoredIntention::fromStructured(['title' => 'Only a title'], 'test-model', 'test@1');
     }

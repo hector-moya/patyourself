@@ -1,10 +1,9 @@
 <?php
 
-namespace App\Services\Coach\Authoring;
+namespace App\Services\Authoring;
 
 use App\Models\Intention;
 use App\Models\Strategy;
-use App\Services\Coach\Exceptions\CoachException;
 
 /**
  * A validated, structured Intention authored by the LLM — the data half of the
@@ -40,7 +39,7 @@ final readonly class AuthoredIntention
      *
      * @param  array<string, mixed>  $data  The agent's ->structured array.
      *
-     * @throws CoachException when required fields are missing or invalid.
+     * @throws AuthoringException when required fields are missing or invalid.
      * @throws IntentionAuthoringException when the schema is structurally invalid.
      */
     public static function fromStructured(array $data, string $model, ?string $promptVersion = null): self
@@ -62,7 +61,7 @@ final readonly class AuthoredIntention
             $response === '' ||
             $reward === ''
         ) {
-            throw CoachException::emptyResponse('intention-author');
+            throw AuthoringException::emptyResponse('intention-author');
         }
 
         $authoredStrategy = null;
@@ -85,7 +84,7 @@ final readonly class AuthoredIntention
                 ! in_array($interventionPoint, $validPoints, true) ||
                 $approach === ''
             ) {
-                throw CoachException::emptyResponse('intention-author');
+                throw AuthoringException::emptyResponse('intention-author');
             }
 
             $authoredStrategy = new AuthoredStrategy(
