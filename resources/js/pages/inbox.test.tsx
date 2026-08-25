@@ -123,7 +123,7 @@ describe('Inbox', () => {
         ).toBeInTheDocument();
         expect(
             screen.getByRole('link', { name: /morning run/i }),
-        ).toHaveAttribute('href', '/intentions/7');
+        ).toHaveAttribute('href', '/loops/7');
     });
 
     it('still renders a cue with no type as a due cue', () => {

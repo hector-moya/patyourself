@@ -106,6 +106,6 @@ class ActionDueNotificationTest extends TestCase
 
         $this->assertStringContainsString('Read ten pages', $mail);
         $this->assertStringContainsString('Read before bed', $mail);
-        $this->assertStringContainsString(route('intentions.show', $action->intention_id), $mail);
+        $this->assertStringContainsString(route('loops.show', $action->intention_id), $mail);
     }
 }

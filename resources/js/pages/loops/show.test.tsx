@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { IntentionData } from '@/patyourself/types';
 
-const page = { url: '/intentions/1', props: { unread_notifications_count: 0 } };
+const page = { url: '/loops/1', props: { unread_notifications_count: 0 } };
 vi.mock('@inertiajs/react', async (importOriginal) => {
     const actual = await importOriginal<typeof InertiaReact>();
 

@@ -100,14 +100,14 @@ function InboxItem({ notification }: { notification: NotificationData }) {
     );
 
     // A cue without a loop to open (malformed/legacy payload) renders as a
-    // static row rather than a dead link to /intentions/.
+    // static row rather than a dead link to /loops/.
     if (notification.intention_id === null) {
         return <div className={className}>{content}</div>;
     }
 
     return (
         <Link
-            href={`/intentions/${notification.intention_id}`}
+            href={`/loops/${notification.intention_id}`}
             onClick={() => {
                 if (unread) {
                     router.patch(

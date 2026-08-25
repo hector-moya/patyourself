@@ -15,9 +15,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // this at the Notebook; until then it shows the loop list.
     Route::get('dashboard', [IntentionController::class, 'index'])->name('dashboard');
 
-    // Intentions (loops): the list + detail screens and the write endpoints,
-    // all sharing the same Actions as the JSON API.
-    Route::resource('intentions', IntentionController::class)
+    // Loops (the Intention model): list, detail and the write endpoints, all
+    // sharing the same Actions as the MCP server.
+    Route::resource('loops', IntentionController::class)
+        ->parameters(['loops' => 'intention'])
         ->only(['index', 'show', 'store', 'update', 'destroy']);
 
     // Log an action's outcome (completion / failure + reason).

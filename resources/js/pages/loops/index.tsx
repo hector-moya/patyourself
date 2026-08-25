@@ -49,7 +49,7 @@ function LoopRow({ loop }: { loop: IntentionData }) {
 
     return (
         <Link
-            href={`/intentions/${loop.id}`}
+            href={`/loops/${loop.id}`}
             className="flex items-center gap-3 rounded-xl border border-border bg-card p-3 transition-colors hover:border-foreground/20 hover:bg-accent/40"
         >
             <span

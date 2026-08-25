@@ -12,8 +12,8 @@ describe('resolvePageLayout', () => {
         'inbox',
         'progress/index',
         'progress/show',
-        'intentions/index',
-        'intentions/show',
+        'loops/index',
+        'loops/show',
         'welcome',
         'landing',
     ])('resolves the shell-owning page "%s" to null', (name) => {

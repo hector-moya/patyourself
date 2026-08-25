@@ -30,7 +30,7 @@ interface LoopShowProps {
 export default function LoopShow({ intention, strategies }: LoopShowProps) {
     const back = (
         <Link
-            href="/intentions"
+            href="/loops"
             className="-ml-1 flex size-8 items-center justify-center rounded-md text-muted-foreground hover:text-foreground"
             aria-label="Back to loops"
         >

@@ -70,6 +70,6 @@ describe('ProgressIndex', () => {
         expect(screen.getByText(/no active loops yet/i)).toBeInTheDocument();
         expect(
             screen.getByText(/view your loops/i).closest('a'),
-        ).toHaveAttribute('href', '/intentions');
+        ).toHaveAttribute('href', '/loops');
     });
 });

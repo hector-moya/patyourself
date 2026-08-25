@@ -42,7 +42,7 @@ function EmptyState() {
                 through the PatYourSelf connector.
             </p>
             <Link
-                href="/intentions"
+                href="/loops"
                 className="text-sm font-medium text-primary"
             >
                 View your loops

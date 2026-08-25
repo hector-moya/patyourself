@@ -18,8 +18,8 @@ export const NAV_TABS: NavTab[] = [
     {
         label: 'Loops',
         icon: 'git-branch',
-        href: '/intentions',
-        match: ['/intentions'],
+        href: '/loops',
+        match: ['/loops'],
     },
     {
         label: 'Progress',

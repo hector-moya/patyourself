@@ -35,7 +35,7 @@ class IntentionController extends Controller
             ->sortBy(fn (Intention $intention): int => $intention->status === Intention::STATUS_ACTIVE ? 0 : 1)
             ->values();
 
-        return Inertia::render('intentions/index', [
+        return Inertia::render('loops/index', [
             'intentions' => IntentionResource::collection($intentions)->resolve(),
         ]);
     }
@@ -47,7 +47,7 @@ class IntentionController extends Controller
         $intention->load('activeStrategy');
         $strategies = $intention->strategies()->orderedByVersion()->get();
 
-        return Inertia::render('intentions/show', [
+        return Inertia::render('loops/show', [
             'intention' => (new IntentionResource($intention))->resolve(),
             'strategies' => StrategyResource::collection($strategies)->resolve(),
         ]);
@@ -75,6 +75,6 @@ class IntentionController extends Controller
 
         $delete->handle($intention);
 
-        return to_route('intentions.index');
+        return to_route('loops.index');
     }
 }

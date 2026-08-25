@@ -24,7 +24,7 @@ describe('AppRail', () => {
 
         expect(screen.getByText('Loops').closest('a')).toHaveAttribute(
             'href',
-            '/intentions',
+            '/loops',
         );
         expect(screen.getByText('Progress').closest('a')).toHaveAttribute(
             'href',

@@ -29,7 +29,7 @@ class IntentionScreensTest extends TestCase
 
     public function test_guests_are_redirected_from_the_loops_list(): void
     {
-        $this->get('/intentions')->assertRedirect('/login');
+        $this->get('/loops')->assertRedirect('/login');
     }
 
     public function test_loops_list_renders_only_the_users_loops(): void
@@ -39,10 +39,10 @@ class IntentionScreensTest extends TestCase
         Intention::factory()->create();
 
         $this->actingAs($user)
-            ->get('/intentions')
+            ->get('/loops')
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->component('intentions/index')
+                ->component('loops/index')
                 ->has('intentions', 2)
             );
     }
@@ -54,10 +54,10 @@ class IntentionScreensTest extends TestCase
         $active = Intention::factory()->for($user)->create(['status' => Intention::STATUS_ACTIVE]);
 
         $this->actingAs($user)
-            ->get('/intentions')
+            ->get('/loops')
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->component('intentions/index')
+                ->component('loops/index')
                 ->where('intentions.0.id', $active->id)
                 ->where('intentions.1.id', $archived->id)
             );
@@ -88,10 +88,10 @@ class IntentionScreensTest extends TestCase
         ]);
 
         $this->actingAs($user)
-            ->get("/intentions/{$intention->id}")
+            ->get("/loops/{$intention->id}")
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->component('intentions/show')
+                ->component('loops/show')
                 ->where('intention.id', $intention->id)
                 // The active strategy drives which anatomy stage is highlighted.
                 ->where('intention.strategy.intervention_point', Strategy::POINT_RESPONSE)
@@ -107,7 +107,7 @@ class IntentionScreensTest extends TestCase
         $intention = Intention::factory()->create();
 
         $this->actingAs(User::factory()->create())
-            ->get("/intentions/{$intention->id}")
+            ->get("/loops/{$intention->id}")
             ->assertForbidden();
     }
 }
