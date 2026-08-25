@@ -94,8 +94,8 @@ class CreateLoopTool extends Tool
 
     /**
      * AuthoredIntention::fromStructured (via AuthoredAction::fromStructured) reads
-     * an action's schedule fields nested under `schedule` — the shape the
-     * authoring agents' own JSON schema uses (see Strategist).
+     * an action's schedule fields nested under `schedule`, the shape shared by
+     * every path that authors an intention.
      * This tool's public arguments keep kind/time/recurrence/anchor flat for a
      * simpler MCP contract, so bridge the two shapes here.
      *

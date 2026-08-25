@@ -2,7 +2,6 @@
 
 namespace Tests;
 
-use App\Ai\Agents\Summarizer;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Illuminate\Support\Facades\Http;
 use Laravel\Fortify\Features;
@@ -10,23 +9,15 @@ use Laravel\Fortify\Features;
 abstract class TestCase extends BaseTestCase
 {
     /**
-     * Every agent is faked by default, and no test may reach the network.
-     *
-     * Coaching runs from a queued listener on ActionLogged, so tests that only
-     * log an outcome still prompt an agent. Left un-faked that silently bills the
-     * developer's ANTHROPIC_API_KEY locally and 401s in CI, where no key is set.
-     *
-     * A blanket fake with no canned responses returns schema-conforming generated
-     * data, which is all these tests need. Any test asserting on specific coaching
-     * output re-fakes the agent it cares about, which replaces the gateway here.
+     * No test may reach the network. The app makes no outbound calls of its
+     * own any more, so this is a standing guarantee rather than an agent
+     * workaround — leave it in place.
      */
     protected function setUp(): void
     {
         parent::setUp();
 
         Http::preventStrayRequests();
-
-        Summarizer::fake();
     }
 
     protected function skipUnlessFortifyHas(string $feature, ?string $message = null): void

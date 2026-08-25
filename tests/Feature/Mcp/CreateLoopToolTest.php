@@ -2,7 +2,6 @@
 
 namespace Tests\Feature\Mcp;
 
-use App\Ai\Agents\IntentionAuthor;
 use App\Mcp\Servers\PatYourSelfServer;
 use App\Mcp\Tools\CreateLoopTool;
 use App\Models\Action;
@@ -10,7 +9,6 @@ use App\Models\Intention;
 use App\Models\Strategy;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Laravel\Ai\Ai;
 use Laravel\Mcp\Server\Testing\TestResponse;
 use Tests\TestCase;
 
@@ -200,7 +198,5 @@ class CreateLoopToolTest extends TestCase
         PatYourSelfServer::actingAs($user)
             ->tool(CreateLoopTool::class, $this->arguments())
             ->assertOk();
-
-        Ai::assertAgentNeverPrompted(IntentionAuthor::class);
     }
 }

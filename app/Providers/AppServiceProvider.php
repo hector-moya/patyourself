@@ -2,7 +2,6 @@
 
 namespace App\Providers;
 
-use App\Ai\TurnCollector;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
@@ -17,8 +16,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        // Request-scoped collector; drained by ChatController after each coach turn.
-        $this->app->scoped(TurnCollector::class);
+        //
     }
 
     /**
