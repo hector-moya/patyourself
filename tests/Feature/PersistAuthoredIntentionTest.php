@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Services\Coach\Authoring\AuthoredIntention;
 use App\Services\Coach\Exceptions\CoachException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use RuntimeException;
 use Tests\TestCase;
 
 class PersistAuthoredIntentionTest extends TestCase
@@ -78,6 +79,7 @@ class PersistAuthoredIntentionTest extends TestCase
         $this->assertNotEmpty($intention->metadata['authored_by']);
         $this->assertSame(0.78, $intention->metadata['confidence']);
         $this->assertSame(['energy', 'morning'], $intention->metadata['tags']);
+        $this->assertSame('test@1', $intention->activeStrategy->metadata['prompt_version']);
 
         $strategy = $intention->activeStrategy;
         $this->assertNotNull($strategy);
@@ -100,19 +102,13 @@ class PersistAuthoredIntentionTest extends TestCase
         $this->assertSame(0, $intention->strategies()->count());
     }
 
-    public function test_invalid_schema_writes_nothing(): void
+    public function test_the_dto_guard_rejects_an_incomplete_payload(): void
     {
-        // Missing required fields → fromStructured throws CoachException before
-        // PersistAuthoredIntention is ever reached, so nothing is written.
-        try {
-            AuthoredIntention::fromStructured(['title' => 'Only a title'], 'test-model', 'test@1');
-            $this->fail('Expected CoachException to be thrown.');
-        } catch (CoachException) {
-            // expected
-        }
+        // Missing required fields → fromStructured throws before a
+        // PersistAuthoredIntention DTO can even be built.
+        $this->expectException(CoachException::class);
 
-        $this->assertSame(0, Intention::count());
-        $this->assertSame(0, Strategy::count());
+        AuthoredIntention::fromStructured(['title' => 'Only a title'], 'test-model', 'test@1');
     }
 
     public function test_persists_a_scheduled_action_bound_to_the_strategy(): void
@@ -149,6 +145,34 @@ class PersistAuthoredIntentionTest extends TestCase
         $this->assertNull($action->scheduled_for);
         $this->assertNull($action->recurrence);
         $this->assertSame('after morning coffee', $action->metadata['anchor']);
+    }
+
+    public function test_transaction_rolls_back_when_action_persistence_fails(): void
+    {
+        $authored = AuthoredIntention::fromStructured($this->validPayload(), 'test-model', 'test@1');
+        $user = User::factory()->create(['timezone' => 'UTC']);
+
+        // Force a failure partway through the transaction, after the Intention
+        // and Strategy rows would already have been created, to prove
+        // PersistAuthoredIntention's DB::transaction wrapper leaves no
+        // orphaned rows behind.
+        Action::creating(function (): void {
+            throw new RuntimeException('boom');
+        });
+
+        try {
+            try {
+                app(PersistAuthoredIntention::class)->handle($user, $authored);
+                $this->fail('Expected RuntimeException to be thrown.');
+            } catch (RuntimeException) {
+                // expected
+            }
+
+            $this->assertSame(0, Intention::count());
+            $this->assertSame(0, Strategy::count());
+        } finally {
+            Action::flushEventListeners();
+        }
     }
 
     public function test_persists_the_requested_status(): void

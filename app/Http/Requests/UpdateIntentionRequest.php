@@ -25,7 +25,7 @@ class UpdateIntentionRequest extends FormRequest
         return [
             'title' => ['sometimes', 'required', 'string', 'max:255'],
             'description' => ['sometimes', 'nullable', 'string', 'max:2000'],
-            'type' => ['sometimes', 'required', 'string', Rule::in([Intention::TYPE_BUILD, Intention::TYPE_BREAK])],
+            'type' => ['sometimes', 'required', 'string', Rule::in(Intention::TYPES)],
             'status' => ['sometimes', 'required', 'string', Rule::in(StoreIntentionRequest::STATUSES)],
             'cue' => ['sometimes', 'required', 'string', 'max:2000'],
             'craving' => ['sometimes', 'required', 'string', 'max:2000'],

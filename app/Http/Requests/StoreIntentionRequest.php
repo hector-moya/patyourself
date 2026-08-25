@@ -24,7 +24,7 @@ class StoreIntentionRequest extends FormRequest
         return [
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:2000'],
-            'type' => ['required', 'string', Rule::in([Intention::TYPE_BUILD, Intention::TYPE_BREAK])],
+            'type' => ['required', 'string', Rule::in(Intention::TYPES)],
             'status' => ['sometimes', 'string', Rule::in(self::STATUSES)],
             'cue' => ['required', 'string', 'max:2000'],
             'craving' => ['required', 'string', 'max:2000'],
