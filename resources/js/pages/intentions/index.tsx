@@ -117,15 +117,9 @@ function EmptyState() {
                 No loops yet
             </h2>
             <p className="max-w-xs text-sm text-muted-foreground">
-                Start a conversation with the Coach and it will author your
-                first habit loop for you.
+                Loops are created by talking to Claude through the PatYourSelf
+                connector, then reviewed here.
             </p>
-            <Link
-                href="/dashboard"
-                className="mt-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
-            >
-                Talk to the Coach
-            </Link>
         </div>
     );
 }

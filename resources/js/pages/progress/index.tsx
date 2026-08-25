@@ -41,13 +41,14 @@ function EmptyState() {
     return (
         <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border p-8 text-center">
             <p className="text-sm text-muted-foreground">
-                No active loops yet.
+                No active loops yet. New loops are created by talking to Claude
+                through the PatYourSelf connector.
             </p>
             <Link
-                href="/dashboard"
+                href="/intentions"
                 className="text-sm font-medium text-primary"
             >
-                Start a loop with your coach
+                View your loops
             </Link>
         </div>
     );

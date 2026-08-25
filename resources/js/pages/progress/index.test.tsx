@@ -77,12 +77,12 @@ describe('ProgressIndex', () => {
         expect(screen.getByText(/no activity yet/i)).toBeInTheDocument();
     });
 
-    it('shows the empty state with a coach CTA when there are no loops', () => {
+    it('shows the empty state with a link to the loop list when there are no loops', () => {
         render(<ProgressIndex loops={[]} usage={usage()} />);
 
         expect(screen.getByText(/no active loops yet/i)).toBeInTheDocument();
         expect(
-            screen.getByText(/start a loop with your coach/i).closest('a'),
-        ).toHaveAttribute('href', '/dashboard');
+            screen.getByText(/view your loops/i).closest('a'),
+        ).toHaveAttribute('href', '/intentions');
     });
 });

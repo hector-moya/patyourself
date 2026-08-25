@@ -26,7 +26,7 @@ export function AppRail() {
             <Link
                 href="/dashboard"
                 className="mb-5 flex items-center gap-2.5 px-2.5"
-                aria-label="patyourself — go to coach"
+                aria-label="patyourself — go to dashboard"
             >
                 <span className="flex size-8 items-center justify-center rounded-[10px] bg-primary text-primary-foreground shadow-[0_6px_16px_-6px_rgba(226,107,62,0.7)]">
                     <AppLogoIcon className="size-[18px] fill-current" />
