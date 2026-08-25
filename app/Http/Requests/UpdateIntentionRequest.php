@@ -2,7 +2,7 @@
 
 namespace App\Http\Requests;
 
-use App\Services\Coach\Authoring\IntentionSchema;
+use App\Models\Intention;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -25,7 +25,7 @@ class UpdateIntentionRequest extends FormRequest
         return [
             'title' => ['sometimes', 'required', 'string', 'max:255'],
             'description' => ['sometimes', 'nullable', 'string', 'max:2000'],
-            'type' => ['sometimes', 'required', 'string', Rule::in(IntentionSchema::TYPES)],
+            'type' => ['sometimes', 'required', 'string', Rule::in([Intention::TYPE_BUILD, Intention::TYPE_BREAK])],
             'status' => ['sometimes', 'required', 'string', Rule::in(StoreIntentionRequest::STATUSES)],
             'cue' => ['sometimes', 'required', 'string', 'max:2000'],
             'craving' => ['sometimes', 'required', 'string', 'max:2000'],

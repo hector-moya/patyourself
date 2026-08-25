@@ -2,8 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Actions\AuthorIntention;
-use App\Ai\Agents\IntentionAuthor;
+use App\Actions\PersistAuthoredIntention;
 use App\Models\Action;
 use App\Models\Intention;
 use App\Models\Strategy;
@@ -13,7 +12,7 @@ use App\Services\Coach\Exceptions\CoachException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
-class AuthorIntentionTest extends TestCase
+class PersistAuthoredIntentionTest extends TestCase
 {
     use RefreshDatabase;
 
@@ -63,10 +62,10 @@ class AuthorIntentionTest extends TestCase
 
     public function test_persists_intention_and_initial_strategy(): void
     {
-        IntentionAuthor::fake([$this->validPayload()]);
+        $authored = AuthoredIntention::fromStructured($this->validPayload(), 'test-model', 'test@1');
         $user = User::factory()->create();
 
-        $intention = app(AuthorIntention::class)->handle($user, 'I want more energy in the mornings');
+        $intention = app(PersistAuthoredIntention::class)->handle($user, $authored);
 
         $this->assertTrue($intention->exists);
         $this->assertSame($user->id, $intention->user_id);
@@ -93,34 +92,35 @@ class AuthorIntentionTest extends TestCase
     {
         $payload = $this->validPayload();
         unset($payload['strategy']);
-        IntentionAuthor::fake([$payload]);
+        $authored = AuthoredIntention::fromStructured($payload, 'test-model', 'test@1');
         $user = User::factory()->create();
 
-        $intention = app(AuthorIntention::class)->handle($user, 'goal');
+        $intention = app(PersistAuthoredIntention::class)->handle($user, $authored);
 
         $this->assertSame(0, $intention->strategies()->count());
     }
 
     public function test_invalid_schema_writes_nothing(): void
     {
-        // Missing required fields → fromStructured throws CoachException.
-        IntentionAuthor::fake([['title' => 'Only a title']]);
-        $user = User::factory()->create();
-
-        $this->expectException(CoachException::class);
-
-        app(AuthorIntention::class)->handle($user, 'goal');
+        // Missing required fields → fromStructured throws CoachException before
+        // PersistAuthoredIntention is ever reached, so nothing is written.
+        try {
+            AuthoredIntention::fromStructured(['title' => 'Only a title'], 'test-model', 'test@1');
+            $this->fail('Expected CoachException to be thrown.');
+        } catch (CoachException) {
+            // expected
+        }
 
         $this->assertSame(0, Intention::count());
         $this->assertSame(0, Strategy::count());
     }
 
-    public function test_authors_a_scheduled_action_bound_to_the_strategy(): void
+    public function test_persists_a_scheduled_action_bound_to_the_strategy(): void
     {
-        IntentionAuthor::fake([$this->validPayload()]);
+        $authored = AuthoredIntention::fromStructured($this->validPayload(), 'test-model', 'test@1');
         $user = User::factory()->create(['timezone' => 'UTC']);
 
-        $intention = app(AuthorIntention::class)->handle($user, 'I want more energy');
+        $intention = app(PersistAuthoredIntention::class)->handle($user, $authored);
 
         $action = $intention->actions()->first();
         $this->assertNotNull($action);
@@ -140,10 +140,10 @@ class AuthorIntentionTest extends TestCase
             'title' => 'Do ten push-ups',
             'schedule' => ['kind' => 'anchored', 'anchor' => 'after morning coffee'],
         ];
-        IntentionAuthor::fake([$payload]);
+        $authored = AuthoredIntention::fromStructured($payload, 'test-model', 'test@1');
         $user = User::factory()->create(['timezone' => 'UTC']);
 
-        $intention = app(AuthorIntention::class)->handle($user, 'goal');
+        $intention = app(PersistAuthoredIntention::class)->handle($user, $authored);
 
         $action = $intention->actions()->first();
         $this->assertNull($action->scheduled_for);
@@ -155,10 +155,8 @@ class AuthorIntentionTest extends TestCase
     {
         $user = User::factory()->create();
 
-        $intention = app(AuthorIntention::class)->handle(
+        $intention = app(PersistAuthoredIntention::class)->handle(
             $user,
-            'read more',
-            [],
             $this->authored(),
             Intention::STATUS_PAUSED,
         );
@@ -170,7 +168,7 @@ class AuthorIntentionTest extends TestCase
     {
         $user = User::factory()->create();
 
-        $intention = app(AuthorIntention::class)->handle($user, 'read more', [], $this->authored());
+        $intention = app(PersistAuthoredIntention::class)->handle($user, $this->authored());
 
         $this->assertSame(Intention::STATUS_ACTIVE, $intention->status);
     }

@@ -3,14 +3,11 @@
 namespace App\Http\Requests;
 
 use App\Models\Intention;
-use App\Services\Coach\Authoring\IntentionSchema;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 /**
- * Validates a manually-authored loop. Mirrors the LLM authoring contract
- * ({@see IntentionSchema}) so hand-entered and AI-authored loops share a shape,
- * minus the model-only fields (confidence, tags, seeded strategy).
+ * Validates a manually-authored loop.
  */
 class StoreIntentionRequest extends FormRequest
 {
@@ -27,7 +24,7 @@ class StoreIntentionRequest extends FormRequest
         return [
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:2000'],
-            'type' => ['required', 'string', Rule::in(IntentionSchema::TYPES)],
+            'type' => ['required', 'string', Rule::in([Intention::TYPE_BUILD, Intention::TYPE_BREAK])],
             'status' => ['sometimes', 'string', Rule::in(self::STATUSES)],
             'cue' => ['required', 'string', 'max:2000'],
             'craving' => ['required', 'string', 'max:2000'],
