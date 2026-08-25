@@ -3,12 +3,11 @@
 namespace Tests\Feature;
 
 use App\Actions\ReviseStrategy;
-use App\Ai\Agents\Strategist;
 use App\Models\Action;
 use App\Models\Intention;
 use App\Models\Strategy;
+use App\Services\Coach\Authoring\AuthoredAction;
 use App\Services\Coach\Authoring\AuthoredStrategy;
-use App\Services\Coach\Exceptions\CoachException;
 use App\Services\Coach\Strategy\StrategyTransitionException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -27,24 +26,14 @@ class ReviseStrategyTest extends TestCase
         ]);
     }
 
-    /** @return array<string, mixed> */
-    private function revision(string $point, string $approach): array
-    {
-        return [
-            'intervention_point' => $point,
-            'approach' => $approach,
-            'rationale' => 'Because it should help.',
-        ];
-    }
-
     public function test_restrategize_on_failure_creates_new_version_and_keeps_history(): void
     {
         $current = $this->activeStrategy(Strategy::POINT_RESPONSE);
-        Strategist::fake([$this->revision(Strategy::POINT_CUE, 'Lay shoes out the night before.')]);
 
         $next = app(ReviseStrategy::class)->restrategizeOnFailure(
             $current,
             'Too tired to walk after work',
+            new AuthoredStrategy(Strategy::POINT_CUE, 'Lay shoes out the night before.', 'Because it should help.'),
         );
 
         // New active version supersedes the old one.
@@ -73,9 +62,11 @@ class ReviseStrategyTest extends TestCase
     public function test_stack_on_success_creates_harder_next_version(): void
     {
         $current = $this->activeStrategy(Strategy::POINT_RESPONSE);
-        Strategist::fake([$this->revision(Strategy::POINT_RESPONSE, 'Walk for 25 minutes after coffee.')]);
 
-        $next = app(ReviseStrategy::class)->stackOnSuccess($current);
+        $next = app(ReviseStrategy::class)->stackOnSuccess(
+            $current,
+            new AuthoredStrategy(Strategy::POINT_RESPONSE, 'Walk for 25 minutes after coffee.', 'Because it should help.'),
+        );
 
         $this->assertSame(2, $next->version);
         $this->assertSame(Strategy::STATUS_ACTIVE, $next->status);
@@ -89,10 +80,9 @@ class ReviseStrategyTest extends TestCase
         $this->assertNull($current->superseded_reason);
     }
 
-    public function test_accepts_a_preauthored_strategy_without_calling_the_coach(): void
+    public function test_accepts_a_preauthored_strategy(): void
     {
         $current = $this->activeStrategy(Strategy::POINT_RESPONSE);
-        Strategist::fake([]);
 
         $next = app(ReviseStrategy::class)->restrategizeOnFailure(
             $current,
@@ -101,7 +91,6 @@ class ReviseStrategyTest extends TestCase
         );
 
         $this->assertSame(Strategy::POINT_CRAVING, $next->intervention_point);
-        Strategist::assertNeverPrompted();
     }
 
     public function test_only_an_active_strategy_can_transition(): void
@@ -122,24 +111,6 @@ class ReviseStrategyTest extends TestCase
         }
     }
 
-    public function test_malformed_payload_throws_coach_exception_and_persists_nothing(): void
-    {
-        $current = $this->activeStrategy(Strategy::POINT_RESPONSE);
-        // Empty array → structured fields are missing → emptyResponse guard fires.
-        Strategist::fake([[]]);
-
-        $strategyCountBefore = $current->intention->strategies()->count();
-
-        $this->expectException(CoachException::class);
-
-        try {
-            app(ReviseStrategy::class)->stackOnSuccess($current);
-        } finally {
-            // No new Strategy version was written.
-            $this->assertSame($strategyCountBefore, $current->intention->strategies()->count());
-        }
-    }
-
     public function test_revision_archives_the_old_action_and_inherits_the_cadence(): void
     {
         $current = $this->activeStrategy(Strategy::POINT_RESPONSE);
@@ -151,9 +122,11 @@ class ReviseStrategyTest extends TestCase
             'metadata' => ['schedule_kind' => 'clock'],
         ]);
 
-        Strategist::fake([$this->revision(Strategy::POINT_CUE, 'Lay shoes out the night before.')]);
-
-        $next = app(ReviseStrategy::class)->restrategizeOnFailure($current, 'Too tired after work');
+        $next = app(ReviseStrategy::class)->restrategizeOnFailure(
+            $current,
+            'Too tired after work',
+            new AuthoredStrategy(Strategy::POINT_CUE, 'Lay shoes out the night before.', 'Because it should help.'),
+        );
 
         $oldAction->refresh();
         $this->assertSame(Action::STATUS_ARCHIVED, $oldAction->status);
@@ -179,21 +152,45 @@ class ReviseStrategyTest extends TestCase
             'recurrence' => 'daily',
         ]);
 
-        Strategist::fake([[
-            'intervention_point' => Strategy::POINT_CUE,
-            'approach' => 'Walk in the morning instead.',
-            'rationale' => 'Mornings have more energy.',
-            'action' => [
-                'title' => 'Morning walk',
-                'schedule' => ['kind' => 'clock', 'time' => '06:30', 'recurrence' => 'weekdays'],
-            ],
-        ]]);
+        $next = new AuthoredStrategy(Strategy::POINT_CUE, 'Walk in the morning instead.', 'Mornings have more energy.');
+        $revisedAction = new AuthoredAction(
+            title: 'Morning walk',
+            description: null,
+            kind: 'clock',
+            time: '06:30',
+            recurrence: 'weekdays',
+            anchor: null,
+        );
 
-        app(ReviseStrategy::class)->restrategizeOnFailure($current, 'No energy in the evening');
+        app(ReviseStrategy::class)->restrategizeOnFailure($current, 'No energy in the evening', $next, $revisedAction);
 
         $newAction = $current->intention->actions()
             ->where('status', Action::STATUS_PENDING)->first();
         $this->assertSame('weekdays', $newAction->recurrence); // re-proposed, not inherited
         $this->assertSame('Morning walk', $newAction->title);
+    }
+
+    public function test_it_requires_a_pre_authored_revision(): void
+    {
+        $intention = Intention::factory()->create();
+        $current = Strategy::factory()->for($intention)->create([
+            'status' => Strategy::STATUS_ACTIVE,
+            'intervention_point' => Strategy::POINT_RESPONSE,
+        ]);
+
+        $next = new AuthoredStrategy(
+            interventionPoint: Strategy::POINT_CUE,
+            approach: 'put the fork down between bites',
+            rationale: 'the gap has to exist before the fullness signal lands',
+            promptVersion: 'test@1',
+        );
+
+        $revised = app(ReviseStrategy::class)->restrategizeOnFailure($current, 'ate on autopilot', $next);
+
+        $this->assertSame(2, $revised->version);
+        $this->assertSame(Strategy::POINT_CUE, $revised->intervention_point);
+        $this->assertSame('earlier', $revised->metadata['direction']);
+        $this->assertSame(Strategy::STATUS_SUPERSEDED, $current->fresh()->status);
+        $this->assertSame('ate on autopilot', $current->fresh()->superseded_reason);
     }
 }

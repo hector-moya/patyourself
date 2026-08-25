@@ -2,7 +2,6 @@
 
 namespace Tests;
 
-use App\Ai\Agents\Strategist;
 use App\Ai\Agents\Summarizer;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Illuminate\Support\Facades\Http;
@@ -27,7 +26,6 @@ abstract class TestCase extends BaseTestCase
 
         Http::preventStrayRequests();
 
-        Strategist::fake();
         Summarizer::fake();
     }
 

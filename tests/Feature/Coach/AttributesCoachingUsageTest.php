@@ -2,9 +2,7 @@
 
 namespace Tests\Feature\Coach;
 
-use App\Actions\ReviseStrategy;
 use App\Actions\UpdateRollingSummary;
-use App\Ai\Agents\Strategist;
 use App\Ai\Agents\Summarizer;
 use App\Models\Action;
 use App\Models\ActionLog;
@@ -32,27 +30,6 @@ class AttributesCoachingUsageTest extends TestCase
         app(UpdateRollingSummary::class)->handle($intention);
 
         Summarizer::assertPrompted(
-            fn ($prompt) => $prompt->agent->conversationParticipant()?->is($intention->user) === true,
-        );
-    }
-
-    public function test_revise_strategy_bills_the_loop_owner(): void
-    {
-        Strategist::fake([[
-            'intervention_point' => Strategy::POINT_CUE,
-            'approach' => 'Lay shoes out the night before.',
-            'rationale' => 'Because.',
-        ]]);
-
-        $intention = Intention::factory()->create();
-        $strategy = Strategy::factory()->initial()->for($intention)->create([
-            'intervention_point' => Strategy::POINT_RESPONSE,
-            'approach' => 'Walk 15 minutes after coffee.',
-        ]);
-
-        app(ReviseStrategy::class)->restrategizeOnFailure($strategy, 'Too tired');
-
-        Strategist::assertPrompted(
             fn ($prompt) => $prompt->agent->conversationParticipant()?->is($intention->user) === true,
         );
     }
