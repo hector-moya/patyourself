@@ -28,6 +28,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'change_reason',
     'superseded_reason',
     'metadata',
+    'review_at',
+    'verdict',
+    'verdict_note',
 ])]
 class Strategy extends Model
 {
@@ -53,6 +56,15 @@ class Strategy extends Model
     public const REASON_STACKED_ON_SUCCESS = 'stacked_on_success';
 
     public const REASON_RESTRATEGIZED_ON_FAILURE = 'restrategized_on_failure';
+
+    public const VERDICT_WORKED = 'worked';
+
+    public const VERDICT_FAILED = 'failed';
+
+    public const VERDICT_INCONCLUSIVE = 'inconclusive';
+
+    /** Every verdict an experiment can end with. */
+    public const VERDICTS = [self::VERDICT_WORKED, self::VERDICT_FAILED, self::VERDICT_INCONCLUSIVE];
 
     /** Every status a strategy version can hold. */
     public const STATUSES = [self::STATUS_ACTIVE, self::STATUS_SUPERSEDED, self::STATUS_RETIRED];
@@ -81,12 +93,48 @@ class Strategy extends Model
         return [
             'version' => 'integer',
             'metadata' => 'array',
+            'review_at' => 'immutable_datetime',
         ];
     }
 
     public function isActive(): bool
     {
         return $this->status === self::STATUS_ACTIVE;
+    }
+
+    /**
+     * A version is concluded once it carries a verdict. Concluding does not
+     * supersede it — a strategy that worked keeps running.
+     */
+    public function isConcluded(): bool
+    {
+        return $this->verdict !== null;
+    }
+
+    /**
+     * Past its planned end and still waiting on a verdict. Open-ended
+     * experiments (no `review_at`) are never under review, which is what keeps
+     * the notebook from nagging.
+     */
+    public function isUnderReview(): bool
+    {
+        return ! $this->isConcluded()
+            && $this->review_at !== null
+            && $this->review_at->isPast();
+    }
+
+    /** Whole days elapsed since this version became active, counting from 0. */
+    public function dayOfExperiment(): int
+    {
+        return (int) $this->created_at->startOfDay()->diffInDays(now()->startOfDay());
+    }
+
+    /** The planned run length in whole days, or null when open-ended. */
+    public function plannedDays(): ?int
+    {
+        return $this->review_at === null
+            ? null
+            : (int) $this->created_at->startOfDay()->diffInDays($this->review_at->startOfDay());
     }
 
     /**
