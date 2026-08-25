@@ -1,8 +1,8 @@
 /**
  * The app's primary navigation, shared by the mobile bottom-nav and the
  * desktop side rail so both stay in lockstep. Each tab links one of the app's
- * top-level screens; the loop- and progress-detail screens nest under their
- * list, so a tab stays active for its whole section.
+ * top-level screens (Loops, Progress, Inbox); the loop- and progress-detail
+ * screens nest under their list, so a tab stays active for its whole section.
  */
 export interface NavTab {
     label: string;
@@ -15,12 +15,6 @@ export interface NavTab {
 }
 
 export const NAV_TABS: NavTab[] = [
-    {
-        label: 'Coach',
-        icon: 'message-circle',
-        href: '/dashboard',
-        match: ['/dashboard'],
-    },
     {
         label: 'Loops',
         icon: 'git-branch',

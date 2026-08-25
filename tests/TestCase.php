@@ -2,7 +2,6 @@
 
 namespace Tests;
 
-use App\Ai\Agents\Coach;
 use App\Ai\Agents\IntentionAuthor;
 use App\Ai\Agents\Strategist;
 use App\Ai\Agents\Summarizer;
@@ -29,7 +28,6 @@ abstract class TestCase extends BaseTestCase
 
         Http::preventStrayRequests();
 
-        Coach::fake();
         IntentionAuthor::fake();
         Strategist::fake();
         Summarizer::fake();

@@ -24,4 +24,23 @@ class DashboardTest extends TestCase
         $response = $this->get(route('dashboard'));
         $response->assertOk();
     }
+
+    public function test_dashboard_renders_the_loop_list(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->component('intentions/index'));
+    }
+
+    public function test_the_chat_endpoint_is_gone(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->post('/chat', ['message' => 'hello'])
+            ->assertNotFound();
+    }
 }
