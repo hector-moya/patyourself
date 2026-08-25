@@ -2,15 +2,12 @@
 
 namespace App\Ai\Agents;
 
-use App\Ai\Concerns\MetersUsageToUser;
-use App\Ai\Middleware\GuardCoachUsage;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Ai\Attributes\MaxTokens;
 use Laravel\Ai\Attributes\Model;
 use Laravel\Ai\Attributes\Provider;
 use Laravel\Ai\Attributes\Temperature;
 use Laravel\Ai\Contracts\Agent;
-use Laravel\Ai\Contracts\HasMiddleware;
 use Laravel\Ai\Contracts\HasStructuredOutput;
 use Laravel\Ai\Enums\Lab;
 use Laravel\Ai\Promptable;
@@ -24,9 +21,9 @@ use Laravel\Ai\Promptable;
 #[Model('claude-haiku-4-5')]
 #[Temperature(0.3)]
 #[MaxTokens(2048)]
-class Summarizer implements Agent, HasMiddleware, HasStructuredOutput
+class Summarizer implements Agent, HasStructuredOutput
 {
-    use MetersUsageToUser, Promptable;
+    use Promptable;
 
     public const PROMPT_VERSION = 'rolling-summary@1';
 
@@ -76,10 +73,5 @@ class Summarizer implements Agent, HasMiddleware, HasStructuredOutput
             'content' => $schema->string()->max(4000)->required(),
             'patterns' => $schema->array()->items($schema->string()->max(200))->max(12),
         ];
-    }
-
-    public function middleware(): array
-    {
-        return [GuardCoachUsage::class];
     }
 }

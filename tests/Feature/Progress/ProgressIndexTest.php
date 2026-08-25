@@ -107,4 +107,14 @@ class ProgressIndexTest extends TestCase
     {
         $this->get('/progress')->assertRedirect('/login');
     }
+
+    public function test_the_progress_index_carries_no_usage_prop(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->get(route('progress'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->component('progress/index')->missing('usage'));
+    }
 }

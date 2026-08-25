@@ -2,25 +2,22 @@ import { Link } from '@inertiajs/react';
 
 import CoachLayout from '@/layouts/coach-layout';
 import { BottomNav } from '@/patyourself/bottom-nav';
-import { CoachUsageCard } from '@/patyourself/progress/coach-usage-card';
 import { ProgressCard } from '@/patyourself/progress/progress-card';
-import type { CoachUsageSnapshot, LoopProgressCard } from '@/patyourself/types';
+import type { LoopProgressCard } from '@/patyourself/types';
 
 interface ProgressIndexProps {
     loops: LoopProgressCard[];
-    usage: CoachUsageSnapshot;
 }
 
 /**
- * Progress dashboard — the account's coach-usage card, then a stack of
- * active-loop metric cards (streak, completion rate, recent-activity sparkline,
- * narrative snippet), each linking to the loop's detail. Read-only.
+ * Progress dashboard — a stack of active-loop metric cards (streak, completion
+ * rate, recent-activity sparkline, narrative snippet), each linking to the
+ * loop's detail. Read-only.
  */
-export default function ProgressIndex({ loops, usage }: ProgressIndexProps) {
+export default function ProgressIndex({ loops }: ProgressIndexProps) {
     return (
         <CoachLayout title="Progress" bottomNav={<BottomNav />} wide>
             <div className="flex flex-col gap-3 lg:gap-5">
-                <CoachUsageCard usage={usage} />
                 {loops.length === 0 ? (
                     <EmptyState />
                 ) : (
