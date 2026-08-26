@@ -119,21 +119,53 @@ final readonly class LogAction
     }
 
     /**
-     * Logging any outcome answers the cue for that occasion, so mark its
-     * unread notification(s) read. Matches on occurrence_id, falling back to
-     * action_id so a cue delivered before occasions carried their own id still
-     * clears when answered. Filtered in memory (unread sets are tiny) to stay
-     * portable across database drivers.
+     * Logging an outcome answers the cue for that occasion — and every earlier
+     * unanswered cue for the same action.
+     *
+     * The narrower rule (clear only this occasion's cue) leaves one unread
+     * behind per missed day, and the shared unread count renders as a badge in
+     * the primary navigation: a running tally of the unlogged set, which is
+     * exactly the nagging the notebook does not do. Nothing here touches the
+     * missed occasions themselves — they stay unlogged and wait quietly on
+     * /catch-up.
+     *
+     * Bounded to "at or before" rather than "all of them" so catching up
+     * Tuesday from /catch-up leaves today's fresh cue standing, and bounded to
+     * this action so answering dinner says nothing about lunch.
+     *
+     * Falls back to action_id for a cue delivered before occasions carried
+     * their own id: that payload has no occasion to place in time, so the
+     * action match is all there is. Filtered in memory (unread sets are tiny)
+     * to stay portable across database drivers.
      */
     private function markCueAnswered(User $user, Action $action, Occurrence $occurrence): void
     {
-        $user->unreadNotifications()->get()
-            ->filter(function (DatabaseNotification $notification) use ($action, $occurrence): bool {
+        $unread = $user->unreadNotifications()->get();
+
+        $cued = $unread
+            ->pluck('data.occurrence_id')
+            ->filter(static fn ($id): bool => $id !== null)
+            ->map(static fn ($id): int => (int) $id)
+            ->all();
+
+        // One query resolves which of those cues sit at or before the occasion
+        // just answered. Scoped by action_id so another action's occasions can
+        // never be swept up by the time comparison alone.
+        $answered = $cued === [] ? [] : Occurrence::query()
+            ->whereKey($cued)
+            ->where('action_id', $action->id)
+            ->where('scheduled_for', '<=', $occurrence->scheduled_for)
+            ->pluck('id')
+            ->map(static fn ($id): int => (int) $id)
+            ->all();
+
+        $unread
+            ->filter(function (DatabaseNotification $notification) use ($action, $answered): bool {
                 $occurrenceId = $notification->data['occurrence_id'] ?? null;
 
                 return $occurrenceId === null
                     ? ($notification->data['action_id'] ?? null) === $action->id
-                    : $occurrenceId === $occurrence->id;
+                    : in_array((int) $occurrenceId, $answered, true);
             })
             ->each->markAsRead();
     }

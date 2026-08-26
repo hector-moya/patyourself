@@ -60,24 +60,26 @@ class LogActionTest extends TestCase
         $this->assertSame('Ate standing up, second plate before I noticed', $log->reason);
     }
 
-    public function test_a_catch_up_log_does_not_move_the_next_due_pointer(): void
+    public function test_a_catch_up_log_leaves_the_action_row_untouched(): void
     {
         $user = User::factory()->create(['timezone' => 'UTC']);
         $action = $this->recurringAction($user);
-        $seriesStartedAt = $action->series_started_at;
         $occurrence = Occurrence::factory()->create([
             'action_id' => $action->id,
             'scheduled_for' => now()->subDays(3)->setTime(19, 0),
         ]);
 
+        $before = $action->fresh()->toArray();
+
         app(LogAction::class)->handle($user, $action, [
             'outcome' => ActionLog::OUTCOME_COMPLETED,
         ], $occurrence);
 
-        $fresh = $action->fresh();
-
-        $this->assertTrue($fresh->series_started_at->equalTo($seriesStartedAt));
-        $this->assertSame(Action::STATUS_ACTIVE, $fresh->status);
+        // The catch-up counterpart of test_logging_never_writes_to_the_action_row:
+        // reaching back to an occasion from days ago is the path that used to
+        // fast-forward the action past every slot in between, so it is the one
+        // worth proving writes nothing.
+        $this->assertSame($before, $action->fresh()->toArray());
     }
 
     public function test_logging_the_live_slot_no_longer_rolls_the_action_forward(): void
@@ -298,32 +300,118 @@ class LogActionTest extends TestCase
         );
     }
 
-    public function test_logging_marks_the_matching_cue_read_and_leaves_others_alone(): void
+    public function test_logging_answers_the_cue_for_that_occasion_and_every_earlier_one(): void
     {
         Carbon::setTestNow('2026-08-24 12:00:00');
 
         $user = User::factory()->create(['timezone' => 'UTC']);
         $loop = Intention::factory()->for($user)->create(['status' => Intention::STATUS_ACTIVE]);
         $action = Action::factory()->for($loop)->create([
-            'series_started_at' => Carbon::parse('2026-08-24 09:00:00'),
+            'series_started_at' => Carbon::parse('2026-08-21 09:00:00'),
             'recurrence' => 'daily',
         ]);
-        $occurrence = Occurrence::factory()->for($action)->create([
-            'scheduled_for' => Carbon::parse('2026-08-24 09:00:00'),
-        ]);
-        $user->notify(new ActionDueNotification($occurrence));
 
-        // A different, still-unlogged occasion of the *same* action — sharing
-        // action_id with the one being logged, so this proves the match is on
-        // occurrence_id and not merely on the action.
-        $otherOccurrence = Occurrence::factory()->for($action)->create([
-            'scheduled_for' => Carbon::parse('2026-08-23 09:00:00'),
-        ]);
-        $user->notify(new ActionDueNotification($otherOccurrence));
+        // Three days missed, then today's. Each occasion fired and left its own
+        // cue behind.
+        $occurrences = [];
+
+        foreach (['2026-08-21', '2026-08-22', '2026-08-23', '2026-08-24'] as $day) {
+            $occurrences[$day] = Occurrence::factory()->for($action)->create([
+                'scheduled_for' => Carbon::parse("{$day} 09:00:00"),
+            ]);
+            $user->notify(new ActionDueNotification($occurrences[$day]));
+        }
+
+        $this->assertCount(4, $user->fresh()->unreadNotifications);
 
         app(LogAction::class)->handle(
             $user,
             $action,
+            ['outcome' => ActionLog::OUTCOME_COMPLETED],
+            $occurrences['2026-08-24'],
+        );
+
+        // The notebook never nags. Left per-occasion, an unanswered cue would
+        // accumulate one unread per missed day and the nav badge would render
+        // that count — a running tally of the unlogged set, which is the one
+        // thing the design forbids. The missed occasions themselves are
+        // untouched and still wait on /catch-up.
+        $this->assertCount(0, $user->fresh()->unreadNotifications);
+        $this->assertSame(3, $action->occurrences()->unlogged()->count());
+    }
+
+    public function test_a_catch_up_log_clears_earlier_cues_but_not_a_newer_one(): void
+    {
+        Carbon::setTestNow('2026-08-24 12:00:00');
+
+        $user = User::factory()->create(['timezone' => 'UTC']);
+        $loop = Intention::factory()->for($user)->create(['status' => Intention::STATUS_ACTIVE]);
+        $action = Action::factory()->for($loop)->create([
+            'series_started_at' => Carbon::parse('2026-08-22 09:00:00'),
+            'recurrence' => 'daily',
+        ]);
+
+        $monday = Occurrence::factory()->for($action)->create(['scheduled_for' => Carbon::parse('2026-08-22 09:00:00')]);
+        $tuesday = Occurrence::factory()->for($action)->create(['scheduled_for' => Carbon::parse('2026-08-23 09:00:00')]);
+        $today = Occurrence::factory()->for($action)->create(['scheduled_for' => Carbon::parse('2026-08-24 09:00:00')]);
+
+        foreach ([$monday, $tuesday, $today] as $occurrence) {
+            $user->notify(new ActionDueNotification($occurrence));
+        }
+
+        // Logging Tuesday from /catch-up.
+        app(LogAction::class)->handle(
+            $user,
+            $action,
+            ['outcome' => ActionLog::OUTCOME_COMPLETED],
+            $tuesday,
+        );
+
+        $unread = $user->fresh()->unreadNotifications;
+
+        // Catching up an older occasion answers it and everything behind it,
+        // but today's cue is still a live question and stays unread.
+        $this->assertCount(1, $unread);
+        $this->assertSame($today->id, $unread->first()->data['occurrence_id']);
+    }
+
+    public function test_a_legacy_cue_for_a_different_action_stays_unread(): void
+    {
+        Carbon::setTestNow('2026-08-24 12:00:00');
+
+        $user = User::factory()->create(['timezone' => 'UTC']);
+        $loop = Intention::factory()->for($user)->create(['status' => Intention::STATUS_ACTIVE]);
+        $logged = Action::factory()->for($loop)->create([
+            'series_started_at' => Carbon::parse('2026-08-24 09:00:00'),
+            'recurrence' => 'daily',
+        ]);
+        $other = Action::factory()->for($loop)->create([
+            'series_started_at' => Carbon::parse('2026-08-24 13:00:00'),
+            'recurrence' => 'daily',
+        ]);
+        $occurrence = Occurrence::factory()->for($logged)->create([
+            'scheduled_for' => Carbon::parse('2026-08-24 09:00:00'),
+        ]);
+
+        // A pre-deploy payload — no occurrence_id key at all — belonging to a
+        // *different* action. The action_id fallback must still discriminate:
+        // a rule that treated "no occurrence_id" as "matches everything" would
+        // clear this too.
+        $user->notifications()->create([
+            'id' => (string) Str::uuid(),
+            'type' => ActionDueNotification::class,
+            'data' => [
+                'action_id' => $other->id,
+                'intention_id' => $loop->id,
+                'title' => $loop->title,
+                'fired_at' => null,
+            ],
+            'read_at' => null,
+        ]);
+
+        app(LogAction::class)->handle(
+            $user,
+            $logged,
             ['outcome' => ActionLog::OUTCOME_COMPLETED],
             $occurrence,
         );
@@ -331,7 +419,44 @@ class LogActionTest extends TestCase
         $unread = $user->fresh()->unreadNotifications;
 
         $this->assertCount(1, $unread);
-        $this->assertSame($otherOccurrence->id, $unread->first()->data['occurrence_id']);
+        $this->assertSame($other->id, $unread->first()->data['action_id']);
+    }
+
+    public function test_logging_never_clears_a_cue_belonging_to_another_action(): void
+    {
+        Carbon::setTestNow('2026-08-24 12:00:00');
+
+        $user = User::factory()->create(['timezone' => 'UTC']);
+        $loop = Intention::factory()->for($user)->create(['status' => Intention::STATUS_ACTIVE]);
+        $breakfast = Action::factory()->for($loop)->create([
+            'series_started_at' => Carbon::parse('2026-08-24 08:00:00'),
+            'recurrence' => 'daily',
+        ]);
+        $dinner = Action::factory()->for($loop)->create([
+            'series_started_at' => Carbon::parse('2026-08-24 09:00:00'),
+            'recurrence' => 'daily',
+        ]);
+
+        $breakfastSlot = Occurrence::factory()->for($breakfast)->create(['scheduled_for' => Carbon::parse('2026-08-24 08:00:00')]);
+        $dinnerSlot = Occurrence::factory()->for($dinner)->create(['scheduled_for' => Carbon::parse('2026-08-24 09:00:00')]);
+
+        $user->notify(new ActionDueNotification($breakfastSlot));
+        $user->notify(new ActionDueNotification($dinnerSlot));
+
+        // The breakfast occasion is strictly *earlier* than the one being
+        // logged, so "at or before" alone would sweep it up. It belongs to a
+        // different prescription, and answering one says nothing about another.
+        app(LogAction::class)->handle(
+            $user,
+            $dinner,
+            ['outcome' => ActionLog::OUTCOME_COMPLETED],
+            $dinnerSlot,
+        );
+
+        $unread = $user->fresh()->unreadNotifications;
+
+        $this->assertCount(1, $unread);
+        $this->assertSame($breakfastSlot->id, $unread->first()->data['occurrence_id']);
     }
 
     public function test_logging_marks_a_pre_deploy_cue_read_via_the_action_id_fallback(): void
