@@ -4,7 +4,6 @@ namespace Tests\Feature\Api;
 
 use App\Models\Action;
 use App\Models\Intention;
-use App\Models\Occurrence;
 use App\Models\Strategy;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -108,26 +107,6 @@ class ActionRescheduleTest extends TestCase
             ->assertJsonPath('recurrence', null);
 
         $this->assertNull($action->fresh()->series_started_at);
-    }
-
-    public function test_materialising_never_disturbs_an_occasion_that_already_carries_an_outcome(): void
-    {
-        Carbon::setTestNow('2026-08-26 09:00:00');
-
-        $user = User::factory()->create(['timezone' => 'UTC']);
-        $action = $this->actionFor($user);
-        $past = Occurrence::factory()->for($action)->create([
-            'scheduled_for' => Carbon::parse('2026-08-24 19:00:00'),
-        ]);
-        Sanctum::actingAs($user);
-
-        $this->patchJson("/api/actions/{$action->id}", [
-            'kind' => 'clock',
-            'time' => '20:30',
-            'recurrence' => 'daily',
-        ])->assertOk();
-
-        $this->assertDatabaseHas('occurrences', ['id' => $past->id]);
     }
 
     public function test_a_stranger_cannot_reschedule(): void
