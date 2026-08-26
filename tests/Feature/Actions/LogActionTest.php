@@ -8,8 +8,10 @@ use App\Models\ActionLog;
 use App\Models\Intention;
 use App\Models\Occurrence;
 use App\Models\User;
+use App\Notifications\ActionDueNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /**
@@ -229,6 +231,9 @@ class LogActionTest extends TestCase
         $occurrence = Occurrence::factory()->for($action)->create([
             'scheduled_for' => Carbon::parse('2026-08-24 09:00:00'),
         ]);
+        $tomorrow = Occurrence::factory()->for($action)->create([
+            'scheduled_for' => Carbon::parse('2026-08-25 09:00:00'),
+        ]);
 
         app(LogAction::class)->handle(
             $user,
@@ -237,10 +242,9 @@ class LogActionTest extends TestCase
             $occurrence,
         );
 
-        $this->assertSame(
-            Carbon::parse('2026-08-24 09:00:00')->toDateTimeString(),
-            $action->fresh()->series_started_at->toDateTimeString(),
-        );
+        // Completing today's occasion says nothing about tomorrow's — there is
+        // no pointer left to roll onto it, and nothing here should touch it.
+        $this->assertFalse($tomorrow->fresh()->isLogged());
     }
 
     public function test_the_live_slot_is_todays_unlogged_occasion(): void
@@ -293,5 +297,80 @@ class LogActionTest extends TestCase
             '2026-08-24 12:00:00',
             $log->occurrence->scheduled_for->utc()->toDateTimeString(),
         );
+    }
+
+    public function test_logging_marks_the_matching_cue_read_and_leaves_others_alone(): void
+    {
+        Carbon::setTestNow('2026-08-24 12:00:00');
+
+        $user = User::factory()->create(['timezone' => 'UTC']);
+        $loop = Intention::factory()->for($user)->create(['status' => Intention::STATUS_ACTIVE]);
+        $action = Action::factory()->for($loop)->create([
+            'series_started_at' => Carbon::parse('2026-08-24 09:00:00'),
+            'recurrence' => 'daily',
+        ]);
+        $occurrence = Occurrence::factory()->for($action)->create([
+            'scheduled_for' => Carbon::parse('2026-08-24 09:00:00'),
+        ]);
+        $user->notify(new ActionDueNotification($occurrence));
+
+        // A different, still-unlogged occasion of the *same* action — sharing
+        // action_id with the one being logged, so this proves the match is on
+        // occurrence_id and not merely on the action.
+        $otherOccurrence = Occurrence::factory()->for($action)->create([
+            'scheduled_for' => Carbon::parse('2026-08-23 09:00:00'),
+        ]);
+        $user->notify(new ActionDueNotification($otherOccurrence));
+
+        app(LogAction::class)->handle(
+            $user,
+            $action,
+            ['outcome' => ActionLog::OUTCOME_COMPLETED],
+            $occurrence,
+        );
+
+        $unread = $user->fresh()->unreadNotifications;
+
+        $this->assertCount(1, $unread);
+        $this->assertSame($otherOccurrence->id, $unread->first()->data['occurrence_id']);
+    }
+
+    public function test_logging_marks_a_pre_deploy_cue_read_via_the_action_id_fallback(): void
+    {
+        Carbon::setTestNow('2026-08-24 12:00:00');
+
+        $user = User::factory()->create(['timezone' => 'UTC']);
+        $loop = Intention::factory()->for($user)->create(['status' => Intention::STATUS_ACTIVE]);
+        $action = Action::factory()->for($loop)->create([
+            'series_started_at' => Carbon::parse('2026-08-24 09:00:00'),
+            'recurrence' => 'daily',
+        ]);
+        $occurrence = Occurrence::factory()->for($action)->create([
+            'scheduled_for' => Carbon::parse('2026-08-24 09:00:00'),
+        ]);
+
+        // The payload shape a cue carried before occurrences existed: no
+        // occurrence_id key at all, only action_id. Constructed directly
+        // because ActionDueNotification always sets occurrence_id now.
+        $user->notifications()->create([
+            'id' => (string) Str::uuid(),
+            'type' => ActionDueNotification::class,
+            'data' => [
+                'action_id' => $action->id,
+                'intention_id' => $loop->id,
+                'title' => $loop->title,
+                'fired_at' => null,
+            ],
+            'read_at' => null,
+        ]);
+
+        app(LogAction::class)->handle(
+            $user,
+            $action,
+            ['outcome' => ActionLog::OUTCOME_COMPLETED],
+            $occurrence,
+        );
+
+        $this->assertCount(0, $user->fresh()->unreadNotifications);
     }
 }
