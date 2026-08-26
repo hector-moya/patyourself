@@ -75,7 +75,7 @@ class LogOutcomeToolTest extends TestCase
         ]);
     }
 
-    public function test_logs_a_completion_and_closes_the_one_off_action(): void
+    public function test_logs_a_completion(): void
     {
         $user = User::factory()->create(['timezone' => 'UTC']);
         $action = $this->oneOffAction($user);
@@ -106,10 +106,9 @@ class LogOutcomeToolTest extends TestCase
             'user_id' => $user->id,
             'outcome' => ActionLog::OUTCOME_COMPLETED,
         ]);
-        $this->assertSame(Action::STATUS_COMPLETED, $action->fresh()->status);
     }
 
-    public function test_logs_a_skip_and_closes_the_one_off_action(): void
+    public function test_logs_a_skip(): void
     {
         $user = User::factory()->create(['timezone' => 'UTC']);
         $action = $this->oneOffAction($user);
@@ -126,7 +125,6 @@ class LogOutcomeToolTest extends TestCase
             'action_id' => $action->id,
             'outcome' => ActionLog::OUTCOME_SKIPPED,
         ]);
-        $this->assertSame(Action::STATUS_SKIPPED, $action->fresh()->status);
     }
 
     public function test_rejects_a_wholly_unknown_occurrence_id(): void
@@ -191,10 +189,11 @@ class LogOutcomeToolTest extends TestCase
         $this->assertSame($reason, ActionLog::firstOrFail()->reason);
     }
 
-    public function test_completing_a_recurring_action_on_its_live_slot_rolls_it_forward(): void
+    public function test_completing_a_recurring_action_on_its_live_slot_leaves_the_action_row_alone(): void
     {
         $user = User::factory()->create(['timezone' => 'UTC']);
         $action = $this->recurringAction($user);
+        $scheduledFor = $action->scheduled_for;
         $occurrence = $this->occurrenceFor($action, $action->scheduled_for->toDateTimeString());
 
         PatYourSelfServer::actingAs($user)
@@ -205,8 +204,8 @@ class LogOutcomeToolTest extends TestCase
             ->assertOk();
 
         $fresh = $action->fresh();
-        $this->assertSame(Action::STATUS_PENDING, $fresh->status);
-        $this->assertTrue($fresh->scheduled_for->isFuture());
+        $this->assertSame(Action::STATUS_ACTIVE, $fresh->status);
+        $this->assertTrue($fresh->scheduled_for->equalTo($scheduledFor));
     }
 
     public function test_it_logs_a_past_occasion_without_moving_the_next_due_pointer(): void
