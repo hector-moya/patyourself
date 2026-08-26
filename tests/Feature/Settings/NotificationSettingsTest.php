@@ -7,6 +7,7 @@ use App\Models\Intention;
 use App\Models\User;
 use App\Notifications\ActionDueNotification;
 use App\Notifications\DailyDigestNotification;
+use App\Services\Scheduling\TodaysOccasion;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -96,7 +97,14 @@ class NotificationSettingsTest extends TestCase
             ->create();
 
         $cue = (new ActionDueNotification($action))->toMail($user)->render();
-        $digest = (new DailyDigestNotification(collect([$action])))->toMail($user)->render();
+        $digest = (new DailyDigestNotification(collect([
+            new TodaysOccasion(
+                action: $action,
+                occurrence: null,
+                scheduledFor: null,
+                due: TodaysOccasion::ANCHORED,
+            ),
+        ])))->toMail($user)->render();
 
         $this->assertStringContainsString(route('notifications.edit'), $cue);
         $this->assertStringContainsString(route('notifications.edit'), $digest);

@@ -4,7 +4,7 @@ namespace App\Services\Reminders;
 
 use App\Models\User;
 use App\Notifications\DailyDigestNotification;
-use App\Services\Scheduling\TodaysActions;
+use App\Services\Scheduling\TodaysOccasions;
 use Illuminate\Support\Facades\Date;
 
 /**
@@ -22,7 +22,7 @@ use Illuminate\Support\Facades\Date;
  */
 class DigestDispatcher
 {
-    public function __construct(private readonly TodaysActions $todaysActions) {}
+    public function __construct(private readonly TodaysOccasions $todaysOccasions) {}
 
     /**
      * @return int the number of digests sent
@@ -46,13 +46,13 @@ class DigestDispatcher
                     return;
                 }
 
-                $actions = $this->todaysActions->for($user);
+                $occasions = $this->todaysOccasions->for($user);
 
-                if ($actions->isEmpty()) {
+                if ($occasions->isEmpty()) {
                     return;
                 }
 
-                $user->notify(new DailyDigestNotification($actions));
+                $user->notify(new DailyDigestNotification($occasions));
 
                 // DailyDigestNotification is ShouldQueue, so notify() only enqueues
                 // the job — it does not confirm delivery. The stamp below commits

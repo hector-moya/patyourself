@@ -2,7 +2,7 @@
 
 namespace App\Notifications;
 
-use App\Models\Action;
+use App\Services\Scheduling\TodaysOccasion;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -19,9 +19,9 @@ class DailyDigestNotification extends Notification implements ShouldQueue
     use Queueable;
 
     /**
-     * @param  Collection<int, Action>  $actions
+     * @param  Collection<int, TodaysOccasion>  $occasions
      */
-    public function __construct(private readonly Collection $actions) {}
+    public function __construct(private readonly Collection $occasions) {}
 
     /**
      * @return array<int, string>
@@ -34,18 +34,18 @@ class DailyDigestNotification extends Notification implements ShouldQueue
     public function toMail(object $notifiable): MailMessage
     {
         $timezone = $notifiable->timezone ?? config('app.timezone');
-        $count = $this->actions->count();
+        $count = $this->occasions->count();
 
         $mail = (new MailMessage)
             ->subject($count === 1 ? '1 thing today' : "{$count} things today")
             ->line('Here is what you are working on today.');
 
-        foreach ($this->actions as $action) {
-            $when = $action->scheduled_for
-                ? $action->scheduled_for->timezone($timezone)->format('g:ia')
+        foreach ($this->occasions as $occasion) {
+            $when = $occasion->scheduledFor
+                ? $occasion->scheduledFor->timezone($timezone)->format('g:ia')
                 : 'when the cue happens';
 
-            $mail->line("• {$action->title} — {$action->intention->title} ({$when})");
+            $mail->line("• {$occasion->action->title} — {$occasion->action->intention->title} ({$when})");
         }
 
         return $mail->action('Open PatYourSelf', route('dashboard'))

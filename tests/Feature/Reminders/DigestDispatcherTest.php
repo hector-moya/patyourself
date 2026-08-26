@@ -7,6 +7,8 @@ use App\Models\Intention;
 use App\Models\User;
 use App\Notifications\DailyDigestNotification;
 use App\Services\Reminders\DigestDispatcher;
+use App\Services\Scheduling\TodaysOccasion;
+use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Notification;
@@ -33,7 +35,7 @@ class DigestDispatcherTest extends TestCase
 
         Action::factory()
             ->for(Intention::factory()->for($user)->create(['status' => Intention::STATUS_ACTIVE]))
-            ->create(['status' => Action::STATUS_PENDING, 'scheduled_for' => null]);
+            ->create(['series_started_at' => null, 'recurrence' => null]);
 
         return $user;
     }
@@ -203,21 +205,38 @@ class DigestDispatcherTest extends TestCase
             'status' => Intention::STATUS_ACTIVE,
         ]);
 
+        $scheduledFor = CarbonImmutable::parse('2026-08-24 07:30:00', 'UTC');
+
         $scheduled = Action::factory()->for($loop)->create([
             'title' => 'Read ten pages',
-            'status' => Action::STATUS_PENDING,
-            'scheduled_for' => Carbon::parse('2026-08-24 07:30:00', 'UTC'),
+            'series_started_at' => $scheduledFor,
+            'recurrence' => null,
         ]);
         $scheduled->loadMissing('intention');
 
         $cueAnchored = Action::factory()->for($loop)->create([
             'title' => 'Stretch',
-            'status' => Action::STATUS_PENDING,
-            'scheduled_for' => null,
+            'series_started_at' => null,
+            'recurrence' => null,
         ]);
         $cueAnchored->loadMissing('intention');
 
-        $mail = (new DailyDigestNotification(collect([$scheduled, $cueAnchored])))
+        $occasions = collect([
+            new TodaysOccasion(
+                action: $scheduled,
+                occurrence: null,
+                scheduledFor: $scheduledFor,
+                due: TodaysOccasion::UPCOMING,
+            ),
+            new TodaysOccasion(
+                action: $cueAnchored,
+                occurrence: null,
+                scheduledFor: null,
+                due: TodaysOccasion::ANCHORED,
+            ),
+        ]);
+
+        $mail = (new DailyDigestNotification($occasions))
             ->toMail($user)
             ->render();
 
@@ -227,5 +246,28 @@ class DigestDispatcherTest extends TestCase
         $this->assertStringContainsString('Stretch', $mail);
         $this->assertStringContainsString('when the cue happens', $mail);
         $this->assertStringContainsString(route('dashboard'), $mail);
+    }
+
+    public function test_the_digest_lists_a_cue_anchored_action_without_a_time(): void
+    {
+        Carbon::setTestNow('2026-08-24 12:00:00');
+
+        $user = User::factory()->create([
+            'timezone' => 'UTC',
+            'email_reminders' => User::EMAIL_REMINDERS_DIGEST,
+            'digest_time' => '07:00',
+        ]);
+        $loop = Intention::factory()->for($user)->create(['status' => Intention::STATUS_ACTIVE]);
+        Action::factory()->for($loop)->create([
+            'series_started_at' => null,
+            'recurrence' => null,
+            'title' => 'Put the snacks out of sight tonight',
+        ]);
+
+        Notification::fake();
+
+        $this->assertSame(1, app(DigestDispatcher::class)->dispatchDue());
+
+        Notification::assertSentTo($user, DailyDigestNotification::class);
     }
 }

@@ -8,12 +8,20 @@ use App\Models\Action;
 use App\Models\Intention;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Laravel\Mcp\Server\Testing\TestResponse;
 use Tests\TestCase;
 
 class TodayActionsToolTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+
+        parent::tearDown();
+    }
 
     /**
      * @return array<mixed>
@@ -40,13 +48,13 @@ class TodayActionsToolTest extends TestCase
 
         Action::factory()->for($loop)->create([
             'title' => 'Fired earlier today',
-            'status' => Action::STATUS_ACTIVE,
-            'scheduled_for' => now()->subHours(2),
+            'series_started_at' => now()->subHours(2),
+            'recurrence' => null,
         ]);
         Action::factory()->for($loop)->create([
             'title' => 'Later today',
-            'status' => Action::STATUS_PENDING,
-            'scheduled_for' => now()->endOfDay()->subMinutes(10),
+            'series_started_at' => now()->endOfDay()->subMinutes(10),
+            'recurrence' => null,
         ]);
 
         $response = PatYourSelfServer::actingAs($user)->tool(TodayActionsTool::class);
@@ -57,7 +65,7 @@ class TodayActionsToolTest extends TestCase
 
         foreach ($payload as $item) {
             $this->assertSame([
-                'id', 'loop_id', 'loop_title', 'title', 'description', 'status', 'due', 'scheduled_for', 'recurrence',
+                'id', 'occurrence_id', 'loop_id', 'loop_title', 'title', 'description', 'due', 'scheduled_for', 'recurrence',
             ], array_keys($item));
         }
 
@@ -68,6 +76,7 @@ class TodayActionsToolTest extends TestCase
         $this->assertNotNull($pending);
         $this->assertSame('due_now', $fired['due']);
         $this->assertSame('upcoming', $pending['due']);
+        $this->assertNotNull($fired['occurrence_id']);
         $this->assertStringEndsWith('+00:00', $fired['scheduled_for']);
     }
 
@@ -77,8 +86,8 @@ class TodayActionsToolTest extends TestCase
 
         Action::factory()->for($this->loopFor($user))->create([
             'title' => 'Anchored to brushing teeth',
-            'status' => Action::STATUS_PENDING,
-            'scheduled_for' => null,
+            'series_started_at' => null,
+            'recurrence' => null,
         ]);
 
         $response = PatYourSelfServer::actingAs($user)->tool(TodayActionsTool::class);
@@ -98,8 +107,8 @@ class TodayActionsToolTest extends TestCase
 
         Action::factory()->for($this->loopFor($user))->create([
             'title' => 'Tomorrow only',
-            'status' => Action::STATUS_PENDING,
-            'scheduled_for' => now()->addDay()->startOfDay()->addHours(9),
+            'series_started_at' => now()->addDay()->startOfDay()->addHours(9),
+            'recurrence' => null,
         ]);
 
         PatYourSelfServer::actingAs($user)
@@ -114,8 +123,8 @@ class TodayActionsToolTest extends TestCase
 
         Action::factory()->for($this->loopFor($user, Intention::STATUS_PAUSED))->create([
             'title' => 'Paused loop action',
-            'status' => Action::STATUS_ACTIVE,
-            'scheduled_for' => now()->subHour(),
+            'series_started_at' => now()->subHour(),
+            'recurrence' => null,
         ]);
 
         PatYourSelfServer::actingAs($user)
@@ -129,8 +138,8 @@ class TodayActionsToolTest extends TestCase
         $foreignLoop = Intention::factory()->create(['status' => Intention::STATUS_ACTIVE]);
         Action::factory()->for($foreignLoop)->create([
             'title' => 'Not yours',
-            'status' => Action::STATUS_ACTIVE,
-            'scheduled_for' => now()->subHour(),
+            'series_started_at' => now()->subHour(),
+            'recurrence' => null,
         ]);
 
         PatYourSelfServer::actingAs(User::factory()->create(['timezone' => 'UTC']))
@@ -149,13 +158,13 @@ class TodayActionsToolTest extends TestCase
 
         Action::factory()->for($loop)->create([
             'title' => 'Still today in Tokyo',
-            'status' => Action::STATUS_PENDING,
-            'scheduled_for' => '2026-07-06 14:00:00', // 23:00 JST — today
+            'series_started_at' => '2026-07-06 14:00:00', // 23:00 JST — today
+            'recurrence' => null,
         ]);
         Action::factory()->for($loop)->create([
             'title' => 'Already tomorrow in Tokyo',
-            'status' => Action::STATUS_PENDING,
-            'scheduled_for' => '2026-07-06 16:00:00', // 01:00 JST July 7 — tomorrow
+            'series_started_at' => '2026-07-06 16:00:00', // 01:00 JST July 7 — tomorrow
+            'recurrence' => null,
         ]);
 
         PatYourSelfServer::actingAs($user)
@@ -171,13 +180,52 @@ class TodayActionsToolTest extends TestCase
 
         Action::factory()->for($this->loopFor($user))->create([
             'title' => 'No timezone set',
-            'status' => Action::STATUS_ACTIVE,
-            'scheduled_for' => now()->subHour(),
+            'series_started_at' => now()->subHour(),
+            'recurrence' => null,
         ]);
 
         PatYourSelfServer::actingAs($user)
             ->tool(TodayActionsTool::class)
             ->assertOk()
             ->assertSee('No timezone set');
+    }
+
+    public function test_it_labels_a_cue_anchored_action_as_anchored(): void
+    {
+        Carbon::setTestNow('2026-08-24 12:00:00');
+
+        $user = User::factory()->create(['timezone' => 'UTC']);
+        $loop = Intention::factory()->for($user)->create(['status' => Intention::STATUS_ACTIVE]);
+        Action::factory()->for($loop)->create([
+            'series_started_at' => null,
+            'recurrence' => null,
+            'metadata' => ['schedule_kind' => 'anchored', 'anchor' => 'after brushing my teeth'],
+        ]);
+
+        $response = PatYourSelfServer::actingAs($user)->tool(TodayActionsTool::class);
+
+        $response->assertOk();
+        $payload = $this->payload($response);
+        $this->assertSame('anchored', $payload[0]['due']);
+        $this->assertNull($payload[0]['scheduled_for']);
+    }
+
+    public function test_it_does_not_list_yesterdays_missed_occasion(): void
+    {
+        Carbon::setTestNow('2026-08-24 12:00:00');
+
+        $user = User::factory()->create(['timezone' => 'UTC']);
+        $loop = Intention::factory()->for($user)->create(['status' => Intention::STATUS_ACTIVE]);
+        Action::factory()->for($loop)->create([
+            'series_started_at' => Carbon::parse('2026-08-23 09:00:00'),
+            'recurrence' => 'daily',
+        ]);
+
+        $response = PatYourSelfServer::actingAs($user)->tool(TodayActionsTool::class);
+
+        $response->assertOk();
+        $payload = $this->payload($response);
+        $this->assertCount(1, $payload);
+        $this->assertStringStartsWith('2026-08-24', $payload[0]['scheduled_for']);
     }
 }

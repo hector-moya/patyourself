@@ -2,8 +2,8 @@
 
 namespace App\Mcp\Tools;
 
-use App\Models\Action;
-use App\Services\Scheduling\TodaysActions;
+use App\Services\Scheduling\TodaysOccasion;
+use App\Services\Scheduling\TodaysOccasions;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\JsonSchema\Types\Type;
 use Laravel\Mcp\Request;
@@ -13,26 +13,34 @@ use Laravel\Mcp\Server\Attributes\Name;
 use Laravel\Mcp\Server\Tool;
 
 #[Name('today-actions')]
-#[Description('List the actions the user should act on today: fired ("due_now"), scheduled later today ("upcoming"), plus unscheduled cue-anchored ones. Only actions on active loops.')]
+#[Description(<<<'TEXT'
+What the user is working on today: occasions whose time has passed ("due_now"),
+occasions later today ("upcoming"), and cue-anchored actions that have no clock
+time at all ("anchored"). Only actions on active loops.
+
+This is today's list, not a backlog. An occasion missed on an earlier day is
+never listed here — it stays loggable forever and is reachable through
+pending-outcomes, which is where a catch-up belongs.
+TEXT)]
 class TodayActionsTool extends Tool
 {
-    public function handle(Request $request, TodaysActions $todaysActions): Response
+    public function handle(Request $request, TodaysOccasions $todaysOccasions): Response
     {
         $user = $request->user();
         $timezone = $user->timezone ?? config('app.timezone');
 
-        $actions = $todaysActions->for($user);
+        $occasions = $todaysOccasions->for($user);
 
-        return Response::json($actions->map(fn (Action $action): array => [
-            'id' => $action->id,
-            'loop_id' => $action->intention_id,
-            'loop_title' => $action->intention->title,
-            'title' => $action->title,
-            'description' => $action->description,
-            'status' => $action->status,
-            'due' => $action->status === Action::STATUS_ACTIVE ? 'due_now' : 'upcoming',
-            'scheduled_for' => $action->scheduled_for?->timezone($timezone)->toIso8601String(),
-            'recurrence' => $action->recurrence,
+        return Response::json($occasions->map(fn (TodaysOccasion $occasion): array => [
+            'id' => $occasion->action->id,
+            'occurrence_id' => $occasion->occurrence?->id,
+            'loop_id' => $occasion->action->intention_id,
+            'loop_title' => $occasion->action->intention->title,
+            'title' => $occasion->action->title,
+            'description' => $occasion->action->description,
+            'due' => $occasion->due,
+            'scheduled_for' => $occasion->scheduledFor?->timezone($timezone)->toIso8601String(),
+            'recurrence' => $occasion->action->recurrence,
         ])->values()->all());
     }
 
