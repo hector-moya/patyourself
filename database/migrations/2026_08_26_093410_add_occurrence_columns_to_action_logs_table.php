@@ -38,9 +38,14 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('action_logs', function (Blueprint $table): void {
+            // Order matters on MySQL: the unique index is the one satisfying the
+            // foreign key's index requirement, so dropping it while the
+            // constraint still exists fails with "needed in a foreign key
+            // constraint". Drop the constraint first, then the index, then the
+            // columns.
+            $table->dropForeign(['occurrence_id']);
             $table->dropUnique(['occurrence_id']);
-            $table->dropConstrainedForeignId('occurrence_id');
-            $table->dropColumn(['context', 'context_fields']);
+            $table->dropColumn(['occurrence_id', 'context', 'context_fields']);
         });
     }
 };
