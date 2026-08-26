@@ -195,6 +195,46 @@ Validation at the boundary, mirroring `AuthoredAction`: `kind` in `clock|anchore
 - [ ] **Step 5:** Run the suite against MySQL 8 as well as SQLite — the last phase found a rollback bug SQLite hid, and Task 4 adds a migration.
 - [ ] **Step 6:** Append carry-forward notes to this plan, then commit.
 
+## Carry-forward: what the build found
+
+Facts discovered during implementation that are not derivable from the code.
+
+**1. The worktree needs three things the repo does not carry.** `composer install`, a copy of
+`.env`, `php artisan passport:keys` (the MCP endpoint tests fail with `Invalid key supplied`
+without them), `public/build` (or `npm run build`), and — the non-obvious one —
+`php artisan wayfinder:generate --with-form`. Without `--with-form` the generated helpers lack
+`.form()` and eight component tests fail with `update.form is not a function`. `vite.config.ts`
+sets `formVariants: true`, but the Artisan command does not read it.
+
+**2. Dates had to stop being formatted in the browser's timezone.** `toLocaleDateString` on an
+ISO string reinterprets it in the runner's zone, so a 19:00 occasion rendered on the *following*
+day under +10. Occasion dates are now localised server-side to the user's timezone and formatted
+from the offset the server sent (`formatOccasionDay` in `resources/js/patyourself/occasion-date.ts`),
+which is deterministic and independent of the browser. An outcome history that puts an occasion on
+the wrong day is worse than one that shows no date at all.
+
+**3. `whenCounted` is the right shape for `outcomes_recorded`, not a `?? 0` default.** Zero means
+"never tested" and is load-bearing — it is what distinguishes a strategy that failed from one that
+was never run. A caller that forgot to count must therefore omit the key rather than assert a false
+zero, and `StrategyData.outcomes_recorded` is optional to match.
+
+**4. Adding a prop to an Inertia page breaks that page's existing component tests.** `loops/show`
+gained four props and its five tests all failed on `outcomes.length` before they were given a
+shared `record` fixture. Worth expecting whenever a page's props grow.
+
+**5. `Validator::validated()` still strips array sub-keys with no rule** — the same trap the
+previous phase hit with `context_fields`. Anything checking for *unknown* keys must read the raw
+input.
+
+**Verification performed beyond the unit suites:** the full PHP suite (478) against both SQLite and
+MySQL 8; the full Vitest suite (81); `npm run build`; `npm run lint`; and a migrate → rollback →
+migrate cycle on MySQL covering all five migrations this branch adds.
+
+**Still open, inherited and untouched:** `ConcludeExperiment` clears `review_at` and still has no
+caller (`conclude-experiment` was out of scope); `laravel/ai` remains a dependency with no consumer;
+`ANTHROPIC_API_KEY` should be deleted from Forge and `.env` at deploy time. `summaries` still has no
+writer — `log-note` deliberately did not become one.
+
 ## Self-review notes
 
 - **Spec coverage.** Step 5 → Tasks 5 and 6; step 6 → Tasks 1, 2, 3; step 7 → Task 8; step 8 → Tasks 4 and 7.
