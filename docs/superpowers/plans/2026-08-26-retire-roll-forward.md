@@ -2427,20 +2427,25 @@ hand-computed the two candidate windows and checked the fixture sat inside one a
 other. Worth remembering as a category of mistake — a plan can specify a test that looks
 discriminating and isn't — not just a one-off typo.
 
-**4. Retiring `Action::STATUSES` down to two values retroactively empties two tests, not one.**
-The plan's own file list only named `Action::pending()`/`isOpen()` for removal, but
-`ActionTest::test_pending_scope_and_is_open_predicate_track_unlogged_cards` called those methods
-directly and had to go with them. Separately, `LoopRelationshipsTest` carried two more tests Task 9
-deliberately left alone specifically so Task 10 could decide their fate
-(`test_active_action_is_the_most_recent_action_regardless_of_status` and
-`test_pending_scope_returns_only_open_actions`): both existed only to prove behaviour across
-*several distinct non-archived statuses*, a premise `STATUSES = ['active', 'archived']` makes
-impossible to even construct. All three were deleted rather than rewritten with `STATUS_ACTIVE`
-standing in for the old values, which would have kept the test names' claims while proving nothing
-they used to. One real, minor gap this leaves: no test independently exercises
-`Intention::activeAction()`'s `latestOfMany()` ordering across *multiple* non-archived actions on
-the same loop any more (only the all-archived → null edge remains covered) — the relation itself
-is unchanged and out of this branch's file list, so no replacement test was added unprompted.
+**4. Retiring `Action::STATUSES` down to two values retroactively empties two tests, not one —
+but only one of the two carried surviving coverage.** The plan's own file list only named
+`Action::pending()`/`isOpen()` for removal, but `ActionTest::test_pending_scope_and_is_open_predicate_track_unlogged_cards`
+called those methods directly and had to go with them. Separately, `LoopRelationshipsTest` carried
+two more tests Task 9 deliberately left alone specifically so Task 10 could decide their fate:
+`test_pending_scope_returns_only_open_actions` tested the now-deleted `pending()` scope directly and
+was correctly deleted outright. `test_active_action_is_the_most_recent_action_regardless_of_status`
+was first deleted the same way, but that was wrong: underneath the retired "regardless of status"
+framing it was also the *only* test covering `Intention::activeAction()`'s `latestOfMany()`
+selection among several qualifying rows — untouched behaviour that still applies. Review caught
+this and it was restored in reduced form as
+`test_active_action_is_the_most_recent_non_archived_action` (two `STATUS_ACTIVE` actions on one
+loop, asserting `activeAction` resolves to the higher-`id` one), with the "regardless of status"
+claim dropped rather than resurrected via a legacy constant. Verified non-vacuous by temporarily
+swapping the relation's `latestOfMany()` for `oldestOfMany()`: the test failed
+(`Failed asserting that 1 is identical to 2`), confirming it would catch a real ordering
+regression; reverted afterward. The lesson for future deletions in this position: "the premise this
+test's name states is gone" and "there is no other test covering what this test happens to cover"
+are two separate questions, and answering only the first one is how coverage quietly disappears.
 
 **5. The `093412` backfill artefact is real and still invisible to "today" by construction, not by
 luck.** A log written against an anchor but stamped well after it (a completed one-off logged at
