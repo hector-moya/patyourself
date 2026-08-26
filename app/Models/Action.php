@@ -22,6 +22,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'title',
     'description',
     'scheduled_for',
+    'series_started_at',
     'recurrence',
     'status',
     'metadata',
@@ -58,6 +59,7 @@ class Action extends Model
     {
         return [
             'scheduled_for' => 'datetime',
+            'series_started_at' => 'immutable_datetime',
             'metadata' => 'array',
         ];
     }
@@ -95,5 +97,17 @@ class Action extends Model
     public function logs(): HasMany
     {
         return $this->hasMany(ActionLog::class);
+    }
+
+    /**
+     * Every materialised instance of this action. The action row is the
+     * standing prescription and its next-due pointer; these are the occasions
+     * it has actually produced, and the rows outcomes attach to.
+     *
+     * @return HasMany<Occurrence, $this>
+     */
+    public function occurrences(): HasMany
+    {
+        return $this->hasMany(Occurrence::class);
     }
 }

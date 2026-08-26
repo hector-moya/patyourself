@@ -19,6 +19,10 @@ class ActionFactory extends Factory
      */
     public function definition(): array
     {
+        // Fixtures hold the same invariant as production: an action with a
+        // schedule is anchored at it.
+        $scheduledFor = fake()->dateTimeBetween('-3 days', '+4 days');
+
         return [
             'intention_id' => Intention::factory(),
             'strategy_id' => Strategy::factory(),
@@ -30,7 +34,8 @@ class ActionFactory extends Factory
                 'Fill your water bottle first thing',
             ]),
             'description' => fake()->sentence(9),
-            'scheduled_for' => fake()->dateTimeBetween('-3 days', '+4 days'),
+            'scheduled_for' => $scheduledFor,
+            'series_started_at' => $scheduledFor,
             'recurrence' => fake()->randomElement([null, 'daily', 'weekdays']),
             'status' => Action::STATUS_ACTIVE,
             'metadata' => ['schedule_kind' => 'clock', 'card' => ['style' => 'default']],

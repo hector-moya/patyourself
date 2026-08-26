@@ -45,7 +45,7 @@ class ProgressController extends Controller
         Gate::authorize('view', $intention);
 
         $intention->load(['activeStrategy', 'latestSummary', 'actionLogs']);
-        $strategies = $intention->strategies()->orderedByVersion()->get();
+        $strategies = $intention->strategies()->withCount('actionLogs')->orderedByVersion()->get();
 
         return Inertia::render('progress/show', [
             'intention' => [

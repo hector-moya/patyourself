@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 
 /**
  * A versioned intervention on an intention. History is never rewritten in
@@ -186,6 +187,18 @@ class Strategy extends Model
     public function actions(): HasMany
     {
         return $this->hasMany(Action::class);
+    }
+
+    /**
+     * Every outcome recorded while this version was the one running. Logs
+     * attribute to a version through actions.strategy_id, so the attribution is
+     * structural rather than inferred from dates.
+     *
+     * @return HasManyThrough<ActionLog, Action, $this>
+     */
+    public function actionLogs(): HasManyThrough
+    {
+        return $this->hasManyThrough(ActionLog::class, Action::class);
     }
 
     /**

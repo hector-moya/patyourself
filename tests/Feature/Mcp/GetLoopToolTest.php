@@ -4,6 +4,8 @@ namespace Tests\Feature\Mcp;
 
 use App\Mcp\Servers\PatYourSelfServer;
 use App\Mcp\Tools\GetLoopTool;
+use App\Models\Action;
+use App\Models\ActionLog;
 use App\Models\Intention;
 use App\Models\Strategy;
 use App\Models\User;
@@ -54,7 +56,7 @@ class GetLoopToolTest extends TestCase
         $payload = $this->payload($response);
 
         $this->assertSame([
-            'id', 'title', 'description', 'type', 'status', 'loop', 'active_strategy_version', 'strategies',
+            'id', 'title', 'description', 'type', 'status', 'loop', 'active_strategy_version', 'notes', 'strategies',
         ], array_keys($payload));
 
         $this->assertSame('Read before bed', $payload['title']);
@@ -70,6 +72,7 @@ class GetLoopToolTest extends TestCase
         foreach ($payload['strategies'] as $strategy) {
             $this->assertSame([
                 'version', 'status', 'intervention_point', 'approach', 'rationale', 'change_reason', 'superseded_reason',
+                'outcomes_recorded',
             ], array_keys($strategy));
         }
 
@@ -82,6 +85,31 @@ class GetLoopToolTest extends TestCase
         PatYourSelfServer::actingAs(User::factory()->create())
             ->tool(GetLoopTool::class, ['intention_id' => 999999])
             ->assertHasErrors(['Not found.']);
+    }
+
+    /**
+     * Tells a version that failed from one that was never tested — without the
+     * count, both read as "no evidence".
+     */
+    public function test_each_version_reports_how_many_outcomes_were_recorded_under_it(): void
+    {
+        $user = User::factory()->create(['timezone' => 'UTC']);
+        $loop = Intention::factory()->for($user)->create();
+
+        $tested = Strategy::factory()->for($loop)->create(['version' => 1, 'status' => Strategy::STATUS_SUPERSEDED]);
+        Strategy::factory()->for($loop)->create(['version' => 2, 'status' => Strategy::STATUS_ACTIVE]);
+
+        ActionLog::factory()->count(3)
+            ->for(Action::factory()->for($loop)->for($tested))
+            ->for($user)
+            ->create(['outcome' => ActionLog::OUTCOME_FAILED, 'reason' => 'Kept going past full']);
+
+        $strategies = $this->payload(
+            PatYourSelfServer::actingAs($user)->tool(GetLoopTool::class, ['intention_id' => $loop->id]),
+        )['strategies'];
+
+        $this->assertSame(3, $strategies[0]['outcomes_recorded']);
+        $this->assertSame(0, $strategies[1]['outcomes_recorded']);
     }
 
     public function test_rejects_another_users_loop_identically(): void

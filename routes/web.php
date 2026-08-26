@@ -2,8 +2,10 @@
 
 use App\Http\Controllers\ActionController;
 use App\Http\Controllers\ActionLogController;
+use App\Http\Controllers\CatchUpController;
 use App\Http\Controllers\InboxController;
 use App\Http\Controllers\IntentionController;
+use App\Http\Controllers\OccurrenceLogController;
 use App\Http\Controllers\ProgressController;
 use Illuminate\Support\Facades\Route;
 
@@ -27,6 +29,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Edit an action's schedule (time + recurrence, or an anchored cue).
     Route::patch('actions/{action}', [ActionController::class, 'update'])->name('actions.update');
+
+    // Catch up on occasions that passed unlogged. Keyed on the occasion rather
+    // than the action, so logging Tuesday on Friday records Tuesday and leaves
+    // the next-due pointer where it is.
+    Route::get('catch-up', [CatchUpController::class, 'index'])->name('catch-up');
+    Route::post('occurrences/{occurrence}/logs', [OccurrenceLogController::class, 'store'])
+        ->name('occurrences.logs.store');
 
     // The in-app inbox: delivered cues + read state.
     Route::get('inbox', [InboxController::class, 'index'])->name('inbox');

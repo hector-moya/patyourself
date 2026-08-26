@@ -9,7 +9,10 @@ use App\Http\Requests\StoreIntentionRequest;
 use App\Http\Requests\UpdateIntentionRequest;
 use App\Http\Resources\IntentionResource;
 use App\Http\Resources\StrategyResource;
+use App\Models\ActionLog;
 use App\Models\Intention;
+use App\Models\Note;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -24,6 +27,14 @@ use Inertia\Response;
  */
 class IntentionController extends Controller
 {
+    /** Recent history by default — the whole thing is behind an explicit control. */
+    private const HISTORY_PAGE = 30;
+
+    /** A ceiling even on "show everything", so one screen cannot become unbounded. */
+    private const HISTORY_MAX = 500;
+
+    private const NOTE_LIMIT = 50;
+
     public function index(Request $request): Response
     {
         $intentions = $request->user()->intentions()
@@ -40,17 +51,71 @@ class IntentionController extends Controller
         ]);
     }
 
-    public function show(Intention $intention): Response
+    public function show(Request $request, Intention $intention): Response
     {
         Gate::authorize('view', $intention);
 
         $intention->load('activeStrategy');
-        $strategies = $intention->strategies()->orderedByVersion()->get();
+        $strategies = $intention->strategies()->withCount('actionLogs')->orderedByVersion()->get();
+        $showingAll = $request->query('history') === 'all';
+        // Dates are localised here so the day an occasion belongs to is the
+        // user's day, not the browser's.
+        $timezone = $request->user()->timezone ?? (string) config('app.timezone');
 
         return Inertia::render('loops/show', [
             'intention' => (new IntentionResource($intention))->resolve(),
             'strategies' => StrategyResource::collection($strategies)->resolve(),
+            'outcomes' => $this->outcomeHistory($intention, $showingAll, $timezone),
+            'outcomes_total' => $intention->actionLogs()->count(),
+            'showing_all_history' => $showingAll,
+            'notes' => $intention->notes()->limit(self::NOTE_LIMIT)->get()
+                ->map(fn (Note $note): array => [
+                    'id' => $note->id,
+                    'body' => $note->body,
+                    'noted_at' => $note->noted_at->timezone($timezone)->toIso8601String(),
+                ])->values()->all(),
         ]);
+    }
+
+    /**
+     * The loop's outcomes, newest occasion first.
+     *
+     * Dated by the occasion rather than by `logged_at`, which is what makes a
+     * caught-up entry sit where it belongs in the history rather than bunching
+     * with everything else typed in the same check-in. A log written before
+     * occurrences existed falls back to when it was typed — the only date the
+     * old model recorded.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function outcomeHistory(Intention $intention, bool $showingAll, string $timezone): array
+    {
+        $logs = ActionLog::query()
+            ->with(['occurrence', 'action.strategy'])
+            ->whereHas('action', fn (Builder $query) => $query->where('intention_id', $intention->id))
+            ->get()
+            ->sortByDesc(fn (ActionLog $log): string => (
+                $log->occurrence?->scheduled_for ?? $log->logged_at
+            )->toDateTimeString());
+
+        return $logs
+            ->take($showingAll ? self::HISTORY_MAX : self::HISTORY_PAGE)
+            ->map(fn (ActionLog $log): array => [
+                'id' => $log->id,
+                'occurred_at' => ($log->occurrence?->scheduled_for ?? $log->logged_at)
+                    ->timezone($timezone)->toIso8601String(),
+                'logged_at' => $log->logged_at->timezone($timezone)->toIso8601String(),
+                'action_id' => $log->action_id,
+                'action_title' => $log->action->title,
+                'outcome' => $log->outcome,
+                // Verbatim, exactly as the user said it.
+                'reason' => $log->reason,
+                'context' => $log->context,
+                'context_fields' => $log->context_fields,
+                'strategy_version' => $log->action->strategy?->version,
+            ])
+            ->values()
+            ->all();
     }
 
     public function store(StoreIntentionRequest $request, CreateIntention $create): RedirectResponse

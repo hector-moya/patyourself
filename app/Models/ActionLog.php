@@ -16,9 +16,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 #[Fillable([
     'action_id',
+    'occurrence_id',
     'user_id',
     'outcome',
     'reason',
+    'context',
+    'context_fields',
     'logged_at',
     'metadata',
 ])]
@@ -41,6 +44,7 @@ class ActionLog extends Model
     {
         return [
             'logged_at' => 'datetime',
+            'context_fields' => 'array',
             'metadata' => 'array',
         ];
     }
@@ -78,6 +82,17 @@ class ActionLog extends Model
     public function action(): BelongsTo
     {
         return $this->belongsTo(Action::class);
+    }
+
+    /**
+     * The occasion this outcome describes. That is what dates it by when the
+     * thing happened rather than by when it was typed.
+     *
+     * @return BelongsTo<Occurrence, $this>
+     */
+    public function occurrence(): BelongsTo
+    {
+        return $this->belongsTo(Occurrence::class);
     }
 
     /** @return BelongsTo<User, $this> */

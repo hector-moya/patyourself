@@ -37,6 +37,10 @@ class StrategyResource extends JsonResource
             'day_of_experiment' => $this->resource->dayOfExperiment(),
             'planned_days' => $this->resource->plannedDays(),
             'is_under_review' => $this->resource->isUnderReview(),
+            // Present only when the caller counted them. It is what separates a
+            // version that failed from one that was never tested, so omitting
+            // it is honester than defaulting it to zero.
+            'outcomes_recorded' => $this->whenCounted('actionLogs', fn (): int => (int) $this->action_logs_count),
             'parent_strategy_id' => $this->parent_strategy_id,
             'metadata' => $this->metadata,
             'created_at' => $this->created_at,

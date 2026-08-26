@@ -60,6 +60,65 @@ final class LoopProgress
     }
 
     /**
+     * The active experiment's own record: streak, rate and totals since that
+     * version began.
+     *
+     * This is the block that tells a strategy which is failing from one which
+     * is working. forLoop() spans every version, so on its own a fresh
+     * intervention drags the previous version's evidence forward and reads as
+     * though it had inherited its record.
+     *
+     * `skipped` is excluded from the denominator — the occasion never
+     * happened — and reported separately, so a thin sample stays visible rather
+     * than hidden behind a percentage.
+     *
+     * @return array{
+     *   version: int,
+     *   started_at: string,
+     *   day_of_experiment: int,
+     *   planned_days: ?int,
+     *   is_under_review: bool,
+     *   verdict: ?string,
+     *   streak: array{outcome: ?string, length: int},
+     *   completion_rate: ?int,
+     *   totals: array{completed: int, failed: int, skipped: int},
+     *   last_logged_at: ?string,
+     * }|null  Null when the loop has no active version — a perfectly good state.
+     */
+    public function forCurrentVersion(Intention $loop): ?array
+    {
+        $strategy = $loop->activeStrategy;
+
+        if (! $strategy instanceof Strategy) {
+            return null;
+        }
+
+        $logs = ActionLog::query()
+            ->whereHas('action', fn ($query) => $query->where('strategy_id', $strategy->id))
+            ->get(['id', 'outcome', 'logged_at']);
+
+        $completed = $logs->where('outcome', ActionLog::OUTCOME_COMPLETED)->count();
+        $failed = $logs->where('outcome', ActionLog::OUTCOME_FAILED)->count();
+        $skipped = $logs->where('outcome', ActionLog::OUTCOME_SKIPPED)->count();
+        $decided = $completed + $failed;
+
+        [$outcome, $length] = $this->streak->forStrategy($strategy);
+
+        return [
+            'version' => $strategy->version,
+            'started_at' => $strategy->created_at->toIso8601String(),
+            'day_of_experiment' => $strategy->dayOfExperiment(),
+            'planned_days' => $strategy->plannedDays(),
+            'is_under_review' => $strategy->isUnderReview(),
+            'verdict' => $strategy->verdict,
+            'streak' => ['outcome' => $outcome, 'length' => $length],
+            'completion_rate' => $decided === 0 ? null : (int) round($completed / $decided * 100),
+            'totals' => ['completed' => $completed, 'failed' => $failed, 'skipped' => $skipped],
+            'last_logged_at' => $logs->max('logged_at')?->toIso8601String(),
+        ];
+    }
+
+    /**
      * One entry per strategy version, oldest first — the loop's experiment
      * ladder. Logs attribute to a version through `actions.strategy_id`, so a
      * log always belongs to the experiment that was running when it was made.

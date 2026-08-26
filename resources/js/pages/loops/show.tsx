@@ -5,12 +5,19 @@ import { update } from '@/actions/App/Http/Controllers/IntentionController';
 import CoachLayout from '@/layouts/coach-layout';
 import { cn } from '@/lib/utils';
 import { BottomNav } from '@/patyourself/bottom-nav';
+import { LoopNotes } from '@/patyourself/loop-notes';
+import { OutcomeHistory } from '@/patyourself/outcome-history';
 import { Button } from '@/patyourself/primitives';
 import {
     SectionHeading,
     StrategyTimeline,
 } from '@/patyourself/strategy-timeline';
-import type { IntentionData, StrategyData } from '@/patyourself/types';
+import type {
+    IntentionData,
+    NoteData,
+    OutcomeEntryData,
+    StrategyData,
+} from '@/patyourself/types';
 
 /** Mirrors CreateLoopTool::AUTHORED_BY — the provenance stamp an MCP-created
  * loop's metadata carries, distinguishing it from one the user authored
@@ -20,14 +27,32 @@ const MCP_AUTHORED_BY = 'mcp-client';
 interface LoopShowProps {
     intention: IntentionData;
     strategies: StrategyData[];
+    outcomes: OutcomeEntryData[];
+    outcomes_total: number;
+    showing_all_history: boolean;
+    notes: NoteData[];
 }
 
 /**
- * Loop detail — the habit anatomy (cue → craving → response → reward, with the
- * stage the active strategy intervenes on highlighted) and the versioned
- * strategy history as a timeline. Read-only: history is only ever appended to.
+ * The lab record for one loop: the habit anatomy (cue → craving → response →
+ * reward, with the stage the active strategy intervenes on highlighted), the
+ * versioned experiment timeline, the outcomes those experiments produced, and
+ * the notes taken alongside them.
+ *
+ * The timeline and the history sit on one screen deliberately — comparing what
+ * was tried against what happened is the whole point of a notebook.
+ *
+ * Read-only: history is only ever appended to, and outcomes are logged from the
+ * catch-up screen or the conversation.
  */
-export default function LoopShow({ intention, strategies }: LoopShowProps) {
+export default function LoopShow({
+    intention,
+    strategies,
+    outcomes,
+    outcomes_total: outcomesTotal,
+    showing_all_history: showingAllHistory,
+    notes,
+}: LoopShowProps) {
     const back = (
         <Link
             href="/loops"
@@ -93,6 +118,15 @@ export default function LoopShow({ intention, strategies }: LoopShowProps) {
                 />
 
                 <StrategyTimeline strategies={strategies} />
+
+                <OutcomeHistory
+                    outcomes={outcomes}
+                    total={outcomesTotal}
+                    showingAll={showingAllHistory}
+                    loopId={intention.id}
+                />
+
+                <LoopNotes notes={notes} />
             </div>
         </CoachLayout>
     );
