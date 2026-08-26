@@ -2,6 +2,7 @@
 
 namespace App\Mcp\Tools;
 
+use App\Models\ActionLog;
 use App\Models\Intention;
 use App\Models\Strategy;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
@@ -32,6 +33,15 @@ class GetLoopTool extends Tool
 
         $strategies = $loop->strategies()->orderedByVersion()->get();
 
+        // Counted in one query rather than per version: this is what tells a
+        // version that failed from one that was never tested.
+        $outcomeCounts = ActionLog::query()
+            ->join('actions', 'actions.id', '=', 'action_logs.action_id')
+            ->where('actions.intention_id', $loop->id)
+            ->groupBy('actions.strategy_id')
+            ->selectRaw('actions.strategy_id as strategy_id, count(*) as total')
+            ->pluck('total', 'strategy_id');
+
         return Response::json([
             'id' => $loop->id,
             'title' => $loop->title,
@@ -53,6 +63,7 @@ class GetLoopTool extends Tool
                 'rationale' => $strategy->rationale,
                 'change_reason' => $strategy->change_reason,
                 'superseded_reason' => $strategy->superseded_reason,
+                'outcomes_recorded' => (int) ($outcomeCounts[$strategy->id] ?? 0),
             ])->values()->all(),
         ]);
     }

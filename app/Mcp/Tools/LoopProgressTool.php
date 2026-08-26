@@ -13,7 +13,15 @@ use Laravel\Mcp\Server\Attributes\Name;
 use Laravel\Mcp\Server\Tool;
 
 #[Name('loop-progress')]
-#[Description('Progress for one habit loop: current streak on the active strategy, lifetime completion rate and totals, and the recent outcome strip.')]
+#[Description(<<<'TEXT'
+Two scopes for one loop. `current_version` is how the active experiment is
+going on its own evidence — read this to judge whether a strategy is working.
+`lifetime` is the whole record across every version.
+
+Occasions that never happened (skipped) are excluded from both completion
+rates and reported as their own count, so a thin sample stays visible. A streak
+is a statistic, not a reward.
+TEXT)]
 class LoopProgressTool extends Tool
 {
     public function handle(Request $request, LoopProgress $progress): Response
@@ -33,7 +41,8 @@ class LoopProgressTool extends Tool
         return Response::json([
             'loop_id' => $loop->id,
             'title' => $loop->title,
-            ...$progress->forLoop($loop),
+            'current_version' => $progress->forCurrentVersion($loop),
+            'lifetime' => $progress->forLoop($loop),
         ]);
     }
 
