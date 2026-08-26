@@ -2402,3 +2402,73 @@ derivable from the code, in the style of the two previous plans, and commit that
 - **Deliberately not covered** (spec "Out of scope"): `conclude-experiment` and the `review_at`
   retention change, `write-reflection` / the `summaries` writer, MCP prompts, the dashboard reframe,
   `/log`, the `/loops` index redesign, the item-7 cleanups, removing `laravel/ai`.
+
+## Carry-forward: what the build found
+
+Facts discovered across the ten tasks that are not derivable from the code.
+
+**1. `npm install` in a worktree rewrites `package-lock.json`'s `name` field to the worktree
+directory name.** Every task that ran it had to revert the file before committing. Not a bug in
+this branch — an artefact of how npm resolves the package name inside a linked worktree — but it
+will bite the next branch built the same way if unremembered.
+
+**2. The purge-block duplication between `RescheduleAction` and `UpdateIntention` is intentional,
+not missed.** Task 3 found the same "delete unlogged future occasions, leave logged ones alone"
+block copy-pasted in both places and proposed extracting it; the human partner ruled the two call
+sites are conceptually independent (a user editing a schedule vs. a paused loop reactivating) and a
+shared helper on the model would wrongly couple them. Left duplicated on purpose — a future pass
+should not "clean this up" without re-reading that ruling.
+
+**3. The plan baked the same non-discriminating test fixture into two different tasks.** Both
+Task 4's (`TodaysOccasions`) and Task 6's (`TriggerEngine`) local-day-window tests used a fixture
+that a global-UTC-day regression would also satisfy, so neither, as originally written, actually
+proved the per-user-timezone window was in effect. Both were caught only because the review step
+hand-computed the two candidate windows and checked the fixture sat inside one and outside the
+other. Worth remembering as a category of mistake — a plan can specify a test that looks
+discriminating and isn't — not just a one-off typo.
+
+**4. Retiring `Action::STATUSES` down to two values retroactively empties two tests, not one.**
+The plan's own file list only named `Action::pending()`/`isOpen()` for removal, but
+`ActionTest::test_pending_scope_and_is_open_predicate_track_unlogged_cards` called those methods
+directly and had to go with them. Separately, `LoopRelationshipsTest` carried two more tests Task 9
+deliberately left alone specifically so Task 10 could decide their fate
+(`test_active_action_is_the_most_recent_action_regardless_of_status` and
+`test_pending_scope_returns_only_open_actions`): both existed only to prove behaviour across
+*several distinct non-archived statuses*, a premise `STATUSES = ['active', 'archived']` makes
+impossible to even construct. All three were deleted rather than rewritten with `STATUS_ACTIVE`
+standing in for the old values, which would have kept the test names' claims while proving nothing
+they used to. One real, minor gap this leaves: no test independently exercises
+`Intention::activeAction()`'s `latestOfMany()` ordering across *multiple* non-archived actions on
+the same loop any more (only the all-archived → null edge remains covered) — the relation itself
+is unchanged and out of this branch's file list, so no replacement test was added unprompted.
+
+**5. The `093412` backfill artefact is real and still invisible to "today" by construction, not by
+luck.** A log written against an anchor but stamped well after it (a completed one-off logged at
+08:47 against an 08:00 anchor) leaves two occurrence rows for one action: the anchor-stamped one
+materialisation produces, and the `logged_at`-stamped one that migration synthesised. Rehearsed on
+MySQL 9.3 by hand-reconstructing the pair (the migration itself only converts rows present at the
+moment it runs, so replaying it against fresh data produces nothing): both rows exist, and
+`TodaysOccasions::for()` — which only ever looks inside the caller's *current* local day — excludes
+both regardless, with no special-case logic needed to keep the duplicate off the list.
+
+**Verification performed beyond the per-task suites:** the full PHP suite (511/511) and Vitest
+suite (81/81) at the branch tip; a `migrate:fresh --seed` → `migrate:rollback --step=2` → `migrate`
+cycle on MySQL 9.3.0 run twice — once against `HabitDataSeeder`'s randomised data, once against a
+hand-built dataset with real logs and occurrences attached — confirming `down()` recomputes
+`scheduled_for` from `series_started_at` and restores the `pending` default, and `up()` re-collapses
+`status` and drops the column again, with `occurrences`/`action_logs` row counts and a
+verbatim-reason byte comparison (`HEX()`) unchanged across every step; and two live
+`php artisan actions:fire` runs confirming exactly one occasion (today's) fires and a second,
+immediate run fires zero.
+
+**Environment note:** local MySQL is 9.3.0; production is MySQL 8. Nothing in the final migration
+uses version-specific syntax (`->change()` needed no `doctrine/dbal` on Laravel 13, so no
+driver-specific `ALTER TABLE` fallback was needed), but every MySQL rehearsal in this branch proves
+9.3 behaviour, not 8's specifically.
+
+**Still open, inherited and untouched:** `fired_at`'s sub-second precision is kept in memory after
+a guarded fire but truncated on write (Task 6, display-only, no test catches it); the
+`action_id`-fallback branch of `markCueAnswered` has its own action-discrimination unproven (Task 7);
+`Api\ActionController::update()` has zero test coverage, pre-existing; `ConcludeExperiment` still
+clears `review_at` with no caller and `laravel/ai` remains an unused dependency, both out of scope
+for this whole branch.
