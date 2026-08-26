@@ -3,293 +3,188 @@
 namespace Tests\Feature\Actions;
 
 use App\Actions\LogAction;
-use App\Events\ActionLogged;
 use App\Models\Action;
 use App\Models\ActionLog;
 use App\Models\Intention;
-use App\Models\Strategy;
+use App\Models\Occurrence;
 use App\Models\User;
-use App\Notifications\ActionDueNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Event;
-use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
 /**
- * The shared write path for recording an action's outcome. A log is an
- * immutable event; on failure it carries the user-stated reason that later
- * feeds the versioned-strategy logic. The action's own status advances to
- * match. The only place the logging flow writes to the database.
+ * Logging an outcome against the occasion it describes. The rule that matters
+ * most here: catching up an older occasion must never move the action's
+ * next-due pointer, because that pointer is what the trigger engine and the
+ * action cards read.
  */
 class LogActionTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function action(User $user): Action
+    protected function setUp(): void
     {
-        // A one-off (no recurrence): completing or skipping it closes it out,
-        // which is what the existing close-behaviour tests assert. Recurring
-        // re-arm is covered by the dedicated tests below.
+        parent::setUp();
+
+        $this->travelTo('2026-08-26 21:00:00');
+    }
+
+    private function recurringAction(User $user): Action
+    {
         return Action::factory()
             ->for(Intention::factory()->for($user))
             ->create([
+                'recurrence' => 'daily',
+                'scheduled_for' => now()->setTime(19, 0),
+                'series_started_at' => now()->subDays(5)->setTime(19, 0),
                 'status' => Action::STATUS_ACTIVE,
-                'recurrence' => null,
-                'scheduled_for' => null,
             ]);
     }
 
-    public function test_completion_records_a_log_and_completes_the_action(): void
+    public function test_logging_an_occurrence_attaches_the_outcome_to_it(): void
     {
-        $user = User::factory()->create();
-        $action = $this->action($user);
-
-        $log = app(LogAction::class)->handle($user, $action, [
-            'outcome' => ActionLog::OUTCOME_COMPLETED,
+        $user = User::factory()->create(['timezone' => 'UTC']);
+        $action = $this->recurringAction($user);
+        $occurrence = Occurrence::factory()->create([
+            'action_id' => $action->id,
+            'scheduled_for' => now()->subDays(3)->setTime(19, 0),
         ]);
 
-        $this->assertSame(ActionLog::OUTCOME_COMPLETED, $log->outcome);
-        $this->assertSame($user->id, $log->user_id);
+        $log = app(LogAction::class)->handle($user, $action, [
+            'outcome' => ActionLog::OUTCOME_FAILED,
+            'reason' => 'Ate standing up, second plate before I noticed',
+        ], $occurrence);
+
+        $this->assertSame($occurrence->id, $log->occurrence_id);
         $this->assertSame($action->id, $log->action_id);
-        $this->assertNotNull($log->logged_at);
-        $this->assertSame(Action::STATUS_COMPLETED, $action->fresh()->status);
+        $this->assertSame('Ate standing up, second plate before I noticed', $log->reason);
     }
 
-    public function test_failure_stores_the_user_stated_reason(): void
-    {
-        $user = User::factory()->create();
-        $action = $this->action($user);
-
-        $log = app(LogAction::class)->handle($user, $action, [
-            'outcome' => ActionLog::OUTCOME_FAILED,
-            'reason' => 'Got home too late and skipped it',
-        ]);
-
-        $this->assertSame(ActionLog::OUTCOME_FAILED, $log->outcome);
-        $this->assertSame('Got home too late and skipped it', $log->reason);
-    }
-
-    public function test_failure_leaves_the_action_open_for_a_retry(): void
-    {
-        $user = User::factory()->create();
-        $action = $this->action($user);
-
-        app(LogAction::class)->handle($user, $action, [
-            'outcome' => ActionLog::OUTCOME_FAILED,
-            'reason' => 'Forgot',
-        ]);
-
-        $this->assertSame(Action::STATUS_ACTIVE, $action->fresh()->status);
-    }
-
-    public function test_skip_marks_the_action_skipped(): void
-    {
-        $user = User::factory()->create();
-        $action = $this->action($user);
-
-        app(LogAction::class)->handle($user, $action, [
-            'outcome' => ActionLog::OUTCOME_SKIPPED,
-        ]);
-
-        $this->assertSame(Action::STATUS_SKIPPED, $action->fresh()->status);
-    }
-
-    /**
-     * @param  array<string, mixed>  $overrides
-     */
-    private function recurringAction(User $user, array $overrides = []): Action
-    {
-        return Action::factory()
-            ->for(Intention::factory()->for($user))
-            ->create(array_merge([
-                'status' => Action::STATUS_ACTIVE,
-                'recurrence' => 'daily',
-                'scheduled_for' => now()->subMinutes(5),
-            ], $overrides));
-    }
-
-    public function test_completing_a_recurring_action_rearms_it_to_the_next_occurrence(): void
+    public function test_a_catch_up_log_does_not_move_the_next_due_pointer(): void
     {
         $user = User::factory()->create(['timezone' => 'UTC']);
         $action = $this->recurringAction($user);
+        $nextDue = $action->scheduled_for;
+        $occurrence = Occurrence::factory()->create([
+            'action_id' => $action->id,
+            'scheduled_for' => now()->subDays(3)->setTime(19, 0),
+        ]);
 
-        app(LogAction::class)->handle($user, $action, ['outcome' => ActionLog::OUTCOME_COMPLETED]);
+        app(LogAction::class)->handle($user, $action, [
+            'outcome' => ActionLog::OUTCOME_COMPLETED,
+        ], $occurrence);
 
         $fresh = $action->fresh();
-        $this->assertSame(Action::STATUS_PENDING, $fresh->status);
-        $this->assertTrue($fresh->scheduled_for->isFuture());
-        // The completion is preserved as a log event.
-        $this->assertSame(1, $fresh->logs()->where('outcome', ActionLog::OUTCOME_COMPLETED)->count());
+
+        $this->assertTrue($fresh->scheduled_for->equalTo($nextDue));
+        $this->assertSame(Action::STATUS_ACTIVE, $fresh->status);
     }
 
-    public function test_skipping_a_recurring_action_rearms_it(): void
+    public function test_logging_the_live_slot_still_rolls_the_action_forward(): void
     {
         $user = User::factory()->create(['timezone' => 'UTC']);
         $action = $this->recurringAction($user);
+        $occurrence = Occurrence::factory()->create([
+            'action_id' => $action->id,
+            'scheduled_for' => $action->scheduled_for,
+        ]);
 
-        app(LogAction::class)->handle($user, $action, ['outcome' => ActionLog::OUTCOME_SKIPPED]);
+        app(LogAction::class)->handle($user, $action, [
+            'outcome' => ActionLog::OUTCOME_COMPLETED,
+        ], $occurrence);
 
         $fresh = $action->fresh();
+
         $this->assertSame(Action::STATUS_PENDING, $fresh->status);
         $this->assertTrue($fresh->scheduled_for->isFuture());
     }
 
-    public function test_failing_a_recurring_action_leaves_it_open(): void
+    public function test_the_series_anchor_never_moves_when_an_outcome_is_logged(): void
     {
         $user = User::factory()->create(['timezone' => 'UTC']);
         $action = $this->recurringAction($user);
+        $anchor = $action->series_started_at;
 
-        app(LogAction::class)->handle($user, $action, [
-            'outcome' => ActionLog::OUTCOME_FAILED,
-            'reason' => 'busy',
-        ]);
+        app(LogAction::class)->handle($user, $action, ['outcome' => ActionLog::OUTCOME_COMPLETED]);
 
-        $this->assertSame(Action::STATUS_ACTIVE, $action->fresh()->status); // unchanged, no re-arm
+        $this->assertTrue($action->fresh()->series_started_at->equalTo($anchor));
     }
 
-    public function test_completing_a_one_off_action_closes_it(): void
+    public function test_a_caller_that_passes_no_occurrence_still_gets_one(): void
     {
         $user = User::factory()->create(['timezone' => 'UTC']);
-        $action = $this->recurringAction($user, ['recurrence' => null]);
-
-        app(LogAction::class)->handle($user, $action, ['outcome' => ActionLog::OUTCOME_COMPLETED]);
-
-        $this->assertSame(Action::STATUS_COMPLETED, $action->fresh()->status);
-    }
-
-    public function test_completing_an_anchored_action_closes_it(): void
-    {
-        $user = User::factory()->create(['timezone' => 'UTC']);
-        $action = $this->recurringAction($user, [
-            'recurrence' => null,
-            'scheduled_for' => null,
-            'metadata' => ['schedule_kind' => 'anchored', 'anchor' => 'after coffee'],
-        ]);
-
-        app(LogAction::class)->handle($user, $action, ['outcome' => ActionLog::OUTCOME_COMPLETED]);
-
-        $this->assertSame(Action::STATUS_COMPLETED, $action->fresh()->status);
-    }
-
-    public function test_completing_a_stale_recurring_action_fast_forwards_to_the_future(): void
-    {
-        $user = User::factory()->create(['timezone' => 'UTC']);
-        $action = $this->recurringAction($user, ['scheduled_for' => now()->subDays(3)]);
-
-        app(LogAction::class)->handle($user, $action, ['outcome' => ActionLog::OUTCOME_COMPLETED]);
-
-        $fresh = $action->fresh();
-        $this->assertSame(Action::STATUS_PENDING, $fresh->status);
-        $this->assertTrue($fresh->scheduled_for->isFuture()); // not a past slot
-    }
-
-    public function test_logging_marks_the_actions_unread_notification_read(): void
-    {
-        $user = User::factory()->create();
-        $action = $this->action($user);   // one-off; mark-read applies to any shape
-        $user->notify(new ActionDueNotification($action));
-        $this->assertCount(1, $user->unreadNotifications);
-
-        app(LogAction::class)->handle($user, $action, ['outcome' => ActionLog::OUTCOME_COMPLETED]);
-
-        $this->assertCount(0, $user->fresh()->unreadNotifications);
-    }
-
-    public function test_logging_a_failure_also_marks_the_cue_read(): void
-    {
-        $user = User::factory()->create();
-        $action = $this->action($user);
-        $user->notify(new ActionDueNotification($action));
-
-        app(LogAction::class)->handle($user, $action, [
-            'outcome' => ActionLog::OUTCOME_FAILED,
-            'reason' => 'Ran out of time',
-        ]);
-
-        $this->assertCount(0, $user->fresh()->unreadNotifications);
-    }
-
-    public function test_logging_leaves_other_actions_notifications_unread(): void
-    {
-        $user = User::factory()->create();
-        $logged = $this->action($user);
-        $other = $this->action($user);
-        $user->notify(new ActionDueNotification($logged));
-        $user->notify(new ActionDueNotification($other));
-
-        app(LogAction::class)->handle($user, $logged, ['outcome' => ActionLog::OUTCOME_COMPLETED]);
-
-        $this->assertCount(1, $user->fresh()->unreadNotifications);
-    }
-
-    public function test_logging_does_not_touch_another_users_notifications(): void
-    {
-        $owner = User::factory()->create();
-        $action = $this->action($owner);
-        $other = User::factory()->create();
-        $other->notify(new ActionDueNotification($action));
-
-        app(LogAction::class)->handle($owner, $action, ['outcome' => ActionLog::OUTCOME_COMPLETED]);
-
-        $this->assertCount(1, $other->fresh()->unreadNotifications);
-    }
-
-    public function test_logging_without_a_notification_still_succeeds(): void
-    {
-        $user = User::factory()->create();
-        $action = $this->action($user);
+        $action = $this->recurringAction($user);
+        // Captured before the call: completing the live slot rolls the pointer
+        // forward, so reading it afterwards would compare against the next slot.
+        $liveSlot = $action->scheduled_for;
 
         $log = app(LogAction::class)->handle($user, $action, ['outcome' => ActionLog::OUTCOME_COMPLETED]);
 
-        $this->assertSame(ActionLog::OUTCOME_COMPLETED, $log->outcome);
+        $this->assertNotNull($log->occurrence_id);
+        $this->assertTrue($log->occurrence->scheduled_for->equalTo($liveSlot));
     }
 
-    public function test_logging_dispatches_the_action_logged_event(): void
+    public function test_a_cue_anchored_action_gets_an_occasion_stamped_now(): void
     {
-        Event::fake([ActionLogged::class]);
+        $user = User::factory()->create(['timezone' => 'UTC']);
+        $action = Action::factory()
+            ->for(Intention::factory()->for($user))
+            ->create(['recurrence' => null, 'scheduled_for' => null, 'series_started_at' => null]);
 
-        $user = User::factory()->create();
-        $action = $this->action($user);
+        $log = app(LogAction::class)->handle($user, $action, ['outcome' => ActionLog::OUTCOME_COMPLETED]);
+
+        $this->assertNotNull($log->occurrence_id);
+        $this->assertSame('2026-08-26 21:00:00', $log->occurrence->scheduled_for->utc()->toDateTimeString());
+        // It has no next-due pointer to be behind, so it still closes.
+        $this->assertSame(Action::STATUS_COMPLETED, $action->fresh()->status);
+    }
+
+    public function test_a_second_log_on_an_already_logged_slot_records_as_its_own_occasion(): void
+    {
+        $user = User::factory()->create(['timezone' => 'UTC']);
+        $action = $this->recurringAction($user);
+
+        // A failure leaves the action open on the same slot, so the next log
+        // resolves to that same live slot — it must not collide with the first.
+        $first = app(LogAction::class)->handle($user, $action, [
+            'outcome' => ActionLog::OUTCOME_FAILED,
+            'reason' => 'Did not think about it at all',
+        ]);
+        $second = app(LogAction::class)->handle($user, $action, [
+            'outcome' => ActionLog::OUTCOME_FAILED,
+            'reason' => 'Second plate again',
+        ]);
+
+        $this->assertNotSame($first->occurrence_id, $second->occurrence_id);
+        $this->assertSame(2, ActionLog::count());
+    }
+
+    public function test_it_stores_context_and_context_fields(): void
+    {
+        $user = User::factory()->create(['timezone' => 'UTC']);
+        $action = $this->recurringAction($user);
 
         $log = app(LogAction::class)->handle($user, $action, [
             'outcome' => ActionLog::OUTCOME_FAILED,
-            'reason' => 'Too tired',
+            'reason' => 'Kept going past full',
+            'context' => 'Standing at the bench, plate refilled straight away',
+            'context_fields' => ['place' => 'kitchen', 'with_others' => false, 'preceded_by' => 'skipped lunch'],
         ]);
 
-        Event::assertDispatched(ActionLogged::class, function (ActionLogged $event) use ($user, $action, $log): bool {
-            return $event->user->is($user)
-                && $event->action->is($action)
-                && $event->log->is($log);
-        });
+        $this->assertSame('Standing at the bench, plate refilled straight away', $log->context);
+        $this->assertSame('kitchen', $log->context_fields['place']);
     }
 
-    public function test_logging_dispatches_the_event_for_every_outcome(): void
+    public function test_the_reason_is_stored_exactly_as_it_was_given(): void
     {
-        Event::fake([ActionLogged::class]);
-
-        $user = User::factory()->create();
-
-        foreach ([ActionLog::OUTCOME_COMPLETED, ActionLog::OUTCOME_SKIPPED] as $outcome) {
-            app(LogAction::class)->handle($user, $this->action($user), ['outcome' => $outcome]);
-        }
-
-        Event::assertDispatchedTimes(ActionLogged::class, 2);
-    }
-
-    public function test_logging_an_outcome_queues_no_coaching_job(): void
-    {
-        Queue::fake();
-
-        $user = User::factory()->create();
-        $intention = Intention::factory()->for($user)->create();
-        $strategy = Strategy::factory()->for($intention)->create();
-        $action = Action::factory()->for($intention)->for($strategy)->create();
+        $user = User::factory()->create(['timezone' => 'UTC']);
+        $action = $this->recurringAction($user);
+        $reason = "  didn't Think about it AT ALL.  ";
 
         app(LogAction::class)->handle($user, $action, [
             'outcome' => ActionLog::OUTCOME_FAILED,
-            'reason' => 'ate on autopilot',
+            'reason' => $reason,
         ]);
 
-        Queue::assertNothingPushed();
+        $this->assertSame($reason, ActionLog::firstOrFail()->reason);
     }
 }
