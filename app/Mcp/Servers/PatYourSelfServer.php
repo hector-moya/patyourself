@@ -7,6 +7,7 @@ use App\Mcp\Tools\GetLoopTool;
 use App\Mcp\Tools\ListLoopsTool;
 use App\Mcp\Tools\LogOutcomeTool;
 use App\Mcp\Tools\LoopProgressTool;
+use App\Mcp\Tools\PendingOutcomesTool;
 use App\Mcp\Tools\TodayActionsTool;
 use Laravel\Mcp\Server;
 use Laravel\Mcp\Server\Attributes\Instructions;
@@ -66,6 +67,7 @@ class PatYourSelfServer extends Server
         ListLoopsTool::class,
         GetLoopTool::class,
         TodayActionsTool::class,
+        PendingOutcomesTool::class,
         LogOutcomeTool::class,
         LoopProgressTool::class,
         CreateLoopTool::class,
