@@ -2,12 +2,16 @@
 
 namespace App\Services\Authoring;
 
+use App\Actions\PersistAuthoredIntention;
+use App\Actions\StartExperiment;
+
 /**
- * The concrete, schedulable action the coach proposes alongside a strategy: what
- * to do and when. A "clock" action carries a local HH:MM + recurrence the
- * scheduler can fire; an "anchored" action carries an event phrase ("after
- * coffee") and is stored but never auto-fired. Carries no persistence concerns;
- * AuthorIntention / StartExperiment turn it into an Action row.
+ * The concrete, schedulable action authored alongside a strategy: what to do
+ * and when. A "clock" action carries a local HH:MM + recurrence the scheduler
+ * can fire; an "anchored" action carries an event phrase ("after coffee") and
+ * is stored but never auto-fired. Carries no persistence concerns;
+ * {@see PersistAuthoredIntention} / {@see StartExperiment}
+ * turn it into an Action row.
  */
 final readonly class AuthoredAction
 {
@@ -25,9 +29,9 @@ final readonly class AuthoredAction
     ) {}
 
     /**
-     * Build from the agent's `action` sub-array. Returns null when the block is
+     * Build from the `action` sub-array. Returns null when the block is
      * absent. Throws when it is present but structurally invalid, so a malformed
-     * response writes nothing (consistent with the other authoring guards).
+     * payload writes nothing (consistent with the other authoring guards).
      *
      * @param  array<string, mixed>|null  $data
      *
@@ -41,13 +45,13 @@ final readonly class AuthoredAction
 
         $title = is_string($data['title'] ?? null) ? trim($data['title']) : '';
         if ($title === '') {
-            throw AuthoringException::emptyResponse('intention-author');
+            throw AuthoringException::emptyResponse();
         }
 
         $schedule = is_array($data['schedule'] ?? null) ? $data['schedule'] : [];
         $kind = is_string($schedule['kind'] ?? null) ? trim($schedule['kind']) : '';
         if (! in_array($kind, self::KINDS, true)) {
-            throw AuthoringException::emptyResponse('intention-author');
+            throw AuthoringException::emptyResponse();
         }
 
         $time = null;
@@ -57,17 +61,17 @@ final readonly class AuthoredAction
         if ($kind === 'clock') {
             $time = is_string($schedule['time'] ?? null) ? trim($schedule['time']) : '';
             if (! preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', $time)) {
-                throw AuthoringException::emptyResponse('intention-author');
+                throw AuthoringException::emptyResponse();
             }
 
             $recurrence = is_string($schedule['recurrence'] ?? null) ? trim($schedule['recurrence']) : 'once';
             if (! in_array($recurrence, self::RECURRENCES, true)) {
-                throw AuthoringException::emptyResponse('intention-author');
+                throw AuthoringException::emptyResponse();
             }
         } else {
             $anchor = is_string($schedule['anchor'] ?? null) ? trim($schedule['anchor']) : '';
             if ($anchor === '') {
-                throw AuthoringException::emptyResponse('intention-author');
+                throw AuthoringException::emptyResponse();
             }
         }
 

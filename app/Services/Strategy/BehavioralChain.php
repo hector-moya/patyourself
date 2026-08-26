@@ -10,7 +10,7 @@ use App\Models\Strategy;
  *
  * Restrategizing on failure moves the intervention point "up" (earlier) or
  * "down" (later) this chain; this helper names that move so the strategy
- * timeline can render which way the coaching shifted.
+ * timeline can render which way the intervention shifted.
  */
 final class BehavioralChain
 {

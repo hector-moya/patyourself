@@ -11,11 +11,11 @@ use Illuminate\Queue\SerializesModels;
 
 /**
  * Raised after an action's outcome is durably logged (see {@see LogAction}).
- * Carries the user, action and log so the queued coaching closure (SP4) has its
- * full context. SerializesModels: the queued listener re-fetches each model fresh
- * by key when the job runs, so only identifiers cross the queue (not loaded
- * relations). ShouldDispatchAfterCommit: if LogAction's transaction rolls back, no
- * coaching is triggered.
+ * Carries the user, action and log. It currently has no listeners.
+ * SerializesModels: if a future listener is queued, it re-fetches each model
+ * fresh by key when the job runs, so only identifiers cross the queue (not
+ * loaded relations). ShouldDispatchAfterCommit: if LogAction's transaction
+ * rolls back, the event never fires.
  */
 final class ActionLogged implements ShouldDispatchAfterCommit
 {

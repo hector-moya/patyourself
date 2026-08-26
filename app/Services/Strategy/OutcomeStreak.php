@@ -7,9 +7,10 @@ use App\Models\Strategy;
 
 /**
  * Computes the leading run of one non-skip outcome on a strategy's own action
- * logs — the deterministic signal SP4's coaching closure uses to decide whether
- * to revise. `skipped` outcomes are removed before measuring (they neither extend
- * nor break a run); an opposite outcome breaks it. Pure read; no side effects.
+ * logs. A passive observation with no automatic action attached — nothing
+ * reads it to trigger a revision; it is surfaced for the owner to see. `skipped`
+ * outcomes are removed before measuring (they neither extend nor break a run);
+ * an opposite outcome breaks it. Pure read; no side effects.
  */
 final class OutcomeStreak
 {

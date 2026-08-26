@@ -6,8 +6,8 @@ use App\Models\Strategy;
 use RuntimeException;
 
 /**
- * Raised when a strategy version transition cannot proceed — either the coach
- * authored an invalid revision, or the strategy being superseded is not the
+ * Raised when a strategy version transition cannot proceed — either the
+ * authored revision is invalid, or the strategy being superseded is not the
  * active one (which would break the one-active-version-per-intention invariant).
  */
 class StrategyTransitionException extends RuntimeException
@@ -45,7 +45,7 @@ class StrategyTransitionException extends RuntimeException
         $summary = $errors === [] ? 'unknown reason' : implode(' ', $errors);
 
         return new self(
-            "The coach authored an invalid strategy revision: {$summary}",
+            "The authored strategy revision is invalid: {$summary}",
             $errors,
             $payload,
         );

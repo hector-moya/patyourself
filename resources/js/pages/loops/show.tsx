@@ -13,8 +13,8 @@ import {
 import type { IntentionData, StrategyData } from '@/patyourself/types';
 
 /** Mirrors CreateLoopTool::AUTHORED_BY — the provenance stamp an MCP-created
- * loop's metadata carries, distinguishing it from one the in-app coach or the
- * user authored. */
+ * loop's metadata carries, distinguishing it from one the user authored
+ * directly in the app. */
 const MCP_AUTHORED_BY = 'mcp-client';
 
 interface LoopShowProps {

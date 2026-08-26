@@ -1,7 +1,7 @@
 /**
  * Client-side shapes mirroring the server API resources (IntentionResource,
- * StrategyResource). The LLM authors this data and the server validates it;
- * the UI only renders it.
+ * StrategyResource). Loops are authored via the MCP `create-loop` tool and
+ * the server validates them; the UI only renders them.
  */
 
 export interface StrategyData {
@@ -68,22 +68,6 @@ export interface IntentionData {
  * OUTCOME_* constants on the server (the only values LogAction accepts).
  */
 export type LogOutcome = 'completed' | 'failed' | 'skipped';
-
-/**
- * One item in the chat thread. Coach/user turns are text; a `card` turn renders
- * an inline action card from an LLM-authored Intention object. The same shape
- * carries both the loops seeded on load and the ones the coach authors live.
- */
-export type ChatMessage =
-    | { id: string; role: 'coach' | 'user'; text: string }
-    | { id: string; role: 'card'; intention: IntentionData };
-
-/** One stored turn from the server-side coach conversation (dashboard `thread` prop). */
-export interface ThreadMessage {
-    id: string;
-    role: 'user' | 'coach';
-    text: string;
-}
 
 /** One delivered cue in the inbox (mirrors InboxController's mapped payload). */
 export interface NotificationData {

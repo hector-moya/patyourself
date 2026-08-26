@@ -68,7 +68,23 @@ final class LoopProgress
      * percentage hides its own denominator, and rendering is where that
      * judgement belongs.
      *
-     * @return list<array<string, mixed>>
+     * @return list<array{
+     *   strategy_id: int,
+     *   version: int,
+     *   status: string,
+     *   intervention_point: string,
+     *   approach: string,
+     *   hypothesis: ?string,
+     *   started_at: string,
+     *   review_at: ?string,
+     *   day_of_experiment: int,
+     *   planned_days: ?int,
+     *   is_under_review: bool,
+     *   verdict: ?string,
+     *   verdict_note: ?string,
+     *   outcomes: list<array{outcome: string, reason: ?string, logged_at: string}>,
+     *   totals: array{completed: int, failed: int, skipped: int},
+     * }>
      */
     public function experimentsFor(Intention $loop): array
     {

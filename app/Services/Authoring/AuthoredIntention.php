@@ -2,13 +2,16 @@
 
 namespace App\Services\Authoring;
 
+use App\Actions\PersistAuthoredIntention;
+use App\Mcp\Tools\CreateLoopTool;
 use App\Models\Intention;
 use App\Models\Strategy;
 
 /**
- * A validated, structured Intention authored by the LLM — the data half of the
- * "AI authors data, UI renders it" split. It carries no persistence concerns;
- * the AuthorIntention action turns it into Intention / Strategy records.
+ * A validated, structured Intention authored via the MCP `create-loop` tool —
+ * the data half of the "authored data in, UI renders it" split. It carries no
+ * persistence concerns; {@see PersistAuthoredIntention} turns it
+ * into Intention / Strategy records.
  */
 final readonly class AuthoredIntention
 {
@@ -32,12 +35,12 @@ final readonly class AuthoredIntention
     ) {}
 
     /**
-     * Build the DTO from a structured SDK agent response payload.
+     * Build the DTO from a structured payload.
      *
-     * Used by both CreateLoop (tool) and AuthorIntention (direct authoring path)
-     * so the mapping and guards live in one place.
+     * Used by {@see CreateLoopTool} so the mapping and guards
+     * live in one place.
      *
-     * @param  array<string, mixed>  $data  The agent's ->structured array.
+     * @param  array<string, mixed>  $data  The tool call's structured input array.
      *
      * @throws AuthoringException when required fields are missing or invalid.
      * @throws IntentionAuthoringException when the schema is structurally invalid.
@@ -61,7 +64,7 @@ final readonly class AuthoredIntention
             $response === '' ||
             $reward === ''
         ) {
-            throw AuthoringException::emptyResponse('intention-author');
+            throw AuthoringException::emptyResponse();
         }
 
         $authoredStrategy = null;
@@ -84,7 +87,7 @@ final readonly class AuthoredIntention
                 ! in_array($interventionPoint, $validPoints, true) ||
                 $approach === ''
             ) {
-                throw AuthoringException::emptyResponse('intention-author');
+                throw AuthoringException::emptyResponse();
             }
 
             $authoredStrategy = new AuthoredStrategy(

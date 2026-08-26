@@ -28,10 +28,17 @@ use InvalidArgumentException;
 final class StartExperiment
 {
     /**
+     * @param  Strategy  $current  The active version being superseded; must be Strategy::STATUS_ACTIVE.
      * @param  AuthoredStrategy  $next  The hypothesis, authored in Claude and arriving through MCP.
      * @param  string  $changeReason  One of Strategy::CHANGE_REASONS.
      * @param  string|null  $supersededReason  Why the outgoing version is being replaced.
      * @param  int|null  $reviewAfterDays  Planned run length; null leaves the experiment open-ended.
+     * @param  AuthoredAction|null  $revisedAction  The new action's cadence. Pass it to
+     *                                              re-propose the action's cadence (title/schedule) for the new strategy; omit it
+     *                                              (leave null) to inherit the prior action's schedule verbatim, only retitling
+     *                                              from the new approach. This pass-vs-omit choice is the least guessable part
+     *                                              of this API: passing null is not "no action" — an action is always created —
+     *                                              it means "keep the old cadence."
      *
      * @throws StrategyTransitionException
      * @throws InvalidArgumentException

@@ -64,6 +64,22 @@ class StrategyTest extends TestCase
         $this->assertFalse($strategy->isUnderReview());
     }
 
+    public function test_a_superseded_strategy_with_no_verdict_is_no_longer_under_review(): void
+    {
+        CarbonImmutable::setTestNow('2026-09-11 12:00:00');
+
+        // The ordinary flow: StartExperiment supersedes the outgoing version
+        // without ever writing a verdict or clearing review_at, when the owner
+        // starts the next experiment instead of formally concluding this one.
+        $strategy = Strategy::factory()->create([
+            'status' => Strategy::STATUS_SUPERSEDED,
+            'review_at' => CarbonImmutable::parse('2026-09-10 12:00:00'),
+            'verdict' => null,
+        ]);
+
+        $this->assertFalse($strategy->isUnderReview());
+    }
+
     public function test_it_counts_the_days_of_the_experiment(): void
     {
         CarbonImmutable::setTestNow('2026-09-13 12:00:00');

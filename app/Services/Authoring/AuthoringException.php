@@ -9,8 +9,8 @@ use RuntimeException;
  */
 class AuthoringException extends RuntimeException
 {
-    public static function emptyResponse(string $driver): self
+    public static function emptyResponse(): self
     {
-        return new self("The [{$driver}] coach provider returned an empty response.");
+        return new self('The authored payload is missing required structure.');
     }
 }

@@ -10,7 +10,7 @@ type PersistentLayout = LayoutComponent | LayoutComponent[] | null;
 /**
  * Picks the persistent Inertia layout for a resolved page name.
  *
- * Every first-party app screen (intentions, progress, inbox, …) renders
+ * Every first-party app screen (loops, progress, inbox, …) renders
  * its own {@link CoachLayout} shell — side rail, header, bottom-nav — so it must
  * resolve to `null` here; wrapping it in the starter-kit `AppLayout` as well
  * produces a sidebar-inside-a-sidebar. Only the two flows that do NOT bring

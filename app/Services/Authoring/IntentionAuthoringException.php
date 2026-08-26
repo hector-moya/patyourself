@@ -5,9 +5,9 @@ namespace App\Services\Authoring;
 use RuntimeException;
 
 /**
- * Raised when the LLM returns parseable JSON that does not satisfy the
+ * Raised when an authored payload parses as JSON but does not satisfy the
  * Intention schema (missing chain fields, bad enum, etc.). Distinct from
- * AuthoringException, which covers transport / unparseable-output failures.
+ * AuthoringException, which covers a payload missing required structure.
  */
 class IntentionAuthoringException extends RuntimeException
 {
