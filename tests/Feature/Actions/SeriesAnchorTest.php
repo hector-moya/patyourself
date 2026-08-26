@@ -14,6 +14,7 @@ use App\Models\User;
 use App\Services\Authoring\AuthoredAction;
 use App\Services\Authoring\AuthoredIntention;
 use App\Services\Authoring\AuthoredStrategy;
+use App\Services\Scheduling\MaterialiseOccurrences;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Tests\TestCase;
@@ -128,6 +129,73 @@ class SeriesAnchorTest extends TestCase
 
         $this->assertNotNull($action->series_started_at);
         $this->assertTrue($action->series_started_at->equalTo($priorSlot));
+    }
+
+    public function test_an_experiment_that_inherits_a_running_cadence_rolls_the_anchor_forward(): void
+    {
+        Carbon::setTestNow('2026-08-26 21:00:00');
+
+        $user = User::factory()->create(['timezone' => 'UTC']);
+        $loop = Intention::factory()->for($user)->create(['status' => Intention::STATUS_ACTIVE]);
+        $current = Strategy::factory()->for($loop)->create(['status' => Strategy::STATUS_ACTIVE, 'version' => 1]);
+        Action::factory()->for($loop)->for($current)->create([
+            'status' => Action::STATUS_ACTIVE,
+            // A loop that has been running for two months: the anchor is where
+            // the cadence *began*, not where it is due next.
+            'series_started_at' => Carbon::parse('2026-06-27 08:00:00'),
+            'recurrence' => 'daily',
+        ]);
+
+        $next = app(StartExperiment::class)->handle(
+            $current,
+            new AuthoredStrategy(
+                interventionPoint: Strategy::POINT_CRAVING,
+                approach: 'Name the craving out loud before serving',
+            ),
+            Strategy::REASON_RESTRATEGIZED_ON_FAILURE,
+        );
+
+        $action = $next->actions()->firstOrFail();
+
+        $this->assertNotNull($action->series_started_at);
+        $this->assertTrue($action->series_started_at->greaterThanOrEqualTo(now()));
+
+        app(MaterialiseOccurrences::class)->forLoop($loop->fresh());
+
+        // The revision inherits the cadence, not the backlog. Materialising the
+        // whole historical grid behind a brand-new action would fabricate a run
+        // of missed occasions for days the user actually completed.
+        $this->assertSame(0, $action->occurrences()->where('scheduled_for', '<', now())->count());
+    }
+
+    public function test_an_inherited_anchor_keeps_its_time_of_day(): void
+    {
+        Carbon::setTestNow('2026-08-26 21:00:00');
+
+        $user = User::factory()->create(['timezone' => 'UTC']);
+        $loop = Intention::factory()->for($user)->create(['status' => Intention::STATUS_ACTIVE]);
+        $current = Strategy::factory()->for($loop)->create(['status' => Strategy::STATUS_ACTIVE, 'version' => 1]);
+        Action::factory()->for($loop)->for($current)->create([
+            'status' => Action::STATUS_ACTIVE,
+            'series_started_at' => Carbon::parse('2026-08-20 08:00:00'),
+            'recurrence' => 'daily',
+        ]);
+
+        $next = app(StartExperiment::class)->handle(
+            $current,
+            new AuthoredStrategy(
+                interventionPoint: Strategy::POINT_CRAVING,
+                approach: 'Name the craving out loud before serving',
+            ),
+            Strategy::REASON_RESTRATEGIZED_ON_FAILURE,
+        );
+
+        $action = $next->actions()->firstOrFail();
+
+        // Rolling forward preserves the phase: 08:00 stays 08:00, it does not
+        // collapse to whatever o'clock the revision happened to be started at.
+        $this->assertSame('08:00', $action->series_started_at->setTimezone('UTC')->format('H:i'));
+        $this->assertSame('2026-08-27', $action->series_started_at->setTimezone('UTC')->toDateString());
     }
 
     public function test_rescheduling_to_a_new_time_re_anchors_the_series(): void
