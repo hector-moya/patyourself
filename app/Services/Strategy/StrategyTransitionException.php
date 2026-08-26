@@ -31,6 +31,11 @@ class StrategyTransitionException extends RuntimeException
         );
     }
 
+    public static function alreadyConcluded(Strategy $strategy): self
+    {
+        return new self("Strategy version {$strategy->version} was already concluded as [{$strategy->verdict}].");
+    }
+
     /**
      * @param  list<string>  $errors
      * @param  array<string, mixed>  $payload
