@@ -27,6 +27,15 @@ final readonly class RescheduleAction
             'anchor' => $kind === 'anchored' ? $anchor : null,
         ]);
 
+        // The anchor moves, so the grid ahead of it is the abandoned cadence.
+        // Left in place it would render as due on a schedule the user has just
+        // replaced. Only unlogged future slots go: anything already logged is
+        // evidence and the record is append-only.
+        $action->occurrences()
+            ->unlogged()
+            ->where('scheduled_for', '>', CarbonImmutable::now())
+            ->delete();
+
         $action->update([
             'scheduled_for' => $scheduledFor,
             // The anchor marks where the action's *current* cadence began, so a

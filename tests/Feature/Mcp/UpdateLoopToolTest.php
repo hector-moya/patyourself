@@ -109,7 +109,7 @@ class UpdateLoopToolTest extends TestCase
 
         // The behaviour UpdateIntention already owns: a loop that sat paused
         // must not fire every missed slot the moment it goes live.
-        $this->assertTrue($action->fresh()->scheduled_for->isFuture());
+        $this->assertTrue($action->fresh()->series_started_at->isFuture());
     }
 
     public function test_it_can_pause_and_archive_a_loop(): void

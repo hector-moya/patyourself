@@ -19,15 +19,17 @@ class UpdateIntentionTest extends TestCase
         $user = User::factory()->create(['timezone' => 'UTC']);
         $intention = Intention::factory()->for($user)->create(['status' => Intention::STATUS_PAUSED]);
 
+        $stale = Carbon::now()->subDays(3)->setTime(21, 30);
         $action = Action::factory()->for($intention)->create([
             'status' => Action::STATUS_PENDING,
             'recurrence' => 'daily',
-            'scheduled_for' => Carbon::now()->subDays(3)->setTime(21, 30),
+            'scheduled_for' => $stale,
+            'series_started_at' => $stale,
         ]);
 
         app(UpdateIntention::class)->handle($intention, ['status' => Intention::STATUS_ACTIVE]);
 
-        $this->assertTrue($action->fresh()->scheduled_for->isFuture());
+        $this->assertTrue($action->fresh()->series_started_at->isFuture());
     }
 
     public function test_activating_leaves_anchored_actions_alone(): void
@@ -39,11 +41,12 @@ class UpdateIntentionTest extends TestCase
             'status' => Action::STATUS_PENDING,
             'recurrence' => null,
             'scheduled_for' => null,
+            'series_started_at' => null,
         ]);
 
         app(UpdateIntention::class)->handle($intention, ['status' => Intention::STATUS_ACTIVE]);
 
-        $this->assertNull($action->fresh()->scheduled_for);
+        $this->assertNull($action->fresh()->series_started_at);
     }
 
     public function test_a_plain_title_edit_does_not_touch_schedules(): void
@@ -56,11 +59,12 @@ class UpdateIntentionTest extends TestCase
             'status' => Action::STATUS_PENDING,
             'recurrence' => 'daily',
             'scheduled_for' => $stale,
+            'series_started_at' => $stale,
         ]);
 
         app(UpdateIntention::class)->handle($intention, ['title' => 'Renamed']);
 
-        $this->assertTrue($action->fresh()->scheduled_for->equalTo($stale));
+        $this->assertTrue($action->fresh()->series_started_at->equalTo($stale));
     }
 
     public function test_activating_a_stale_weekly_action_keeps_its_original_weekday(): void
@@ -70,18 +74,20 @@ class UpdateIntentionTest extends TestCase
         $user = User::factory()->create(['timezone' => 'UTC']);
         $intention = Intention::factory()->for($user)->create(['status' => Intention::STATUS_PAUSED]);
 
+        $staleSunday = Carbon::parse('2026-01-11 10:00:00', 'UTC'); // a stale Sunday
         $action = Action::factory()->for($intention)->create([
             'status' => Action::STATUS_PENDING,
             'recurrence' => 'weekly',
-            'scheduled_for' => Carbon::parse('2026-01-11 10:00:00', 'UTC'), // a stale Sunday
+            'scheduled_for' => $staleSunday,
+            'series_started_at' => $staleSunday,
         ]);
 
         app(UpdateIntention::class)->handle($intention, ['status' => Intention::STATUS_ACTIVE]);
 
         $fresh = $action->fresh();
-        $this->assertTrue($fresh->scheduled_for->isFuture());
-        $this->assertSame(Carbon::SUNDAY, $fresh->scheduled_for->dayOfWeek);
-        $this->assertSame('10:00', $fresh->scheduled_for->format('H:i'));
+        $this->assertTrue($fresh->series_started_at->isFuture());
+        $this->assertSame(Carbon::SUNDAY, $fresh->series_started_at->dayOfWeek);
+        $this->assertSame('10:00', $fresh->series_started_at->format('H:i'));
     }
 
     public function test_activating_leaves_a_future_dated_pending_action_untouched(): void
@@ -94,11 +100,12 @@ class UpdateIntentionTest extends TestCase
             'status' => Action::STATUS_PENDING,
             'recurrence' => 'daily',
             'scheduled_for' => $future,
+            'series_started_at' => $future,
         ]);
 
         app(UpdateIntention::class)->handle($intention, ['status' => Intention::STATUS_ACTIVE]);
 
-        $this->assertTrue($action->fresh()->scheduled_for->equalTo($future));
+        $this->assertTrue($action->fresh()->series_started_at->equalTo($future));
     }
 
     protected function tearDown(): void

@@ -6,13 +6,16 @@ use App\Actions\PersistAuthoredIntention;
 use App\Actions\RescheduleAction;
 use App\Actions\StartExperiment;
 use App\Models\Action;
+use App\Models\ActionLog;
 use App\Models\Intention;
+use App\Models\Occurrence;
 use App\Models\Strategy;
 use App\Models\User;
 use App\Services\Authoring\AuthoredAction;
 use App\Services\Authoring\AuthoredIntention;
 use App\Services\Authoring\AuthoredStrategy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
 /**
@@ -158,5 +161,69 @@ class SeriesAnchorTest extends TestCase
 
         $this->assertNull($fresh->scheduled_for);
         $this->assertNull($fresh->series_started_at);
+    }
+
+    public function test_rescheduling_purges_unlogged_future_occasions(): void
+    {
+        Carbon::setTestNow('2026-08-24 12:00:00');
+
+        $action = Action::factory()->create([
+            'series_started_at' => Carbon::parse('2026-08-24 09:00:00'),
+            'recurrence' => 'daily',
+        ]);
+
+        $future = Occurrence::factory()->for($action)->create([
+            'scheduled_for' => Carbon::parse('2026-08-24 21:00:00'),
+        ]);
+
+        app(RescheduleAction::class)->handle($action, 'clock', '07:00', 'daily', null, 'UTC');
+
+        $this->assertDatabaseMissing('occurrences', ['id' => $future->id]);
+    }
+
+    public function test_rescheduling_leaves_past_occasions_alone(): void
+    {
+        Carbon::setTestNow('2026-08-24 12:00:00');
+
+        $action = Action::factory()->create([
+            'series_started_at' => Carbon::parse('2026-08-20 09:00:00'),
+            'recurrence' => 'daily',
+        ]);
+
+        $past = Occurrence::factory()->for($action)->create([
+            'scheduled_for' => Carbon::parse('2026-08-22 09:00:00'),
+        ]);
+
+        app(RescheduleAction::class)->handle($action, 'clock', '07:00', 'daily', null, 'UTC');
+
+        $this->assertDatabaseHas('occurrences', ['id' => $past->id]);
+    }
+
+    public function test_rescheduling_never_deletes_a_logged_occasion(): void
+    {
+        Carbon::setTestNow('2026-08-24 12:00:00');
+
+        $action = Action::factory()->create([
+            'series_started_at' => Carbon::parse('2026-08-24 09:00:00'),
+            'recurrence' => 'daily',
+        ]);
+
+        $logged = Occurrence::factory()->for($action)->create([
+            'scheduled_for' => Carbon::parse('2026-08-24 21:00:00'),
+        ]);
+        ActionLog::factory()->for($action)->for($logged)->create();
+
+        app(RescheduleAction::class)->handle($action, 'clock', '07:00', 'daily', null, 'UTC');
+
+        // The record is append-only. A future slot that already carries an
+        // outcome is evidence, not a phantom.
+        $this->assertDatabaseHas('occurrences', ['id' => $logged->id]);
+    }
+
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+
+        parent::tearDown();
     }
 }
