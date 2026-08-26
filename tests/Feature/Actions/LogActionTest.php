@@ -14,9 +14,8 @@ use Tests\TestCase;
 
 /**
  * Logging an outcome against the occasion it describes. The rule that matters
- * most here: catching up an older occasion must never move the action's
- * next-due pointer, because that pointer is what the trigger engine and the
- * action cards read.
+ * most here: an outcome never touches the action row, whether it is logged
+ * against today's live slot or catches up an older occasion.
  */
 class LogActionTest extends TestCase
 {
