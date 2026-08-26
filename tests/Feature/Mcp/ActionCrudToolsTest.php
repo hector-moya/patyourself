@@ -91,6 +91,8 @@ class ActionCrudToolsTest extends TestCase
         $this->assertSame('Put the pan back on the stove before sitting down', $action->title);
         $this->assertTrue($action->series_started_at->equalTo($action->scheduled_for));
         $this->assertSame(1, $payload['strategy_version']);
+        $this->assertArrayHasKey('next_occurrence_at', $payload);
+        $this->assertArrayNotHasKey('status', $payload);
     }
 
     public function test_add_action_creates_a_cue_anchored_action(): void

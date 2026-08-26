@@ -80,6 +80,7 @@ class ActiveActionResourceTest extends TestCase
         $payload = (new IntentionResource($loop->load('activeAction')))->toArray(request());
 
         $this->assertArrayNotHasKey('scheduled_for', $payload['active_action']);
+        $this->assertArrayNotHasKey('status', $payload['active_action']);
         $this->assertNotNull($payload['active_action']['next_occurrence_at']);
     }
 }
