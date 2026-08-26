@@ -9,6 +9,7 @@ use App\Mcp\Tools\LogOutcomeTool;
 use App\Mcp\Tools\LoopOutcomesTool;
 use App\Mcp\Tools\LoopProgressTool;
 use App\Mcp\Tools\PendingOutcomesTool;
+use App\Mcp\Tools\StartExperimentTool;
 use App\Mcp\Tools\TodayActionsTool;
 use Laravel\Mcp\Server;
 use Laravel\Mcp\Server\Attributes\Instructions;
@@ -35,7 +36,9 @@ expires and nothing is overdue.
 A check-in usually goes: pending-outcomes to see which occasions went unlogged,
 log-outcome for each one in the user's own words, loop-outcomes to read those
 reasons back and find where the chain is actually breaking, then loop-progress
-and get-loop to see how the current experiment is holding up.
+and get-loop to see how the current experiment is holding up — and
+start-experiment when the current intervention point is not the right one any
+more.
 
 Use list-loops and get-loop to see what the user is working on, today-actions
 for what is due now, and loop-progress for the current experiment against the
@@ -74,5 +77,6 @@ class PatYourSelfServer extends Server
         LoopOutcomesTool::class,
         LoopProgressTool::class,
         CreateLoopTool::class,
+        StartExperimentTool::class,
     ];
 }
