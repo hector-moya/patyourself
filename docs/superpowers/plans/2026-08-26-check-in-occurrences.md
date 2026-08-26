@@ -2024,3 +2024,23 @@ git commit -m "feat(mcp): loop-progress reports the current experiment and the l
 - **Not covered, deliberately** (spec "Out of scope"): screens, action CRUD, `update-loop`, `log-note`, `conclude-experiment`, MCP prompts.
 - **Type consistency.** `series_started_at` is an immutable datetime everywhere; `Occurrence::$scheduled_for` likewise; `LogAction::handle`'s fourth parameter is `?Occurrence` in T4, T5 and nowhere else; `forCurrentVersion` is the only new `LoopProgress` method and `forLoop` keeps its existing signature for `ProgressController`.
 - **Deployment note.** Four migrations run in order; the backfill one reads `action_logs` written before this branch. Nothing here is destructive and `down()` is defined for each.
+
+---
+
+## Carry-forward: what the build found
+
+Facts discovered during implementation that are not derivable from the code.
+
+**1. `artisan make:migration` gave all four migrations the same timestamp.** Laravel orders by filename, so alphabetically `add_occurrence_columns_to_action_logs_table` sorted *before* `create_occurrences_table` and the foreign key would have pointed at a table that did not exist yet. They are renamed to `093409`–`093412` to force the order. Any migration added alongside these needs the same care.
+
+**2. `RescheduleAction` re-anchors, it does not freeze.** See the amendment under Task 2. The anchor is "where the current cadence began", not "where the action was born".
+
+**3. `isLiveSlot` must return true for an action with no schedule.** A cue-anchored or one-off action has no next-due pointer to be behind, so the first version of the check — which required `scheduled_for !== null` — silently stopped those actions closing on completion. Caught by three existing tests, not by the new ones.
+
+**4. `validate()` strips array sub-keys it has no rule for.** The closed `context_fields` set has to be checked against `$request->get('context_fields')`, the raw input. Validating against `$validated` looks correct and rejects nothing.
+
+**5. The `action_logs` rollback was broken on MySQL and SQLite hid it.** Production is MySQL 8, where the unique index on `occurrence_id` is the index satisfying the foreign key's own index requirement: dropping it first fails with *"Cannot drop index: needed in a foreign key constraint"*. SQLite rebuilds the table and never noticed. `down()` now drops the constraint, then the index, then the columns.
+
+**Verification performed beyond the suite:** the full up → down → up migration cycle on both SQLite and MySQL 8; a data-migration rehearsal seeding a pre-branch loop with one 24-August failure, confirming the reason survives verbatim, the synthesised occurrence lands at its `logged_at`, and the backfilled anchor sits far enough forward that materialisation cannot collide with it; and the whole 429-test suite against MySQL as well as SQLite.
+
+**Still open, unchanged from the phase 3/4 carry-forward:** `ConcludeExperiment` clears `review_at` (and still has no caller — `conclude-experiment` was out of scope here); `laravel/ai` remains a dependency with no consumer; `ANTHROPIC_API_KEY` should be deleted from Forge and `.env`.
