@@ -100,7 +100,9 @@ final readonly class MaterialiseOccurrences
      * Only slots that do not already exist are written. This runs every minute
      * from `actions:fire`, and re-upserting up to MAX_SLOTS_PER_ACTION rows per
      * action per minute is pure waste; in the steady state the diff is empty
-     * and the method returns before touching the database at all.
+     * and the method returns before writing to the database. The reads still
+     * happen every pass — the eligible-action query and the existence SELECT
+     * below — so this saves the write, not the round trip.
      */
     private function materialise(Action $action, string $timezone): int
     {
