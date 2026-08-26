@@ -71,6 +71,39 @@ export interface IntentionData {
  */
 export type LogOutcome = 'completed' | 'failed' | 'skipped';
 
+/** The small, closed structured set recorded beside an outcome's free text. */
+export interface OutcomeContextFields {
+    place?: string | null;
+    with_others?: boolean | null;
+    preceded_by?: string | null;
+}
+
+/**
+ * One recorded outcome on a loop's record. `occurred_at` is when the occasion
+ * happened; `logged_at` is when it was typed. They differ whenever the user
+ * caught up after the fact, which is the ordinary case.
+ */
+export interface OutcomeEntryData {
+    id: number;
+    occurred_at: string;
+    logged_at: string;
+    action_id: number;
+    action_title: string;
+    outcome: LogOutcome | string;
+    /** The user's own words, unchanged. */
+    reason: string | null;
+    context: string | null;
+    context_fields: OutcomeContextFields | null;
+    strategy_version: number | null;
+}
+
+/** An observation attached to the loop and to no occasion. */
+export interface NoteData {
+    id: number;
+    body: string;
+    noted_at: string;
+}
+
 /** One delivered cue in the inbox (mirrors InboxController's mapped payload). */
 export interface NotificationData {
     id: string;

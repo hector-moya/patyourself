@@ -33,21 +33,51 @@ function intention(overrides: Partial<IntentionData> = {}): IntentionData {
     };
 }
 
+/** The record props every render needs; individual tests override what they care about. */
+const record = {
+    outcomes: [],
+    outcomes_total: 0,
+    showing_all_history: false,
+    notes: [],
+};
+
 describe('LoopShow', () => {
     it('offers to activate a paused loop', () => {
-        render(<LoopShow intention={intention({ status: 'paused' })} strategies={[]} />);
+        render(
+            <LoopShow
+                intention={intention({ status: 'paused' })}
+                strategies={[]}
+                {...record}
+            />,
+        );
 
-        expect(screen.getByRole('button', { name: /activate/i })).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: /activate/i }),
+        ).toBeInTheDocument();
     });
 
     it('does not offer activation for an active loop', () => {
-        render(<LoopShow intention={intention({ status: 'active' })} strategies={[]} />);
+        render(
+            <LoopShow
+                intention={intention({ status: 'active' })}
+                strategies={[]}
+                {...record}
+            />,
+        );
 
-        expect(screen.queryByRole('button', { name: /activate/i })).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: /activate/i }),
+        ).not.toBeInTheDocument();
     });
 
     it('uses the design-system Button for the activate action', () => {
-        render(<LoopShow intention={intention({ status: 'paused' })} strategies={[]} />);
+        render(
+            <LoopShow
+                intention={intention({ status: 'paused' })}
+                strategies={[]}
+                {...record}
+            />,
+        );
 
         const button = screen.getByRole('button', { name: /activate/i });
         expect(button).toHaveClass('py-btn', 'py-btn--primary');
@@ -61,10 +91,13 @@ describe('LoopShow', () => {
                     metadata: { authored_by: 'mcp-client' },
                 })}
                 strategies={[]}
+                {...record}
             />,
         );
 
-        expect(screen.getByText(/claude drafted this loop/i)).toBeInTheDocument();
+        expect(
+            screen.getByText(/claude drafted this loop/i),
+        ).toBeInTheDocument();
     });
 
     it('does not credit Claude for a paused loop it did not author', () => {
@@ -75,12 +108,17 @@ describe('LoopShow', () => {
                     metadata: { authored_by: 'user' },
                 })}
                 strategies={[]}
+                {...record}
             />,
         );
 
-        expect(screen.queryByText(/claude drafted this loop/i)).not.toBeInTheDocument();
         expect(
-            screen.getByText(/activating it starts its schedule and notifications/i),
+            screen.queryByText(/claude drafted this loop/i),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.getByText(
+                /activating it starts its schedule and notifications/i,
+            ),
         ).toBeInTheDocument();
     });
 });
