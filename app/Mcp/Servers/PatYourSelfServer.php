@@ -6,6 +6,7 @@ use App\Mcp\Tools\CreateLoopTool;
 use App\Mcp\Tools\GetLoopTool;
 use App\Mcp\Tools\ListLoopsTool;
 use App\Mcp\Tools\LogOutcomeTool;
+use App\Mcp\Tools\LoopOutcomesTool;
 use App\Mcp\Tools\LoopProgressTool;
 use App\Mcp\Tools\PendingOutcomesTool;
 use App\Mcp\Tools\TodayActionsTool;
@@ -32,8 +33,9 @@ to occurrences, so an occasion from days ago can still be logged today. Nothing
 expires and nothing is overdue.
 
 A check-in usually goes: pending-outcomes to see which occasions went unlogged,
-log-outcome for each one in the user's own words, then loop-progress and
-get-loop to see how the current experiment is holding up.
+log-outcome for each one in the user's own words, loop-outcomes to read those
+reasons back and find where the chain is actually breaking, then loop-progress
+and get-loop to see how the current experiment is holding up.
 
 Use list-loops and get-loop to see what the user is working on, today-actions
 for what is due now, and loop-progress for the current experiment against the
@@ -69,6 +71,7 @@ class PatYourSelfServer extends Server
         TodayActionsTool::class,
         PendingOutcomesTool::class,
         LogOutcomeTool::class,
+        LoopOutcomesTool::class,
         LoopProgressTool::class,
         CreateLoopTool::class,
     ];
