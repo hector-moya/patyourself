@@ -26,7 +26,7 @@ class ActionController extends Controller
 
         return response()->json([
             'id' => $action->id,
-            'scheduled_for' => $action->scheduled_for,
+            'next_occurrence_at' => $action->nextOccurrenceAt(),
             'recurrence' => $action->recurrence,
             'status' => $action->status,
         ]);

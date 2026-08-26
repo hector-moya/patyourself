@@ -37,10 +37,9 @@ trait DescribesActionShape
             'title' => $action->title,
             'description' => $action->description,
             'kind' => $action->metadata['schedule_kind'] ?? null,
-            'scheduled_for' => $action->scheduled_for?->toIso8601String(),
+            'next_occurrence_at' => $action->nextOccurrenceAt()?->toIso8601String(),
             'recurrence' => $action->recurrence,
             'anchor' => $action->metadata['anchor'] ?? null,
-            'status' => $action->status,
             'strategy_version' => $action->strategy?->version,
         ];
     }

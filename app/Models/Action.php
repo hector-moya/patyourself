@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\CarbonImmutable;
 use Database\Factories\ActionFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Scope;
@@ -10,6 +11,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Date;
 
 /**
  * A concrete action a strategy prescribes — the source of a rendered action
@@ -109,5 +111,21 @@ class Action extends Model
     public function occurrences(): HasMany
     {
         return $this->hasMany(Occurrence::class);
+    }
+
+    /**
+     * The next occasion still awaiting an outcome, at or after now. Null when
+     * there is none — including for a cue-anchored action, which has no grid,
+     * and for a day whose slots are all behind us: the grid is materialised
+     * only through the end of the local day, so there is genuinely nothing
+     * further to report.
+     */
+    public function nextOccurrenceAt(): ?CarbonImmutable
+    {
+        return $this->occurrences()
+            ->unlogged()
+            ->where('scheduled_for', '>=', Date::now())
+            ->orderBy('scheduled_for')
+            ->value('scheduled_for');
     }
 }

@@ -41,8 +41,8 @@ export interface ActiveActionData {
     id: number;
     title: string;
     description: string | null;
-    status: string;
-    scheduled_for: string | null;
+    /** The next occasion still awaiting an outcome, or null when today has none left. */
+    next_occurrence_at: string | null;
     recurrence: string | null;
     schedule_kind: 'clock' | 'anchored' | null;
     anchor: string | null;

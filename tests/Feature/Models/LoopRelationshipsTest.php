@@ -51,19 +51,19 @@ class LoopRelationshipsTest extends TestCase
         $this->assertNull($intention->activeStrategy);
     }
 
-    public function test_active_action_is_the_open_action_and_skips_closed_ones(): void
+    public function test_active_action_is_the_most_recent_action_regardless_of_status(): void
     {
         $intention = Intention::factory()->create();
         Action::factory()->for($intention)->create(['status' => Action::STATUS_COMPLETED]);
-        $open = Action::factory()->for($intention)->create(['status' => Action::STATUS_ACTIVE]);
+        $latest = Action::factory()->for($intention)->create(['status' => Action::STATUS_SKIPPED]);
 
-        $this->assertSame($open->id, $intention->activeAction->id);
+        $this->assertSame($latest->id, $intention->activeAction->id);
     }
 
-    public function test_active_action_is_null_when_every_action_is_closed(): void
+    public function test_active_action_is_null_when_the_only_action_is_archived(): void
     {
         $intention = Intention::factory()->create();
-        Action::factory()->for($intention)->create(['status' => Action::STATUS_SKIPPED]);
+        Action::factory()->for($intention)->create(['status' => Action::STATUS_ARCHIVED]);
 
         $this->assertNull($intention->activeAction);
     }
