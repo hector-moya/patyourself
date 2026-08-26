@@ -27,8 +27,8 @@ use Illuminate\Support\Facades\DB;
  * (the cue is answered). It remains free of LLM side-effects.
  *
  * This is the only place the logging flow writes to the database. It is
- * deliberately free of LLM side-effects — revising a strategy and refolding a
- * summary both make model calls, so they run as separate, explicit steps.
+ * deliberately free of LLM side-effects — nothing here makes a model call;
+ * revising a strategy is a separate, explicit action the owner takes.
  */
 final readonly class LogAction
 {

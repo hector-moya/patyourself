@@ -2,11 +2,11 @@
 
 namespace App\Mcp\Tools;
 
-use App\Actions\AuthorIntention;
+use App\Actions\PersistAuthoredIntention;
 use App\Models\Intention;
 use App\Models\Strategy;
-use App\Services\Coach\Authoring\AuthoredIntention;
-use App\Services\Coach\Exceptions\CoachException;
+use App\Services\Authoring\AuthoredIntention;
+use App\Services\Authoring\AuthoringException;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\JsonSchema\Types\Type;
 use Illuminate\Validation\Rule;
@@ -20,7 +20,7 @@ use Laravel\Mcp\Server\Tool;
 #[Description('Create a new habit loop from a cue -> craving -> response -> reward chain the user has agreed to. The loop is created PAUSED so the user reviews and activates it in the app. Ask the user about their real cue, craving, response and reward before calling this — do not invent them.')]
 class CreateLoopTool extends Tool
 {
-    /** Provenance stamped onto the loop's metadata, distinguishing MCP-authored loops from IntentionAuthor ones. */
+    /** Provenance stamped onto the loop's metadata, distinguishing MCP-authored loops from others. */
     public const AUTHORED_BY = 'mcp-client';
 
     public const PROMPT_VERSION = 'mcp@1';
@@ -30,12 +30,10 @@ class CreateLoopTool extends Tool
     private const RECURRENCES = ['once', 'daily', 'weekdays', 'weekly'];
 
     /**
-     * The client authors the structure; this only validates and persists, through
-     * the same AuthorIntention writer the in-app coach uses. Passing an authored
-     * DTO means AuthorIntention never reaches its LLM branch, so this tool makes
-     * no model call and costs nothing against the coach budget.
+     * The client authors the structure; this only validates and persists. No
+     * model call happens anywhere in this path.
      */
-    public function handle(Request $request, AuthorIntention $author): Response
+    public function handle(Request $request, PersistAuthoredIntention $persist): Response
     {
         $kind = data_get($request->get('action'), 'kind');
 
@@ -76,14 +74,12 @@ class CreateLoopTool extends Tool
                 self::AUTHORED_BY,
                 self::PROMPT_VERSION,
             );
-        } catch (CoachException) {
+        } catch (AuthoringException) {
             return Response::error('That loop is missing required structure. Provide title, type, cue, craving, response, reward and a strategy.');
         }
 
-        $intention = $author->handle(
+        $intention = $persist->handle(
             $request->user(),
-            $validated['title'],
-            [],
             $authored,
             Intention::STATUS_PAUSED,
         );
@@ -98,8 +94,8 @@ class CreateLoopTool extends Tool
 
     /**
      * AuthoredIntention::fromStructured (via AuthoredAction::fromStructured) reads
-     * an action's schedule fields nested under `schedule` — the shape the
-     * authoring agents' own JSON schema uses (see Strategist/IntentionAuthor).
+     * an action's schedule fields nested under `schedule`, the shape shared by
+     * every path that authors an intention.
      * This tool's public arguments keep kind/time/recurrence/anchor flat for a
      * simpler MCP contract, so bridge the two shapes here.
      *

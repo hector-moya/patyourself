@@ -147,4 +147,71 @@ class LoopProgressTest extends TestCase
         $this->assertNull($report['last_logged_at']);
         $this->assertSame(0, $report['streak']['length']);
     }
+
+    public function test_it_attributes_each_log_to_the_version_that_was_running(): void
+    {
+        $intention = Intention::factory()->create();
+
+        $v1 = Strategy::factory()->for($intention)->create([
+            'version' => 1,
+            'status' => Strategy::STATUS_SUPERSEDED,
+            'verdict' => Strategy::VERDICT_FAILED,
+            'verdict_note' => 'never remembered to pause',
+        ]);
+        $v2 = Strategy::factory()->for($intention)->create([
+            'version' => 2,
+            'status' => Strategy::STATUS_ACTIVE,
+        ]);
+
+        $a1 = Action::factory()->for($intention)->for($v1)->create();
+        $a2 = Action::factory()->for($intention)->for($v2)->create();
+
+        // logged_at pinned on this pair: the factory default is a random time within the
+        // last two weeks, and experimentsFor() orders outcomes by logged_at, so leaving
+        // it random makes the outcomes[1] assertion below flaky.
+        ActionLog::factory()->for($a1)->create(['outcome' => ActionLog::OUTCOME_COMPLETED, 'logged_at' => now()->subMinutes(2)]);
+        ActionLog::factory()->for($a1)->create(['outcome' => ActionLog::OUTCOME_FAILED, 'reason' => 'tv was on', 'logged_at' => now()->subMinute()]);
+        ActionLog::factory()->for($a2)->create(['outcome' => ActionLog::OUTCOME_COMPLETED]);
+        ActionLog::factory()->for($a2)->create(['outcome' => ActionLog::OUTCOME_COMPLETED]);
+        ActionLog::factory()->for($a2)->create(['outcome' => ActionLog::OUTCOME_SKIPPED]);
+
+        $experiments = app(LoopProgress::class)->experimentsFor($intention);
+
+        $this->assertCount(2, $experiments);
+
+        $this->assertSame(1, $experiments[0]['version']);
+        $this->assertSame(['completed' => 1, 'failed' => 1, 'skipped' => 0], $experiments[0]['totals']);
+        $this->assertSame(Strategy::VERDICT_FAILED, $experiments[0]['verdict']);
+        $this->assertSame('tv was on', $experiments[0]['outcomes'][1]['reason']);
+
+        $this->assertSame(2, $experiments[1]['version']);
+        $this->assertSame(['completed' => 2, 'failed' => 0, 'skipped' => 1], $experiments[1]['totals']);
+        $this->assertNull($experiments[1]['verdict']);
+    }
+
+    public function test_it_returns_counts_not_rounded_rates(): void
+    {
+        $intention = Intention::factory()->create();
+        $strategy = Strategy::factory()->for($intention)->create(['version' => 1]);
+        $action = Action::factory()->for($intention)->for($strategy)->create();
+
+        ActionLog::factory()->count(2)->for($action)->create(['outcome' => ActionLog::OUTCOME_COMPLETED]);
+        ActionLog::factory()->for($action)->create(['outcome' => ActionLog::OUTCOME_FAILED]);
+
+        $experiments = app(LoopProgress::class)->experimentsFor($intention);
+
+        $this->assertSame(['completed' => 2, 'failed' => 1, 'skipped' => 0], $experiments[0]['totals']);
+        $this->assertArrayNotHasKey('completion_rate', $experiments[0]);
+    }
+
+    public function test_a_version_with_no_logs_reports_empty_totals(): void
+    {
+        $intention = Intention::factory()->create();
+        Strategy::factory()->for($intention)->create(['version' => 1]);
+
+        $experiments = app(LoopProgress::class)->experimentsFor($intention);
+
+        $this->assertSame(['completed' => 0, 'failed' => 0, 'skipped' => 0], $experiments[0]['totals']);
+        $this->assertSame([], $experiments[0]['outcomes']);
+    }
 }

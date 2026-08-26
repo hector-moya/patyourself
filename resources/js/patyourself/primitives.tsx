@@ -1,8 +1,8 @@
 /**
- * PatYourSelf — DS primitives (Icon, Button, IconButton, Chip, Avatar,
- * Composer, Eyebrow). Ported from the design-system kit; styling lives in
- * the `py-*` classes in patyourself.css. Icons are lucide, looked up by the
- * kebab-case names the design used.
+ * PatYourSelf — DS primitives (Icon, Button, IconButton, Chip, Eyebrow).
+ * Ported from the design-system kit; styling lives in the `py-*` classes in
+ * patyourself.css. Icons are lucide, looked up by the kebab-case names the
+ * design used.
  */
 import {
     ArrowUp,
@@ -19,7 +19,6 @@ import {
     TrendingUp,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
 
 const ICONS: Record<string, LucideIcon> = {
@@ -166,109 +165,6 @@ export function Chip({
             {icon && <Icon name={icon} size={14} />}
             {children}
         </span>
-    );
-}
-
-export function Avatar({
-    kind = 'coach',
-    initial = 'Y',
-    size = 36,
-}: {
-    kind?: 'coach' | 'user';
-    initial?: string;
-    size?: number;
-}) {
-    if (kind === 'coach') {
-        return (
-            <span
-                className="py-avatar py-avatar--coach"
-                style={{ width: size, height: size }}
-            >
-                <svg
-                    viewBox="0 0 40 40"
-                    width={size * 0.62}
-                    height={size * 0.62}
-                    aria-hidden="true"
-                >
-                    <path
-                        d="M20 8 a12 12 0 1 1 -10.4 6"
-                        stroke="currentColor"
-                        strokeWidth="3.4"
-                        strokeLinecap="round"
-                        fill="none"
-                    />
-                    <path
-                        d="M20 8 l-4.8 -2 m4.8 2 l-2 4.8"
-                        stroke="currentColor"
-                        strokeWidth="3.4"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        fill="none"
-                    />
-                    <circle cx="20" cy="20" r="3.2" fill="currentColor" />
-                </svg>
-            </span>
-        );
-    }
-
-    return (
-        <span
-            className="py-avatar py-avatar--user"
-            style={{ width: size, height: size, fontSize: size * 0.4 }}
-        >
-            {initial}
-        </span>
-    );
-}
-
-export function Composer({
-    placeholder = "Tell your coach what's on your mind…",
-    value,
-    onChange,
-    onSend,
-}: {
-    placeholder?: string;
-    value?: string;
-    onChange?: (v: string) => void;
-    onSend?: (v: string) => void;
-}) {
-    const controlled = value !== undefined;
-    const [local, setLocal] = useState('');
-    const val = controlled ? value : local;
-    const set = (v: string) => (controlled ? onChange?.(v) : setLocal(v));
-    const send = () => {
-        if (val.trim() && onSend) {
-            onSend(val.trim());
-        }
-
-        set('');
-    };
-
-    return (
-        <div className="py-composer">
-            <input
-                className="py-composer__input"
-                value={val}
-                placeholder={placeholder}
-                onChange={(e) => set(e.target.value)}
-                onKeyDown={(e) => {
-                    // `isComposing` guards IME input (CJK, accents): Enter then
-                    // commits the composition rather than firing a send.
-                    if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
-                        send();
-                    }
-                }}
-            />
-            <button
-                type="button"
-                className="py-composer__send"
-                aria-label="Send"
-                disabled={!val.trim()}
-                onClick={send}
-            >
-                <Icon name="arrow-up" size={20} />
-            </button>
-        </div>
     );
 }
 

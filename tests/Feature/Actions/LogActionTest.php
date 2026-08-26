@@ -7,10 +7,12 @@ use App\Events\ActionLogged;
 use App\Models\Action;
 use App\Models\ActionLog;
 use App\Models\Intention;
+use App\Models\Strategy;
 use App\Models\User;
 use App\Notifications\ActionDueNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
 /**
@@ -272,5 +274,22 @@ class LogActionTest extends TestCase
         }
 
         Event::assertDispatchedTimes(ActionLogged::class, 2);
+    }
+
+    public function test_logging_an_outcome_queues_no_coaching_job(): void
+    {
+        Queue::fake();
+
+        $user = User::factory()->create();
+        $intention = Intention::factory()->for($user)->create();
+        $strategy = Strategy::factory()->for($intention)->create();
+        $action = Action::factory()->for($intention)->for($strategy)->create();
+
+        app(LogAction::class)->handle($user, $action, [
+            'outcome' => ActionLog::OUTCOME_FAILED,
+            'reason' => 'ate on autopilot',
+        ]);
+
+        Queue::assertNothingPushed();
     }
 }

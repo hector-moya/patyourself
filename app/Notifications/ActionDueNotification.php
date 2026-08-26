@@ -66,7 +66,7 @@ class ActionDueNotification extends Notification implements ShouldQueue
             ->line("It's time for: {$this->action->title}")
             ->line("Loop: {$loop->title}")
             ->line("Cue: {$loop->cue}")
-            ->action('Open PatYourSelf', route('intentions.show', $loop->id))
+            ->action('Open PatYourSelf', route('loops.show', $loop->id))
             ->line('Manage your reminders: '.route('notifications.edit'));
     }
 

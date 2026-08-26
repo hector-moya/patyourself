@@ -2,25 +2,22 @@ import { Link } from '@inertiajs/react';
 
 import CoachLayout from '@/layouts/coach-layout';
 import { BottomNav } from '@/patyourself/bottom-nav';
-import { CoachUsageCard } from '@/patyourself/progress/coach-usage-card';
 import { ProgressCard } from '@/patyourself/progress/progress-card';
-import type { CoachUsageSnapshot, LoopProgressCard } from '@/patyourself/types';
+import type { LoopProgressCard } from '@/patyourself/types';
 
 interface ProgressIndexProps {
     loops: LoopProgressCard[];
-    usage: CoachUsageSnapshot;
 }
 
 /**
- * Progress dashboard — the account's coach-usage card, then a stack of
- * active-loop metric cards (streak, completion rate, recent-activity sparkline,
- * narrative snippet), each linking to the loop's detail. Read-only.
+ * Progress dashboard — a stack of active-loop metric cards (streak, completion
+ * rate, recent-activity sparkline, narrative snippet), each linking to the
+ * loop's detail. Read-only.
  */
-export default function ProgressIndex({ loops, usage }: ProgressIndexProps) {
+export default function ProgressIndex({ loops }: ProgressIndexProps) {
     return (
         <CoachLayout title="Progress" bottomNav={<BottomNav />} wide>
             <div className="flex flex-col gap-3 lg:gap-5">
-                <CoachUsageCard usage={usage} />
                 {loops.length === 0 ? (
                     <EmptyState />
                 ) : (
@@ -41,13 +38,14 @@ function EmptyState() {
     return (
         <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border p-8 text-center">
             <p className="text-sm text-muted-foreground">
-                No active loops yet.
+                No active loops yet. New loops are created by talking to Claude
+                through the PatYourSelf connector.
             </p>
             <Link
-                href="/dashboard"
+                href="/loops"
                 className="text-sm font-medium text-primary"
             >
-                Start a loop with your coach
+                View your loops
             </Link>
         </div>
     );

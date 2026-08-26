@@ -9,12 +9,11 @@ describe('resolvePageLayout', () => {
     // Every first-party screen owns its CoachLayout shell, so it must resolve to
     // null — wrapping it in AppLayout too produces a sidebar inside a sidebar.
     it.each([
-        'coach',
         'inbox',
         'progress/index',
         'progress/show',
-        'intentions/index',
-        'intentions/show',
+        'loops/index',
+        'loops/show',
         'welcome',
         'landing',
     ])('resolves the shell-owning page "%s" to null', (name) => {

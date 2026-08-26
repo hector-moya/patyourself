@@ -1,9 +1,9 @@
 /**
  * PatYourSelf — the app's primary navigation on phones. Renders inside
  * CoachLayout's reserved bottom-nav slot (hidden on desktop, where the side
- * rail takes over) and links the app's screens: Coach (chat home), Loops (the
- * loops list), Progress, and Inbox (delivered cues, with an unread badge). The
- * tab definitions live in `nav-tabs` so the rail and bar never drift apart.
+ * rail takes over) and links the app's screens: Loops (the loops list),
+ * Progress, and Inbox (delivered cues, with an unread badge). The tab
+ * definitions live in `nav-tabs` so the rail and bar never drift apart.
  */
 import { Link, usePage } from '@inertiajs/react';
 

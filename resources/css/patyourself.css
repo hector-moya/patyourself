@@ -12,7 +12,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Hanken+Grotesk:ital,wght@0,400..800;1,400..600&family=Space+Mono:wght@400;700&display=swap');
 
 /* `.py-host` carries the same tokens without the full-viewport shell layout,
-   so py-* screens (e.g. the Coach chat) can nest inside CoachLayout's frame. */
+   so py-* screens can nest inside CoachLayout's frame. */
 .py-shell, .py-landing, .py-host {
   /* ============ RAW PALETTE — warm, earthy, calm ============ */
   --paper:        #FBF6EE;  --paper-2:   #F4ECDF;
@@ -216,17 +216,7 @@
 
 /* ---------- Avatar ---------- */
 .py-avatar{display:inline-flex;align-items:center;justify-content:center;border-radius:50%;flex:none;}
-.py-avatar--coach{background:var(--primary);color:var(--on-primary);}
 .py-avatar--user{background:var(--bg-sunk);color:var(--fg-body);font-family:var(--font-mono);font-weight:700;border:1px solid var(--border);}
-
-/* ---------- Composer ---------- */
-.py-composer{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--border-strong);border-radius:var(--radius-pill);padding:6px 6px 6px 18px;box-shadow:var(--shadow-sm);}
-.py-composer__input{flex:1;border:none;background:transparent;outline:none;font-family:var(--font-sans);font-size:var(--text-base);color:var(--fg);min-width:0;}
-.py-composer__input::placeholder{color:var(--fg-faint);}
-.py-composer__send{flex:none;width:40px;height:40px;border-radius:50%;border:none;background:var(--primary);color:var(--on-primary);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background var(--dur-fast),transform var(--dur-fast);}
-.py-composer__send:hover{background:var(--primary-hover);}
-.py-composer__send:active{transform:scale(0.94);}
-.py-composer__send:disabled{background:var(--line-strong);color:var(--fg-faint);cursor:not-allowed;}
 
 /* ---------- Empty state ---------- */
 .py-empty{display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;padding:48px 28px;}
@@ -243,12 +233,7 @@
 .py-msg--user{justify-content:flex-end;}
 .py-msg__col{display:flex;flex-direction:column;gap:4px;max-width:78%;}
 .py-msg--user .py-msg__col{align-items:flex-end;}
-.py-bubble{padding:11px 15px;font-size:var(--text-base);line-height:1.5;border-radius:var(--radius-lg);}
-.py-bubble--coach{background:var(--card);color:var(--fg);border:1px solid var(--border);border-top-left-radius:6px;box-shadow:var(--shadow-xs);}
-.py-bubble--user{background:var(--primary);color:var(--on-primary);border-top-right-radius:6px;}
 .py-msg__time{font-family:var(--font-mono);font-size:11px;color:var(--fg-faint);padding:0 6px;}
-.py-bubble em{font-style:italic;font-weight:600;color:var(--fg);}
-.py-bubble b{font-weight:700;}
 .bubble-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
 
 /* typing */
@@ -303,11 +288,7 @@
 /* ============================================================
    CHAT SCREEN
    ============================================================ */
-.screen-chat{display:flex;flex-direction:column;height:100%;min-height:0;}
-.chat-scroll{flex:1;overflow-y:auto;min-height:0;}
 .chat-inner{max-width:var(--chat-max,640px);margin:0 auto;padding:20px 20px 8px;}
-.chat-dock{flex:none;border-top:1px solid var(--border);background:color-mix(in oklch,var(--bg) 88%,transparent);backdrop-filter:blur(6px);}
-.chat-dock__inner{max-width:var(--chat-max,640px);margin:0 auto;padding:12px 16px 16px;}
 
 /* ---------- Chat header ---------- */
 .coach-head{flex:none;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 28px;border-bottom:1px solid var(--border);background:var(--bg);}

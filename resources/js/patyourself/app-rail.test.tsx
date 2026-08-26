@@ -22,13 +22,9 @@ describe('AppRail', () => {
     it('links every primary tab', () => {
         render(<AppRail />);
 
-        expect(screen.getByText('Coach').closest('a')).toHaveAttribute(
-            'href',
-            '/dashboard',
-        );
         expect(screen.getByText('Loops').closest('a')).toHaveAttribute(
             'href',
-            '/intentions',
+            '/loops',
         );
         expect(screen.getByText('Progress').closest('a')).toHaveAttribute(
             'href',
@@ -47,9 +43,6 @@ describe('AppRail', () => {
         expect(screen.getByText('Progress').closest('a')).toHaveAttribute(
             'aria-current',
             'page',
-        );
-        expect(screen.getByText('Coach').closest('a')).not.toHaveAttribute(
-            'aria-current',
         );
     });
 

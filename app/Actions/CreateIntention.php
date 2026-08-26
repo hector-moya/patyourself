@@ -6,10 +6,9 @@ use App\Models\Intention;
 use App\Models\User;
 
 /**
- * Persists a manually-authored loop for a user. The LLM path lives in
- * {@see AuthorIntention}; this is the human-entered counterpart, and the single
- * place the manual create flow writes to the database. Both the web and API
- * controllers call into it so the two surfaces can never drift.
+ * Persists a manually-authored loop for a user. The single place the manual
+ * create flow writes to the database. Both the web and API controllers call
+ * into it so the two surfaces can never drift.
  */
 final readonly class CreateIntention
 {

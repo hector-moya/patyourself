@@ -14,8 +14,9 @@ use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
- * A habit "loop": the structured Intention the LLM authors, modelled as the
- * cue -> craving -> response -> reward chain. The UI only renders it.
+ * A habit "loop": the structured Intention authored via the MCP `create-loop`
+ * tool, modelled as the cue -> craving -> response -> reward chain. The UI
+ * only renders it.
  */
 #[Fillable([
     'user_id',

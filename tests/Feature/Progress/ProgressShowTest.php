@@ -8,6 +8,7 @@ use App\Models\Intention;
 use App\Models\Strategy;
 use App\Models\Summary;
 use App\Models\User;
+use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
@@ -88,5 +89,53 @@ class ProgressShowTest extends TestCase
         $loop = Intention::factory()->create(['status' => Intention::STATUS_ACTIVE]);
 
         $this->get("/progress/{$loop->id}")->assertRedirect('/login');
+    }
+
+    public function test_the_strategy_resource_carries_the_experiment_fields(): void
+    {
+        CarbonImmutable::setTestNow('2026-09-13 12:00:00');
+
+        $user = User::factory()->create();
+        $intention = Intention::factory()->for($user)->create();
+        Strategy::factory()->for($intention)->create([
+            'version' => 1,
+            'status' => Strategy::STATUS_ACTIVE,
+            'created_at' => CarbonImmutable::parse('2026-09-01 12:00:00'),
+            'review_at' => CarbonImmutable::parse('2026-09-22 12:00:00'),
+            'verdict_note' => 'the cue moved but craving still spikes around 3pm',
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('progress.show', $intention))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('strategies.0.planned_days', 21)
+                ->where('strategies.0.day_of_experiment', 12)
+                ->where('strategies.0.is_under_review', false)
+                ->where('strategies.0.verdict', null)
+                ->where('strategies.0.review_at', '2026-09-22T12:00:00.000000Z')
+                ->where('strategies.0.verdict_note', 'the cue moved but craving still spikes around 3pm'));
+    }
+
+    public function test_the_strategy_resource_serializes_an_open_ended_experiment(): void
+    {
+        CarbonImmutable::setTestNow('2026-09-13 12:00:00');
+
+        $user = User::factory()->create();
+        $intention = Intention::factory()->for($user)->create();
+        Strategy::factory()->for($intention)->create([
+            'version' => 1,
+            'status' => Strategy::STATUS_ACTIVE,
+            'created_at' => CarbonImmutable::parse('2026-09-01 12:00:00'),
+            'review_at' => null,
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('progress.show', $intention))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('strategies.0.review_at', null)
+                ->where('strategies.0.planned_days', null)
+                ->where('strategies.0.is_under_review', false));
     }
 }

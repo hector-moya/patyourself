@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Models\Action;
 use App\Models\Intention;
 use App\Models\Strategy;
 use App\Models\User;
@@ -11,10 +10,9 @@ use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 /**
- * The three-screen routing: chat home (coach), loops list, and loop detail —
- * each an Inertia page rendered in the shared CoachLayout shell. Verifies the
- * controllers hand each screen the right component + props and gate detail on
- * ownership.
+ * The loops-list and loop-detail screen routing — each an Inertia page
+ * rendered in the shared CoachLayout shell. Verifies the controllers hand
+ * each screen the right component + props and gate detail on ownership.
  */
 class IntentionScreensTest extends TestCase
 {
@@ -29,63 +27,9 @@ class IntentionScreensTest extends TestCase
         $this->withoutVite();
     }
 
-    public function test_chat_home_renders_the_coach_screen_with_active_loops(): void
-    {
-        $user = User::factory()->create();
-        Intention::factory()->count(2)->for($user)->create(['status' => Intention::STATUS_ACTIVE]);
-        Intention::factory()->for($user)->create(['status' => Intention::STATUS_ARCHIVED]);
-        Intention::factory()->create(); // another user's
-
-        $this->actingAs($user)
-            ->get('/dashboard')
-            ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page
-                ->component('coach')
-                ->has('intentions', 2)
-            );
-    }
-
-    public function test_chat_home_exposes_each_loops_loggable_active_action(): void
-    {
-        $user = User::factory()->create();
-        $intention = Intention::factory()->for($user)->create(['status' => Intention::STATUS_ACTIVE]);
-
-        // An already-logged action must not be the loggable one.
-        Action::factory()->for($intention)->create(['status' => Action::STATUS_COMPLETED]);
-        $pending = Action::factory()->for($intention)->create([
-            'status' => Action::STATUS_ACTIVE,
-            'title' => 'Set your shoes by the door',
-        ]);
-
-        $this->actingAs($user)
-            ->get('/dashboard')
-            ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page
-                ->component('coach')
-                ->where('intentions.0.active_action.id', $pending->id)
-                ->where('intentions.0.active_action.title', 'Set your shoes by the door')
-                ->where('intentions.0.active_action.status', Action::STATUS_ACTIVE)
-            );
-    }
-
-    public function test_chat_home_exposes_a_null_active_action_when_none_is_pending(): void
-    {
-        $user = User::factory()->create();
-        $intention = Intention::factory()->for($user)->create(['status' => Intention::STATUS_ACTIVE]);
-        Action::factory()->for($intention)->create(['status' => Action::STATUS_COMPLETED]);
-
-        $this->actingAs($user)
-            ->get('/dashboard')
-            ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page
-                ->component('coach')
-                ->where('intentions.0.active_action', null)
-            );
-    }
-
     public function test_guests_are_redirected_from_the_loops_list(): void
     {
-        $this->get('/intentions')->assertRedirect('/login');
+        $this->get('/loops')->assertRedirect('/login');
     }
 
     public function test_loops_list_renders_only_the_users_loops(): void
@@ -95,10 +39,10 @@ class IntentionScreensTest extends TestCase
         Intention::factory()->create();
 
         $this->actingAs($user)
-            ->get('/intentions')
+            ->get('/loops')
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->component('intentions/index')
+                ->component('loops/index')
                 ->has('intentions', 2)
             );
     }
@@ -110,10 +54,10 @@ class IntentionScreensTest extends TestCase
         $active = Intention::factory()->for($user)->create(['status' => Intention::STATUS_ACTIVE]);
 
         $this->actingAs($user)
-            ->get('/intentions')
+            ->get('/loops')
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->component('intentions/index')
+                ->component('loops/index')
                 ->where('intentions.0.id', $active->id)
                 ->where('intentions.1.id', $archived->id)
             );
@@ -144,10 +88,10 @@ class IntentionScreensTest extends TestCase
         ]);
 
         $this->actingAs($user)
-            ->get("/intentions/{$intention->id}")
+            ->get("/loops/{$intention->id}")
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->component('intentions/show')
+                ->component('loops/show')
                 ->where('intention.id', $intention->id)
                 // The active strategy drives which anatomy stage is highlighted.
                 ->where('intention.strategy.intervention_point', Strategy::POINT_RESPONSE)
@@ -163,7 +107,7 @@ class IntentionScreensTest extends TestCase
         $intention = Intention::factory()->create();
 
         $this->actingAs(User::factory()->create())
-            ->get("/intentions/{$intention->id}")
+            ->get("/loops/{$intention->id}")
             ->assertForbidden();
     }
 }

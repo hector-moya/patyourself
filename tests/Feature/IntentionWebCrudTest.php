@@ -35,7 +35,7 @@ class IntentionWebCrudTest extends TestCase
 
     public function test_guests_cannot_create_loops(): void
     {
-        $this->post('/intentions', $this->payload())->assertRedirect('/login');
+        $this->post('/loops', $this->payload())->assertRedirect('/login');
     }
 
     public function test_store_creates_a_loop_and_redirects(): void
@@ -43,7 +43,7 @@ class IntentionWebCrudTest extends TestCase
         $user = User::factory()->create();
 
         $this->actingAs($user)
-            ->post('/intentions', $this->payload())
+            ->post('/loops', $this->payload())
             ->assertRedirect();
 
         $this->assertDatabaseHas('intentions', [
@@ -58,7 +58,7 @@ class IntentionWebCrudTest extends TestCase
 
         $this->actingAs($user)
             ->from('/dashboard')
-            ->post('/intentions', $this->payload(['title' => '']))
+            ->post('/loops', $this->payload(['title' => '']))
             ->assertRedirect('/dashboard')
             ->assertSessionHasErrors('title');
     }
@@ -69,7 +69,7 @@ class IntentionWebCrudTest extends TestCase
         $intention = Intention::factory()->for($user)->create(['title' => 'Old']);
 
         $this->actingAs($user)
-            ->patch("/intentions/{$intention->id}", ['title' => 'New'])
+            ->patch("/loops/{$intention->id}", ['title' => 'New'])
             ->assertRedirect();
 
         $this->assertSame('New', $intention->fresh()->title);
@@ -80,7 +80,7 @@ class IntentionWebCrudTest extends TestCase
         $intention = Intention::factory()->create(['title' => 'Old']);
 
         $this->actingAs(User::factory()->create())
-            ->patch("/intentions/{$intention->id}", ['title' => 'New'])
+            ->patch("/loops/{$intention->id}", ['title' => 'New'])
             ->assertForbidden();
 
         $this->assertSame('Old', $intention->fresh()->title);
@@ -92,7 +92,7 @@ class IntentionWebCrudTest extends TestCase
         $intention = Intention::factory()->for($user)->create();
 
         $this->actingAs($user)
-            ->delete("/intentions/{$intention->id}")
+            ->delete("/loops/{$intention->id}")
             ->assertRedirect();
 
         $this->assertDatabaseMissing('intentions', ['id' => $intention->id]);
@@ -103,7 +103,7 @@ class IntentionWebCrudTest extends TestCase
         $intention = Intention::factory()->create();
 
         $this->actingAs(User::factory()->create())
-            ->delete("/intentions/{$intention->id}")
+            ->delete("/loops/{$intention->id}")
             ->assertForbidden();
 
         $this->assertDatabaseHas('intentions', ['id' => $intention->id]);

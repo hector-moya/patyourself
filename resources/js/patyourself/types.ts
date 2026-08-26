@@ -1,7 +1,7 @@
 /**
  * Client-side shapes mirroring the server API resources (IntentionResource,
- * StrategyResource). The LLM authors this data and the server validates it;
- * the UI only renders it.
+ * StrategyResource). Loops are authored via the MCP `create-loop` tool and
+ * the server validates them; the UI only renders them.
  */
 
 export interface StrategyData {
@@ -13,6 +13,13 @@ export interface StrategyData {
     rationale: string | null;
     change_reason: string | null;
     superseded_reason: string | null;
+    /** The experiment framing. Always present — StrategyResource sends these keys unconditionally. */
+    review_at: string | null;
+    verdict: string | null;
+    verdict_note: string | null;
+    day_of_experiment: number;
+    planned_days: number | null;
+    is_under_review: boolean;
     parent_strategy_id: number | null;
     metadata: Record<string, unknown> | null;
     created_at: string | null;
@@ -62,22 +69,6 @@ export interface IntentionData {
  */
 export type LogOutcome = 'completed' | 'failed' | 'skipped';
 
-/**
- * One item in the chat thread. Coach/user turns are text; a `card` turn renders
- * an inline action card from an LLM-authored Intention object. The same shape
- * carries both the loops seeded on load and the ones the coach authors live.
- */
-export type ChatMessage =
-    | { id: string; role: 'coach' | 'user'; text: string }
-    | { id: string; role: 'card'; intention: IntentionData };
-
-/** One stored turn from the server-side coach conversation (dashboard `thread` prop). */
-export interface ThreadMessage {
-    id: string;
-    role: 'user' | 'coach';
-    text: string;
-}
-
 /** One delivered cue in the inbox (mirrors InboxController's mapped payload). */
 export interface NotificationData {
     id: string;
@@ -115,11 +106,3 @@ export interface LoopProgressCard {
 
 /** The same metric block on the detail screen (no index-only excerpt). */
 export type LoopProgressDetail = Omit<LoopProgressCard, 'summary_excerpt'>;
-
-/** The per-user coach token usage block on the progress index (mirrors CoachUsageGuard::snapshotFor). */
-export interface CoachUsageSnapshot {
-    used: number;
-    budget: number; // 0 or less = uncapped
-    remaining: number | null; // null when uncapped
-    breakdown: Record<string, number>; // purpose => tokens in the rolling 24h
-}

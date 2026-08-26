@@ -19,11 +19,10 @@ use Laravel\Mcp\Server\Tool;
 #[Instructions(<<<'TEXT'
 PatYourSelf is a habit-coaching app. A "loop" (intention) models a habit as a
 cue -> craving -> response -> reward chain, worked via versioned strategies:
-each strategy version intervenes at one point of that chain, and failures
-(with the user's stated reason) drive a revision to a new version — history is
-never rewritten. Concrete to-dos are "actions"; logging an outcome
-(completed / failed / skipped) is the core daily interaction, and a failure
-must carry the user's reason.
+each strategy version intervenes at one point of that chain. History is never
+rewritten — a new version supersedes the previous one. Concrete to-dos are
+"actions"; logging an outcome (completed / failed / skipped) is the core daily
+interaction, and a failure must carry the user's reason.
 
 Use list-loops / get-loop to see what the user is working on, today-actions to
 see what is due, log-action-outcome to check things off, and loop-progress for
