@@ -439,7 +439,9 @@ git commit -m "feat(occurrences): give each instance of an action its own row"
 
 **Interfaces:**
 - Consumes: `Action::$series_started_at` from Task 1.
-- Produces: the invariant every later task depends on — **every action with a `scheduled_for` at creation has `series_started_at` set to that same value, and nothing ever mutates it.**
+- Produces: the invariant every later task depends on — **every action with a `scheduled_for` at creation has `series_started_at` set to that same value.**
+
+**Amendment made during implementation.** The anchor marks where the action's *current* cadence began, so `RescheduleAction` re-anchors it rather than leaving it frozen: it sets `series_started_at` to the newly computed `scheduled_for` (null when the edit turns the action cue-anchored and clears the schedule). Leaving it frozen would materialise every future occasion at the *old* time of day, and — worse — would keep producing a phantom slot for an action whose schedule had been cleared entirely. Occurrences already materialised are never touched, and `pending-outcomes` materialises on every read, so nothing already in the past is lost by re-anchoring.
 
 - [ ] **Step 1: Read the creation sites**
 

@@ -149,6 +149,10 @@ final class StartExperiment
             'title' => $title,
             'description' => $next->rationale,
             'scheduled_for' => $scheduledFor,
+            // Where this cadence begins — inherited verbatim when the prior
+            // action's schedule is carried over. Materialisation walks forward
+            // from here; scheduled_for cannot record it because it moves.
+            'series_started_at' => $scheduledFor,
             'recurrence' => $recurrence?->value,
             'status' => Action::STATUS_PENDING,
             'metadata' => $metadata,
