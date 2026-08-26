@@ -14,52 +14,49 @@ use App\Services\Strategy\StrategyTransitionException;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use InvalidArgumentException;
 
 /**
- * The heart of the coaching loop: advancing a strategy to its next version.
+ * Starts a new experiment on a loop: supersedes the current strategy version
+ * and creates the next one.
  *
- * History is never rewritten in place. Each transition supersedes the current
- * (active) version and creates a new active one — recording WHY (stacked on a
- * success / restrategized on a user-stated failure), WHERE in the behavioural
- * chain it now intervenes, and which direction it moved. This action is the
- * only place these writes happen. The revision always arrives pre-authored;
- * this action does not decide what the next strategy should be.
+ * History is never rewritten in place. Each transition records WHY it happened,
+ * WHERE in the cue → craving → response → reward chain the new version
+ * intervenes, and how long it is meant to run before it gets a verdict. This
+ * action is the only place those writes happen.
  */
-final class ReviseStrategy
+final class StartExperiment
 {
     /**
-     * The current strategy succeeded — stack toward a harder goal.
+     * @param  AuthoredStrategy  $next  The hypothesis, authored in Claude and arriving through MCP.
+     * @param  string  $changeReason  One of Strategy::CHANGE_REASONS.
+     * @param  string|null  $supersededReason  Why the outgoing version is being replaced.
+     * @param  int|null  $reviewAfterDays  Planned run length; null leaves the experiment open-ended.
      *
      * @throws StrategyTransitionException
+     * @throws InvalidArgumentException
      */
-    public function stackOnSuccess(Strategy $current, AuthoredStrategy $next, ?AuthoredAction $revisedAction = null): Strategy
-    {
+    public function handle(
+        Strategy $current,
+        AuthoredStrategy $next,
+        string $changeReason,
+        ?string $supersededReason = null,
+        ?int $reviewAfterDays = null,
+        ?AuthoredAction $revisedAction = null,
+    ): Strategy {
+        if ($reviewAfterDays !== null && $reviewAfterDays < 0) {
+            throw new InvalidArgumentException('reviewAfterDays cannot be negative.');
+        }
+
         $this->guardActive($current);
 
         return DB::transaction(fn (): Strategy => $this->supersedeAndCreate(
             $current,
             $next,
-            Strategy::REASON_STACKED_ON_SUCCESS,
-            supersededReason: null,
-            revisedAction: $revisedAction,
-        ));
-    }
-
-    /**
-     * The current strategy failed — restrategize from the user-stated reason.
-     *
-     * @throws StrategyTransitionException
-     */
-    public function restrategizeOnFailure(Strategy $current, string $reason, AuthoredStrategy $next, ?AuthoredAction $revisedAction = null): Strategy
-    {
-        $this->guardActive($current);
-
-        return DB::transaction(fn (): Strategy => $this->supersedeAndCreate(
-            $current,
-            $next,
-            Strategy::REASON_RESTRATEGIZED_ON_FAILURE,
-            supersededReason: $reason,
-            revisedAction: $revisedAction,
+            $changeReason,
+            $supersededReason,
+            $reviewAfterDays,
+            $revisedAction,
         ));
     }
 
@@ -78,6 +75,7 @@ final class ReviseStrategy
         AuthoredStrategy $next,
         string $changeReason,
         ?string $supersededReason,
+        ?int $reviewAfterDays,
         ?AuthoredAction $revisedAction,
     ): Strategy {
         $current->update([
@@ -95,6 +93,7 @@ final class ReviseStrategy
             'rationale' => $next->rationale,
             'parent_strategy_id' => $current->id,
             'change_reason' => $changeReason,
+            'review_at' => $reviewAfterDays === null ? null : now()->addDays($reviewAfterDays),
             'metadata' => array_filter([
                 'previous_point' => $current->intervention_point,
                 'direction' => BehavioralChain::direction(

@@ -2,17 +2,19 @@
 
 namespace Tests\Feature;
 
-use App\Actions\ReviseStrategy;
+use App\Actions\StartExperiment;
 use App\Models\Action;
 use App\Models\Intention;
 use App\Models\Strategy;
 use App\Services\Authoring\AuthoredAction;
 use App\Services\Authoring\AuthoredStrategy;
 use App\Services\Strategy\StrategyTransitionException;
+use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use InvalidArgumentException;
 use Tests\TestCase;
 
-class ReviseStrategyTest extends TestCase
+class StartExperimentTest extends TestCase
 {
     use RefreshDatabase;
 
@@ -30,10 +32,11 @@ class ReviseStrategyTest extends TestCase
     {
         $current = $this->activeStrategy(Strategy::POINT_RESPONSE);
 
-        $next = app(ReviseStrategy::class)->restrategizeOnFailure(
+        $next = app(StartExperiment::class)->handle(
             $current,
-            'Too tired to walk after work',
             new AuthoredStrategy(Strategy::POINT_CUE, 'Lay shoes out the night before.', 'Because it should help.'),
+            Strategy::REASON_RESTRATEGIZED_ON_FAILURE,
+            supersededReason: 'Too tired to walk after work',
         );
 
         // New active version supersedes the old one.
@@ -63,9 +66,10 @@ class ReviseStrategyTest extends TestCase
     {
         $current = $this->activeStrategy(Strategy::POINT_RESPONSE);
 
-        $next = app(ReviseStrategy::class)->stackOnSuccess(
+        $next = app(StartExperiment::class)->handle(
             $current,
             new AuthoredStrategy(Strategy::POINT_RESPONSE, 'Walk for 25 minutes after coffee.', 'Because it should help.'),
+            Strategy::REASON_STACKED_ON_SUCCESS,
         );
 
         $this->assertSame(2, $next->version);
@@ -84,10 +88,11 @@ class ReviseStrategyTest extends TestCase
     {
         $current = $this->activeStrategy(Strategy::POINT_RESPONSE);
 
-        $next = app(ReviseStrategy::class)->restrategizeOnFailure(
+        $next = app(StartExperiment::class)->handle(
             $current,
-            'reason',
             new AuthoredStrategy(Strategy::POINT_CRAVING, 'Pre-commit with a friend.', 'Accountability.'),
+            Strategy::REASON_RESTRATEGIZED_ON_FAILURE,
+            supersededReason: 'reason',
         );
 
         $this->assertSame(Strategy::POINT_CRAVING, $next->intervention_point);
@@ -101,9 +106,10 @@ class ReviseStrategyTest extends TestCase
         $this->expectException(StrategyTransitionException::class);
 
         try {
-            app(ReviseStrategy::class)->stackOnSuccess(
+            app(StartExperiment::class)->handle(
                 $current,
                 new AuthoredStrategy(Strategy::POINT_CUE, 'x', null),
+                Strategy::REASON_STACKED_ON_SUCCESS,
             );
         } finally {
             // No new version was written.
@@ -122,10 +128,11 @@ class ReviseStrategyTest extends TestCase
             'metadata' => ['schedule_kind' => 'clock'],
         ]);
 
-        $next = app(ReviseStrategy::class)->restrategizeOnFailure(
+        $next = app(StartExperiment::class)->handle(
             $current,
-            'Too tired after work',
             new AuthoredStrategy(Strategy::POINT_CUE, 'Lay shoes out the night before.', 'Because it should help.'),
+            Strategy::REASON_RESTRATEGIZED_ON_FAILURE,
+            supersededReason: 'Too tired after work',
         );
 
         $oldAction->refresh();
@@ -162,7 +169,13 @@ class ReviseStrategyTest extends TestCase
             anchor: null,
         );
 
-        app(ReviseStrategy::class)->restrategizeOnFailure($current, 'No energy in the evening', $next, $revisedAction);
+        app(StartExperiment::class)->handle(
+            $current,
+            $next,
+            Strategy::REASON_RESTRATEGIZED_ON_FAILURE,
+            supersededReason: 'No energy in the evening',
+            revisedAction: $revisedAction,
+        );
 
         $newAction = $current->intention->actions()
             ->where('status', Action::STATUS_PENDING)->first();
@@ -185,12 +198,106 @@ class ReviseStrategyTest extends TestCase
             promptVersion: 'test@1',
         );
 
-        $revised = app(ReviseStrategy::class)->restrategizeOnFailure($current, 'ate on autopilot', $next);
+        $revised = app(StartExperiment::class)->handle(
+            $current,
+            $next,
+            Strategy::REASON_RESTRATEGIZED_ON_FAILURE,
+            supersededReason: 'ate on autopilot',
+        );
 
         $this->assertSame(2, $revised->version);
         $this->assertSame(Strategy::POINT_CUE, $revised->intervention_point);
         $this->assertSame('earlier', $revised->metadata['direction']);
         $this->assertSame(Strategy::STATUS_SUPERSEDED, $current->fresh()->status);
         $this->assertSame('ate on autopilot', $current->fresh()->superseded_reason);
+    }
+
+    public function test_it_sets_a_review_date_when_given_a_run_length(): void
+    {
+        CarbonImmutable::setTestNow('2026-09-01 12:00:00');
+
+        $intention = Intention::factory()->create();
+        $current = Strategy::factory()->for($intention)->create([
+            'status' => Strategy::STATUS_ACTIVE,
+            'intervention_point' => Strategy::POINT_RESPONSE,
+        ]);
+
+        $next = new AuthoredStrategy(
+            interventionPoint: Strategy::POINT_CUE,
+            approach: 'put the fork down between bites',
+            rationale: 'the gap has to exist before the fullness signal lands',
+            promptVersion: 'mcp@1',
+        );
+
+        $experiment = app(StartExperiment::class)->handle(
+            $current,
+            $next,
+            Strategy::REASON_RESTRATEGIZED_ON_FAILURE,
+            supersededReason: 'ate on autopilot',
+            reviewAfterDays: 21,
+        );
+
+        $this->assertSame(2, $experiment->version);
+        $this->assertSame('2026-09-22', $experiment->review_at->toDateString());
+        $this->assertSame(21, $experiment->plannedDays());
+        $this->assertNull($experiment->verdict);
+        $this->assertSame(Strategy::STATUS_SUPERSEDED, $current->fresh()->status);
+        $this->assertSame('ate on autopilot', $current->fresh()->superseded_reason);
+    }
+
+    public function test_an_experiment_without_a_run_length_is_open_ended(): void
+    {
+        $intention = Intention::factory()->create();
+        $current = Strategy::factory()->for($intention)->create(['status' => Strategy::STATUS_ACTIVE]);
+
+        $next = new AuthoredStrategy(
+            interventionPoint: Strategy::POINT_REWARD,
+            approach: 'log the meal before leaving the table',
+            rationale: null,
+            promptVersion: 'mcp@1',
+        );
+
+        $experiment = app(StartExperiment::class)->handle($current, $next, Strategy::REASON_STACKED_ON_SUCCESS);
+
+        $this->assertNull($experiment->review_at);
+        $this->assertFalse($experiment->isUnderReview());
+    }
+
+    public function test_it_refuses_to_start_from_a_superseded_version(): void
+    {
+        $current = Strategy::factory()->create(['status' => Strategy::STATUS_SUPERSEDED]);
+
+        $next = new AuthoredStrategy(
+            interventionPoint: Strategy::POINT_CUE,
+            approach: 'anything',
+            rationale: null,
+            promptVersion: 'mcp@1',
+        );
+
+        $this->expectException(StrategyTransitionException::class);
+
+        app(StartExperiment::class)->handle($current, $next, Strategy::REASON_STACKED_ON_SUCCESS);
+    }
+
+    public function test_it_rejects_a_negative_review_run_length(): void
+    {
+        $current = $this->activeStrategy();
+
+        $next = new AuthoredStrategy(Strategy::POINT_CUE, 'x', null);
+
+        $this->expectException(InvalidArgumentException::class);
+
+        try {
+            app(StartExperiment::class)->handle(
+                $current,
+                $next,
+                Strategy::REASON_STACKED_ON_SUCCESS,
+                reviewAfterDays: -1,
+            );
+        } finally {
+            // No new version was written; the guard fails before any mutation.
+            $this->assertSame(1, $current->intention->strategies()->count());
+            $this->assertSame(Strategy::STATUS_ACTIVE, $current->fresh()->status);
+        }
     }
 }

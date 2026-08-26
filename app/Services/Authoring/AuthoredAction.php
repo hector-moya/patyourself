@@ -7,7 +7,7 @@ namespace App\Services\Authoring;
  * to do and when. A "clock" action carries a local HH:MM + recurrence the
  * scheduler can fire; an "anchored" action carries an event phrase ("after
  * coffee") and is stored but never auto-fired. Carries no persistence concerns;
- * AuthorIntention / ReviseStrategy turn it into an Action row.
+ * AuthorIntention / StartExperiment turn it into an Action row.
  */
 final readonly class AuthoredAction
 {
