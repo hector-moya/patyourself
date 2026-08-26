@@ -8,6 +8,7 @@ use App\Models\Intention;
 use App\Models\Strategy;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class ActionTest extends TestCase
@@ -31,22 +32,6 @@ class ActionTest extends TestCase
         $this->assertTrue($action->intention->is($intention));
         $this->assertSame($intention->id, $action->strategy->intention_id);
         $this->assertCount(2, $action->logs);
-    }
-
-    public function test_pending_scope_and_is_open_predicate_track_unlogged_cards()
-    {
-        $intention = Intention::factory()->create();
-        $strategy = Strategy::factory()->for($intention)->create(['version' => 1]);
-
-        $open = Action::factory()->for($intention)->for($strategy, 'strategy')->create();
-        $done = Action::factory()->for($intention)->for($strategy, 'strategy')->archived()->create();
-
-        $this->assertTrue($open->isOpen());
-        $this->assertFalse($done->isOpen());
-        $this->assertEqualsCanonicalizing(
-            [$open->id],
-            Action::pending()->pluck('id')->all(),
-        );
     }
 
     public function test_action_log_relationships_and_outcome_predicates()
@@ -75,5 +60,18 @@ class ActionTest extends TestCase
         ActionLog::factory()->for($action, 'action')->for($user)->failed()->create();
 
         $this->assertSame(1, ActionLog::failures()->count());
+    }
+
+    public function test_an_action_holds_only_a_lifecycle_status(): void
+    {
+        $this->assertSame(
+            [Action::STATUS_ACTIVE, Action::STATUS_ARCHIVED],
+            Action::STATUSES,
+        );
+    }
+
+    public function test_the_next_due_cursor_is_gone(): void
+    {
+        $this->assertFalse(Schema::hasColumn('actions', 'scheduled_for'));
     }
 }

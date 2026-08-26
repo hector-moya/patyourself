@@ -9,7 +9,7 @@ use Carbon\CarbonImmutable;
 
 /**
  * Recomputes and persists an Action's schedule from a user edit. Clock edits
- * derive a fresh UTC scheduled_for in the user's timezone; anchored edits clear
+ * derive a fresh series anchor in the user's timezone; anchored edits clear
  * the schedule and record the anchor phrase. The only place a reschedule writes.
  */
 final readonly class RescheduleAction
