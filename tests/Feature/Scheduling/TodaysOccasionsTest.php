@@ -118,19 +118,35 @@ class TodaysOccasionsTest extends TestCase
 
     public function test_the_local_day_window_follows_the_users_timezone(): void
     {
-        // 23:00 UTC on the 24th is already 09:00 on the 25th in Sydney. A slot
-        // at 23:30 UTC is therefore later *today* for that user, not tomorrow.
+        // Sydney is UTC+10 in August (no DST), so 2026-08-24 23:00:00Z is
+        // already 2026-08-25 09:00 there. The correct local-day window in
+        // UTC is [2026-08-24 14:00:00Z, 2026-08-25 13:59:59Z] — not the
+        // naive UTC-calendar-day window [2026-08-24 00:00:00Z,
+        // 2026-08-24 23:59:59Z] a regression that dropped the user's
+        // timezone would fall back to. The two fixtures below sit on
+        // opposite sides of that gap, so only the correct window passes.
         Carbon::setTestNow('2026-08-24 23:00:00');
 
         $user = User::factory()->create(['timezone' => 'Australia/Sydney']);
-        Action::factory()->for($this->activeLoopFor($user))->create([
-            'series_started_at' => Carbon::parse('2026-08-24 23:30:00'),
+        $loop = $this->activeLoopFor($user);
+
+        // Inside the correct Sydney window, outside the naive UTC window.
+        $insideSydneyDay = Action::factory()->for($loop)->create([
+            'series_started_at' => Carbon::parse('2026-08-25 02:00:00'),
+            'recurrence' => null,
+        ]);
+
+        // Inside the naive UTC window, outside the correct Sydney window —
+        // it is 15:00 the previous day in Sydney.
+        Action::factory()->for($loop)->create([
+            'series_started_at' => Carbon::parse('2026-08-24 05:00:00'),
             'recurrence' => null,
         ]);
 
         $occasions = app(TodaysOccasions::class)->for($user);
 
         $this->assertCount(1, $occasions);
+        $this->assertTrue($occasions->first()->action->is($insideSydneyDay));
         $this->assertSame('upcoming', $occasions->first()->due);
     }
 

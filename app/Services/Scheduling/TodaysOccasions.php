@@ -51,11 +51,7 @@ class TodaysOccasions
                 $localNow->copy()->startOfDay()->utc(),
                 $localNow->copy()->endOfDay()->utc(),
             ])
-            ->whereHas('action', fn (Builder $query) => $query
-                ->where('status', '!=', Action::STATUS_ARCHIVED)
-                ->whereHas('intention', fn (Builder $loop) => $loop
-                    ->where('user_id', $user->id)
-                    ->where('status', Intention::STATUS_ACTIVE)))
+            ->whereHas('action', fn (Builder $query) => $this->restrictToUsersActiveLoops($query, $user))
             ->with('action.intention:id,title')
             ->orderBy('scheduled_for')
             ->get()
@@ -68,12 +64,10 @@ class TodaysOccasions
                     : TodaysOccasion::UPCOMING,
             ));
 
-        $anchored = Action::query()
-            ->whereNull('series_started_at')
-            ->where('status', '!=', Action::STATUS_ARCHIVED)
-            ->whereHas('intention', fn (Builder $loop) => $loop
-                ->where('user_id', $user->id)
-                ->where('status', Intention::STATUS_ACTIVE))
+        $anchoredQuery = Action::query()->whereNull('series_started_at');
+        $this->restrictToUsersActiveLoops($anchoredQuery, $user);
+
+        $anchored = $anchoredQuery
             ->with('intention:id,title')
             ->orderBy('id')
             ->get()
@@ -85,5 +79,23 @@ class TodaysOccasions
             ));
 
         return $scheduled->concat($anchored)->values();
+    }
+
+    /**
+     * An action counts today only if it still belongs to a loop this user is
+     * actively working: not archived itself, and owned by one of the user's
+     * active loops. Applied identically to the scheduled and cue-anchored
+     * branches so a future change to either cannot silently drift from the
+     * other and leak between them.
+     *
+     * @param  Builder<Action>  $actions
+     */
+    private function restrictToUsersActiveLoops(Builder $actions, User $user): void
+    {
+        $actions
+            ->where('status', '!=', Action::STATUS_ARCHIVED)
+            ->whereHas('intention', fn (Builder $loop) => $loop
+                ->where('user_id', $user->id)
+                ->where('status', Intention::STATUS_ACTIVE));
     }
 }
