@@ -4,6 +4,7 @@ namespace Tests\Feature\Settings;
 
 use App\Models\Action;
 use App\Models\Intention;
+use App\Models\Occurrence;
 use App\Models\User;
 use App\Notifications\ActionDueNotification;
 use App\Notifications\DailyDigestNotification;
@@ -95,8 +96,9 @@ class NotificationSettingsTest extends TestCase
         $action = Action::factory()
             ->for(Intention::factory()->for($user))
             ->create();
+        $occurrence = Occurrence::factory()->for($action)->create();
 
-        $cue = (new ActionDueNotification($action))->toMail($user)->render();
+        $cue = (new ActionDueNotification($occurrence))->toMail($user)->render();
         $digest = (new DailyDigestNotification(collect([
             new TodaysOccasion(
                 action: $action,

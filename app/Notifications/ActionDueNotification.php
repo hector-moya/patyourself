@@ -2,7 +2,7 @@
 
 namespace App\Notifications;
 
-use App\Models\Action;
+use App\Models\Occurrence;
 use App\Models\User;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -10,7 +10,7 @@ use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
 /**
- * The cue: an action's scheduled moment has arrived (SP2 fired it). Always
+ * The cue: an occasion's scheduled moment has arrived (SP2 fired it). Always
  * delivered in-app via the database channel and surfaced in the inbox; also
  * emailed when the user has chosen to hear about every cue.
  *
@@ -25,9 +25,9 @@ class ActionDueNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 
-    public function __construct(private readonly Action $action)
+    public function __construct(private readonly Occurrence $occurrence)
     {
-        $this->action->loadMissing('intention');
+        $this->occurrence->loadMissing('action.intention');
     }
 
     /**
@@ -59,11 +59,12 @@ class ActionDueNotification extends Notification implements ShouldQueue
 
     public function toMail(object $notifiable): MailMessage
     {
-        $loop = $this->action->intention;
+        $action = $this->occurrence->action;
+        $loop = $action->intention;
 
         return (new MailMessage)
-            ->subject($this->action->title)
-            ->line("It's time for: {$this->action->title}")
+            ->subject($action->title)
+            ->line("It's time for: {$action->title}")
             ->line("Loop: {$loop->title}")
             ->line("Cue: {$loop->cue}")
             ->action('Open PatYourSelf', route('loops.show', $loop->id))
@@ -71,15 +72,19 @@ class ActionDueNotification extends Notification implements ShouldQueue
     }
 
     /**
-     * @return array{action_id: int, intention_id: int, title: string, fired_at: ?string}
+     * @return array{occurrence_id: int, action_id: int, intention_id: int, title: string, fired_at: ?string}
      */
     public function toArray(object $notifiable): array
     {
         return [
-            'action_id' => $this->action->id,
-            'intention_id' => $this->action->intention_id,
-            'title' => $this->action->intention->title,
-            'fired_at' => $this->action->metadata['fired_at'] ?? null,
+            // The occasion is what the cue is about, and what answering it
+            // marks read. action_id stays so an inbox entry can still be
+            // grouped by the prescription it came from.
+            'occurrence_id' => $this->occurrence->id,
+            'action_id' => $this->occurrence->action_id,
+            'intention_id' => $this->occurrence->action->intention_id,
+            'title' => $this->occurrence->action->intention->title,
+            'fired_at' => $this->occurrence->fired_at?->toIso8601String(),
         ];
     }
 }

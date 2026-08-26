@@ -4,9 +4,11 @@ namespace Tests\Feature\Notifications;
 
 use App\Models\Action;
 use App\Models\Intention;
+use App\Models\Occurrence;
 use App\Models\User;
 use App\Notifications\ActionDueNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
 class ActionDueNotificationTest extends TestCase
@@ -20,41 +22,50 @@ class ActionDueNotificationTest extends TestCase
             ->create(['title' => 'Read ten pages']);
     }
 
-    private function firedAction(): Action
+    private function occurrenceFor(Action $action): Occurrence
+    {
+        return Occurrence::factory()->for($action)->create();
+    }
+
+    private function firedOccurrence(): Occurrence
     {
         $intention = Intention::factory()
             ->for(User::factory())
             ->create(['title' => 'Meditate daily', 'status' => Intention::STATUS_ACTIVE]);
 
-        return Action::factory()->for($intention)->create([
+        $action = Action::factory()->for($intention)->create([
             'status' => Action::STATUS_ACTIVE,
-            'metadata' => ['fired_at' => '2026-06-15T07:00:00+00:00'],
+        ]);
+
+        return Occurrence::factory()->for($action)->create([
+            'fired_at' => Carbon::parse('2026-06-15T07:00:00+00:00'),
         ]);
     }
 
     public function test_it_uses_only_the_database_channel(): void
     {
-        $notification = new ActionDueNotification($this->firedAction());
+        $notification = new ActionDueNotification($this->firedOccurrence());
 
         $this->assertSame(['database'], $notification->via(new User));
     }
 
     public function test_the_database_channel_stays_synchronous(): void
     {
-        $notification = new ActionDueNotification($this->firedAction());
+        $notification = new ActionDueNotification($this->firedOccurrence());
 
         $this->assertSame('sync', $notification->viaConnections()['database']);
     }
 
     public function test_to_array_carries_the_inbox_payload(): void
     {
-        $action = $this->firedAction();
+        $occurrence = $this->firedOccurrence();
 
-        $payload = (new ActionDueNotification($action))->toArray(new User);
+        $payload = (new ActionDueNotification($occurrence))->toArray(new User);
 
         $this->assertSame([
-            'action_id' => $action->id,
-            'intention_id' => $action->intention_id,
+            'occurrence_id' => $occurrence->id,
+            'action_id' => $occurrence->action_id,
+            'intention_id' => $occurrence->action->intention_id,
             'title' => 'Meditate daily',
             'fired_at' => '2026-06-15T07:00:00+00:00',
         ], $payload);
@@ -64,7 +75,7 @@ class ActionDueNotificationTest extends TestCase
     {
         $user = User::factory()->create(['email_reminders' => User::EMAIL_REMINDERS_EVERY_CUE]);
 
-        $channels = (new ActionDueNotification($this->action($user)))->via($user);
+        $channels = (new ActionDueNotification($this->occurrenceFor($this->action($user))))->via($user);
 
         $this->assertContains('mail', $channels);
         $this->assertContains('database', $channels);
@@ -74,14 +85,20 @@ class ActionDueNotificationTest extends TestCase
     {
         $user = User::factory()->create(['email_reminders' => User::EMAIL_REMINDERS_DIGEST]);
 
-        $this->assertNotContains('mail', (new ActionDueNotification($this->action($user)))->via($user));
+        $this->assertNotContains(
+            'mail',
+            (new ActionDueNotification($this->occurrenceFor($this->action($user))))->via($user),
+        );
     }
 
     public function test_does_not_email_the_cue_when_reminders_are_off(): void
     {
         $user = User::factory()->create(['email_reminders' => User::EMAIL_REMINDERS_OFF]);
 
-        $this->assertNotContains('mail', (new ActionDueNotification($this->action($user)))->via($user));
+        $this->assertNotContains(
+            'mail',
+            (new ActionDueNotification($this->occurrenceFor($this->action($user))))->via($user),
+        );
     }
 
     public function test_the_in_app_cue_is_delivered_in_every_mode(): void
@@ -91,7 +108,7 @@ class ActionDueNotificationTest extends TestCase
 
             $this->assertContains(
                 'database',
-                (new ActionDueNotification($this->action($user)))->via($user),
+                (new ActionDueNotification($this->occurrenceFor($this->action($user))))->via($user),
                 "database channel missing for mode [{$mode}]",
             );
         }
@@ -102,7 +119,7 @@ class ActionDueNotificationTest extends TestCase
         $user = User::factory()->create(['email_reminders' => User::EMAIL_REMINDERS_EVERY_CUE]);
         $action = $this->action($user);
 
-        $mail = (new ActionDueNotification($action))->toMail($user)->render();
+        $mail = (new ActionDueNotification($this->occurrenceFor($action)))->toMail($user)->render();
 
         $this->assertStringContainsString('Read ten pages', $mail);
         $this->assertStringContainsString('Read before bed', $mail);

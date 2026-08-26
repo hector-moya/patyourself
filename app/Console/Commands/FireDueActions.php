@@ -2,26 +2,38 @@
 
 namespace App\Console\Commands;
 
+use App\Models\Intention;
+use App\Models\User;
+use App\Services\Scheduling\MaterialiseOccurrences;
 use App\Services\Scheduling\TriggerEngine;
 use Illuminate\Console\Command;
+use Illuminate\Database\Eloquent\Builder;
 
 /**
- * Scans for actions whose scheduled fire time has arrived and transitions them
- * pending -> active so they surface as live to-dos. The scheduler runs this
- * every minute (see routes/console.php). A thin wrapper: all logic lives in the
- * TriggerEngine service so it can be feature-tested directly.
+ * Builds today's grid, then delivers the cue for every occasion whose moment
+ * has arrived. The scheduler runs this every minute (see routes/console.php).
+ *
+ * Materialising here is what lets the engine read rather than compute: a cron's
+ * read is still a read, and the "never as a side effect of a write" invariant
+ * is about logging an outcome, which must never conjure occasions the check-in
+ * then asks about.
  */
 class FireDueActions extends Command
 {
     protected $signature = 'actions:fire';
 
-    protected $description = 'Fire due actions (pending -> active) for the trigger engine';
+    protected $description = 'Deliver the cue for every occasion whose moment has arrived';
 
-    public function handle(TriggerEngine $engine): int
+    public function handle(MaterialiseOccurrences $materialise, TriggerEngine $engine): int
     {
-        $fired = $engine->fireDueActions();
+        User::query()
+            ->whereHas('intentions', fn (Builder $query) => $query->where('status', Intention::STATUS_ACTIVE))
+            ->cursor()
+            ->each(fn (User $user) => $materialise->forUser($user));
 
-        $this->components->info("Fired {$fired} action(s).");
+        $fired = $engine->fireDueOccurrences();
+
+        $this->components->info("Fired {$fired} cue(s).");
 
         return self::SUCCESS;
     }

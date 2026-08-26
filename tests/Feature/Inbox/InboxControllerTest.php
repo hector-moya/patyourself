@@ -4,9 +4,11 @@ namespace Tests\Feature\Inbox;
 
 use App\Models\Action;
 use App\Models\Intention;
+use App\Models\Occurrence;
 use App\Models\User;
 use App\Notifications\ActionDueNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
@@ -20,7 +22,7 @@ class InboxControllerTest extends TestCase
         $this->withoutVite();
     }
 
-    private function notify(User $user, string $title = 'Meditate'): Action
+    private function notify(User $user, string $title = 'Meditate'): Occurrence
     {
         $intention = Intention::factory()->for($user)->create([
             'title' => $title,
@@ -28,11 +30,13 @@ class InboxControllerTest extends TestCase
         ]);
         $action = Action::factory()->for($intention)->create([
             'status' => Action::STATUS_ACTIVE,
-            'metadata' => ['fired_at' => '2026-06-15T07:00:00+00:00'],
         ]);
-        $user->notify(new ActionDueNotification($action));
+        $occurrence = Occurrence::factory()->for($action)->create([
+            'fired_at' => Carbon::parse('2026-06-15T07:00:00+00:00'),
+        ]);
+        $user->notify(new ActionDueNotification($occurrence));
 
-        return $action;
+        return $occurrence;
     }
 
     public function test_index_lists_only_the_users_own_notifications(): void

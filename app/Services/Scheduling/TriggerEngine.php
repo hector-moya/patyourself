@@ -2,73 +2,85 @@
 
 namespace App\Services\Scheduling;
 
-use App\Events\ActionFired;
+use App\Events\OccurrenceFired;
 use App\Models\Action;
 use App\Models\Intention;
+use App\Models\Occurrence;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Date;
 
 /**
- * The trigger engine: scans for actions whose scheduled fire time has arrived
- * and transitions them pending -> active so they surface as live "due" to-dos.
- * Firing is idempotent — each row is flipped with a guarded conditional update,
- * so an overlapping or repeated run fires every occurrence at most once. The
- * actions:fire command runs this every minute.
+ * The trigger engine: delivers the cue for each occasion whose moment has
+ * arrived. Firing is idempotent — each occasion is claimed with a guarded
+ * conditional update on `fired_at`, so an overlapping or repeated run fires
+ * every occasion at most once. The actions:fire command runs this every minute.
  *
- * SP2 does nothing beyond this in-app state transition. Recurrence roll-forward
- * happens when an occurrence is resolved (see App\Actions\LogAction). Firing
- * raises App\Events\ActionFired, on which SP3 delivers the in-app cue.
+ * Bounded to the user's local day on purpose. Occasions never expire, so
+ * without the window an outage would come back and deliver every missed cue at
+ * once. A missed occasion is not a cue worth ringing later; it stays loggable,
+ * quietly, on /catch-up.
+ *
+ * The window is per user, so this iterates users rather than running one global
+ * query — midnight is not the same instant for two people.
  */
 final class TriggerEngine
 {
     /**
-     * Fire every due, pending action belonging to an active intention. Returns
-     * the number actually fired (won by this run's guarded update).
+     * Fire every due, unfired, unlogged occasion inside each user's local day.
+     * Returns the number actually fired (won by this run's guarded update).
      */
-    public function fireDueActions(): int
+    public function fireDueOccurrences(): int
     {
-        $due = Action::query()
-            ->with('intention.user')
-            ->where('status', Action::STATUS_PENDING)
-            ->whereNotNull('scheduled_for')
-            ->where('scheduled_for', '<=', now())
-            ->whereHas('intention', function (Builder $query): void {
-                $query->where('status', Intention::STATUS_ACTIVE);
-            })
-            ->get();
-
         $fired = 0;
 
-        foreach ($due as $action) {
-            if ($this->fire($action)) {
-                $fired++;
-            }
-        }
+        User::query()
+            ->whereHas('intentions', fn (Builder $query) => $query->where('status', Intention::STATUS_ACTIVE))
+            ->cursor()
+            ->each(function (User $user) use (&$fired): void {
+                $localNow = Date::now($user->timezone ?? (string) config('app.timezone'));
+
+                $due = Occurrence::query()
+                    ->unlogged()
+                    ->unfired()
+                    ->where('scheduled_for', '<=', Date::now())
+                    ->whereBetween('scheduled_for', [
+                        $localNow->copy()->startOfDay()->utc(),
+                        $localNow->copy()->endOfDay()->utc(),
+                    ])
+                    ->whereHas('action', fn (Builder $query) => $query
+                        ->where('status', '!=', Action::STATUS_ARCHIVED)
+                        ->whereHas('intention', fn (Builder $loop) => $loop
+                            ->where('user_id', $user->id)
+                            ->where('status', Intention::STATUS_ACTIVE)))
+                    ->with('action.intention.user')
+                    ->get();
+
+                foreach ($due as $occurrence) {
+                    if ($this->fire($occurrence)) {
+                        $fired++;
+                    }
+                }
+            });
 
         return $fired;
     }
 
     /**
-     * Atomically flip one action pending -> active. Returns true only for the
-     * run whose guarded update actually changed the row (the fire owner); a
-     * concurrent or repeated run sees 0 affected rows and returns false.
+     * Atomically claim one occasion. Returns true only for the run whose
+     * guarded update actually changed the row (the fire owner); a concurrent or
+     * repeated run sees 0 affected rows and returns false.
      */
-    private function fire(Action $action): bool
+    private function fire(Occurrence $occurrence): bool
     {
-        $metadata = array_merge($action->metadata ?? [], [
-            'fired_at' => now()->toIso8601String(),
-        ]);
-
-        $affected = Action::query()
-            ->whereKey($action->getKey())
-            ->where('status', Action::STATUS_PENDING)
-            ->update([
-                'status' => Action::STATUS_ACTIVE,
-                'metadata' => json_encode($metadata),
-            ]);
+        $affected = Occurrence::query()
+            ->whereKey($occurrence->getKey())
+            ->whereNull('fired_at')
+            ->update(['fired_at' => Date::now()]);
 
         if ($affected === 1) {
-            $action->refresh();
-            ActionFired::dispatch($action);
+            $occurrence->refresh();
+            OccurrenceFired::dispatch($occurrence);
 
             return true;
         }
