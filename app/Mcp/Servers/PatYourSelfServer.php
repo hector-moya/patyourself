@@ -6,6 +6,7 @@ use App\Mcp\Tools\AddActionTool;
 use App\Mcp\Tools\CreateLoopTool;
 use App\Mcp\Tools\GetLoopTool;
 use App\Mcp\Tools\ListLoopsTool;
+use App\Mcp\Tools\LogNoteTool;
 use App\Mcp\Tools\LogOutcomeTool;
 use App\Mcp\Tools\LoopOutcomesTool;
 use App\Mcp\Tools\LoopProgressTool;
@@ -68,6 +69,10 @@ update-loop corrects the chain itself. What the user first wrote is a
 hypothesis, and the craving is usually the part that turns out to be wrong —
 fix it there rather than working around it.
 
+log-note records something the user noticed that is not an outcome — "worse on
+the days I skip lunch". Notes come back on get-loop and are worth reading before
+writing the next experiment.
+
 Use create-loop when the user wants to start a new habit. Ask them for their
 real cue, craving, response and reward and get their agreement on the
 wording — do not invent the chain for them, because the loop only works if it
@@ -95,5 +100,6 @@ class PatYourSelfServer extends Server
         UpdateActionTool::class,
         RemoveActionTool::class,
         UpdateLoopTool::class,
+        LogNoteTool::class,
     ];
 }

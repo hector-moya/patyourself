@@ -56,7 +56,7 @@ class GetLoopToolTest extends TestCase
         $payload = $this->payload($response);
 
         $this->assertSame([
-            'id', 'title', 'description', 'type', 'status', 'loop', 'active_strategy_version', 'strategies',
+            'id', 'title', 'description', 'type', 'status', 'loop', 'active_strategy_version', 'notes', 'strategies',
         ], array_keys($payload));
 
         $this->assertSame('Read before bed', $payload['title']);

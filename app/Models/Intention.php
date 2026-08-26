@@ -127,6 +127,18 @@ class Intention extends Model
     }
 
     /**
+     * Observations attached to this loop and to no occasion, newest first.
+     * Separate from summaries: a summary is one rolling narrative, these are
+     * discrete, append-only notes.
+     *
+     * @return HasMany<Note, $this>
+     */
+    public function notes(): HasMany
+    {
+        return $this->hasMany(Note::class)->latest('noted_at');
+    }
+
+    /**
      * Every completion / failure / skip event across this loop's actions — the
      * structured archive the rolling summary is built from.
      *

@@ -4,6 +4,7 @@ namespace App\Mcp\Tools;
 
 use App\Models\ActionLog;
 use App\Models\Intention;
+use App\Models\Note;
 use App\Models\Strategy;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\JsonSchema\Types\Type;
@@ -17,6 +18,8 @@ use Laravel\Mcp\Server\Tool;
 #[Description('Get one habit loop in full: the cue -> craving -> response -> reward chain plus the versioned strategy timeline, including why each version was superseded.')]
 class GetLoopTool extends Tool
 {
+    private const NOTE_LIMIT = 50;
+
     public function handle(Request $request): Response
     {
         $validated = $request->validate([
@@ -55,6 +58,14 @@ class GetLoopTool extends Tool
                 'reward' => $loop->reward,
             ],
             'active_strategy_version' => $loop->activeStrategy?->version,
+            // Observations that belong to the loop but to no occasion. A note
+            // nothing can read back would repeat the bug this phase fixed.
+            'notes' => $loop->notes()->limit(self::NOTE_LIMIT)->get()
+                ->map(fn (Note $note): array => [
+                    'id' => $note->id,
+                    'body' => $note->body,
+                    'noted_at' => $note->noted_at->toIso8601String(),
+                ])->values()->all(),
             'strategies' => $strategies->map(fn (Strategy $strategy): array => [
                 'version' => $strategy->version,
                 'status' => $strategy->status,
