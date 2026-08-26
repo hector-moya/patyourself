@@ -13,6 +13,13 @@ export interface StrategyData {
     rationale: string | null;
     change_reason: string | null;
     superseded_reason: string | null;
+    /** The experiment framing. Optional here only because existing fixtures predate it — the resource always sends these keys. */
+    review_at?: string | null;
+    verdict?: string | null;
+    verdict_note?: string | null;
+    day_of_experiment?: number;
+    planned_days?: number | null;
+    is_under_review?: boolean;
     parent_strategy_id: number | null;
     metadata: Record<string, unknown> | null;
     created_at: string | null;
