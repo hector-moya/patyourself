@@ -5,6 +5,7 @@ namespace Tests\Feature\Database;
 use App\Models\Action;
 use App\Models\ActionLog;
 use App\Models\Occurrence;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -89,5 +90,27 @@ class OccurrenceSchemaTest extends TestCase
         $action = Action::factory()->create(['series_started_at' => $anchor]);
 
         $this->assertTrue($action->fresh()->series_started_at->equalTo($anchor));
+    }
+
+    public function test_an_occurrence_starts_unfired(): void
+    {
+        $occurrence = Occurrence::factory()->create();
+
+        $this->assertNull($occurrence->fired_at);
+    }
+
+    public function test_the_unfired_scope_excludes_fired_occasions(): void
+    {
+        $unfired = Occurrence::factory()->create();
+        Occurrence::factory()->fired()->create();
+
+        $this->assertSame([$unfired->id], Occurrence::query()->unfired()->pluck('id')->all());
+    }
+
+    public function test_fired_at_is_an_immutable_datetime(): void
+    {
+        $occurrence = Occurrence::factory()->fired()->create();
+
+        $this->assertInstanceOf(CarbonImmutable::class, $occurrence->fresh()->fired_at);
     }
 }

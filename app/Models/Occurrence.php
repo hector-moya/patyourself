@@ -19,6 +19,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 #[Fillable([
     'action_id',
     'scheduled_for',
+    'fired_at',
 ])]
 class Occurrence extends Model
 {
@@ -30,6 +31,7 @@ class Occurrence extends Model
     {
         return [
             'scheduled_for' => 'immutable_datetime',
+            'fired_at' => 'immutable_datetime',
         ];
     }
 
@@ -48,6 +50,20 @@ class Occurrence extends Model
     protected function unlogged(Builder $query): void
     {
         $query->whereDoesntHave('log');
+    }
+
+    /**
+     * Occasions whose cue has not been delivered. `fired_at` is the trigger
+     * engine's idempotency guard: a null here is the only thing that lets an
+     * occasion fire, and stamping it is what makes a repeated or overlapping
+     * run a no-op.
+     *
+     * @param  Builder<Occurrence>  $query
+     */
+    #[Scope]
+    protected function unfired(Builder $query): void
+    {
+        $query->whereNull('fired_at');
     }
 
     /** @return BelongsTo<Action, $this> */
