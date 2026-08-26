@@ -14,6 +14,7 @@ use App\Mcp\Tools\RemoveActionTool;
 use App\Mcp\Tools\StartExperimentTool;
 use App\Mcp\Tools\TodayActionsTool;
 use App\Mcp\Tools\UpdateActionTool;
+use App\Mcp\Tools\UpdateLoopTool;
 use Laravel\Mcp\Server;
 use Laravel\Mcp\Server\Attributes\Instructions;
 use Laravel\Mcp\Server\Attributes\Name;
@@ -63,6 +64,10 @@ meal, so each occasion is logged on its own), update-action retitles or moves
 one, and remove-action retires one. remove-action archives rather than deletes,
 and keeps every occasion and outcome already recorded.
 
+update-loop corrects the chain itself. What the user first wrote is a
+hypothesis, and the craving is usually the part that turns out to be wrong —
+fix it there rather than working around it.
+
 Use create-loop when the user wants to start a new habit. Ask them for their
 real cue, craving, response and reward and get their agreement on the
 wording — do not invent the chain for them, because the loop only works if it
@@ -89,5 +94,6 @@ class PatYourSelfServer extends Server
         AddActionTool::class,
         UpdateActionTool::class,
         RemoveActionTool::class,
+        UpdateLoopTool::class,
     ];
 }
