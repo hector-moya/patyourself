@@ -68,7 +68,7 @@ class SeriesAnchorTest extends TestCase
         $action = $loop->actions()->firstOrFail();
 
         $this->assertNotNull($action->series_started_at);
-        $this->assertTrue($action->series_started_at->equalTo($action->scheduled_for));
+        $this->assertTrue($action->series_started_at->isFuture());
     }
 
     public function test_a_new_experiment_anchors_the_action_it_proposes(): void
@@ -76,7 +76,7 @@ class SeriesAnchorTest extends TestCase
         $user = User::factory()->create(['timezone' => 'UTC']);
         $loop = Intention::factory()->for($user)->create();
         $current = Strategy::factory()->for($loop)->create(['status' => Strategy::STATUS_ACTIVE, 'version' => 1]);
-        Action::factory()->for($loop)->for($current)->create(['status' => Action::STATUS_PENDING]);
+        Action::factory()->for($loop)->for($current)->create(['status' => Action::STATUS_ACTIVE]);
 
         $next = app(StartExperiment::class)->handle(
             $current,
@@ -100,7 +100,7 @@ class SeriesAnchorTest extends TestCase
         $action = $next->actions()->firstOrFail();
 
         $this->assertNotNull($action->series_started_at);
-        $this->assertTrue($action->series_started_at->equalTo($action->scheduled_for));
+        $this->assertTrue($action->series_started_at->isFuture());
     }
 
     public function test_an_experiment_that_inherits_the_prior_cadence_still_anchors(): void
@@ -110,8 +110,7 @@ class SeriesAnchorTest extends TestCase
         $current = Strategy::factory()->for($loop)->create(['status' => Strategy::STATUS_ACTIVE, 'version' => 1]);
         $priorSlot = now()->addHours(3)->startOfSecond();
         Action::factory()->for($loop)->for($current)->create([
-            'status' => Action::STATUS_PENDING,
-            'scheduled_for' => $priorSlot,
+            'status' => Action::STATUS_ACTIVE,
             'series_started_at' => $priorSlot,
             'recurrence' => 'daily',
         ]);
@@ -137,14 +136,14 @@ class SeriesAnchorTest extends TestCase
         $anchor = now()->subWeek()->startOfSecond();
         $action = Action::factory()
             ->for(Intention::factory()->for($user))
-            ->create(['scheduled_for' => $anchor, 'series_started_at' => $anchor, 'recurrence' => 'daily']);
+            ->create(['series_started_at' => $anchor, 'recurrence' => 'daily']);
 
         app(RescheduleAction::class)->handle($action, 'clock', '19:30', 'daily', null, 'UTC');
 
         $fresh = $action->fresh();
 
         $this->assertFalse($fresh->series_started_at->equalTo($anchor));
-        $this->assertTrue($fresh->series_started_at->equalTo($fresh->scheduled_for));
+        $this->assertTrue($fresh->series_started_at->isFuture());
     }
 
     public function test_turning_an_action_cue_anchored_clears_the_series_anchor(): void
@@ -153,13 +152,12 @@ class SeriesAnchorTest extends TestCase
         $anchor = now()->subWeek()->startOfSecond();
         $action = Action::factory()
             ->for(Intention::factory()->for($user))
-            ->create(['scheduled_for' => $anchor, 'series_started_at' => $anchor, 'recurrence' => 'daily']);
+            ->create(['series_started_at' => $anchor, 'recurrence' => 'daily']);
 
         app(RescheduleAction::class)->handle($action, 'anchored', null, null, 'after dinner', 'UTC');
 
         $fresh = $action->fresh();
 
-        $this->assertNull($fresh->scheduled_for);
         $this->assertNull($fresh->series_started_at);
     }
 

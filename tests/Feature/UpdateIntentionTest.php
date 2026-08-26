@@ -23,9 +23,8 @@ class UpdateIntentionTest extends TestCase
 
         $stale = Carbon::now()->subDays(3)->setTime(21, 30);
         $action = Action::factory()->for($intention)->create([
-            'status' => Action::STATUS_PENDING,
+            'status' => Action::STATUS_ACTIVE,
             'recurrence' => 'daily',
-            'scheduled_for' => $stale,
             'series_started_at' => $stale,
         ]);
 
@@ -40,9 +39,8 @@ class UpdateIntentionTest extends TestCase
         $intention = Intention::factory()->for($user)->create(['status' => Intention::STATUS_PAUSED]);
 
         $action = Action::factory()->for($intention)->create([
-            'status' => Action::STATUS_PENDING,
+            'status' => Action::STATUS_ACTIVE,
             'recurrence' => null,
-            'scheduled_for' => null,
             'series_started_at' => null,
         ]);
 
@@ -58,9 +56,8 @@ class UpdateIntentionTest extends TestCase
 
         $stale = Carbon::now()->subDays(3)->setTime(21, 30);
         $action = Action::factory()->for($intention)->create([
-            'status' => Action::STATUS_PENDING,
+            'status' => Action::STATUS_ACTIVE,
             'recurrence' => 'daily',
-            'scheduled_for' => $stale,
             'series_started_at' => $stale,
         ]);
 
@@ -78,9 +75,8 @@ class UpdateIntentionTest extends TestCase
 
         $staleSunday = Carbon::parse('2026-01-11 10:00:00', 'UTC'); // a stale Sunday
         $action = Action::factory()->for($intention)->create([
-            'status' => Action::STATUS_PENDING,
+            'status' => Action::STATUS_ACTIVE,
             'recurrence' => 'weekly',
-            'scheduled_for' => $staleSunday,
             'series_started_at' => $staleSunday,
         ]);
 
@@ -99,9 +95,8 @@ class UpdateIntentionTest extends TestCase
 
         $future = Carbon::now()->addDays(3)->setTime(9, 0);
         $action = Action::factory()->for($intention)->create([
-            'status' => Action::STATUS_PENDING,
+            'status' => Action::STATUS_ACTIVE,
             'recurrence' => 'daily',
-            'scheduled_for' => $future,
             'series_started_at' => $future,
         ]);
 
@@ -119,9 +114,8 @@ class UpdateIntentionTest extends TestCase
 
         $stale = Carbon::parse('2026-08-20 09:00:00');
         $action = Action::factory()->for($intention)->create([
-            'status' => Action::STATUS_PENDING,
+            'status' => Action::STATUS_ACTIVE,
             'recurrence' => 'daily',
-            'scheduled_for' => $stale,
             'series_started_at' => $stale,
         ]);
 
@@ -143,9 +137,8 @@ class UpdateIntentionTest extends TestCase
 
         $stale = Carbon::parse('2026-08-20 09:00:00');
         $action = Action::factory()->for($intention)->create([
-            'status' => Action::STATUS_PENDING,
+            'status' => Action::STATUS_ACTIVE,
             'recurrence' => 'daily',
-            'scheduled_for' => $stale,
             'series_started_at' => $stale,
         ]);
 
@@ -170,9 +163,8 @@ class UpdateIntentionTest extends TestCase
 
         $stale = Carbon::parse('2026-08-20 09:00:00');
         $action = Action::factory()->for($intention)->create([
-            'status' => Action::STATUS_PENDING,
+            'status' => Action::STATUS_ACTIVE,
             'recurrence' => 'daily',
-            'scheduled_for' => $stale,
             'series_started_at' => $stale,
         ]);
 

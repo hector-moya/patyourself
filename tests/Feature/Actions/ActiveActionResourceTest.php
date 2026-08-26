@@ -23,9 +23,9 @@ class ActiveActionResourceTest extends TestCase
         $strategy = Strategy::factory()->initial()->for($intention)->create();
         Action::factory()->for($intention)->create([
             'strategy_id' => $strategy->id,
-            'status' => Action::STATUS_PENDING,
+            'status' => Action::STATUS_ACTIVE,
             'recurrence' => 'daily',
-            'scheduled_for' => now()->addDay(),
+            'series_started_at' => now()->addDay(),
             'metadata' => ['schedule_kind' => 'clock'],
         ]);
 

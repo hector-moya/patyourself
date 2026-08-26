@@ -35,9 +35,8 @@ class LoopProgressToolTest extends TestCase
         $user = User::factory()->create(['timezone' => 'UTC']);
         $loop = Intention::factory()->for($user)->create(['title' => 'Meditate']);
         $action = Action::factory()->for($loop)->create([
-            'status' => Action::STATUS_COMPLETED,
+            'status' => Action::STATUS_ACTIVE,
             'recurrence' => null,
-            'scheduled_for' => null,
         ]);
 
         ActionLog::factory()->count(3)->for($action)->for($user)->create([

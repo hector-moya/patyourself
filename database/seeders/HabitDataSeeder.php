@@ -69,11 +69,12 @@ class HabitDataSeeder extends Seeder
                 'intervention_point' => Strategy::POINT_CUE,
             ]);
 
-        // v1 actions: completed history + the failure that triggered the shift.
+        // v1 actions: history + the failure that triggered the shift. Archived,
+        // since starting v2 retires whatever action the loop was running under v1.
         $v1Action = Action::factory()
             ->for($intention)
             ->for($v1, 'strategy')
-            ->completed()
+            ->archived()
             ->create();
 
         ActionLog::factory()->for($v1Action, 'action')->for($user)->completed()->count(3)->create();

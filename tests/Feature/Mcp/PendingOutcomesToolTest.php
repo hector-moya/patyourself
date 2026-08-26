@@ -51,9 +51,8 @@ class PendingOutcomesToolTest extends TestCase
             ->for(Intention::factory()->for($user)->state(['status' => $loopStatus]))
             ->create([
                 'recurrence' => 'daily',
-                'scheduled_for' => $anchor,
                 'series_started_at' => $anchor,
-                'status' => Action::STATUS_PENDING,
+                'status' => Action::STATUS_ACTIVE,
             ]);
     }
 
@@ -97,9 +96,8 @@ class PendingOutcomesToolTest extends TestCase
             ->for(Intention::factory()->for($user))
             ->create([
                 'recurrence' => 'daily',
-                'scheduled_for' => $anchor,
                 'series_started_at' => $anchor,
-                'status' => Action::STATUS_PENDING,
+                'status' => Action::STATUS_ACTIVE,
             ]);
 
         $this->assertSame(0, Occurrence::count());

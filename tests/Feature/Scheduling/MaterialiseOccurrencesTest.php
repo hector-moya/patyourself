@@ -44,9 +44,8 @@ class MaterialiseOccurrencesTest extends TestCase
             ->for(Intention::factory()->for($user)->state(['status' => $loopStatus]))
             ->create([
                 'recurrence' => 'daily',
-                'scheduled_for' => $anchor,
                 'series_started_at' => $anchor,
-                'status' => Action::STATUS_PENDING,
+                'status' => Action::STATUS_ACTIVE,
             ]);
     }
 
@@ -123,9 +122,8 @@ class MaterialiseOccurrencesTest extends TestCase
             ->for(Intention::factory()->for($user))
             ->create([
                 'recurrence' => null,
-                'scheduled_for' => $anchor,
                 'series_started_at' => $anchor,
-                'status' => Action::STATUS_PENDING,
+                'status' => Action::STATUS_ACTIVE,
             ]);
 
         $this->assertSame(1, app(MaterialiseOccurrences::class)->forUser($user));
@@ -139,9 +137,8 @@ class MaterialiseOccurrencesTest extends TestCase
             ->for(Intention::factory()->for($user))
             ->create([
                 'recurrence' => null,
-                'scheduled_for' => null,
                 'series_started_at' => null,
-                'status' => Action::STATUS_PENDING,
+                'status' => Action::STATUS_ACTIVE,
             ]);
 
         $this->assertSame(0, app(MaterialiseOccurrences::class)->forUser($user));
@@ -156,9 +153,8 @@ class MaterialiseOccurrencesTest extends TestCase
             ->for(Intention::factory()->for($user))
             ->create([
                 'recurrence' => 'daily',
-                'scheduled_for' => $anchor,
                 'series_started_at' => $anchor,
-                'status' => Action::STATUS_PENDING,
+                'status' => Action::STATUS_ACTIVE,
             ]);
 
         $this->assertSame(0, app(MaterialiseOccurrences::class)->forUser($user));
@@ -173,9 +169,8 @@ class MaterialiseOccurrencesTest extends TestCase
             ->for(Intention::factory()->for($user))
             ->create([
                 'recurrence' => 'weekly',
-                'scheduled_for' => $anchor,
                 'series_started_at' => $anchor,
-                'status' => Action::STATUS_PENDING,
+                'status' => Action::STATUS_ACTIVE,
             ]);
 
         $this->assertSame(4, app(MaterialiseOccurrences::class)->forUser($user));

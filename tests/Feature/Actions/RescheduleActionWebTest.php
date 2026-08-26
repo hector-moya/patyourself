@@ -20,7 +20,7 @@ class RescheduleActionWebTest extends TestCase
 
         return Action::factory()->for($intention)->create([
             'strategy_id' => $strategy->id,
-            'status' => Action::STATUS_PENDING,
+            'status' => Action::STATUS_ACTIVE,
         ]);
     }
 
@@ -39,8 +39,8 @@ class RescheduleActionWebTest extends TestCase
 
         $action->refresh();
         $this->assertSame('weekdays', $action->recurrence);
-        $this->assertNotNull($action->scheduled_for);
-        $this->assertSame('06:30', $action->scheduled_for->utc()->format('H:i'));
+        $this->assertNotNull($action->series_started_at);
+        $this->assertSame('06:30', $action->series_started_at->utc()->format('H:i'));
         $this->assertSame('clock', $action->metadata['schedule_kind']);
     }
 
@@ -57,7 +57,7 @@ class RescheduleActionWebTest extends TestCase
             ->assertRedirect();
 
         $action->refresh();
-        $this->assertNull($action->scheduled_for);
+        $this->assertNull($action->series_started_at);
         $this->assertNull($action->recurrence);
         $this->assertSame('after lunch', $action->metadata['anchor']);
     }

@@ -82,14 +82,12 @@ final readonly class PersistAuthoredIntention
             'strategy_id' => $strategy->id,
             'title' => $action->title,
             'description' => $action->description,
-            'scheduled_for' => $scheduledFor,
-            // Where this cadence begins. scheduled_for cannot record it —
-            // it rolls forward on every log — and materialisation walks
-            // forward from here, so an action without it never produces an
+            // Where this cadence begins, and what materialisation walks
+            // forward from, so an action without it never produces an
             // occurrence and drops out of every check-in.
             'series_started_at' => $scheduledFor,
             'recurrence' => $recurrence?->value,
-            'status' => Action::STATUS_PENDING,
+            'status' => Action::STATUS_ACTIVE,
             'metadata' => array_filter([
                 'schedule_kind' => $action->kind,
                 'anchor' => $action->anchor,

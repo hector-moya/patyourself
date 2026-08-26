@@ -23,7 +23,6 @@ use Illuminate\Support\Facades\Date;
     'strategy_id',
     'title',
     'description',
-    'scheduled_for',
     'series_started_at',
     'recurrence',
     'status',
@@ -60,7 +59,6 @@ class Action extends Model
     protected function casts(): array
     {
         return [
-            'scheduled_for' => 'datetime',
             'series_started_at' => 'immutable_datetime',
             'metadata' => 'array',
         ];
@@ -103,8 +101,8 @@ class Action extends Model
 
     /**
      * Every materialised instance of this action. The action row is the
-     * standing prescription and its next-due pointer; these are the occasions
-     * it has actually produced, and the rows outcomes attach to.
+     * standing prescription; these are the occasions it has actually
+     * produced, and the rows outcomes attach to.
      *
      * @return HasMany<Occurrence, $this>
      */

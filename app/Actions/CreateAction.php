@@ -53,12 +53,11 @@ final readonly class CreateAction
             'strategy_id' => $strategy->id,
             'title' => $authored->title,
             'description' => $authored->description,
-            'scheduled_for' => $scheduledFor,
             // Where this cadence begins. Null for a cue-anchored action, which
             // has no schedule and so materialises no occasions.
             'series_started_at' => $scheduledFor,
             'recurrence' => $recurrence?->value,
-            'status' => Action::STATUS_PENDING,
+            'status' => Action::STATUS_ACTIVE,
             'metadata' => array_filter([
                 'schedule_kind' => $authored->kind,
                 'anchor' => $authored->anchor,

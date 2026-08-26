@@ -96,9 +96,8 @@ class UpdateLoopToolTest extends TestCase
         $strategy = Strategy::factory()->for($loop)->create(['version' => 1, 'status' => Strategy::STATUS_ACTIVE]);
         $stale = now()->subDays(4)->setTime(19, 0);
         $action = Action::factory()->for($loop)->for($strategy)->create([
-            'status' => Action::STATUS_PENDING,
+            'status' => Action::STATUS_ACTIVE,
             'recurrence' => 'daily',
-            'scheduled_for' => $stale,
             'series_started_at' => $stale,
         ]);
 

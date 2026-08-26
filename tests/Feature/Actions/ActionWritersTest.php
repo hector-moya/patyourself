@@ -14,6 +14,7 @@ use App\Services\Authoring\AuthoredAction;
 use App\Services\Scheduling\MaterialiseOccurrences;
 use App\Services\Strategy\StrategyTransitionException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
 /**
@@ -53,18 +54,17 @@ class ActionWritersTest extends TestCase
         );
     }
 
-    public function test_a_clock_action_is_scheduled_and_anchored_at_the_same_moment(): void
+    public function test_a_clock_action_is_anchored_in_the_future(): void
     {
         $user = User::factory()->create(['timezone' => 'UTC']);
         $loop = $this->loopWithActiveStrategy($user);
 
         $action = app(CreateAction::class)->handle($loop, $this->clockAction());
 
-        $this->assertNotNull($action->scheduled_for);
-        $this->assertTrue($action->scheduled_for->isFuture());
-        $this->assertTrue($action->series_started_at->equalTo($action->scheduled_for));
+        $this->assertNotNull($action->series_started_at);
+        $this->assertTrue($action->series_started_at->isFuture());
         $this->assertSame('daily', $action->recurrence);
-        $this->assertSame(Action::STATUS_PENDING, $action->status);
+        $this->assertSame(Action::STATUS_ACTIVE, $action->status);
         $this->assertSame('clock', $action->metadata['schedule_kind']);
     }
 
@@ -82,7 +82,6 @@ class ActionWritersTest extends TestCase
             anchor: 'after serving the first plate',
         ));
 
-        $this->assertNull($action->scheduled_for);
         $this->assertNull($action->series_started_at);
         $this->assertSame('anchored', $action->metadata['schedule_kind']);
         $this->assertSame('after serving the first plate', $action->metadata['anchor']);
@@ -149,5 +148,28 @@ class ActionWritersTest extends TestCase
         app(ArchiveAction::class)->handle($action);
 
         $this->assertSame(0, app(MaterialiseOccurrences::class)->forUser($user));
+    }
+
+    public function test_creating_an_action_writes_only_the_anchor(): void
+    {
+        Carbon::setTestNow('2026-08-24 12:00:00');
+
+        $loop = Intention::factory()->create(['status' => Intention::STATUS_ACTIVE]);
+        Strategy::factory()->initial()->for($loop)->create();
+
+        $action = app(CreateAction::class)->handle(
+            $loop->refresh(),
+            new AuthoredAction(
+                title: 'Fill your water bottle first thing',
+                description: null,
+                kind: 'clock',
+                time: '07:00',
+                recurrence: 'daily',
+                anchor: null,
+            ),
+        );
+
+        $this->assertNotNull($action->series_started_at);
+        $this->assertArrayNotHasKey('scheduled_for', $action->getAttributes());
     }
 }

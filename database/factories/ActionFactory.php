@@ -19,10 +19,6 @@ class ActionFactory extends Factory
      */
     public function definition(): array
     {
-        // Fixtures hold the same invariant as production: an action with a
-        // schedule is anchored at it.
-        $scheduledFor = fake()->dateTimeBetween('-3 days', '+4 days');
-
         return [
             'intention_id' => Intention::factory(),
             'strategy_id' => Strategy::factory(),
@@ -34,21 +30,26 @@ class ActionFactory extends Factory
                 'Fill your water bottle first thing',
             ]),
             'description' => fake()->sentence(9),
-            'scheduled_for' => $scheduledFor,
-            'series_started_at' => $scheduledFor,
+            'series_started_at' => fake()->dateTimeBetween('-3 days', '+4 days'),
             'recurrence' => fake()->randomElement([null, 'daily', 'weekdays']),
             'status' => Action::STATUS_ACTIVE,
             'metadata' => ['schedule_kind' => 'clock', 'card' => ['style' => 'default']],
         ];
     }
 
-    public function pending(): static
+    /** A cue-anchored action: no clock time, so no grid of occasions. */
+    public function anchored(): static
     {
-        return $this->state(['status' => Action::STATUS_PENDING]);
+        return $this->state([
+            'series_started_at' => null,
+            'recurrence' => null,
+            'metadata' => ['schedule_kind' => 'anchored', 'anchor' => 'after brushing my teeth'],
+        ]);
     }
 
-    public function completed(): static
+    /** Removed from the loop's live set. `remove-action` archives, never deletes. */
+    public function archived(): static
     {
-        return $this->state(['status' => Action::STATUS_COMPLETED]);
+        return $this->state(['status' => Action::STATUS_ARCHIVED]);
     }
 }

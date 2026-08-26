@@ -38,8 +38,8 @@ class ActionTest extends TestCase
         $intention = Intention::factory()->create();
         $strategy = Strategy::factory()->for($intention)->create(['version' => 1]);
 
-        $open = Action::factory()->for($intention)->for($strategy, 'strategy')->pending()->create();
-        $done = Action::factory()->for($intention)->for($strategy, 'strategy')->completed()->create();
+        $open = Action::factory()->for($intention)->for($strategy, 'strategy')->create();
+        $done = Action::factory()->for($intention)->for($strategy, 'strategy')->archived()->create();
 
         $this->assertTrue($open->isOpen());
         $this->assertFalse($done->isOpen());

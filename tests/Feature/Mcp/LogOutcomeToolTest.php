@@ -50,7 +50,6 @@ class LogOutcomeToolTest extends TestCase
             ->create([
                 'status' => Action::STATUS_ACTIVE,
                 'recurrence' => null,
-                'scheduled_for' => null,
                 'series_started_at' => null,
             ]);
     }
@@ -62,7 +61,6 @@ class LogOutcomeToolTest extends TestCase
             ->create([
                 'status' => Action::STATUS_ACTIVE,
                 'recurrence' => 'daily',
-                'scheduled_for' => now()->setTime(19, 0),
                 'series_started_at' => now()->subDays(5)->setTime(19, 0),
             ]);
     }
@@ -193,8 +191,8 @@ class LogOutcomeToolTest extends TestCase
     {
         $user = User::factory()->create(['timezone' => 'UTC']);
         $action = $this->recurringAction($user);
-        $scheduledFor = $action->scheduled_for;
-        $occurrence = $this->occurrenceFor($action, $action->scheduled_for->toDateTimeString());
+        $seriesStartedAt = $action->series_started_at;
+        $occurrence = $this->occurrenceFor($action, now()->setTime(19, 0)->toDateTimeString());
 
         PatYourSelfServer::actingAs($user)
             ->tool(LogOutcomeTool::class, [
@@ -205,14 +203,14 @@ class LogOutcomeToolTest extends TestCase
 
         $fresh = $action->fresh();
         $this->assertSame(Action::STATUS_ACTIVE, $fresh->status);
-        $this->assertTrue($fresh->scheduled_for->equalTo($scheduledFor));
+        $this->assertTrue($fresh->series_started_at->equalTo($seriesStartedAt));
     }
 
     public function test_it_logs_a_past_occasion_without_moving_the_next_due_pointer(): void
     {
         $user = User::factory()->create(['timezone' => 'UTC']);
         $action = $this->recurringAction($user);
-        $nextDue = $action->scheduled_for;
+        $seriesStartedAt = $action->series_started_at;
         $occurrence = $this->occurrenceFor($action);
 
         $response = PatYourSelfServer::actingAs($user)
@@ -225,7 +223,7 @@ class LogOutcomeToolTest extends TestCase
         $response->assertOk();
 
         $this->assertSame($occurrence->id, $this->payload($response)['occurrence_id']);
-        $this->assertTrue($action->fresh()->scheduled_for->equalTo($nextDue));
+        $this->assertTrue($action->fresh()->series_started_at->equalTo($seriesStartedAt));
     }
 
     public function test_it_refuses_to_log_an_occasion_twice(): void

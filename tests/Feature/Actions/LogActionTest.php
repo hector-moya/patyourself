@@ -36,7 +36,6 @@ class LogActionTest extends TestCase
             ->for(Intention::factory()->for($user))
             ->create([
                 'recurrence' => 'daily',
-                'scheduled_for' => now()->setTime(19, 0),
                 'series_started_at' => now()->subDays(5)->setTime(19, 0),
                 'status' => Action::STATUS_ACTIVE,
             ]);
@@ -65,7 +64,7 @@ class LogActionTest extends TestCase
     {
         $user = User::factory()->create(['timezone' => 'UTC']);
         $action = $this->recurringAction($user);
-        $nextDue = $action->scheduled_for;
+        $seriesStartedAt = $action->series_started_at;
         $occurrence = Occurrence::factory()->create([
             'action_id' => $action->id,
             'scheduled_for' => now()->subDays(3)->setTime(19, 0),
@@ -77,7 +76,7 @@ class LogActionTest extends TestCase
 
         $fresh = $action->fresh();
 
-        $this->assertTrue($fresh->scheduled_for->equalTo($nextDue));
+        $this->assertTrue($fresh->series_started_at->equalTo($seriesStartedAt));
         $this->assertSame(Action::STATUS_ACTIVE, $fresh->status);
     }
 
@@ -85,10 +84,10 @@ class LogActionTest extends TestCase
     {
         $user = User::factory()->create(['timezone' => 'UTC']);
         $action = $this->recurringAction($user);
-        $scheduledFor = $action->scheduled_for;
+        $seriesStartedAt = $action->series_started_at;
         $occurrence = Occurrence::factory()->create([
             'action_id' => $action->id,
-            'scheduled_for' => $action->scheduled_for,
+            'scheduled_for' => now()->setTime(19, 0),
         ]);
 
         app(LogAction::class)->handle($user, $action, [
@@ -98,7 +97,7 @@ class LogActionTest extends TestCase
         $fresh = $action->fresh();
 
         $this->assertSame(Action::STATUS_ACTIVE, $fresh->status);
-        $this->assertTrue($fresh->scheduled_for->equalTo($scheduledFor));
+        $this->assertTrue($fresh->series_started_at->equalTo($seriesStartedAt));
     }
 
     public function test_the_series_anchor_never_moves_when_an_outcome_is_logged(): void
@@ -131,7 +130,7 @@ class LogActionTest extends TestCase
         $user = User::factory()->create(['timezone' => 'UTC']);
         $action = Action::factory()
             ->for(Intention::factory()->for($user))
-            ->create(['recurrence' => null, 'scheduled_for' => null, 'series_started_at' => null]);
+            ->create(['recurrence' => null, 'series_started_at' => null]);
 
         $log = app(LogAction::class)->handle($user, $action, ['outcome' => ActionLog::OUTCOME_COMPLETED]);
 

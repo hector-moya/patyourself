@@ -13,8 +13,7 @@ use Illuminate\Support\Facades\Gate;
  *
  * Distinct from {@see ActionLogController}, which logs the *live* slot an
  * action card is showing. Catching up means recording Tuesday's occasion on
- * Friday, and the action-keyed endpoint would attach that to Friday instead —
- * and move the next-due pointer while it was at it.
+ * Friday, and the action-keyed endpoint would attach that to Friday instead.
  */
 class OccurrenceLogController extends Controller
 {

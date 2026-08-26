@@ -25,7 +25,7 @@ class ActionLogTest extends TestCase
             ->create([
                 'status' => Action::STATUS_ACTIVE,
                 'recurrence' => null,
-                'scheduled_for' => null,
+                'series_started_at' => null,
             ]);
     }
 

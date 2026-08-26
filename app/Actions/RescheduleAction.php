@@ -37,7 +37,6 @@ final readonly class RescheduleAction
             ->delete();
 
         $action->update([
-            'scheduled_for' => $scheduledFor,
             // The anchor marks where the action's *current* cadence began, so a
             // reschedule re-anchors it. Left frozen, every future occasion
             // would materialise at the old time of day, and an action turned

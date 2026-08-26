@@ -64,9 +64,8 @@ class ActionCrudToolsTest extends TestCase
             ->create([
                 'title' => 'Put the fork down between mouthfuls',
                 'recurrence' => 'daily',
-                'scheduled_for' => $anchor,
                 'series_started_at' => $anchor,
-                'status' => Action::STATUS_PENDING,
+                'status' => Action::STATUS_ACTIVE,
             ]);
     }
 
@@ -89,7 +88,7 @@ class ActionCrudToolsTest extends TestCase
         $action = Action::findOrFail($payload['action_id']);
 
         $this->assertSame('Put the pan back on the stove before sitting down', $action->title);
-        $this->assertTrue($action->series_started_at->equalTo($action->scheduled_for));
+        $this->assertTrue($action->series_started_at->isFuture());
         $this->assertSame(1, $payload['strategy_version']);
         $this->assertArrayHasKey('next_occurrence_at', $payload);
         $this->assertArrayNotHasKey('status', $payload);
@@ -109,7 +108,7 @@ class ActionCrudToolsTest extends TestCase
 
         $action = $loop->actions()->firstOrFail();
 
-        $this->assertNull($action->scheduled_for);
+        $this->assertNull($action->series_started_at);
         $this->assertSame('after serving the first plate', $action->metadata['anchor']);
     }
 
@@ -240,7 +239,7 @@ class ActionCrudToolsTest extends TestCase
         $fresh = $action->fresh();
 
         $this->assertFalse($fresh->series_started_at->equalTo($anchor));
-        $this->assertTrue($fresh->series_started_at->equalTo($fresh->scheduled_for));
+        $this->assertTrue($fresh->series_started_at->isFuture());
     }
 
     public function test_rescheduling_keeps_the_occasions_already_materialised(): void
@@ -325,6 +324,6 @@ class ActionCrudToolsTest extends TestCase
             ->tool(RemoveActionTool::class, ['action_id' => $action->id])
             ->assertHasErrors(['Not found.']);
 
-        $this->assertSame(Action::STATUS_PENDING, $action->fresh()->status);
+        $this->assertSame(Action::STATUS_ACTIVE, $action->fresh()->status);
     }
 }

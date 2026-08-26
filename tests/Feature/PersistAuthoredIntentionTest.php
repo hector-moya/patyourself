@@ -122,10 +122,10 @@ class PersistAuthoredIntentionTest extends TestCase
         $this->assertNotNull($action);
         $this->assertSame('Put walking shoes by the coffee machine', $action->title);
         $this->assertSame($intention->activeStrategy->id, $action->strategy_id);
-        $this->assertSame(Action::STATUS_PENDING, $action->status);
+        $this->assertSame(Action::STATUS_ACTIVE, $action->status);
         $this->assertSame('daily', $action->recurrence);
-        $this->assertNotNull($action->scheduled_for);
-        $this->assertSame('07:00', $action->scheduled_for->utc()->format('H:i'));
+        $this->assertNotNull($action->series_started_at);
+        $this->assertSame('07:00', $action->series_started_at->utc()->format('H:i'));
         $this->assertSame('clock', $action->metadata['schedule_kind']);
     }
 
@@ -142,7 +142,7 @@ class PersistAuthoredIntentionTest extends TestCase
         $intention = app(PersistAuthoredIntention::class)->handle($user, $authored);
 
         $action = $intention->actions()->first();
-        $this->assertNull($action->scheduled_for);
+        $this->assertNull($action->series_started_at);
         $this->assertNull($action->recurrence);
         $this->assertSame('after morning coffee', $action->metadata['anchor']);
     }

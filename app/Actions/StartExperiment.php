@@ -121,7 +121,7 @@ final class StartExperiment
         $prior = $intention->activeAction;
 
         $intention->actions()
-            ->whereIn('status', [Action::STATUS_PENDING, Action::STATUS_ACTIVE])
+            ->where('status', '!=', Action::STATUS_ARCHIVED)
             ->update(['status' => Action::STATUS_ARCHIVED]);
 
         $action = $revisedAction;
@@ -134,7 +134,7 @@ final class StartExperiment
             $metadata = array_filter(['schedule_kind' => $action->kind, 'anchor' => $action->anchor], static fn ($v): bool => $v !== null);
         } else {
             // Inherit the prior cadence; retitle from the new tactic.
-            $scheduledFor = $prior?->scheduled_for;
+            $scheduledFor = $prior?->series_started_at;
             $recurrence = Recurrence::tryFromToken($prior?->recurrence);
             $title = Str::limit($next->approach, 250, '');
             $metadata = array_filter([
@@ -148,13 +148,12 @@ final class StartExperiment
             'intention_id' => $intention->id,
             'title' => $title,
             'description' => $next->rationale,
-            'scheduled_for' => $scheduledFor,
             // Where this cadence begins — inherited verbatim when the prior
             // action's schedule is carried over. Materialisation walks forward
-            // from here; scheduled_for cannot record it because it moves.
+            // from here.
             'series_started_at' => $scheduledFor,
             'recurrence' => $recurrence?->value,
-            'status' => Action::STATUS_PENDING,
+            'status' => Action::STATUS_ACTIVE,
             'metadata' => $metadata,
         ]);
     }

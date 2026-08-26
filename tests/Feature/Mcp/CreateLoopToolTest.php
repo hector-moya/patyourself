@@ -111,7 +111,7 @@ class CreateLoopToolTest extends TestCase
 
         $this->assertSame('Read ten pages', $action->title);
         $this->assertSame('daily', $action->recurrence);
-        $this->assertSame(Action::STATUS_PENDING, $action->status);
+        $this->assertSame(Action::STATUS_ACTIVE, $action->status);
     }
 
     public function test_creates_no_action_when_the_block_is_absent(): void
