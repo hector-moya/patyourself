@@ -11,6 +11,7 @@ use App\Http\Requests\UpdateIntentionRequest;
 use App\Http\Resources\IntentionResource;
 use App\Models\Intention;
 use App\Policies\IntentionPolicy;
+use App\Services\Scheduling\MaterialiseOccurrences;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -46,9 +47,14 @@ class IntentionController extends Controller
             ->setStatusCode(Response::HTTP_CREATED);
     }
 
-    public function show(Intention $intention): IntentionResource
+    public function show(Intention $intention, MaterialiseOccurrences $materialise): IntentionResource
     {
         Gate::authorize('view', $intention);
+
+        // The embedded action reports its next occasion, and the grid it reads
+        // is built lazily — so this read has to build it or it answers null for
+        // an action that is due today. A paused loop materialises nothing.
+        $materialise->forLoop($intention);
 
         return new IntentionResource($intention->load(['activeStrategy', 'activeAction']));
     }

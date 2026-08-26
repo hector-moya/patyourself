@@ -36,6 +36,30 @@ class ActiveActionResourceTest extends TestCase
             ->assertJsonPath('data.active_action.schedule_kind', 'clock');
     }
 
+    public function test_api_show_materialises_the_grid_before_reporting_the_next_occasion(): void
+    {
+        Carbon::setTestNow('2026-08-26 09:00:00');
+
+        $user = User::factory()->create(['timezone' => 'UTC']);
+        $intention = Intention::factory()->for($user)->create(['status' => Intention::STATUS_ACTIVE]);
+        $strategy = Strategy::factory()->initial()->for($intention)->create();
+        Action::factory()->for($intention)->create([
+            'strategy_id' => $strategy->id,
+            'status' => Action::STATUS_ACTIVE,
+            'recurrence' => 'daily',
+            'series_started_at' => Carbon::parse('2026-08-26 19:00:00'),
+            'metadata' => ['schedule_kind' => 'clock'],
+        ]);
+
+        // No occurrence rows exist yet: materialisation is lazy, so a read that
+        // reports next_occurrence_at has to run it or it answers null for an
+        // action that is plainly due tonight.
+        $this->actingAs($user)
+            ->getJson("/api/intentions/{$intention->id}")
+            ->assertOk()
+            ->assertJsonPath('data.active_action.next_occurrence_at', '2026-08-26T19:00:00.000000Z');
+    }
+
     public function test_next_occurrence_at_is_the_earliest_unlogged_slot_from_now(): void
     {
         Carbon::setTestNow('2026-08-24 12:00:00');

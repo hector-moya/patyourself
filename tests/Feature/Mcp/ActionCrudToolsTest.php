@@ -94,6 +94,32 @@ class ActionCrudToolsTest extends TestCase
         $this->assertArrayNotHasKey('status', $payload);
     }
 
+    public function test_add_action_reports_the_occasion_it_just_created(): void
+    {
+        // Early enough in the day that the action's first slot still falls
+        // inside today's horizon, so there is a real answer to report.
+        $this->travelTo('2026-08-26 09:00:00');
+
+        $user = User::factory()->create(['timezone' => 'UTC']);
+        $loop = $this->loop($user);
+
+        $response = PatYourSelfServer::actingAs($user)->tool(AddActionTool::class, [
+            'intention_id' => $loop->id,
+            'title' => 'Put the pan back on the stove before sitting down',
+            'kind' => 'clock',
+            'time' => '19:00',
+            'recurrence' => 'daily',
+        ]);
+
+        $response->assertOk();
+
+        // The grid is materialised lazily, so a tool that describes an action it
+        // has just written has to materialise first — otherwise the coach cannot
+        // echo the time back, and a today-actions call a second later (which
+        // does materialise) contradicts it.
+        $this->assertSame('2026-08-26T19:00:00+00:00', $this->payload($response)['next_occurrence_at']);
+    }
+
     public function test_add_action_creates_a_cue_anchored_action(): void
     {
         $user = User::factory()->create(['timezone' => 'UTC']);
@@ -240,6 +266,28 @@ class ActionCrudToolsTest extends TestCase
 
         $this->assertFalse($fresh->series_started_at->equalTo($anchor));
         $this->assertTrue($fresh->series_started_at->isFuture());
+    }
+
+    public function test_update_action_reports_the_occasion_the_new_cadence_produces(): void
+    {
+        $this->travelTo('2026-08-26 09:00:00');
+
+        $user = User::factory()->create(['timezone' => 'UTC']);
+        $action = $this->existingAction($user);
+
+        $response = PatYourSelfServer::actingAs($user)->tool(UpdateActionTool::class, [
+            'action_id' => $action->id,
+            'kind' => 'clock',
+            'time' => '20:30',
+            'recurrence' => 'daily',
+        ]);
+
+        $response->assertOk();
+
+        // A reschedule deletes every unlogged slot ahead of now and re-anchors,
+        // so by construction nothing is left to read until the new grid is
+        // materialised.
+        $this->assertSame('2026-08-26T20:30:00+00:00', $this->payload($response)['next_occurrence_at']);
     }
 
     public function test_rescheduling_keeps_the_occasions_already_materialised(): void
