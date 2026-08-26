@@ -25,11 +25,22 @@ export default function LoopsIndex({ intentions }: LoopsIndexProps) {
                 <EmptyState />
             ) : (
                 <>
-                    <p className="mb-3 text-sm text-muted-foreground">
-                        {intentions.length}{' '}
-                        {intentions.length === 1 ? 'loop' : 'loops'}
-                        {activeCount > 0 && ` · ${activeCount} active`}
-                    </p>
+                    <div className="mb-3 flex items-baseline justify-between gap-3">
+                        <p className="text-sm text-muted-foreground">
+                            {intentions.length}{' '}
+                            {intentions.length === 1 ? 'loop' : 'loops'}
+                            {activeCount > 0 && ` · ${activeCount} active`}
+                        </p>
+                        {/* Plain text, no count and no badge. An unlogged
+                            occasion never expires, so surfacing a number here
+                            would turn the record into a scoreboard. */}
+                        <Link
+                            href="/catch-up"
+                            className="shrink-0 text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                        >
+                            Catch up
+                        </Link>
+                    </div>
                     <ul className="grid grid-cols-1 gap-2 md:grid-cols-2 md:gap-3">
                         {intentions.map((loop) => (
                             <li key={loop.id}>

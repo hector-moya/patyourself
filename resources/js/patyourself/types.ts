@@ -97,6 +97,16 @@ export interface OutcomeEntryData {
     strategy_version: number | null;
 }
 
+/** One occasion that has passed with no outcome yet — a row on the catch-up list. */
+export interface PendingOccurrenceData {
+    id: number;
+    loop_id: number;
+    loop_title: string;
+    action_id: number;
+    action_title: string;
+    scheduled_for: string;
+}
+
 /** An observation attached to the loop and to no occasion. */
 export interface NoteData {
     id: number;
