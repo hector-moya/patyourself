@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Models\Action;
+use App\Models\ActionLog;
 use App\Models\Intention;
 use App\Models\Strategy;
 use App\Models\User;
@@ -99,6 +101,40 @@ class IntentionScreensTest extends TestCase
                 ->has('strategies', 2)
                 ->where('strategies.0.version', 1)
                 ->where('strategies.1.version', 2)
+            );
+    }
+
+    /**
+     * Zero is meaningful: it is the difference between a version that failed
+     * and one that was never tested. Without the count the timeline cannot
+     * tell them apart.
+     */
+    public function test_loop_detail_counts_the_outcomes_recorded_under_each_version(): void
+    {
+        $user = User::factory()->create();
+        $intention = Intention::factory()->for($user)->create();
+
+        $tested = Strategy::factory()->for($intention)->create([
+            'version' => 1,
+            'status' => Strategy::STATUS_SUPERSEDED,
+        ]);
+        Strategy::factory()->for($intention)->create([
+            'version' => 2,
+            'status' => Strategy::STATUS_ACTIVE,
+        ]);
+
+        ActionLog::factory()->count(3)
+            ->for(Action::factory()->for($intention)->for($tested))
+            ->for($user)
+            ->create(['outcome' => ActionLog::OUTCOME_FAILED, 'reason' => 'Kept going past full']);
+
+        $this->actingAs($user)
+            ->get("/loops/{$intention->id}")
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('strategies.0.outcomes_recorded', 3)
+                ->where('strategies.1.outcomes_recorded', 0)
+                ->etc()
             );
     }
 

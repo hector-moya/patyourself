@@ -45,7 +45,7 @@ class IntentionController extends Controller
         Gate::authorize('view', $intention);
 
         $intention->load('activeStrategy');
-        $strategies = $intention->strategies()->orderedByVersion()->get();
+        $strategies = $intention->strategies()->withCount('actionLogs')->orderedByVersion()->get();
 
         return Inertia::render('loops/show', [
             'intention' => (new IntentionResource($intention))->resolve(),

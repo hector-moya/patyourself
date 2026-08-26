@@ -10,6 +10,38 @@ const CHANGE_REASON: Record<string, string> = {
 };
 
 /**
+ * Verdicts read as judgements of the strategy, never of the person running it.
+ * "did not hold" is about the intervention; "you failed" would not be.
+ */
+const VERDICT: Record<string, string> = {
+    worked: 'Worked',
+    failed: 'Did not hold',
+    inconclusive: 'Inconclusive',
+};
+
+/**
+ * How far into its run an experiment is. A null `planned_days` means
+ * open-ended, which is a legitimate state and must never render as a countdown
+ * or as a zero-day experiment.
+ */
+function runLength(strategy: StrategyData): string {
+    return strategy.planned_days === null
+        ? `Day ${strategy.day_of_experiment} · open-ended`
+        : `Day ${strategy.day_of_experiment} of ${strategy.planned_days}`;
+}
+
+/**
+ * The evidence under a version. Zero is meaningful — it is the difference
+ * between a strategy that failed and one that was never tested — so it is
+ * spelled out rather than left as a blank.
+ */
+function evidence(count: number): string {
+    return count === 0
+        ? 'Not yet tested'
+        : `${count} outcome${count === 1 ? '' : 's'} recorded`;
+}
+
+/**
  * The versioned strategy history as a vertical timeline (oldest → newest,
  * top-down, the active version flagged). Read-only: history is only ever
  * appended to. Shared by the loop-detail and progress-detail screens.
@@ -80,11 +112,41 @@ function TimelineNode({
                             active
                         </span>
                     )}
+                    {strategy.is_under_review && (
+                        <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                            ready to conclude
+                        </span>
+                    )}
                 </div>
 
                 <p className="mt-1 text-sm text-foreground">
                     {strategy.approach}
                 </p>
+
+                <p className="mt-1 text-xs text-muted-foreground">
+                    {active && !strategy.verdict && (
+                        <span>{runLength(strategy)}</span>
+                    )}
+                    {strategy.verdict && (
+                        <span>
+                            {VERDICT[strategy.verdict] ?? strategy.verdict}
+                        </span>
+                    )}
+                    {strategy.outcomes_recorded !== undefined && (
+                        <span>
+                            {(active && !strategy.verdict) || strategy.verdict
+                                ? ' · '
+                                : ''}
+                            {evidence(strategy.outcomes_recorded)}
+                        </span>
+                    )}
+                </p>
+
+                {strategy.verdict_note && (
+                    <p className="mt-1 text-xs text-muted-foreground/80 italic">
+                        “{strategy.verdict_note}”
+                    </p>
+                )}
 
                 {strategy.change_reason && (
                     <p className="mt-1 text-xs text-muted-foreground">

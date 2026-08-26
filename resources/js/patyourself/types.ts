@@ -20,6 +20,8 @@ export interface StrategyData {
     day_of_experiment: number;
     planned_days: number | null;
     is_under_review: boolean;
+    /** How many outcomes were recorded under this version. Absent when the caller did not count them. */
+    outcomes_recorded?: number;
     parent_strategy_id: number | null;
     metadata: Record<string, unknown> | null;
     created_at: string | null;
