@@ -8,6 +8,7 @@ use App\Models\Occurrence;
 use App\Models\User;
 use App\Services\Scheduling\MaterialiseOccurrences;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
 /**
@@ -24,6 +25,13 @@ class MaterialiseOccurrencesTest extends TestCase
         parent::setUp();
 
         $this->travelTo('2026-08-26 21:00:00');
+    }
+
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+
+        parent::tearDown();
     }
 
     private function dailyAction(User $user, string $loopStatus = Intention::STATUS_ACTIVE): Action
@@ -206,5 +214,77 @@ class MaterialiseOccurrencesTest extends TestCase
         $action = $this->dailyAction($user, Intention::STATUS_PAUSED);
 
         $this->assertSame(0, app(MaterialiseOccurrences::class)->forLoop($action->intention));
+    }
+
+    public function test_it_materialises_the_rest_of_the_local_day(): void
+    {
+        Carbon::setTestNow('2026-08-24 12:00:00');
+
+        $user = User::factory()->create(['timezone' => 'UTC']);
+        $loop = Intention::factory()->for($user)->create(['status' => Intention::STATUS_ACTIVE]);
+        Action::factory()->for($loop)->create([
+            'series_started_at' => Carbon::parse('2026-08-24 20:00:00'),
+            'recurrence' => 'daily',
+        ]);
+
+        $created = app(MaterialiseOccurrences::class)->forUser($user);
+
+        // 20:00 is still ahead of noon, but it is today, so it must have a row —
+        // otherwise nothing can render as "upcoming".
+        $this->assertSame(1, $created);
+        $this->assertDatabaseHas('occurrences', ['scheduled_for' => '2026-08-24 20:00:00']);
+    }
+
+    public function test_it_stops_at_the_end_of_the_local_day(): void
+    {
+        Carbon::setTestNow('2026-08-24 12:00:00');
+
+        $user = User::factory()->create(['timezone' => 'UTC']);
+        $loop = Intention::factory()->for($user)->create(['status' => Intention::STATUS_ACTIVE]);
+        Action::factory()->for($loop)->create([
+            'series_started_at' => Carbon::parse('2026-08-24 09:00:00'),
+            'recurrence' => 'daily',
+        ]);
+
+        app(MaterialiseOccurrences::class)->forUser($user);
+
+        $this->assertDatabaseHas('occurrences', ['scheduled_for' => '2026-08-24 09:00:00']);
+        $this->assertDatabaseMissing('occurrences', ['scheduled_for' => '2026-08-25 09:00:00']);
+    }
+
+    public function test_the_horizon_follows_the_users_timezone_not_utc(): void
+    {
+        // 23:00 UTC on the 24th is 09:00 on the 25th in Sydney, so the Sydney
+        // user's day still has slots to come that a UTC horizon would cut off.
+        Carbon::setTestNow('2026-08-24 23:00:00');
+
+        $user = User::factory()->create(['timezone' => 'Australia/Sydney']);
+        $loop = Intention::factory()->for($user)->create(['status' => Intention::STATUS_ACTIVE]);
+        Action::factory()->for($loop)->create([
+            'series_started_at' => Carbon::parse('2026-08-24 23:30:00'),
+            'recurrence' => 'daily',
+        ]);
+
+        app(MaterialiseOccurrences::class)->forUser($user);
+
+        $this->assertDatabaseHas('occurrences', ['scheduled_for' => '2026-08-24 23:30:00']);
+    }
+
+    public function test_a_second_pass_writes_nothing_and_reports_zero(): void
+    {
+        Carbon::setTestNow('2026-08-24 12:00:00');
+
+        $user = User::factory()->create(['timezone' => 'UTC']);
+        $loop = Intention::factory()->for($user)->create(['status' => Intention::STATUS_ACTIVE]);
+        Action::factory()->for($loop)->create([
+            'series_started_at' => Carbon::parse('2026-08-20 09:00:00'),
+            'recurrence' => 'daily',
+        ]);
+
+        $service = app(MaterialiseOccurrences::class);
+        $first = $service->forUser($user);
+
+        $this->assertSame(0, $service->forUser($user));
+        $this->assertSame($first, Occurrence::query()->count());
     }
 }
