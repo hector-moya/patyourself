@@ -4,7 +4,9 @@ namespace Tests\Feature;
 
 use App\Actions\UpdateIntention;
 use App\Models\Action;
+use App\Models\ActionLog;
 use App\Models\Intention;
+use App\Models\Occurrence;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -106,6 +108,81 @@ class UpdateIntentionTest extends TestCase
         app(UpdateIntention::class)->handle($intention, ['status' => Intention::STATUS_ACTIVE]);
 
         $this->assertTrue($action->fresh()->series_started_at->equalTo($future));
+    }
+
+    public function test_reactivating_purges_an_unlogged_future_occurrence_on_a_stale_action(): void
+    {
+        Carbon::setTestNow('2026-08-24 12:00:00');
+
+        $user = User::factory()->create(['timezone' => 'UTC']);
+        $intention = Intention::factory()->for($user)->create(['status' => Intention::STATUS_PAUSED]);
+
+        $stale = Carbon::parse('2026-08-20 09:00:00');
+        $action = Action::factory()->for($intention)->create([
+            'status' => Action::STATUS_PENDING,
+            'recurrence' => 'daily',
+            'scheduled_for' => $stale,
+            'series_started_at' => $stale,
+        ]);
+
+        $future = Occurrence::factory()->for($action)->create([
+            'scheduled_for' => Carbon::parse('2026-08-24 21:00:00'),
+        ]);
+
+        app(UpdateIntention::class)->handle($intention, ['status' => Intention::STATUS_ACTIVE]);
+
+        $this->assertDatabaseMissing('occurrences', ['id' => $future->id]);
+    }
+
+    public function test_reactivating_never_deletes_a_logged_future_occurrence(): void
+    {
+        Carbon::setTestNow('2026-08-24 12:00:00');
+
+        $user = User::factory()->create(['timezone' => 'UTC']);
+        $intention = Intention::factory()->for($user)->create(['status' => Intention::STATUS_PAUSED]);
+
+        $stale = Carbon::parse('2026-08-20 09:00:00');
+        $action = Action::factory()->for($intention)->create([
+            'status' => Action::STATUS_PENDING,
+            'recurrence' => 'daily',
+            'scheduled_for' => $stale,
+            'series_started_at' => $stale,
+        ]);
+
+        $logged = Occurrence::factory()->for($action)->create([
+            'scheduled_for' => Carbon::parse('2026-08-24 21:00:00'),
+        ]);
+        ActionLog::factory()->for($action)->for($logged)->create();
+
+        app(UpdateIntention::class)->handle($intention, ['status' => Intention::STATUS_ACTIVE]);
+
+        // The record is append-only. A future slot that already carries an
+        // outcome is evidence, not a phantom of the cadence being left behind.
+        $this->assertDatabaseHas('occurrences', ['id' => $logged->id]);
+    }
+
+    public function test_reactivating_leaves_a_past_occurrence_alone(): void
+    {
+        Carbon::setTestNow('2026-08-24 12:00:00');
+
+        $user = User::factory()->create(['timezone' => 'UTC']);
+        $intention = Intention::factory()->for($user)->create(['status' => Intention::STATUS_PAUSED]);
+
+        $stale = Carbon::parse('2026-08-20 09:00:00');
+        $action = Action::factory()->for($intention)->create([
+            'status' => Action::STATUS_PENDING,
+            'recurrence' => 'daily',
+            'scheduled_for' => $stale,
+            'series_started_at' => $stale,
+        ]);
+
+        $past = Occurrence::factory()->for($action)->create([
+            'scheduled_for' => Carbon::parse('2026-08-22 09:00:00'),
+        ]);
+
+        app(UpdateIntention::class)->handle($intention, ['status' => Intention::STATUS_ACTIVE]);
+
+        $this->assertDatabaseHas('occurrences', ['id' => $past->id]);
     }
 
     protected function tearDown(): void
