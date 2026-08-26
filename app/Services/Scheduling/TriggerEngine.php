@@ -70,16 +70,25 @@ final class TriggerEngine
      * Atomically claim one occasion. Returns true only for the run whose
      * guarded update actually changed the row (the fire owner); a concurrent or
      * repeated run sees 0 affected rows and returns false.
+     *
+     * Sets `fired_at` on the already-loaded model rather than calling
+     * refresh(): refresh() only reloads top-level relations, so it would
+     * silently drop the nested action.intention.user the batch query eager
+     * loaded — costing SendDueNotification two extra queries per fire.
      */
     private function fire(Occurrence $occurrence): bool
     {
+        $firedAt = Date::now();
+
         $affected = Occurrence::query()
             ->whereKey($occurrence->getKey())
             ->whereNull('fired_at')
-            ->update(['fired_at' => Date::now()]);
+            ->update(['fired_at' => $firedAt]);
 
         if ($affected === 1) {
-            $occurrence->refresh();
+            $occurrence->setAttribute('fired_at', $firedAt);
+            $occurrence->syncOriginal();
+
             OccurrenceFired::dispatch($occurrence);
 
             return true;

@@ -89,9 +89,16 @@ class TriggerEngineTest extends TestCase
 
     public function test_it_does_not_refire_an_already_fired_occasion(): void
     {
-        $this->dueOccurrence(['fired_at' => Carbon::parse('2026-08-24 09:01:00')]);
+        $firedAt = Carbon::parse('2026-08-24 09:01:00');
+        $occurrence = $this->dueOccurrence(['fired_at' => $firedAt]);
 
         $this->assertSame(0, app(TriggerEngine::class)->fireDueOccurrences());
+
+        // Proves the guard, not just non-null: an unguarded read-then-write
+        // would stomp this with a fresh now() even though the count came back
+        // 0. The guarded `whereNull('fired_at')` update never touches an
+        // already-fired row, so the original claim survives untouched.
+        $this->assertTrue($occurrence->fresh()->fired_at->equalTo($firedAt));
     }
 
     public function test_it_does_not_fire_an_occasion_that_already_carries_an_outcome(): void
@@ -116,7 +123,7 @@ class TriggerEngineTest extends TestCase
         $this->assertSame(0, app(TriggerEngine::class)->fireDueOccurrences());
     }
 
-    public function test_it_is_idempotent_across_runs(): void
+    public function test_a_second_run_fires_nothing(): void
     {
         $this->dueOccurrence();
         $engine = app(TriggerEngine::class);
@@ -127,18 +134,24 @@ class TriggerEngineTest extends TestCase
 
     public function test_the_window_follows_the_users_timezone(): void
     {
-        Carbon::setTestNow('2026-08-24 23:00:00');
+        // 01:00 UTC on the 25th is 11:00 on the 25th in Sydney (UTC+10 in
+        // August — well outside daylight saving, which runs October-April).
+        Carbon::setTestNow('2026-08-25 01:00:00');
 
         $user = User::factory()->create(['timezone' => 'Australia/Sydney']);
         $intention = Intention::factory()->for($user)->create(['status' => Intention::STATUS_ACTIVE]);
         $action = Action::factory()->for($intention)->create([
-            'series_started_at' => Carbon::parse('2026-08-24 22:00:00'),
+            'series_started_at' => Carbon::parse('2026-08-24 20:00:00'),
             'recurrence' => 'daily',
         ]);
-        // 22:00 UTC is 08:00 on the 25th in Sydney — inside that user's today,
-        // even though it is "yesterday" in UTC.
+        // Sydney's today runs 2026-08-24 14:00 UTC -> 2026-08-25 13:59:59 UTC.
+        // 20:00 UTC on the 24th is 06:00 on the 25th in Sydney — inside that
+        // window — but it falls in the *previous* UTC calendar day relative to
+        // `now`. A naive global window computed from the app's own timezone
+        // (2026-08-25 00:00 -> 23:59:59 UTC) would exclude it entirely, so this
+        // only fires under a genuinely per-user window.
         $occurrence = Occurrence::factory()->for($action)->create([
-            'scheduled_for' => Carbon::parse('2026-08-24 22:00:00'),
+            'scheduled_for' => Carbon::parse('2026-08-24 20:00:00'),
         ]);
 
         $this->assertSame(1, app(TriggerEngine::class)->fireDueOccurrences());
