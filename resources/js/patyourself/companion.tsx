@@ -13,7 +13,10 @@
  * The same component renders the 32px corner instance on Today and the big one
  * on /companion. Nothing is sized in pixels — the viewBox does the scaling.
  */
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
+
+import { useSpriteClock } from '@/hooks/use-sprite-clock';
+import type { AnimationName } from '@/patyourself/companion-animations';
 
 /** The body box, in viewBox units. x is measured from Blob's centre line. */
 const BODY = { w: 44, h: 40, rx: 13 };
@@ -197,11 +200,20 @@ export function Companion({
     size?: number;
     className?: string;
 }) {
+    const hasLegs = companion.features.includes('legs');
+
+    // Walking is what Blob does at rest once it can walk; idle is what it does
+    // before that. Only one ambient runs at a time — they are the same channel.
+    const { animation, frame } = useSpriteClock(
+        companion.abilities.includes('walk') ? 'walk' : 'idle',
+    );
+
+    // Called before the early return: a Blob that does not exist yet still has
+    // to obey the rules of hooks.
     if (!companion.features.includes('blob')) {
         return null;
     }
 
-    const hasLegs = companion.features.includes('legs');
     const poses = companion.abilities
         .map((ability) => ABILITIES[ability])
         .filter((pose): pose is AbilitySpec => pose !== undefined);
@@ -221,66 +233,109 @@ export function Companion({
                 .filter(Boolean)
                 .join(' ')}
         >
-            {hasLegs && (
-                <g className="blob-legs" fill={BODY_COLOUR}>
-                    <rect
-                        className="blob-legs__left"
-                        x={-11}
-                        y={BODY.h - 4}
-                        width={7}
-                        height={LEG_LENGTH + 4}
-                        rx={3.5}
-                    />
-                    <rect
-                        className="blob-legs__right"
-                        x={4}
-                        y={BODY.h - 4}
-                        width={7}
-                        height={LEG_LENGTH + 4}
-                        rx={3.5}
-                    />
-                </g>
-            )}
-
-            <g className="blob-body">
-                <rect
-                    x={-BODY.w / 2}
-                    y={0}
-                    width={BODY.w}
-                    height={BODY.h}
-                    rx={BODY.rx}
-                    fill={BODY_COLOUR}
-                />
-                <circle cx={-8} cy={17} r={4} fill={INK} />
-                <circle cx={8} cy={17} r={4} fill={INK} />
-            </g>
-
-            {companion.items.map((item, index) => (
-                <Worn
-                    key={`${item.type}-${item.variant ?? 'plain'}-${index}`}
-                    item={item}
-                    arriving={isLatest(
-                        companion,
-                        'item',
-                        item.type,
-                        item.variant,
-                    )}
-                />
-            ))}
-
-            {poses.map((pose, index) =>
-                pose.extra === undefined ? null : (
-                    <g
-                        key={`pose-${index}`}
-                        transform={translate(ANCHOR.hand)}
-                        className="blob-layer"
-                    >
-                        {pose.extra(BODY_COLOUR)}
+            {/* Everything Blob is and everything it wears sits inside one
+                animated group, so an accessory follows the body rather than
+                sliding off it. The renderer maps (animation, frame) to this
+                transform and to nothing else. */}
+            <g
+                className="blob-anim"
+                data-animation={animation}
+                data-frame={frame}
+                style={bodyTransform(animation, frame, hasLegs)}
+            >
+                {hasLegs && (
+                    <g className="blob-legs" fill={BODY_COLOUR}>
+                        <rect
+                            className="blob-legs__left"
+                            x={-11}
+                            y={BODY.h - 4}
+                            width={7}
+                            height={LEG_LENGTH + 4}
+                            rx={3.5}
+                        />
+                        <rect
+                            className="blob-legs__right"
+                            x={4}
+                            y={BODY.h - 4}
+                            width={7}
+                            height={LEG_LENGTH + 4}
+                            rx={3.5}
+                        />
                     </g>
-                ),
-            )}
+                )}
+
+                <g className="blob-body">
+                    <rect
+                        x={-BODY.w / 2}
+                        y={0}
+                        width={BODY.w}
+                        height={BODY.h}
+                        rx={BODY.rx}
+                        fill={BODY_COLOUR}
+                    />
+                    <circle cx={-8} cy={17} r={4} fill={INK} />
+                    <circle cx={8} cy={17} r={4} fill={INK} />
+                </g>
+
+                {companion.items.map((item, index) => (
+                    <Worn
+                        key={`${item.type}-${item.variant ?? 'plain'}-${index}`}
+                        item={item}
+                        arriving={isLatest(
+                            companion,
+                            'item',
+                            item.type,
+                            item.variant,
+                        )}
+                    />
+                ))}
+
+                {poses.map((pose, index) =>
+                    pose.extra === undefined ? null : (
+                        <g
+                            key={`pose-${index}`}
+                            transform={translate(ANCHOR.hand)}
+                            className="blob-layer"
+                        >
+                            {pose.extra(BODY_COLOUR)}
+                        </g>
+                    ),
+                )}
+            </g>
         </svg>
     );
+}
+
+/**
+ * The one place `(animation, frame)` becomes a picture.
+ *
+ * `idle` is squash-and-stretch and nothing else: scaleY between 1 and 0.975,
+ * anchored at the feet so Blob settles into the floor rather than shrinking
+ * toward its own middle. It has to be small enough that you read it as being
+ * alive rather than as something moving — if you notice the motion it is too
+ * much.
+ *
+ * Two frames at 2fps would step, not breathe, so patyourself.css eases the
+ * transform between them. That is a property of this renderer, not of the
+ * clock: a sprite renderer would swap whole frames and want no easing at all.
+ *
+ * Every other animation returns the identity for now. `walk` still runs from
+ * its own CSS keyframes; the frame-driven version arrives with the renderer
+ * split.
+ */
+function bodyTransform(
+    animation: AnimationName,
+    frame: number,
+    hasLegs: boolean,
+): CSSProperties {
+    const floor = BODY.h + (hasLegs ? LEG_LENGTH : 0);
+    const scaleY = animation === 'idle' && frame === 1 ? 0.975 : 1;
+
+    return {
+        transform: `scaleY(${scaleY})`,
+        transformOrigin: `0px ${floor}px`,
+        transformBox: 'view-box',
+    };
 }
 
 /**

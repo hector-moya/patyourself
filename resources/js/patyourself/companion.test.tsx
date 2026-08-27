@@ -185,6 +185,47 @@ describe('Companion', () => {
         expect(large?.getAttribute('width')).toBe('300');
     });
 
+    /**
+     * The renderer reads (animation, frame) and turns it into one transform on
+     * one group. Everything Blob wears sits inside that group, so an accessory
+     * follows the body instead of sliding off it.
+     */
+    it('animates one group, with the accessories inside it', () => {
+        const { container } = render(
+            <Companion
+                companion={companion({
+                    features: ['blob', 'legs'],
+                    items: [{ type: 'shoes', variant: null }],
+                })}
+            />,
+        );
+
+        const animated = container.querySelectorAll('.blob-anim');
+
+        expect(animated).toHaveLength(1);
+        expect(animated[0].getAttribute('data-animation')).toBe('idle');
+        expect(animated[0].querySelector('.blob-body')).not.toBeNull();
+        expect(animated[0].querySelector('.blob-layer')).not.toBeNull();
+    });
+
+    /** Walking is what Blob does at rest once it can walk. Same channel. */
+    it('makes walk the ambient once it is unlocked', () => {
+        const { container } = render(
+            <Companion
+                companion={companion({
+                    features: ['blob', 'legs'],
+                    abilities: ['walk'],
+                })}
+            />,
+        );
+
+        expect(
+            container
+                .querySelector('.blob-anim')
+                ?.getAttribute('data-animation'),
+        ).toBe('walk');
+    });
+
     it('describes what Blob has, without scoring it', () => {
         render(
             <Companion

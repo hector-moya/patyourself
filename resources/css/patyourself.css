@@ -561,6 +561,12 @@
    ============================================================ */
 .blob{display:block;overflow:visible;}
 
+/* The animated group. The frame clock steps scaleY between two values twice a
+   second; without easing that reads as a stutter rather than a breath, so the
+   step is smoothed across the frame. Easing belongs to the SVG renderer alone —
+   a sprite renderer swaps whole frames and must not interpolate between them. */
+.blob-anim{transition:transform 420ms ease-in-out;}
+
 /* The one transition in the feature: the layer earned most recently arrives. */
 .blob-layer--arriving{animation:blob-arrive 400ms ease-out both;}
 @keyframes blob-arrive{from{opacity:0;}to{opacity:1;}}
