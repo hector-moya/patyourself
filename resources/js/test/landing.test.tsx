@@ -16,12 +16,20 @@ vi.mock('@inertiajs/react', async (importOriginal) => {
 // Three.js loads from CDN at runtime; in jsdom the script never resolves, so
 // the ripple scene simply doesn't boot. The page must still render its content.
 describe('Landing', () => {
-    it('leads with the "progress, not perfection" headline', () => {
+    /**
+     * The app went zero-LLM: Claude does the thinking through the connector and
+     * patyourself keeps the record. The pitch says notebook, not coach — and
+     * "evidence, not willpower" because a failure here is about the strategy.
+     */
+    it('leads with the "evidence, not willpower" headline', () => {
         render(<Landing />);
 
-        expect(screen.getByText('Progress,')).toBeInTheDocument();
-        expect(screen.getByText(/not perfection\./i)).toBeInTheDocument();
-        expect(screen.getByText(/A coach, not a tracker/i)).toBeInTheDocument();
+        expect(screen.getByText('Evidence,')).toBeInTheDocument();
+        expect(screen.getByText(/not willpower\./i)).toBeInTheDocument();
+        expect(
+            screen.getByText(/A lab notebook, not a tracker/i),
+        ).toBeInTheDocument();
+        expect(screen.queryByText(/coach/i)).not.toBeInTheDocument();
     });
 
     it('explains all four loop stages', () => {

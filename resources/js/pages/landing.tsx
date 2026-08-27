@@ -257,18 +257,18 @@ export default function Landing() {
                 <div className="hero__inner">
                     <div className="hero__copy">
                         <p className="ds-eyebrow hero__eyebrow">
-                            A coach, not a tracker
+                            A lab notebook, not a tracker
                         </p>
                         <h1 className="hero__title">
-                            <em>Progress,</em>
+                            <em>Evidence,</em>
                             <br />
-                            not perfection.
+                            not willpower.
                         </h1>
                         <p className="hero__lead">
                             Every habit is a loop — cue, craving, response,
-                            reward. patyourself coaches you through one small
-                            change at a time, and reworks the plan when life
-                            gets in the way.
+                            reward. patyourself keeps the record: one experiment
+                            at a time, in your own words, so you can read back
+                            what actually happened when it went wrong.
                         </p>
                         <div className="hero__cta">
                             <Link

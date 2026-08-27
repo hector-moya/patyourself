@@ -43,7 +43,7 @@ describe('ProgressIndex', () => {
 
         expect(screen.getByText('Morning walk').closest('a')).toHaveAttribute(
             'href',
-            '/progress/7',
+            '/loops/7',
         );
     });
 
