@@ -15,13 +15,17 @@ final readonly class CompanionState
     /**
      * @param  int  $logCount  Outcomes recorded, whatever they were. A failure counts as much as a completion.
      * @param  int  $insightCount  Insight events recorded — concluded experiments, new versions, chain corrections, reflections.
-     * @param  list<array{kind: string, name: string, variant: ?string, message: string, unlocked_at: ?string}>  $unlocks
-     *                                                                                                                     Every ladder entry satisfied, in ladder order. The list is the history.
+     * @param  list<array{kind: string, name: string, variant: ?string, room_object: ?string, message: string, unlocked_at: ?string}>  $unlocks
+     *                                                                                                                                           Every ladder entry satisfied, in ladder order. The list is the history.
+     * @param  string  $renderer  Which implementation draws Blob, from config.
+     * @param  array<string, array{wall: string, window: string}>  $room  Wall and window colours per part of the day, from config.
      */
     public function __construct(
         public int $logCount,
         public int $insightCount,
         public array $unlocks,
+        public string $renderer = 'svg',
+        public array $room = [],
     ) {}
 
     /**
@@ -76,6 +80,23 @@ final readonly class CompanionState
     }
 
     /**
+     * What stands in Blob's room, in the order it arrived.
+     *
+     * Only what has been earned is ever listed, and the room draws only what is
+     * listed. A room showing six grey outlines of what has not happened is a
+     * task list wearing a rug.
+     *
+     * @return list<string>
+     */
+    public function roomObjects(): array
+    {
+        return array_values(array_filter(array_map(
+            static fn (array $unlock): ?string => $unlock['room_object'],
+            $this->unlocks,
+        )));
+    }
+
+    /**
      * The most recently earned entry, or null before the first one.
      *
      * "Most recent" is the last satisfied entry in ladder order, which is also
@@ -90,16 +111,7 @@ final readonly class CompanionState
     }
 
     /**
-     * @return array{
-     *     log_count: int,
-     *     insight_count: int,
-     *     stage_index: int,
-     *     features: list<string>,
-     *     items: list<array{type: string, variant: ?string}>,
-     *     abilities: list<string>,
-     *     unlocks: list<array{kind: string, name: string, variant: ?string, message: string, unlocked_at: ?string}>,
-     *     latest_unlock: array{kind: string, name: string, variant: ?string, message: string, unlocked_at: ?string}|null
-     * }
+     * @return array<string, mixed>
      */
     public function toArray(): array
     {
@@ -110,8 +122,14 @@ final readonly class CompanionState
             'features' => $this->features(),
             'items' => $this->items(),
             'abilities' => $this->abilities(),
+            'room_objects' => $this->roomObjects(),
             'unlocks' => $this->unlocks,
             'latest_unlock' => $this->latestUnlock(),
+            // Carried with the state rather than passed as a second prop:
+            // every screen that draws Blob needs both, and one of them going
+            // missing would mean a screen that renders nothing.
+            'renderer' => $this->renderer,
+            'room' => $this->room,
         ];
     }
 

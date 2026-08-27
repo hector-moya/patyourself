@@ -1,5 +1,5 @@
 import type * as InertiaReact from '@inertiajs/react';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 const page = { url: '/companion', props: { unread_notifications_count: 0 } };
@@ -9,50 +9,26 @@ vi.mock('@inertiajs/react', async (importOriginal) => {
     return { ...actual, Head: () => null, usePage: () => page };
 });
 
-import type {
-    CompanionData,
-    CompanionUnlockData,
-} from '@/patyourself/companion';
+import {
+    companion,
+    noCompanion,
+    unlock,
+} from '@/patyourself/companion.fixture';
 
 import CompanionPage from './companion';
-
-function unlock(
-    overrides: Partial<CompanionUnlockData> = {},
-): CompanionUnlockData {
-    return {
-        kind: 'body',
-        name: 'blob',
-        variant: null,
-        message: 'Blob is here.',
-        unlocked_at: '2026-08-20T09:00:00+00:00',
-        ...overrides,
-    };
-}
-
-function companion(overrides: Partial<CompanionData> = {}): CompanionData {
-    return {
-        log_count: 0,
-        insight_count: 0,
-        stage_index: 0,
-        features: [],
-        items: [],
-        abilities: [],
-        unlocks: [],
-        latest_unlock: null,
-        ...overrides,
-    };
-}
 
 describe('Companion screen', () => {
     /**
      * Nothing yet is stated as a fact about the record, with nothing owed and
-     * nothing to act on.
+     * nothing to act on — and no empty room either, since there is nobody to
+     * put in it.
      */
     it('says what brings Blob out, without asking for it', () => {
-        render(<CompanionPage companion={companion()} />);
+        render(<CompanionPage companion={noCompanion()} />);
 
         expect(screen.getByText(/blob turns up once/i)).toBeInTheDocument();
         expect(screen.queryByText(/locked|to unlock|remaining/i)).toBeNull();
+        expect(screen.queryByRole('button', { name: /pet/i })).toBeNull();
     });
 
     it('lists what has happened, newest first, with the date each arrived', () => {
@@ -96,17 +72,7 @@ describe('Companion screen', () => {
      * nothing anywhere that reads as a score.
      */
     it('never shows what has not happened', () => {
-        render(
-            <CompanionPage
-                companion={companion({
-                    stage_index: 1,
-                    log_count: 1,
-                    features: ['blob'],
-                    unlocks: [unlock()],
-                    latest_unlock: unlock(),
-                })}
-            />,
-        );
+        render(<CompanionPage companion={companion()} />);
 
         expect(
             screen.queryByText(
@@ -119,8 +85,6 @@ describe('Companion screen', () => {
         render(
             <CompanionPage
                 companion={companion({
-                    stage_index: 1,
-                    features: ['blob'],
                     items: [{ type: 'scarf', variant: 'coral' }],
                     unlocks: [
                         unlock({
@@ -130,15 +94,60 @@ describe('Companion screen', () => {
                             message: 'Blob has another scarf, in coral.',
                         }),
                     ],
-                    latest_unlock: unlock({
-                        kind: 'item',
-                        name: 'scarf',
-                        variant: 'coral',
-                    }),
                 })}
             />,
         );
 
         expect(screen.getByText('scarf (coral)')).toBeInTheDocument();
+    });
+
+    describe('pet and play', () => {
+        /**
+         * Always enabled. No cooldown, no daily limit, no counter and no meter
+         * — pressing them is not progress and Blob never asks to be pressed.
+         */
+        it('offers both, with nothing gating them', () => {
+            render(<CompanionPage companion={companion()} />);
+
+            const pet = screen.getByRole('button', { name: /pet/i });
+            const play = screen.getByRole('button', { name: /play/i });
+
+            expect(pet).toBeEnabled();
+            expect(play).toBeEnabled();
+
+            fireEvent.click(pet);
+            fireEvent.click(pet);
+            fireEvent.click(play);
+
+            expect(pet).toBeEnabled();
+            expect(play).toBeEnabled();
+        });
+
+        it('plays the reaction on the drawing', () => {
+            const { container } = render(
+                <CompanionPage companion={companion()} />,
+            );
+
+            fireEvent.click(screen.getByRole('button', { name: /pet/i }));
+
+            expect(
+                container
+                    .querySelector('.blob-anim')
+                    ?.getAttribute('data-animation'),
+            ).toBe('pet');
+        });
+
+        /** Nothing about a press is recorded, so nothing about it is shown. */
+        it('shows no tally and no cooldown', () => {
+            const { container } = render(
+                <CompanionPage companion={companion()} />,
+            );
+
+            fireEvent.click(screen.getByRole('button', { name: /pet/i }));
+
+            expect(container.textContent ?? '').not.toMatch(
+                /again in|\d+\s*(left|remaining|times|more)|cooldown|lonely|hungry|misses you/i,
+            );
+        });
     });
 });

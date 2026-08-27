@@ -54,7 +54,13 @@ class CompanionScreenTest extends TestCase
                 ->where('companion.stage_index', 3)
                 ->where('companion.features', ['blob', 'legs'])
                 ->where('companion.items', [['type' => 'shoes', 'variant' => null]])
-                ->has('companion.unlocks', 3),
+                ->has('companion.unlocks', 3)
+                // The room starts empty, and an empty room is empty — not a
+                // set of outlines waiting to be filled in.
+                ->where('companion.room_objects', [])
+                ->where('companion.renderer', 'svg')
+                ->has('companion.room.day')
+                ->has('companion.room.night'),
             );
     }
 

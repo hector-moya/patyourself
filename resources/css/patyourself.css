@@ -561,14 +561,25 @@
    ============================================================ */
 .blob{display:block;overflow:visible;}
 
+/* The room. Scales with its container; the viewBox does the rest. Clipped,
+   unlike a lone Blob, because a wall that spills past its own edges is not a
+   wall. */
+.blob-room{display:block;width:100%;height:auto;overflow:hidden;}
+
+/* The animated group and the legs. The frame clock steps a transform; without
+   easing a 2fps idle reads as a stutter rather than a breath, so the step is
+   smoothed across the frame. The DURATION is set inline per animation, because
+   it is the frame rate that decides how much easing helps: two frames a second
+   want plenty, eight frames a second want almost none.
+
+   Easing belongs to the SVG renderer alone — a sprite renderer swaps whole
+   frames and must not interpolate between them. */
+.blob-anim,.blob-legs rect{transition-property:transform;transition-timing-function:ease-in-out;transition-duration:0ms;}
+
 /* The one transition in the feature: the layer earned most recently arrives. */
 .blob-layer--arriving{animation:blob-arrive 400ms ease-out both;}
 @keyframes blob-arrive{from{opacity:0;}to{opacity:1;}}
 
-/* walk — a slow step, and a bob small enough to still read at 32px without
-   pulling the eye off whatever the screen is actually for. */
-.blob-walk .blob-body{animation:blob-bob 1.6s ease-in-out infinite;}
-.blob-walk .blob-legs__left{animation:blob-step 1.6s ease-in-out infinite;transform-origin:center top;}
-.blob-walk .blob-legs__right{animation:blob-step 1.6s ease-in-out infinite reverse;transform-origin:center top;}
-@keyframes blob-bob{0%,100%{transform:translateY(0);}50%{transform:translateY(-1.5px);}}
-@keyframes blob-step{0%,100%{transform:rotate(7deg);}50%{transform:rotate(-7deg);}}
+/* walk used to run from its own keyframes here. It is frame-driven now, like
+   everything else Blob does — see legTransform() in blob-renderer.tsx. Two
+   motion systems on one transform is one too many. */
