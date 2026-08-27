@@ -3,6 +3,7 @@
 namespace App\Mcp\Servers;
 
 use App\Mcp\Tools\AddActionTool;
+use App\Mcp\Tools\ConcludeExperimentTool;
 use App\Mcp\Tools\CreateLoopTool;
 use App\Mcp\Tools\GetLoopTool;
 use App\Mcp\Tools\ListLoopsTool;
@@ -44,6 +45,13 @@ reasons back and find where the chain is actually breaking, then loop-progress
 and get-loop to see how the current experiment is holding up — and
 start-experiment when the current intervention point is not the right one any
 more.
+
+conclude-experiment ends the current experiment with a verdict: worked, failed
+or inconclusive. It is a separate act from starting the next one — a version
+concluded as `worked` stays active and keeps running, and inconclusive is a real
+answer when the evidence is too thin to judge. A failed verdict must carry a
+note saying what the evidence showed, about the strategy rather than the user.
+Concluding keeps the planned length on the record rather than erasing it.
 
 Use list-loops and get-loop to see what the user is working on, today-actions
 for what is due now, and loop-progress for the current experiment against the
@@ -96,6 +104,7 @@ class PatYourSelfServer extends Server
         LoopProgressTool::class,
         CreateLoopTool::class,
         StartExperimentTool::class,
+        ConcludeExperimentTool::class,
         AddActionTool::class,
         UpdateActionTool::class,
         RemoveActionTool::class,

@@ -12,6 +12,13 @@ use InvalidArgumentException;
  * Concluding is not superseding: a version concluded as `worked` stays active
  * and keeps running. Only {@see StartExperiment} supersedes, and it does so
  * when the *next* experiment begins.
+ *
+ * `review_at` is deliberately left alone. Clearing it was redundant —
+ * {@see Strategy::isUnderReview()} short-circuits on `! isConcluded()`, so the
+ * verdict is already what ends the review — and it was destructive, because
+ * {@see Strategy::plannedDays()} derives entirely from `review_at` and there is
+ * no `concluded_at` to fall back on. Nulling it erased the only record of how
+ * long the experiment was planned to run.
  */
 final readonly class ConcludeExperiment
 {
@@ -33,7 +40,6 @@ final readonly class ConcludeExperiment
         $strategy->update([
             'verdict' => $verdict,
             'verdict_note' => $note,
-            'review_at' => null,
         ]);
 
         return $strategy->refresh();
