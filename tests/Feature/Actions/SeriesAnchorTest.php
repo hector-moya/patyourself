@@ -17,6 +17,7 @@ use App\Services\Authoring\AuthoredStrategy;
 use App\Services\Scheduling\MaterialiseOccurrences;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use RuntimeException;
 use Tests\TestCase;
 
 /**
@@ -284,6 +285,131 @@ class SeriesAnchorTest extends TestCase
         // The record is append-only. A future slot that already carries an
         // outcome is evidence, not a phantom.
         $this->assertDatabaseHas('occurrences', ['id' => $logged->id]);
+    }
+
+    /**
+     * Starts the next experiment on a loop whose action already runs on the
+     * given cadence, and returns the action the revision inherited.
+     */
+    private function revisionInheriting(string $anchor, ?string $recurrence): Action
+    {
+        $user = User::factory()->create(['timezone' => 'UTC']);
+        $loop = Intention::factory()->for($user)->create(['status' => Intention::STATUS_ACTIVE]);
+        $current = Strategy::factory()->for($loop)->create(['status' => Strategy::STATUS_ACTIVE, 'version' => 1]);
+        Action::factory()->for($loop)->for($current)->create([
+            'status' => Action::STATUS_ACTIVE,
+            'series_started_at' => Carbon::parse($anchor),
+            'recurrence' => $recurrence,
+        ]);
+
+        $next = app(StartExperiment::class)->handle(
+            $current,
+            new AuthoredStrategy(
+                interventionPoint: Strategy::POINT_CRAVING,
+                approach: 'Name the craving out loud before serving',
+            ),
+            Strategy::REASON_RESTRATEGIZED_ON_FAILURE,
+        );
+
+        return $next->actions()->firstOrFail();
+    }
+
+    /**
+     * A one-off has no next slot to roll to — `nextAfter()` returns null for a
+     * null recurrence — so the inherited anchor used to fall back to the prior
+     * one, which is in the past. That materialises exactly one unlogged
+     * occasion behind now: a phantom miss on /catch-up for an occasion the new
+     * experiment never asked for.
+     */
+    public function test_an_inherited_one_off_cadence_leaves_no_phantom_occasion(): void
+    {
+        Carbon::setTestNow('2026-08-26 21:00:00');
+
+        $action = $this->revisionInheriting('2026-06-27 08:00:00', null);
+
+        $this->assertNotNull($action->series_started_at);
+        $this->assertTrue($action->series_started_at->greaterThanOrEqualTo(now()));
+        // Same clock time, pushed to the next day it can happen.
+        $this->assertSame('08:00', $action->series_started_at->setTimezone('UTC')->format('H:i'));
+
+        app(MaterialiseOccurrences::class)->forLoop($action->intention);
+
+        $this->assertSame(0, $action->occurrences()->where('scheduled_for', '<', now())->count());
+    }
+
+    public function test_an_inherited_weekly_cadence_keeps_its_weekday(): void
+    {
+        Carbon::setTestNow('2026-08-26 21:00:00');
+
+        $anchor = Carbon::parse('2026-06-03 08:00:00');
+        $action = $this->revisionInheriting($anchor->toDateTimeString(), 'weekly');
+
+        // Asserted as the invariant rather than a hand-computed date: weekly
+        // means the same weekday, however many weeks it has to advance.
+        $this->assertSame($anchor->dayOfWeek, $action->series_started_at->dayOfWeek);
+        $this->assertTrue($action->series_started_at->greaterThanOrEqualTo(now()));
+    }
+
+    /**
+     * Weekdays proves less than weekly does, and deliberately so.
+     *
+     * `nextAfter()` and `firstOccurrence()` converge for this cadence — both
+     * preserve the clock time and both skip the weekend — so no fixture can
+     * tell a phase-preserving roll from one recomputed off `now`. The weekly
+     * test carries that proof, via the weekday it has to keep. What is left
+     * worth asserting here is the cadence's own promise: a weekdays action
+     * never anchors on a Saturday or a Sunday.
+     */
+    public function test_an_inherited_weekdays_cadence_never_lands_on_a_weekend(): void
+    {
+        Carbon::setTestNow('2026-08-26 21:00:00');
+
+        $action = $this->revisionInheriting('2026-06-05 08:00:00', 'weekdays');
+
+        $this->assertFalse($action->series_started_at->isWeekend());
+        $this->assertTrue($action->series_started_at->greaterThanOrEqualTo(now()));
+        $this->assertSame('08:00', $action->series_started_at->setTimezone('UTC')->format('H:i'));
+    }
+
+    /**
+     * The purge and the re-anchor are one act. Without a transaction, an
+     * update that throws leaves the occasions already deleted and the anchor
+     * unmoved — the abandoned grid gone and the new one never built.
+     */
+    public function test_rescheduling_rolls_the_purge_back_when_the_re_anchor_fails(): void
+    {
+        Carbon::setTestNow('2026-08-24 12:00:00');
+
+        $action = Action::factory()->create([
+            'series_started_at' => Carbon::parse('2026-08-24 09:00:00'),
+            'recurrence' => 'daily',
+        ]);
+
+        $future = Occurrence::factory()->for($action)->create([
+            'scheduled_for' => Carbon::parse('2026-08-24 21:00:00'),
+        ]);
+
+        Action::updating(function (): void {
+            throw new RuntimeException('the re-anchor failed');
+        });
+
+        try {
+            app(RescheduleAction::class)->handle($action, 'clock', '07:00', 'daily', null, 'UTC');
+            $this->fail('Expected the re-anchor to throw.');
+        } catch (RuntimeException) {
+            // Expected.
+        } finally {
+            // The dispatcher is shared process-wide. Laravel's per-test app
+            // reboot happens to clear it, but this test should not depend on
+            // that to avoid throwing inside an unrelated one.
+            Action::flushEventListeners();
+        }
+
+        $this->assertDatabaseHas('occurrences', ['id' => $future->id]);
+        $this->assertSame(
+            '2026-08-24 09:00:00',
+            $action->fresh()->series_started_at->toDateTimeString(),
+        );
     }
 
     protected function tearDown(): void
