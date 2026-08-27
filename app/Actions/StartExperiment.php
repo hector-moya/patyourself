@@ -189,6 +189,23 @@ final class StartExperiment
             return $priorAnchor;
         }
 
-        return (new Schedule)->nextAfter($priorAnchor, $now, $recurrence, $timezone) ?? $priorAnchor;
+        $schedule = new Schedule;
+
+        // nextAfter() preserves the phase for a recurring cadence — same
+        // weekday, same clock time, DST-correct. It returns null for a one-off,
+        // which has no next slot to roll to; firstOccurrence() then puts it at
+        // the same time of day on the next day it can happen.
+        //
+        // Falling back to the prior anchor instead would hand a brand-new
+        // action a date in the past, and materialisation would turn that into an
+        // unlogged occasion behind now — a miss the user never had the chance to
+        // avoid. UpdateIntention::reanchorStaleActions() re-anchors the same way.
+        return $schedule->nextAfter($priorAnchor, $now, $recurrence, $timezone)
+            ?? $schedule->firstOccurrence(
+                $now,
+                $priorAnchor->setTimezone($timezone)->format('H:i'),
+                $recurrence,
+                $timezone,
+            );
     }
 }
