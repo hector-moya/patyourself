@@ -121,7 +121,7 @@ final class StartExperiment
         $prior = $intention->activeAction;
 
         $intention->actions()
-            ->whereIn('status', [Action::STATUS_PENDING, Action::STATUS_ACTIVE])
+            ->where('status', '!=', Action::STATUS_ARCHIVED)
             ->update(['status' => Action::STATUS_ARCHIVED]);
 
         $action = $revisedAction;
@@ -134,8 +134,8 @@ final class StartExperiment
             $metadata = array_filter(['schedule_kind' => $action->kind, 'anchor' => $action->anchor], static fn ($v): bool => $v !== null);
         } else {
             // Inherit the prior cadence; retitle from the new tactic.
-            $scheduledFor = $prior?->scheduled_for;
             $recurrence = Recurrence::tryFromToken($prior?->recurrence);
+            $scheduledFor = $this->inheritedAnchor($prior?->series_started_at?->toImmutable(), $recurrence, $timezone);
             $title = Str::limit($next->approach, 250, '');
             $metadata = array_filter([
                 'schedule_kind' => $prior?->metadata['schedule_kind'] ?? null,
@@ -148,14 +148,47 @@ final class StartExperiment
             'intention_id' => $intention->id,
             'title' => $title,
             'description' => $next->rationale,
-            'scheduled_for' => $scheduledFor,
-            // Where this cadence begins — inherited verbatim when the prior
-            // action's schedule is carried over. Materialisation walks forward
-            // from here; scheduled_for cannot record it because it moves.
+            // Where this cadence begins. Materialisation walks forward from
+            // here, so an inherited anchor is rolled to its next real slot
+            // rather than copied verbatim — see inheritedAnchor().
             'series_started_at' => $scheduledFor,
             'recurrence' => $recurrence?->value,
-            'status' => Action::STATUS_PENDING,
+            'status' => Action::STATUS_ACTIVE,
             'metadata' => $metadata,
         ]);
+    }
+
+    /**
+     * Where a revision that inherits the prior cadence should start counting
+     * from.
+     *
+     * The anchor records where the prior action's cadence *began*, which for a
+     * loop that has been running is arbitrarily far in the past. Copied over
+     * verbatim it would hand the brand-new action the entire historical grid to
+     * materialise — and every one of those occasions would be unlogged, because
+     * the outcomes belong to the prior action's occurrences. A revision would
+     * therefore manufacture a catch-up backlog out of days the user actually
+     * completed. Roll it to the next real slot after now instead, which keeps
+     * the cadence's phase (and stays DST-correct) rather than restarting it at
+     * the moment of the revision. UpdateIntention::reanchorStaleActions()
+     * applies the same treatment when a paused loop goes live.
+     *
+     * A future anchor is already ahead of the grid and is inherited untouched.
+     *
+     * Known residue: nextAfter() returns null for a one-off (no recurrence), so
+     * a past one-off anchor is inherited as-is and leaves a single occasion
+     * behind now. That is one row, it predates this branch, and collapsing it
+     * would need a decision about what "repeat a one-off" even means — so it
+     * stays as it was.
+     */
+    private function inheritedAnchor(?CarbonImmutable $priorAnchor, ?Recurrence $recurrence, string $timezone): ?CarbonImmutable
+    {
+        $now = CarbonImmutable::now();
+
+        if ($priorAnchor === null || $priorAnchor->greaterThan($now)) {
+            return $priorAnchor;
+        }
+
+        return (new Schedule)->nextAfter($priorAnchor, $now, $recurrence, $timezone) ?? $priorAnchor;
     }
 }

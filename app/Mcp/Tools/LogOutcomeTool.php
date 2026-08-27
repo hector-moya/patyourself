@@ -42,8 +42,11 @@ class LogOutcomeTool extends Tool
 
     /**
      * Goes through the shared {@see LogAction} so every invariant — immutable
-     * log, one outcome per occasion, roll-forward only on the live slot,
-     * cue-answered marking — holds exactly as it does for the web surface.
+     * log, one outcome per occasion, the action row never written, cue-answered
+     * marking — holds exactly as it does for the web surface.
+     *
+     * There is no next-due cursor to roll: an outcome attaches to the occasion
+     * it describes and nothing else moves.
      */
     public function handle(Request $request, LogAction $log): Response
     {

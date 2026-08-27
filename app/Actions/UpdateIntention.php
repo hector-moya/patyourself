@@ -36,7 +36,7 @@ final readonly class UpdateIntention
         $intention->update($fields);
 
         if ($wasPaused && $intention->status === Intention::STATUS_ACTIVE) {
-            $this->reanchorPendingActions($intention);
+            $this->reanchorStaleActions($intention);
         }
 
         return $intention;
@@ -44,39 +44,52 @@ final readonly class UpdateIntention
 
     /**
      * A loop can sit paused for days before the user activates it, leaving any
-     * clock action scheduled in the past — it would fire the moment the loop went
-     * live. Push each one to its next real occurrence. Only genuinely stale
-     * actions are touched; a future-dated one is left as the user scheduled it.
-     * Anchored actions carry no clock time and are left alone.
+     * clock action anchored in the past — it would materialise a run of
+     * occasions the user never had the chance to act on the moment the loop
+     * went live. Push each one to its next real occurrence. Only genuinely
+     * stale actions are touched; a future-dated one is left as the user
+     * scheduled it. Anchored actions carry no clock time and are left alone.
      */
-    private function reanchorPendingActions(Intention $intention): void
+    private function reanchorStaleActions(Intention $intention): void
     {
         $timezone = $intention->user->timezone ?? (string) config('app.timezone');
         $schedule = new Schedule;
         $now = CarbonImmutable::now();
 
         $intention->actions()
-            ->where('status', Action::STATUS_PENDING)
-            ->whereNotNull('scheduled_for')
-            ->where('scheduled_for', '<=', $now)
+            ->where('status', '!=', Action::STATUS_ARCHIVED)
+            ->whereNotNull('series_started_at')
+            ->where('series_started_at', '<=', $now)
             ->get()
             ->each(function (Action $action) use ($schedule, $now, $timezone): void {
-                $scheduledFor = $action->scheduled_for->toImmutable();
+                $seriesStartedAt = $action->series_started_at->toImmutable();
                 $recurrence = Recurrence::tryFromToken($action->recurrence);
 
                 // nextAfter() re-arms a recurring action from its own stale slot, so
                 // it preserves the weekday (and stays DST-correct) instead of
                 // collapsing to "today or tomorrow" at the same clock time. It
                 // returns null for a one-off, which firstOccurrence() then handles.
-                $action->update([
-                    'scheduled_for' => $schedule->nextAfter($scheduledFor, $now, $recurrence, $timezone)
-                        ?? $schedule->firstOccurrence(
-                            $now,
-                            $scheduledFor->setTimezone($timezone)->format('H:i'),
-                            $recurrence,
-                            $timezone,
-                        ),
-                ]);
+                $next = $schedule->nextAfter($seriesStartedAt, $now, $recurrence, $timezone)
+                    ?? $schedule->firstOccurrence(
+                        $now,
+                        $seriesStartedAt->setTimezone($timezone)->format('H:i'),
+                        $recurrence,
+                        $timezone,
+                    );
+
+                if ($next === null) {
+                    return;
+                }
+
+                // Same reasoning as RescheduleAction: the cadence restarts here,
+                // so anything unlogged ahead of now belongs to the cadence being
+                // left behind.
+                $action->occurrences()
+                    ->unlogged()
+                    ->where('scheduled_for', '>', $now)
+                    ->delete();
+
+                $action->update(['series_started_at' => $next]);
             });
     }
 }

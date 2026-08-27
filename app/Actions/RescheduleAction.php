@@ -9,7 +9,7 @@ use Carbon\CarbonImmutable;
 
 /**
  * Recomputes and persists an Action's schedule from a user edit. Clock edits
- * derive a fresh UTC scheduled_for in the user's timezone; anchored edits clear
+ * derive a fresh series anchor in the user's timezone; anchored edits clear
  * the schedule and record the anchor phrase. The only place a reschedule writes.
  */
 final readonly class RescheduleAction
@@ -27,8 +27,16 @@ final readonly class RescheduleAction
             'anchor' => $kind === 'anchored' ? $anchor : null,
         ]);
 
+        // The anchor moves, so the grid ahead of it is the abandoned cadence.
+        // Left in place it would render as due on a schedule the user has just
+        // replaced. Only unlogged future slots go: anything already logged is
+        // evidence and the record is append-only.
+        $action->occurrences()
+            ->unlogged()
+            ->where('scheduled_for', '>', CarbonImmutable::now())
+            ->delete();
+
         $action->update([
-            'scheduled_for' => $scheduledFor,
             // The anchor marks where the action's *current* cadence began, so a
             // reschedule re-anchors it. Left frozen, every future occasion
             // would materialise at the old time of day, and an action turned

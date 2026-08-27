@@ -20,15 +20,12 @@ class ActionLogTest extends TestCase
 
     private function action(User $user): Action
     {
-        // A one-off (no recurrence): completing it closes it out, which is what
-        // these controller tests assert. A recurring action would instead roll
-        // forward to pending (covered by tests/Feature/Actions/LogActionTest).
         return Action::factory()
             ->for(Intention::factory()->for($user))
             ->create([
                 'status' => Action::STATUS_ACTIVE,
                 'recurrence' => null,
-                'scheduled_for' => null,
+                'series_started_at' => null,
             ]);
     }
 
@@ -58,7 +55,6 @@ class ActionLogTest extends TestCase
             'user_id' => $user->id,
             'outcome' => ActionLog::OUTCOME_COMPLETED,
         ]);
-        $this->assertSame(Action::STATUS_COMPLETED, $action->fresh()->status);
     }
 
     public function test_failure_requires_a_reason(): void

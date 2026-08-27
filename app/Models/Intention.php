@@ -174,16 +174,16 @@ class Intention extends Model
     }
 
     /**
-     * The one action a card can log right now — the most recent action still
-     * awaiting an outcome (pending or active). Completed / skipped actions are
-     * closed out, so they never surface as the loggable one.
+     * The loggable action a card posts an outcome against: the loop's most
+     * recent action that has not been archived. Which *occasion* it logs is
+     * LogAction's business, not the relation's.
      *
      * @return HasOne<Action, $this>
      */
     public function activeAction(): HasOne
     {
         return $this->hasOne(Action::class)
-            ->whereIn('status', [Action::STATUS_PENDING, Action::STATUS_ACTIVE])
+            ->where('status', '!=', Action::STATUS_ARCHIVED)
             ->latestOfMany();
     }
 }

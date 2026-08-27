@@ -31,8 +31,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::patch('actions/{action}', [ActionController::class, 'update'])->name('actions.update');
 
     // Catch up on occasions that passed unlogged. Keyed on the occasion rather
-    // than the action, so logging Tuesday on Friday records Tuesday and leaves
-    // the next-due pointer where it is.
+    // than the action, so logging Tuesday on Friday dates the outcome by the
+    // occasion it describes and leaves every other occasion untouched.
     Route::get('catch-up', [CatchUpController::class, 'index'])->name('catch-up');
     Route::post('occurrences/{occurrence}/logs', [OccurrenceLogController::class, 'store'])
         ->name('occurrences.logs.store');

@@ -4,7 +4,7 @@ namespace App\Actions;
 
 use App\Models\Action;
 use App\Services\Scheduling\MaterialiseOccurrences;
-use App\Services\Scheduling\TodaysActions;
+use App\Services\Scheduling\TodaysOccasions;
 
 /**
  * Retires an action without destroying what it produced.
@@ -13,8 +13,8 @@ use App\Services\Scheduling\TodaysActions;
  * off occurrences, so deleting the row would cascade away the evidence — the
  * exact history this app exists to keep. Archiving already means "not live"
  * everywhere: {@see MaterialiseOccurrences} skips
- * archived actions, {@see TodaysActions} only surfaces
- * open ones, and {@see StartExperiment} archives the prior action when a new
+ * archived actions, {@see TodaysOccasions} excludes them
+ * too, and {@see StartExperiment} archives the prior action when a new
  * experiment begins.
  */
 final readonly class ArchiveAction

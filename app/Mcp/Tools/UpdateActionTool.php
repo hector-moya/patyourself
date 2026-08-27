@@ -5,6 +5,7 @@ namespace App\Mcp\Tools;
 use App\Actions\RescheduleAction;
 use App\Concerns\DescribesActionShape;
 use App\Models\Action;
+use App\Services\Scheduling\MaterialiseOccurrences;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\JsonSchema\Types\Type;
@@ -29,7 +30,7 @@ class UpdateActionTool extends Tool
 {
     use DescribesActionShape;
 
-    public function handle(Request $request, RescheduleAction $reschedule): Response
+    public function handle(Request $request, RescheduleAction $reschedule, MaterialiseOccurrences $materialise): Response
     {
         $validated = $request->validate([
             'action_id' => ['required', 'integer'],
@@ -79,6 +80,11 @@ class UpdateActionTool extends Tool
                 $request->user()->timezone ?? (string) config('app.timezone'),
             );
         }
+
+        // A reschedule purges every unlogged slot ahead of now and re-anchors,
+        // so by construction the grid is empty here. Without rebuilding it the
+        // reply reports no next occasion for a cadence that plainly has one.
+        $materialise->forLoop($action->intention);
 
         return Response::json($this->describeAction($action->fresh(), $action->intention));
     }

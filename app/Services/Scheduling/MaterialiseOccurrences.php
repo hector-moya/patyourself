@@ -85,21 +85,35 @@ final readonly class MaterialiseOccurrences
         return $created;
     }
 
+    /**
+     * The grid this action has produced through the end of the user's local
+     * day. The horizon is end-of-day rather than `now` because the today list
+     * splits into due_now and upcoming, and "upcoming" needs real rows to
+     * select — a horizon at `now` makes that half of the list permanently
+     * empty.
+     *
+     * The walk always restarts from the anchor rather than resuming from the
+     * last materialised slot: `RescheduleAction` re-anchors, and the old grid
+     * and the new one do not share a phase, so resuming would continue the
+     * abandoned cadence.
+     *
+     * Only slots that do not already exist are written. This runs every minute
+     * from `actions:fire`, and re-upserting up to MAX_SLOTS_PER_ACTION rows per
+     * action per minute is pure waste; in the steady state the diff is empty
+     * and the method returns before writing to the database. The reads still
+     * happen every pass — the eligible-action query and the existence SELECT
+     * below — so this saves the write, not the round trip.
+     */
     private function materialise(Action $action, string $timezone): int
     {
-        $now = CarbonImmutable::now();
+        $horizon = CarbonImmutable::now($timezone)->endOfDay()->utc();
         $recurrence = Recurrence::tryFromToken($action->recurrence);
 
         $slots = [];
         $slot = $action->series_started_at->toImmutable();
 
-        while ($slot->lessThanOrEqualTo($now) && count($slots) < self::MAX_SLOTS_PER_ACTION) {
-            $slots[] = [
-                'action_id' => $action->id,
-                'scheduled_for' => $slot->utc()->toDateTimeString(),
-                'created_at' => Date::now(),
-                'updated_at' => Date::now(),
-            ];
+        while ($slot->lessThanOrEqualTo($horizon) && count($slots) < self::MAX_SLOTS_PER_ACTION) {
+            $slots[] = $slot->utc()->toDateTimeString();
 
             $next = $this->schedule->advance($slot, $recurrence, $timezone);
 
@@ -115,9 +129,34 @@ final readonly class MaterialiseOccurrences
             return 0;
         }
 
+        $existing = $action->occurrences()
+            ->whereIn('scheduled_for', $slots)
+            ->pluck('scheduled_for')
+            ->map(fn (CarbonImmutable $stamp): string => $stamp->utc()->toDateTimeString())
+            ->all();
+
+        $missing = array_values(array_diff($slots, $existing));
+
+        if ($missing === []) {
+            return 0;
+        }
+
         $before = $action->occurrences()->count();
 
-        Occurrence::query()->upsert($slots, ['action_id', 'scheduled_for'], []);
+        // Still an upsert, not an insert: the diff above narrows the write, but
+        // two overlapping runs can both see the same slot missing. The unique
+        // (action_id, scheduled_for) index and "update nothing on conflict" are
+        // what make that a no-op rather than a duplicate or an error.
+        Occurrence::query()->upsert(
+            array_map(fn (string $stamp): array => [
+                'action_id' => $action->id,
+                'scheduled_for' => $stamp,
+                'created_at' => Date::now(),
+                'updated_at' => Date::now(),
+            ], $missing),
+            ['action_id', 'scheduled_for'],
+            [],
+        );
 
         return $action->occurrences()->count() - $before;
     }

@@ -96,9 +96,8 @@ class UpdateLoopToolTest extends TestCase
         $strategy = Strategy::factory()->for($loop)->create(['version' => 1, 'status' => Strategy::STATUS_ACTIVE]);
         $stale = now()->subDays(4)->setTime(19, 0);
         $action = Action::factory()->for($loop)->for($strategy)->create([
-            'status' => Action::STATUS_PENDING,
+            'status' => Action::STATUS_ACTIVE,
             'recurrence' => 'daily',
-            'scheduled_for' => $stale,
             'series_started_at' => $stale,
         ]);
 
@@ -109,7 +108,7 @@ class UpdateLoopToolTest extends TestCase
 
         // The behaviour UpdateIntention already owns: a loop that sat paused
         // must not fire every missed slot the moment it goes live.
-        $this->assertTrue($action->fresh()->scheduled_for->isFuture());
+        $this->assertTrue($action->fresh()->series_started_at->isFuture());
     }
 
     public function test_it_can_pause_and_archive_a_loop(): void

@@ -6,6 +6,7 @@ use App\Actions\CreateAction;
 use App\Concerns\DescribesActionShape;
 use App\Models\Intention;
 use App\Services\Authoring\AuthoredAction;
+use App\Services\Scheduling\MaterialiseOccurrences;
 use App\Services\Strategy\StrategyTransitionException;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\JsonSchema\Types\Type;
@@ -31,7 +32,7 @@ class AddActionTool extends Tool
 {
     use DescribesActionShape;
 
-    public function handle(Request $request, CreateAction $create): Response
+    public function handle(Request $request, CreateAction $create, MaterialiseOccurrences $materialise): Response
     {
         $validated = $request->validate([
             'intention_id' => ['required', 'integer'],
@@ -61,6 +62,12 @@ class AddActionTool extends Tool
         } catch (StrategyTransitionException $exception) {
             return Response::error($exception->getMessage());
         }
+
+        // The grid is built lazily on read paths, so an action written a
+        // microsecond ago has none — and next_occurrence_at would come back
+        // null for an action the very next today-actions call reports as due.
+        // Idempotent, so running it here costs an empty diff at worst.
+        $materialise->forLoop($loop);
 
         return Response::json($this->describeAction($action, $loop));
     }

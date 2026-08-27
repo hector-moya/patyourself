@@ -2,12 +2,16 @@
 
 namespace Tests\Feature\Scheduling;
 
-use App\Events\ActionFired;
+use App\Events\OccurrenceFired;
 use App\Models\Action;
+use App\Models\ActionLog;
 use App\Models\Intention;
+use App\Models\Occurrence;
 use App\Models\Strategy;
+use App\Models\User;
 use App\Services\Scheduling\TriggerEngine;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Event;
 use Tests\TestCase;
 
@@ -15,118 +19,175 @@ class TriggerEngineTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Carbon::setTestNow('2026-08-24 12:00:00');
+    }
+
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+
+        parent::tearDown();
+    }
+
     /**
-     * A pending action due `subMinute` ago in an active intention, unless
-     * overridden.
+     * An occasion due three hours ago today, on an active loop owned by a UTC
+     * user, unless overridden.
      *
      * @param  array<string, mixed>  $overrides
      */
-    private function dueAction(array $overrides = [], string $intentionStatus = Intention::STATUS_ACTIVE): Action
-    {
-        $intention = Intention::factory()->create(['status' => $intentionStatus]);
+    private function dueOccurrence(
+        array $overrides = [],
+        string $intentionStatus = Intention::STATUS_ACTIVE,
+        string $actionStatus = Action::STATUS_ACTIVE,
+    ): Occurrence {
+        $user = User::factory()->create(['timezone' => 'UTC']);
+        $intention = Intention::factory()->for($user)->create(['status' => $intentionStatus]);
         $strategy = Strategy::factory()->initial()->for($intention)->create();
 
-        return Action::factory()->for($intention)->create(array_merge([
+        $action = Action::factory()->for($intention)->create([
             'strategy_id' => $strategy->id,
-            'status' => Action::STATUS_PENDING,
-            'scheduled_for' => now()->subMinute(),
+            'status' => $actionStatus,
+            'series_started_at' => Carbon::parse('2026-08-24 09:00:00'),
             'recurrence' => 'daily',
+        ]);
+
+        return Occurrence::factory()->for($action)->create(array_merge([
+            'scheduled_for' => Carbon::parse('2026-08-24 09:00:00'),
         ], $overrides));
     }
 
-    public function test_fires_a_due_pending_action(): void
+    public function test_it_fires_a_due_unfired_occasion(): void
     {
-        $action = $this->dueAction();
+        $occurrence = $this->dueOccurrence();
 
-        $fired = app(TriggerEngine::class)->fireDueActions();
-
-        $this->assertSame(1, $fired);
-        $this->assertSame(Action::STATUS_ACTIVE, $action->fresh()->status);
-        $this->assertNotNull($action->fresh()->metadata['fired_at']);
+        $this->assertSame(1, app(TriggerEngine::class)->fireDueOccurrences());
+        $this->assertNotNull($occurrence->fresh()->fired_at);
     }
 
-    public function test_does_not_fire_a_future_action(): void
+    public function test_it_does_not_fire_a_slot_later_today(): void
     {
-        $action = $this->dueAction(['scheduled_for' => now()->addHour()]);
+        $occurrence = $this->dueOccurrence(['scheduled_for' => Carbon::parse('2026-08-24 20:00:00')]);
 
-        $this->assertSame(0, app(TriggerEngine::class)->fireDueActions());
-        $this->assertSame(Action::STATUS_PENDING, $action->fresh()->status);
+        $this->assertSame(0, app(TriggerEngine::class)->fireDueOccurrences());
+        $this->assertNull($occurrence->fresh()->fired_at);
     }
 
-    public function test_does_not_fire_an_anchored_action(): void
+    public function test_it_does_not_fire_an_occasion_from_an_earlier_day(): void
     {
-        $action = $this->dueAction(['scheduled_for' => null, 'recurrence' => null]);
+        $occurrence = $this->dueOccurrence(['scheduled_for' => Carbon::parse('2026-08-21 09:00:00')]);
 
-        $this->assertSame(0, app(TriggerEngine::class)->fireDueActions());
-        $this->assertSame(Action::STATUS_PENDING, $action->fresh()->status);
+        // The cue for a three-day-old occasion is not worth delivering now. An
+        // outage must not produce a burst of stale cues on recovery; the
+        // occasion stays loggable on /catch-up, silently.
+        $this->assertSame(0, app(TriggerEngine::class)->fireDueOccurrences());
+        $this->assertNull($occurrence->fresh()->fired_at);
     }
 
-    public function test_does_not_fire_when_the_intention_is_not_active(): void
+    public function test_it_does_not_refire_an_already_fired_occasion(): void
     {
-        $action = $this->dueAction([], Intention::STATUS_PAUSED);
+        $firedAt = Carbon::parse('2026-08-24 09:01:00');
+        $occurrence = $this->dueOccurrence(['fired_at' => $firedAt]);
 
-        $this->assertSame(0, app(TriggerEngine::class)->fireDueActions());
-        $this->assertSame(Action::STATUS_PENDING, $action->fresh()->status);
+        $this->assertSame(0, app(TriggerEngine::class)->fireDueOccurrences());
+
+        // Proves the guard, not just non-null: an unguarded read-then-write
+        // would stomp this with a fresh now() even though the count came back
+        // 0. The guarded `whereNull('fired_at')` update never touches an
+        // already-fired row, so the original claim survives untouched.
+        $this->assertTrue($occurrence->fresh()->fired_at->equalTo($firedAt));
     }
 
-    public function test_does_not_refire_an_already_active_action(): void
+    public function test_it_does_not_fire_an_occasion_that_already_carries_an_outcome(): void
     {
-        $action = $this->dueAction(['status' => Action::STATUS_ACTIVE]);
+        $occurrence = $this->dueOccurrence();
+        ActionLog::factory()->for($occurrence->action)->for($occurrence)->create();
 
-        $this->assertSame(0, app(TriggerEngine::class)->fireDueActions());
+        $this->assertSame(0, app(TriggerEngine::class)->fireDueOccurrences());
     }
 
-    public function test_is_idempotent_across_runs(): void
+    public function test_it_does_not_fire_when_the_loop_is_not_active(): void
     {
-        $action = $this->dueAction();
+        $this->dueOccurrence([], Intention::STATUS_PAUSED);
+
+        $this->assertSame(0, app(TriggerEngine::class)->fireDueOccurrences());
+    }
+
+    public function test_it_does_not_fire_an_archived_action(): void
+    {
+        $this->dueOccurrence([], Intention::STATUS_ACTIVE, Action::STATUS_ARCHIVED);
+
+        $this->assertSame(0, app(TriggerEngine::class)->fireDueOccurrences());
+    }
+
+    public function test_a_second_run_fires_nothing(): void
+    {
+        $this->dueOccurrence();
         $engine = app(TriggerEngine::class);
 
-        $this->assertSame(1, $engine->fireDueActions());
-        $this->assertSame(0, $engine->fireDueActions()); // second run fires nothing
-        $this->assertSame(Action::STATUS_ACTIVE, $action->fresh()->status);
+        $this->assertSame(1, $engine->fireDueOccurrences());
+        $this->assertSame(0, $engine->fireDueOccurrences());
     }
 
-    public function test_catch_up_fires_a_stale_action_exactly_once(): void
+    public function test_the_window_follows_the_users_timezone(): void
     {
-        $action = $this->dueAction(['scheduled_for' => now()->subDays(3)]);
-        $engine = app(TriggerEngine::class);
+        // 01:00 UTC on the 25th is 11:00 on the 25th in Sydney (UTC+10 in
+        // August — well outside daylight saving, which runs October-April).
+        Carbon::setTestNow('2026-08-25 01:00:00');
 
-        $this->assertSame(1, $engine->fireDueActions());
-        $this->assertSame(0, $engine->fireDueActions()); // no backfill
-        $this->assertSame(Action::STATUS_ACTIVE, $action->fresh()->status);
+        $user = User::factory()->create(['timezone' => 'Australia/Sydney']);
+        $intention = Intention::factory()->for($user)->create(['status' => Intention::STATUS_ACTIVE]);
+        $action = Action::factory()->for($intention)->create([
+            'series_started_at' => Carbon::parse('2026-08-24 20:00:00'),
+            'recurrence' => 'daily',
+        ]);
+        // Sydney's today runs 2026-08-24 14:00 UTC -> 2026-08-25 13:59:59 UTC.
+        // 20:00 UTC on the 24th is 06:00 on the 25th in Sydney — inside that
+        // window — but it falls in the *previous* UTC calendar day relative to
+        // `now`. A naive global window computed from the app's own timezone
+        // (2026-08-25 00:00 -> 23:59:59 UTC) would exclude it entirely, so this
+        // only fires under a genuinely per-user window.
+        $occurrence = Occurrence::factory()->for($action)->create([
+            'scheduled_for' => Carbon::parse('2026-08-24 20:00:00'),
+        ]);
+
+        $this->assertSame(1, app(TriggerEngine::class)->fireDueOccurrences());
+        $this->assertNotNull($occurrence->fresh()->fired_at);
     }
 
-    public function test_returns_the_count_of_fired_actions(): void
+    public function test_firing_dispatches_occurrence_fired_once(): void
     {
-        $this->dueAction();
-        $this->dueAction();
-        $this->dueAction(['scheduled_for' => now()->addHour()]); // future, not fired
+        Event::fake([OccurrenceFired::class]);
+        $occurrence = $this->dueOccurrence();
 
-        $this->assertSame(2, app(TriggerEngine::class)->fireDueActions());
-    }
+        app(TriggerEngine::class)->fireDueOccurrences();
 
-    public function test_firing_dispatches_action_fired_once(): void
-    {
-        Event::fake([ActionFired::class]);
-        $action = $this->dueAction();
-
-        app(TriggerEngine::class)->fireDueActions();
-
-        Event::assertDispatchedTimes(ActionFired::class, 1);
+        Event::assertDispatchedTimes(OccurrenceFired::class, 1);
         Event::assertDispatched(
-            ActionFired::class,
-            fn (ActionFired $event): bool => $event->action->is($action),
+            OccurrenceFired::class,
+            fn (OccurrenceFired $event): bool => $event->occurrence->is($occurrence),
         );
     }
 
     public function test_no_fire_dispatches_no_event(): void
     {
-        Event::fake([ActionFired::class]);
-        // A future pending action is not due, so nothing fires.
-        $this->dueAction(['scheduled_for' => now()->addHour()]);
+        Event::fake([OccurrenceFired::class]);
+        $this->dueOccurrence(['scheduled_for' => Carbon::parse('2026-08-24 20:00:00')]);
 
-        app(TriggerEngine::class)->fireDueActions();
+        app(TriggerEngine::class)->fireDueOccurrences();
 
-        Event::assertNotDispatched(ActionFired::class);
+        Event::assertNotDispatched(OccurrenceFired::class);
+    }
+
+    public function test_it_returns_the_count_fired(): void
+    {
+        $this->dueOccurrence();
+        $this->dueOccurrence();
+        $this->dueOccurrence(['scheduled_for' => Carbon::parse('2026-08-24 20:00:00')]);
+
+        $this->assertSame(2, app(TriggerEngine::class)->fireDueOccurrences());
     }
 }

@@ -122,9 +122,9 @@ class StartExperimentTest extends TestCase
         $current = $this->activeStrategy(Strategy::POINT_RESPONSE);
         $oldAction = Action::factory()->for($current->intention)->create([
             'strategy_id' => $current->id,
-            'status' => Action::STATUS_PENDING,
+            'status' => Action::STATUS_ACTIVE,
             'recurrence' => 'daily',
-            'scheduled_for' => now()->addDay(),
+            'series_started_at' => now()->addDay(),
             'metadata' => ['schedule_kind' => 'clock'],
         ]);
 
@@ -139,7 +139,7 @@ class StartExperimentTest extends TestCase
         $this->assertSame(Action::STATUS_ARCHIVED, $oldAction->status);
 
         $newAction = $current->intention->actions()
-            ->where('status', Action::STATUS_PENDING)->first();
+            ->where('status', Action::STATUS_ACTIVE)->first();
         $this->assertNotNull($newAction);
         $this->assertSame($next->id, $newAction->strategy_id);
         $this->assertSame('daily', $newAction->recurrence); // inherited
@@ -147,7 +147,7 @@ class StartExperimentTest extends TestCase
 
         // One active Action per active Strategy.
         $this->assertSame(1, $current->intention->actions()
-            ->whereIn('status', [Action::STATUS_PENDING, Action::STATUS_ACTIVE])->count());
+            ->where('status', Action::STATUS_ACTIVE)->count());
     }
 
     public function test_revision_uses_a_reproposed_schedule_when_given(): void
@@ -155,7 +155,7 @@ class StartExperimentTest extends TestCase
         $current = $this->activeStrategy(Strategy::POINT_RESPONSE);
         Action::factory()->for($current->intention)->create([
             'strategy_id' => $current->id,
-            'status' => Action::STATUS_PENDING,
+            'status' => Action::STATUS_ACTIVE,
             'recurrence' => 'daily',
         ]);
 
@@ -178,7 +178,7 @@ class StartExperimentTest extends TestCase
         );
 
         $newAction = $current->intention->actions()
-            ->where('status', Action::STATUS_PENDING)->first();
+            ->where('status', Action::STATUS_ACTIVE)->first();
         $this->assertSame('weekdays', $newAction->recurrence); // re-proposed, not inherited
         $this->assertSame('Morning walk', $newAction->title);
     }

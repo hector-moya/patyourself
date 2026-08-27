@@ -50,7 +50,6 @@ class LogOutcomeToolTest extends TestCase
             ->create([
                 'status' => Action::STATUS_ACTIVE,
                 'recurrence' => null,
-                'scheduled_for' => null,
                 'series_started_at' => null,
             ]);
     }
@@ -62,7 +61,6 @@ class LogOutcomeToolTest extends TestCase
             ->create([
                 'status' => Action::STATUS_ACTIVE,
                 'recurrence' => 'daily',
-                'scheduled_for' => now()->setTime(19, 0),
                 'series_started_at' => now()->subDays(5)->setTime(19, 0),
             ]);
     }
@@ -75,7 +73,7 @@ class LogOutcomeToolTest extends TestCase
         ]);
     }
 
-    public function test_logs_a_completion_and_closes_the_one_off_action(): void
+    public function test_logs_a_completion(): void
     {
         $user = User::factory()->create(['timezone' => 'UTC']);
         $action = $this->oneOffAction($user);
@@ -106,10 +104,9 @@ class LogOutcomeToolTest extends TestCase
             'user_id' => $user->id,
             'outcome' => ActionLog::OUTCOME_COMPLETED,
         ]);
-        $this->assertSame(Action::STATUS_COMPLETED, $action->fresh()->status);
     }
 
-    public function test_logs_a_skip_and_closes_the_one_off_action(): void
+    public function test_logs_a_skip(): void
     {
         $user = User::factory()->create(['timezone' => 'UTC']);
         $action = $this->oneOffAction($user);
@@ -126,7 +123,6 @@ class LogOutcomeToolTest extends TestCase
             'action_id' => $action->id,
             'outcome' => ActionLog::OUTCOME_SKIPPED,
         ]);
-        $this->assertSame(Action::STATUS_SKIPPED, $action->fresh()->status);
     }
 
     public function test_rejects_a_wholly_unknown_occurrence_id(): void
@@ -191,11 +187,12 @@ class LogOutcomeToolTest extends TestCase
         $this->assertSame($reason, ActionLog::firstOrFail()->reason);
     }
 
-    public function test_completing_a_recurring_action_on_its_live_slot_rolls_it_forward(): void
+    public function test_completing_a_recurring_action_on_its_live_slot_leaves_the_action_row_alone(): void
     {
         $user = User::factory()->create(['timezone' => 'UTC']);
         $action = $this->recurringAction($user);
-        $occurrence = $this->occurrenceFor($action, $action->scheduled_for->toDateTimeString());
+        $seriesStartedAt = $action->series_started_at;
+        $occurrence = $this->occurrenceFor($action, now()->setTime(19, 0)->toDateTimeString());
 
         PatYourSelfServer::actingAs($user)
             ->tool(LogOutcomeTool::class, [
@@ -205,15 +202,15 @@ class LogOutcomeToolTest extends TestCase
             ->assertOk();
 
         $fresh = $action->fresh();
-        $this->assertSame(Action::STATUS_PENDING, $fresh->status);
-        $this->assertTrue($fresh->scheduled_for->isFuture());
+        $this->assertSame(Action::STATUS_ACTIVE, $fresh->status);
+        $this->assertTrue($fresh->series_started_at->equalTo($seriesStartedAt));
     }
 
     public function test_it_logs_a_past_occasion_without_moving_the_next_due_pointer(): void
     {
         $user = User::factory()->create(['timezone' => 'UTC']);
         $action = $this->recurringAction($user);
-        $nextDue = $action->scheduled_for;
+        $seriesStartedAt = $action->series_started_at;
         $occurrence = $this->occurrenceFor($action);
 
         $response = PatYourSelfServer::actingAs($user)
@@ -226,7 +223,7 @@ class LogOutcomeToolTest extends TestCase
         $response->assertOk();
 
         $this->assertSame($occurrence->id, $this->payload($response)['occurrence_id']);
-        $this->assertTrue($action->fresh()->scheduled_for->equalTo($nextDue));
+        $this->assertTrue($action->fresh()->series_started_at->equalTo($seriesStartedAt));
     }
 
     public function test_it_refuses_to_log_an_occasion_twice(): void

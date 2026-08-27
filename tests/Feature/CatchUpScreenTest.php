@@ -43,9 +43,8 @@ class CatchUpScreenTest extends TestCase
             ->create([
                 'title' => 'Dinner',
                 'recurrence' => 'daily',
-                'scheduled_for' => $anchor,
                 'series_started_at' => $anchor,
-                'status' => Action::STATUS_PENDING,
+                'status' => Action::STATUS_ACTIVE,
             ]);
     }
 
@@ -85,9 +84,8 @@ class CatchUpScreenTest extends TestCase
             ->for(Intention::factory()->for($user))
             ->create([
                 'recurrence' => 'daily',
-                'scheduled_for' => $anchor,
                 'series_started_at' => $anchor,
-                'status' => Action::STATUS_PENDING,
+                'status' => Action::STATUS_ACTIVE,
             ]);
 
         $this->assertSame(0, Occurrence::count());
@@ -150,7 +148,7 @@ class CatchUpScreenTest extends TestCase
     {
         $user = User::factory()->create(['timezone' => 'UTC']);
         $action = $this->action($user);
-        $nextDue = $action->scheduled_for;
+        $seriesStartedAt = $action->series_started_at;
         $occurrence = Occurrence::factory()->create([
             'action_id' => $action->id,
             'scheduled_for' => now()->subDays(3)->setTime(19, 0),
@@ -168,7 +166,7 @@ class CatchUpScreenTest extends TestCase
 
         $this->assertSame($occurrence->id, $log->occurrence_id);
         $this->assertSame('Second plate before I noticed', $log->reason);
-        $this->assertTrue($action->fresh()->scheduled_for->equalTo($nextDue));
+        $this->assertTrue($action->fresh()->series_started_at->equalTo($seriesStartedAt));
     }
 
     public function test_a_failure_without_a_reason_is_rejected(): void

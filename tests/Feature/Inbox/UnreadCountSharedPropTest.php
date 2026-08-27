@@ -4,6 +4,7 @@ namespace Tests\Feature\Inbox;
 
 use App\Models\Action;
 use App\Models\Intention;
+use App\Models\Occurrence;
 use App\Models\User;
 use App\Notifications\ActionDueNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -24,7 +25,8 @@ class UnreadCountSharedPropTest extends TestCase
     {
         $intention = Intention::factory()->for($user)->create(['status' => Intention::STATUS_ACTIVE]);
         $action = Action::factory()->for($intention)->create(['status' => Action::STATUS_ACTIVE]);
-        $user->notify(new ActionDueNotification($action));
+        $occurrence = Occurrence::factory()->for($action)->create();
+        $user->notify(new ActionDueNotification($occurrence));
     }
 
     public function test_it_shares_the_authenticated_users_unread_count(): void

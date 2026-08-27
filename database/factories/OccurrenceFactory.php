@@ -29,4 +29,10 @@ class OccurrenceFactory extends Factory
     {
         return $this->state(['scheduled_for' => now()->subDay()]);
     }
+
+    /** An occasion whose cue has already been delivered. */
+    public function fired(): static
+    {
+        return $this->state(['fired_at' => now()]);
+    }
 }

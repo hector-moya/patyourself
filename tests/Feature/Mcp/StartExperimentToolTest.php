@@ -52,7 +52,7 @@ class StartExperimentToolTest extends TestCase
             'approach' => 'Put the fork down between mouthfuls',
             'rationale' => 'Slowing the response should let fullness register',
         ]);
-        Action::factory()->for($loop)->for($strategy)->create(['status' => Action::STATUS_PENDING]);
+        Action::factory()->for($loop)->for($strategy)->create(['status' => Action::STATUS_ACTIVE]);
 
         return $loop;
     }
