@@ -4,7 +4,10 @@ import CoachLayout from '@/layouts/coach-layout';
 import { cn } from '@/lib/utils';
 import { BottomNav } from '@/patyourself/bottom-nav';
 import { Icon } from '@/patyourself/primitives';
-import type { IntentionData } from '@/patyourself/types';
+import type {
+    ActiveStrategySummary,
+    IntentionData,
+} from '@/patyourself/types';
 
 interface LoopsIndexProps {
     intentions: IntentionData[];
@@ -92,11 +95,41 @@ function LoopRow({ loop }: { loop: IntentionData }) {
                 <span className="mt-0.5 block truncate text-sm text-muted-foreground">
                     {tactic}
                 </span>
+                {/* The experiment's state, so the list answers "what am I
+                    running" without opening anything. */}
+                <span
+                    data-testid={`loop-experiment-${loop.id}`}
+                    className="mt-0.5 block font-mono text-[10px] tracking-wide text-muted-foreground uppercase"
+                >
+                    {experimentState(loop.strategy)}
+                </span>
             </span>
 
             <StatusPill status={loop.status} />
         </Link>
     );
+}
+
+/**
+ * The experiment's state in one line.
+ *
+ * `is_under_review` is tested before the day count, so a version past its review
+ * date asks for a verdict rather than reporting an overrun. A null
+ * `planned_days` is open-ended and never renders as a countdown, and a loop with
+ * no experiment reads as a good state — logging continues either way.
+ */
+function experimentState(strategy: ActiveStrategySummary | null): string {
+    if (strategy === null) {
+        return 'no experiment · logging';
+    }
+
+    if (strategy.is_under_review) {
+        return `v${strategy.version} · ready for a verdict`;
+    }
+
+    return strategy.planned_days === null
+        ? `v${strategy.version} · day ${strategy.day_of_experiment} · open-ended`
+        : `v${strategy.version} · day ${strategy.day_of_experiment} of ${strategy.planned_days}`;
 }
 
 const STATUS_DOT: Record<string, string> = {

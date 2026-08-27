@@ -34,6 +34,75 @@ export interface ActiveStrategySummary {
     approach: string;
     rationale: string | null;
     version: number;
+    /** The experiment's state, so a list of loops answers "what am I running"
+     * without opening each one. `planned_days` is null for an open-ended
+     * experiment — a legitimate state that must never render as a countdown. */
+    day_of_experiment: number;
+    planned_days: number | null;
+    is_under_review: boolean;
+}
+
+/**
+ * The loop's rolling narrative, written through the `write-reflection` MCP tool.
+ *
+ * Claude supplies the words; the window and the occasion count are taken from
+ * the record. Rendering the provenance is what makes it evidence rather than an
+ * assertion, so the three are carried together.
+ */
+export interface ReflectionData {
+    content: string;
+    window_start: string | null;
+    window_end: string | null;
+    events_count: number | null;
+}
+
+/**
+ * One rung of the experiment ladder — LoopProgress::experimentsFor().
+ *
+ * Logs attribute to a version through `actions.strategy_id`, so the totals here
+ * belong to the experiment that was running when they were logged, not to
+ * whichever version is active now.
+ */
+export interface ExperimentData {
+    strategy_id: number;
+    version: number;
+    status: string;
+    intervention_point: string;
+    approach: string;
+    hypothesis: string | null;
+    started_at: string;
+    review_at: string | null;
+    day_of_experiment: number;
+    planned_days: number | null;
+    is_under_review: boolean;
+    verdict: string | null;
+    verdict_note: string | null;
+    outcomes: Array<{
+        outcome: string;
+        reason: string | null;
+        logged_at: string;
+    }>;
+    totals: { completed: number; failed: number; skipped: number };
+}
+
+/**
+ * The active experiment's own record — LoopProgress::forCurrentVersion().
+ *
+ * Null when no version is active, which is a good state rather than an empty
+ * one: a loop running indefinitely with no experiment under test is a success,
+ * and logging is never gated on one existing.
+ */
+export interface CurrentVersionData {
+    version: number;
+    started_at: string;
+    day_of_experiment: number;
+    planned_days: number | null;
+    is_under_review: boolean;
+    verdict: string | null;
+    streak: { outcome: string | null; length: number };
+    completion_rate: number | null;
+    totals: { completed: number; failed: number; skipped: number };
+    last_logged_at: string | null;
 }
 
 /** The loggable action embedded in an IntentionResource (the card's quick-log target). */

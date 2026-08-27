@@ -38,6 +38,13 @@ class IntentionResource extends JsonResource
                 'approach' => $this->activeStrategy->approach,
                 'rationale' => $this->activeStrategy->rationale,
                 'version' => $this->activeStrategy->version,
+                // The experiment's state, so a list of loops can answer "what am
+                // I running" without opening each one. `planned_days` is null for
+                // an open-ended experiment, which is a legitimate state and must
+                // never be rendered as a countdown.
+                'day_of_experiment' => $this->activeStrategy->dayOfExperiment(),
+                'planned_days' => $this->activeStrategy->plannedDays(),
+                'is_under_review' => $this->activeStrategy->isUnderReview(),
             ]),
             // The loggable action a card posts an outcome against (null only when
             // every action on the loop is archived). Only embedded when eager-loaded.

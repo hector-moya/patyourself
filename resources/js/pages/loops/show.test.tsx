@@ -2,7 +2,11 @@ import type * as InertiaReact from '@inertiajs/react';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-import type { IntentionData } from '@/patyourself/types';
+import type {
+    CurrentVersionData,
+    ExperimentData,
+    IntentionData,
+} from '@/patyourself/types';
 
 const page = { url: '/loops/1', props: { unread_notifications_count: 0 } };
 vi.mock('@inertiajs/react', async (importOriginal) => {
@@ -40,6 +44,45 @@ const record = {
     showing_all_history: false,
     notes: [],
 };
+
+function currentVersion(
+    overrides: Partial<CurrentVersionData> = {},
+): CurrentVersionData {
+    return {
+        version: 2,
+        started_at: '2026-08-18T09:00:00+00:00',
+        day_of_experiment: 9,
+        planned_days: 14,
+        is_under_review: false,
+        verdict: null,
+        streak: { outcome: null, length: 0 },
+        completion_rate: 68,
+        totals: { completed: 15, failed: 7, skipped: 0 },
+        last_logged_at: null,
+        ...overrides,
+    };
+}
+
+function experiment(overrides: Partial<ExperimentData> = {}): ExperimentData {
+    return {
+        strategy_id: 1,
+        version: 1,
+        status: 'superseded',
+        intervention_point: 'cue',
+        approach: 'Lay your shoes by the door',
+        hypothesis: null,
+        started_at: '2026-08-01T09:00:00+00:00',
+        review_at: null,
+        day_of_experiment: 14,
+        planned_days: 14,
+        is_under_review: false,
+        verdict: 'failed',
+        verdict_note: null,
+        outcomes: [],
+        totals: { completed: 0, failed: 0, skipped: 0 },
+        ...overrides,
+    };
+}
 
 describe('LoopShow', () => {
     it('offers to activate a paused loop', () => {
@@ -119,6 +162,113 @@ describe('LoopShow', () => {
             screen.getByText(
                 /activating it starts its schedule and notifications/i,
             ),
+        ).toBeInTheDocument();
+    });
+
+    it('leads with the experiment and the reflection', () => {
+        render(
+            <LoopShow
+                intention={intention()}
+                strategies={[]}
+                {...record}
+                current_version={currentVersion()}
+                experiments={[]}
+                reflection={{
+                    content: 'Lunch is where it goes.',
+                    window_start: '2026-08-13T00:00:00+00:00',
+                    window_end: '2026-08-27T00:00:00+00:00',
+                    events_count: 28,
+                }}
+            />,
+        );
+
+        expect(screen.getByTestId('experiment-state')).toHaveTextContent(
+            /day 9 of 14/i,
+        );
+        expect(screen.getByText(/what the record shows/i)).toBeInTheDocument();
+        expect(screen.getByText(/lunch is where it goes/i)).toBeInTheDocument();
+    });
+
+    /**
+     * The comparison is against the version immediately before this one, not
+     * the loop's lifetime and not its oldest experiment.
+     *
+     * Two prior versions on purpose, with different rates: with only one, an
+     * implementation that picked the oldest would be indistinguishable from one
+     * that picked the previous, and the test would prove nothing.
+     */
+    it('compares the current version against the one immediately before it', () => {
+        render(
+            <LoopShow
+                intention={intention()}
+                strategies={[]}
+                {...record}
+                current_version={currentVersion({
+                    version: 3,
+                    completion_rate: 68,
+                    totals: { completed: 15, failed: 7, skipped: 0 },
+                })}
+                experiments={[
+                    experiment({
+                        version: 1,
+                        // 90% — the oldest. Picking this would be wrong.
+                        totals: { completed: 9, failed: 1, skipped: 0 },
+                    }),
+                    experiment({
+                        version: 2,
+                        // 41% — the one that actually preceded v3.
+                        totals: { completed: 9, failed: 13, skipped: 0 },
+                    }),
+                ]}
+            />,
+        );
+
+        const delta = screen.getByTestId('experiment-delta');
+
+        expect(delta).toHaveTextContent(/up from 41%/i);
+        expect(delta).not.toHaveTextContent(/90%/);
+    });
+
+    /**
+     * A previous version that was never tested is not a trend. Comparing against
+     * it would invent one out of nothing, so the delta is omitted.
+     */
+    it('omits the delta when the previous version was never tested', () => {
+        render(
+            <LoopShow
+                intention={intention()}
+                strategies={[]}
+                {...record}
+                current_version={currentVersion({ version: 2 })}
+                experiments={[
+                    experiment({
+                        version: 1,
+                        totals: { completed: 0, failed: 0, skipped: 0 },
+                    }),
+                ]}
+            />,
+        );
+
+        expect(
+            screen.queryByTestId('experiment-delta'),
+        ).not.toBeInTheDocument();
+    });
+
+    it('says so plainly when no experiment is running', () => {
+        render(
+            <LoopShow
+                intention={intention()}
+                strategies={[]}
+                {...record}
+                current_version={null}
+                experiments={[]}
+                reflection={null}
+            />,
+        );
+
+        expect(screen.getByText(/logging continues/i)).toBeInTheDocument();
+        expect(
+            screen.getByText(/no reflection written yet/i),
         ).toBeInTheDocument();
     });
 });

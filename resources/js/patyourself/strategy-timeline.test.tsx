@@ -1,8 +1,29 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import type { StrategyData } from '@/patyourself/types';
+import type { ExperimentData, StrategyData } from '@/patyourself/types';
 import { StrategyTimeline } from './strategy-timeline';
+
+function experiment(overrides: Partial<ExperimentData> = {}): ExperimentData {
+    return {
+        strategy_id: 1,
+        version: 1,
+        status: 'active',
+        intervention_point: 'cue',
+        approach: 'Lay your shoes by the door',
+        hypothesis: null,
+        started_at: '2026-08-01T09:00:00+00:00',
+        review_at: null,
+        day_of_experiment: 3,
+        planned_days: null,
+        is_under_review: false,
+        verdict: null,
+        verdict_note: null,
+        outcomes: [],
+        totals: { completed: 0, failed: 0, skipped: 0 },
+        ...overrides,
+    };
+}
 
 function strategy(overrides: Partial<StrategyData> = {}): StrategyData {
     return {
@@ -148,5 +169,136 @@ describe('StrategyTimeline', () => {
         );
 
         expect(screen.getByText(/ready to conclude/i)).toBeInTheDocument();
+    });
+
+    it('heads the section as experiments, the unit of the app', () => {
+        render(<StrategyTimeline strategies={[strategy()]} />);
+
+        expect(screen.getByText(/experiments/i)).toBeInTheDocument();
+    });
+
+    /**
+     * The evidence per version, which is the comparison that says whether
+     * changing the strategy changed anything. Raw counts lead and the rate
+     * follows: with a handful of logs a percentage hides its own denominator.
+     */
+    it('leads with the raw counts and follows with the rate', () => {
+        render(
+            <StrategyTimeline
+                strategies={[strategy({ version: 1 })]}
+                experiments={[
+                    experiment({
+                        version: 1,
+                        totals: { completed: 9, failed: 13, skipped: 4 },
+                    }),
+                ]}
+            />,
+        );
+
+        const evidence = screen.getByTestId('experiment-evidence-1');
+
+        expect(evidence).toHaveTextContent(/9 of 22 held/i);
+        // skipped is never in the denominator — 9+13, not 9+13+4.
+        expect(evidence).not.toHaveTextContent(/of 26/);
+        expect(evidence).toHaveTextContent(/41%/);
+    });
+
+    /**
+     * Zero outcomes is not zero per cent. The difference between a strategy that
+     * failed and one that was never tested is the difference this notebook
+     * exists to record.
+     */
+    it('keeps a never-tested version distinct from one that held nothing', () => {
+        render(
+            <StrategyTimeline
+                strategies={[strategy({ version: 1 })]}
+                experiments={[
+                    experiment({
+                        version: 1,
+                        totals: { completed: 0, failed: 0, skipped: 0 },
+                    }),
+                ]}
+            />,
+        );
+
+        const evidence = screen.getByTestId('experiment-evidence-1');
+
+        expect(evidence).toHaveTextContent(/not yet tested/i);
+        expect(evidence).not.toHaveTextContent(/0%/);
+    });
+
+    /**
+     * The user's stated reasons are what the next experiment gets written from.
+     * The fixture arrives untidy on purpose — a tidy one would pass against an
+     * implementation that trims or re-cases, and would prove nothing.
+     */
+    it('renders a failure reason exactly as it was written', () => {
+        const reason = '  kept   FORGETTING by evening.\n\n  then gave up.  ';
+
+        render(
+            <StrategyTimeline
+                strategies={[strategy({ version: 1 })]}
+                experiments={[
+                    experiment({
+                        version: 1,
+                        totals: { completed: 0, failed: 1, skipped: 0 },
+                        outcomes: [
+                            {
+                                outcome: 'failed',
+                                reason,
+                                logged_at: '2026-08-20T09:00:00+00:00',
+                            },
+                        ],
+                    }),
+                ]}
+            />,
+        );
+
+        expect(screen.getByTestId('experiment-reason-1-0')).toHaveTextContent(
+            reason,
+            { normalizeWhitespace: false },
+        );
+    });
+
+    /**
+     * Logs attribute through actions.strategy_id, so a v1 failure must stay on
+     * v1 even while v2 is the active version.
+     */
+    it('attributes outcomes to the version that was running', () => {
+        render(
+            <StrategyTimeline
+                strategies={[
+                    strategy({ id: 1, version: 1, status: 'superseded' }),
+                    strategy({ id: 2, version: 2, status: 'active' }),
+                ]}
+                experiments={[
+                    experiment({
+                        version: 1,
+                        totals: { completed: 2, failed: 8, skipped: 0 },
+                    }),
+                    experiment({
+                        version: 2,
+                        totals: { completed: 9, failed: 1, skipped: 0 },
+                    }),
+                ]}
+            />,
+        );
+
+        expect(screen.getByTestId('experiment-evidence-1')).toHaveTextContent(
+            /2 of 10 held/i,
+        );
+        expect(screen.getByTestId('experiment-evidence-2')).toHaveTextContent(
+            /9 of 10 held/i,
+        );
+    });
+
+    it('falls back to the plain outcome count when no experiments are supplied', () => {
+        render(
+            <StrategyTimeline
+                strategies={[strategy({ outcomes_recorded: 11 })]}
+            />,
+        );
+
+        expect(screen.getByText(/11 outcomes/i)).toBeInTheDocument();
     });
 });

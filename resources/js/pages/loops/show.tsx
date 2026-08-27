@@ -5,17 +5,22 @@ import { update } from '@/actions/App/Http/Controllers/IntentionController';
 import CoachLayout from '@/layouts/coach-layout';
 import { cn } from '@/lib/utils';
 import { BottomNav } from '@/patyourself/bottom-nav';
+import { ExperimentHeader } from '@/patyourself/experiment-header';
 import { LoopNotes } from '@/patyourself/loop-notes';
 import { OutcomeHistory } from '@/patyourself/outcome-history';
 import { Button } from '@/patyourself/primitives';
+import { Reflection } from '@/patyourself/reflection';
 import {
     SectionHeading,
     StrategyTimeline,
 } from '@/patyourself/strategy-timeline';
 import type {
+    CurrentVersionData,
+    ExperimentData,
     IntentionData,
     NoteData,
     OutcomeEntryData,
+    ReflectionData,
     StrategyData,
 } from '@/patyourself/types';
 
@@ -31,6 +36,44 @@ interface LoopShowProps {
     outcomes_total: number;
     showing_all_history: boolean;
     notes: NoteData[];
+    /** The active experiment's own record. Null between experiments. */
+    current_version?: CurrentVersionData | null;
+    /** One rung per version, oldest first. */
+    experiments?: ExperimentData[];
+    /** The loop's rolling narrative, written through write-reflection. */
+    reflection?: ReflectionData | null;
+}
+
+/**
+ * The rate of the version immediately before the current one, for the header's
+ * comparison.
+ *
+ * Only a version that produced a decision counts — comparing against a version
+ * that was never tested would invent a trend out of nothing. Returns null when
+ * there is no such version, and the header then omits the delta entirely rather
+ * than rendering a placeholder.
+ */
+function previousVersionRate(
+    experiments: ExperimentData[],
+    current: CurrentVersionData | null,
+): number | null {
+    if (current === null) {
+        return null;
+    }
+
+    const previous = experiments
+        .filter((experiment) => experiment.version < current.version)
+        .sort((a, b) => b.version - a.version)[0];
+
+    if (previous === undefined) {
+        return null;
+    }
+
+    const decided = previous.totals.completed + previous.totals.failed;
+
+    return decided === 0
+        ? null
+        : Math.round((previous.totals.completed / decided) * 100);
 }
 
 /**
@@ -52,6 +95,9 @@ export default function LoopShow({
     outcomes_total: outcomesTotal,
     showing_all_history: showingAllHistory,
     notes,
+    current_version: currentVersion = null,
+    experiments = [],
+    reflection = null,
 }: LoopShowProps) {
     const back = (
         <Link
@@ -110,6 +156,23 @@ export default function LoopShow({
                     </p>
                 )}
 
+                {/* What is being tested and whether it is holding, before any
+                    scrolling. The reflection follows it because reading what
+                    the record shows is the point of opening this screen; the
+                    anatomy sits below both because it changes rarely. */}
+                <ExperimentHeader
+                    current={currentVersion}
+                    interventionPoint={
+                        intention.strategy?.intervention_point ?? null
+                    }
+                    previousRate={previousVersionRate(
+                        experiments,
+                        currentVersion,
+                    )}
+                />
+
+                <Reflection reflection={reflection} />
+
                 <Anatomy
                     intention={intention}
                     interventionPoint={
@@ -117,7 +180,10 @@ export default function LoopShow({
                     }
                 />
 
-                <StrategyTimeline strategies={strategies} />
+                <StrategyTimeline
+                    strategies={strategies}
+                    experiments={experiments}
+                />
 
                 <OutcomeHistory
                     outcomes={outcomes}
@@ -132,11 +198,27 @@ export default function LoopShow({
     );
 }
 
+/**
+ * Each stage carries its own accent, defined as `--stage-*` in patyourself.css.
+ * The four exist in the palette and are named for exactly these stages; painting
+ * the intervention point with the generic primary threw that away and made the
+ * chain read as one undifferentiated list.
+ */
 const STAGES = [
-    { key: 'cue', label: 'Cue', hint: 'the trigger' },
-    { key: 'craving', label: 'Craving', hint: 'the motivation' },
-    { key: 'response', label: 'Response', hint: 'the behaviour' },
-    { key: 'reward', label: 'Reward', hint: 'the payoff' },
+    { key: 'cue', label: 'Cue', hint: 'the trigger', accent: 'cue' },
+    {
+        key: 'craving',
+        label: 'Craving',
+        hint: 'the motivation',
+        accent: 'craving',
+    },
+    {
+        key: 'response',
+        label: 'Response',
+        hint: 'the behaviour',
+        accent: 'response',
+    },
+    { key: 'reward', label: 'Reward', hint: 'the payoff', accent: 'reward' },
 ] as const;
 
 function Anatomy({
@@ -157,12 +239,16 @@ function Anatomy({
                         <li key={stage.key} className="flex gap-3">
                             <div className="flex flex-col items-center">
                                 <span
-                                    className={cn(
-                                        'flex size-7 shrink-0 items-center justify-center rounded-full border text-xs font-semibold',
-                                        acts
-                                            ? 'border-primary bg-primary text-primary-foreground'
-                                            : 'border-border bg-muted text-muted-foreground',
-                                    )}
+                                    className="flex size-7 shrink-0 items-center justify-center rounded-full border text-xs font-semibold"
+                                    style={{
+                                        borderColor: `var(--stage-${stage.accent})`,
+                                        backgroundColor: acts
+                                            ? `var(--stage-${stage.accent})`
+                                            : `var(--stage-${stage.accent}-soft)`,
+                                        color: acts
+                                            ? 'var(--stage-on-accent, #FFF8F3)'
+                                            : `var(--stage-${stage.accent})`,
+                                    }}
                                 >
                                     {index + 1}
                                 </span>
@@ -174,20 +260,37 @@ function Anatomy({
                             <div
                                 className={cn(
                                     'mb-1 flex-1 rounded-xl border p-3',
-                                    acts
-                                        ? 'border-primary/40 bg-primary/5'
-                                        : 'border-border',
+                                    !acts && 'border-border',
                                 )}
+                                style={
+                                    acts
+                                        ? {
+                                              borderColor: `var(--stage-${stage.accent})`,
+                                              backgroundColor: `var(--stage-${stage.accent}-soft)`,
+                                          }
+                                        : undefined
+                                }
                             >
                                 <div className="flex items-center justify-between gap-2">
-                                    <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                                    <span
+                                        className="text-xs font-semibold tracking-wide uppercase"
+                                        style={{
+                                            color: `var(--stage-${stage.accent})`,
+                                        }}
+                                    >
                                         {stage.label}
                                         <span className="ml-1 font-normal text-muted-foreground/70 normal-case">
                                             · {stage.hint}
                                         </span>
                                     </span>
                                     {acts && (
-                                        <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                                        <span
+                                            className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium"
+                                            style={{
+                                                backgroundColor: `var(--stage-${stage.accent}-soft)`,
+                                                color: `var(--stage-${stage.accent})`,
+                                            }}
+                                        >
                                             strategy acts here
                                         </span>
                                     )}
