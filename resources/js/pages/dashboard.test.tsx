@@ -9,6 +9,8 @@ vi.mock('@inertiajs/react', async (importOriginal) => {
     return { ...actual, Head: () => null, usePage: () => page };
 });
 
+import type { CompanionData } from '@/patyourself/companion';
+
 import Dashboard from './dashboard';
 import type {ReadyForVerdictData, TodaysOccasionData} from './dashboard';
 
@@ -42,12 +44,28 @@ function verdict(
     };
 }
 
+/** A record with nothing in it yet, which is where Blob starts. */
+function noCompanion(overrides: Partial<CompanionData> = {}): CompanionData {
+    return {
+        log_count: 0,
+        insight_count: 0,
+        stage_index: 0,
+        features: [],
+        items: [],
+        abilities: [],
+        unlocks: [],
+        latest_unlock: null,
+        ...overrides,
+    };
+}
+
 function renderDashboard(props: Partial<React.ComponentProps<typeof Dashboard>> = {}) {
     return render(
         <Dashboard
             today="2026-08-27"
             occasions={[]}
             ready_for_verdict={[]}
+            companion={noCompanion()}
             {...props}
         />,
     );
@@ -176,6 +194,30 @@ describe('Dashboard', () => {
         expect(
             screen.queryByText(/ready for a verdict/i),
         ).not.toBeInTheDocument();
+    });
+
+    /**
+     * Blob rides in the corner and links to its own screen. It carries no
+     * count and no badge: the header is not where progress gets tallied.
+     */
+    it('puts Blob in the corner once it exists', () => {
+        renderDashboard({
+            companion: noCompanion({
+                stage_index: 1,
+                log_count: 1,
+                features: ['blob'],
+            }),
+        });
+
+        const link = screen.getByRole('link', { name: 'Blob' });
+
+        expect(link).toHaveAttribute('href', '/companion');
+    });
+
+    it('shows no corner at all before Blob exists', () => {
+        renderDashboard();
+
+        expect(screen.queryByRole('link', { name: 'Blob' })).toBeNull();
     });
 
     /**

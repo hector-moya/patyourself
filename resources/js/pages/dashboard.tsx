@@ -3,6 +3,8 @@ import { useState } from 'react';
 
 import CoachLayout from '@/layouts/coach-layout';
 import { BottomNav } from '@/patyourself/bottom-nav';
+import { Companion } from '@/patyourself/companion';
+import type { CompanionData } from '@/patyourself/companion';
 import { Button } from '@/patyourself/primitives';
 import { SectionHeading } from '@/patyourself/strategy-timeline';
 import type { LogOutcome } from '@/patyourself/types';
@@ -33,6 +35,7 @@ interface DashboardProps {
     today: string;
     occasions: TodaysOccasionData[];
     ready_for_verdict: ReadyForVerdictData[];
+    companion: CompanionData;
 }
 
 const SECTIONS: { due: TodaysOccasionData['due']; heading: string }[] = [
@@ -56,11 +59,16 @@ export default function Dashboard({
     today,
     occasions,
     ready_for_verdict: readyForVerdict,
+    companion,
 }: DashboardProps) {
     const nothingToday = occasions.length === 0;
 
     return (
-        <CoachLayout title="Today" bottomNav={<BottomNav />}>
+        <CoachLayout
+            title="Today"
+            bottomNav={<BottomNav />}
+            headerActions={<CompanionCorner companion={companion} />}
+        >
             <div className="flex flex-col gap-6">
                 <p className="font-mono text-xs tracking-wide text-muted-foreground uppercase">
                     {formatDay(today)}
@@ -113,6 +121,29 @@ export default function Dashboard({
                 )}
             </div>
         </CoachLayout>
+    );
+}
+
+/**
+ * Blob in the corner, at 32px, linking to its own screen.
+ *
+ * Renders nothing before the first outcome — no placeholder and no outline,
+ * because an empty slot in the header would be one more thing owed. The link
+ * carries no count and no badge for the same reason.
+ */
+function CompanionCorner({ companion }: { companion: CompanionData }) {
+    if (companion.stage_index === 0) {
+        return null;
+    }
+
+    return (
+        <Link
+            href="/companion"
+            aria-label="Blob"
+            className="flex items-center rounded-md p-1 transition-opacity hover:opacity-80"
+        >
+            <Companion companion={companion} size={32} />
+        </Link>
     );
 }
 

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Intention;
 use App\Models\Strategy;
+use App\Services\Companion\CompanionResolver;
 use App\Services\Scheduling\TodaysOccasion;
 use App\Services\Scheduling\TodaysOccasions;
 use Illuminate\Http\Request;
@@ -25,7 +26,7 @@ use Inertia\Response;
  */
 class NotebookController extends Controller
 {
-    public function index(Request $request, TodaysOccasions $todaysOccasions): Response
+    public function index(Request $request, TodaysOccasions $todaysOccasions, CompanionResolver $companion): Response
     {
         $user = $request->user();
         $timezone = $user->timezone ?? (string) config('app.timezone');
@@ -49,6 +50,9 @@ class NotebookController extends Controller
                     'scheduled_for' => $occasion->scheduledFor?->timezone($timezone)->toIso8601String(),
                 ])->values()->all(),
             'ready_for_verdict' => $this->readyForVerdict($request),
+            // Blob rides along in the corner. Derived, so it costs a read and
+            // there is nothing on this screen to keep in step with it.
+            'companion' => $companion->forUser($user)->toArray(),
         ]);
     }
 

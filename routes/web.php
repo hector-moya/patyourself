@@ -3,6 +3,7 @@
 use App\Http\Controllers\ActionController;
 use App\Http\Controllers\ActionLogController;
 use App\Http\Controllers\CatchUpController;
+use App\Http\Controllers\CompanionController;
 use App\Http\Controllers\InboxController;
 use App\Http\Controllers\IntentionController;
 use App\Http\Controllers\NotebookController;
@@ -40,6 +41,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('catch-up', [CatchUpController::class, 'index'])->name('catch-up');
     Route::post('occurrences/{occurrence}/logs', [OccurrenceLogController::class, 'store'])
         ->name('occurrences.logs.store');
+
+    // Blob: what the record has grown, and when each part of it arrived. A read
+    // over the existing tables — there is nothing companion-shaped in the
+    // database to fetch.
+    Route::get('companion', [CompanionController::class, 'index'])->name('companion');
 
     // The in-app inbox: delivered cues + read state.
     Route::get('inbox', [InboxController::class, 'index'])->name('inbox');

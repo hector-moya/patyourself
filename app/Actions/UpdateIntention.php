@@ -16,6 +16,15 @@ use Carbon\CarbonImmutable;
 final readonly class UpdateIntention
 {
     /**
+     * The behavioural chain. Corrections to these four are a different kind of
+     * edit from a retitle or a pause: they say the hypothesis about the
+     * behaviour was wrong and has been revised.
+     *
+     * @var list<string>
+     */
+    private const CHAIN_FIELDS = ['cue', 'craving', 'response', 'reward'];
+
+    /**
      * @param  array<string, mixed>  $data  Validated subset of loop fields.
      */
     public function handle(Intention $intention, array $data): Intention
@@ -25,21 +34,64 @@ final readonly class UpdateIntention
             'description',
             'type',
             'status',
-            'cue',
-            'craving',
-            'response',
-            'reward',
+            ...self::CHAIN_FIELDS,
         ]));
 
         $wasPaused = $intention->status === Intention::STATUS_PAUSED;
+        $corrected = $this->chainFieldsChangedBy($intention, $fields);
 
         $intention->update($fields);
+
+        if ($corrected !== []) {
+            $this->recordChainRevision($intention, $corrected);
+        }
 
         if ($wasPaused && $intention->status === Intention::STATUS_ACTIVE) {
             $this->reanchorStaleActions($intention);
         }
 
         return $intention;
+    }
+
+    /**
+     * Which of cue / craving / response / reward this payload actually changes.
+     *
+     * Compared against the stored values rather than taken from the payload's
+     * keys: re-sending the craving unchanged is not a correction, and a
+     * correction that did not correct anything should leave no trace.
+     *
+     * @param  array<string, mixed>  $fields
+     * @return list<string>
+     */
+    private function chainFieldsChangedBy(Intention $intention, array $fields): array
+    {
+        return array_values(array_filter(
+            self::CHAIN_FIELDS,
+            static fn (string $field): bool => array_key_exists($field, $fields)
+                && $fields[$field] !== $intention->getOriginal($field),
+        ));
+    }
+
+    /**
+     * Append the correction to the loop's own history.
+     *
+     * The chain is corrected in place — a loop describes one behaviour, and
+     * there is only ever one current description of it — so the edit would
+     * otherwise leave no record that the hypothesis ever moved. Kept in the
+     * existing `metadata` column rather than a new table: it is a short list of
+     * timestamps, and it belongs to the loop rather than to anything reading it.
+     *
+     * @param  list<string>  $fields
+     */
+    private function recordChainRevision(Intention $intention, array $fields): void
+    {
+        $metadata = $intention->metadata ?? [];
+        $metadata['chain_revisions'][] = [
+            'at' => CarbonImmutable::now()->toIso8601String(),
+            'fields' => $fields,
+        ];
+
+        $intention->update(['metadata' => $metadata]);
     }
 
     /**
