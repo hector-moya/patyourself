@@ -7,6 +7,8 @@ use App\Http\Controllers\InboxController;
 use App\Http\Controllers\IntentionController;
 use App\Http\Controllers\OccurrenceLogController;
 use App\Http\Controllers\ProgressController;
+use App\Models\Intention;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Route;
 
 Route::inertia('/', 'landing')->name('home');
@@ -45,7 +47,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // The progress dashboard: active-loop metric cards (index) and a per-loop
     // drill-in (detail). Read-only aggregation over the loop's own data.
     Route::get('progress', [ProgressController::class, 'index'])->name('progress');
-    Route::get('progress/{intention}', [ProgressController::class, 'show'])->name('progress.show');
+    // The per-loop drill-in folded into the lab record, which now carries the
+    // experiment, its evidence and the reflection on one screen. The route name
+    // survives so nothing that generates the URL breaks and no bookmark 404s.
+    Route::get('progress/{intention}', function (Intention $intention) {
+        // Authorized here rather than left to the redirect target. Without it a
+        // stranger's loop answers 302 instead of 403 — the lab record still
+        // refuses them, but the refusal should happen at the door.
+        Gate::authorize('view', $intention);
+
+        return redirect()->route('loops.show', $intention);
+    })->name('progress.show');
 });
 
 require __DIR__.'/settings.php';

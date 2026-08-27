@@ -2,13 +2,16 @@
 
 namespace Tests\Feature;
 
+use App\Actions\WriteReflection;
 use App\Models\Action;
 use App\Models\ActionLog;
 use App\Models\Intention;
 use App\Models\Note;
 use App\Models\Occurrence;
 use App\Models\Strategy;
+use App\Models\Summary;
 use App\Models\User;
+use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
@@ -259,5 +262,284 @@ class IntentionScreensTest extends TestCase
         $this->actingAs(User::factory()->create())
             ->get("/loops/{$intention->id}")
             ->assertForbidden();
+    }
+
+    /**
+     * The current experiment's own record, separate from the loop's lifetime.
+     * Without it a fresh intervention inherits the previous version's evidence
+     * and reads as though it had earned it.
+     */
+    public function test_loop_detail_carries_the_current_experiments_own_record(): void
+    {
+        $user = User::factory()->create();
+        $intention = Intention::factory()->for($user)->create();
+
+        Strategy::factory()->for($intention)->create([
+            'version' => 2,
+            'status' => Strategy::STATUS_ACTIVE,
+            'intervention_point' => Strategy::POINT_CRAVING,
+        ]);
+
+        $this->actingAs($user)
+            ->get("/loops/{$intention->id}")
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('current_version.version', 2)
+                ->has('current_version.day_of_experiment')
+                ->has('current_version.planned_days')
+                ->has('current_version.is_under_review')
+                ->has('current_version.completion_rate')
+                ->has('current_version.streak.length')
+                ->has('current_version.totals.completed')
+            );
+    }
+
+    /**
+     * A loop between experiments is a good state, not an empty one. The prop is
+     * null rather than a hollow shape, so the screen can say so plainly.
+     */
+    public function test_loop_detail_carries_a_null_current_version_between_experiments(): void
+    {
+        $user = User::factory()->create();
+        $intention = Intention::factory()->for($user)->create();
+
+        $this->actingAs($user)
+            ->get("/loops/{$intention->id}")
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->where('current_version', null));
+    }
+
+    /**
+     * The experiment ladder: one entry per version carrying the evidence
+     * recorded under it. This is the comparison that says whether the change
+     * of strategy did anything.
+     */
+    public function test_loop_detail_carries_the_experiment_ladder_with_per_version_totals(): void
+    {
+        $user = User::factory()->create();
+        $intention = Intention::factory()->for($user)->create();
+
+        $v1 = Strategy::factory()->for($intention)->create([
+            'version' => 1,
+            'status' => Strategy::STATUS_SUPERSEDED,
+        ]);
+        $v2 = Strategy::factory()->for($intention)->create([
+            'version' => 2,
+            'status' => Strategy::STATUS_ACTIVE,
+        ]);
+
+        $firstAction = Action::factory()->for($intention)->create(['strategy_id' => $v1->id]);
+        $secondAction = Action::factory()->for($intention)->create(['strategy_id' => $v2->id]);
+
+        ActionLog::factory()->for($firstAction)->create(['outcome' => ActionLog::OUTCOME_FAILED]);
+        ActionLog::factory()->for($secondAction)->create(['outcome' => ActionLog::OUTCOME_COMPLETED]);
+        ActionLog::factory()->for($secondAction)->create(['outcome' => ActionLog::OUTCOME_COMPLETED]);
+
+        $this->actingAs($user)
+            ->get("/loops/{$intention->id}")
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('experiments', 2)
+                // Each log attributes to the version that was running, through
+                // actions.strategy_id — not to whichever version is active now.
+                ->where('experiments.0.version', 1)
+                ->where('experiments.0.totals.failed', 1)
+                ->where('experiments.0.totals.completed', 0)
+                ->where('experiments.1.version', 2)
+                ->where('experiments.1.totals.completed', 2)
+            );
+    }
+
+    /**
+     * write-reflection records the window and the occasion count from the record
+     * rather than from Claude. Dropping them leaves a claim with no provenance.
+     */
+    public function test_loop_detail_carries_the_reflection_with_its_provenance(): void
+    {
+        $user = User::factory()->create();
+        $intention = Intention::factory()->for($user)->create();
+
+        Summary::factory()->create([
+            'user_id' => $user->id,
+            'intention_id' => $intention->id,
+            'content' => 'The craving reads more like hunger than habit.',
+            'events_count' => 28,
+        ]);
+
+        $this->actingAs($user)
+            ->get("/loops/{$intention->id}")
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('reflection.content', 'The craving reads more like hunger than habit.')
+                ->where('reflection.events_count', 28)
+                ->has('reflection.window_start')
+                ->has('reflection.window_end')
+            );
+    }
+
+    public function test_loop_detail_carries_a_null_reflection_when_none_is_written(): void
+    {
+        $user = User::factory()->create();
+        $intention = Intention::factory()->for($user)->create();
+
+        $this->actingAs($user)
+            ->get("/loops/{$intention->id}")
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->where('reflection', null));
+    }
+
+    /**
+     * The loops list answers "what am I running" without opening anything, so
+     * the embedded summary has to carry the experiment's state, not just its
+     * intervention point.
+     */
+    public function test_loops_list_carries_the_experiment_state_on_each_loop(): void
+    {
+        $user = User::factory()->create();
+        $intention = Intention::factory()->for($user)->create();
+
+        Strategy::factory()->for($intention)->create([
+            'version' => 3,
+            'status' => Strategy::STATUS_ACTIVE,
+        ]);
+
+        $this->actingAs($user)
+            ->get('/loops')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('intentions.0.strategy.version', 3)
+                ->has('intentions.0.strategy.day_of_experiment')
+                ->has('intentions.0.strategy.planned_days')
+                ->has('intentions.0.strategy.is_under_review')
+            );
+    }
+
+    /**
+     * Progress detail folded into the lab record. The route name survives so
+     * nothing that generates the URL breaks, and no bookmark 404s.
+     */
+    public function test_the_progress_detail_route_redirects_into_the_lab_record(): void
+    {
+        $user = User::factory()->create();
+        $intention = Intention::factory()->for($user)->create();
+
+        $this->actingAs($user)
+            ->get("/progress/{$intention->id}")
+            ->assertRedirect("/loops/{$intention->id}");
+    }
+
+    /**
+     * Ported from ProgressShowTest when the progress detail folded in here. The
+     * metrics are asserted by value, not merely by presence — a rate of 100 and
+     * a streak of 2 are the difference between wiring the aggregation up and
+     * wiring it up correctly.
+     */
+    public function test_loop_detail_reports_the_current_experiments_rate_and_streak(): void
+    {
+        $user = User::factory()->create();
+        $loop = Intention::factory()->for($user)->create([
+            'status' => Intention::STATUS_ACTIVE,
+            'title' => 'Morning walk',
+        ]);
+        $v1 = Strategy::factory()->for($loop)->superseded('kept missing it')->create(['version' => 1]);
+        $v2 = Strategy::factory()->for($loop)->restrategized()->create([
+            'version' => 2,
+            'status' => Strategy::STATUS_ACTIVE,
+            'parent_strategy_id' => $v1->id,
+        ]);
+        $action = Action::factory()->for($loop)->for($v2)->create();
+        ActionLog::factory()->for($action)->completed()->count(2)->create();
+
+        $this->actingAs($user)
+            ->get("/loops/{$loop->id}")
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('intention.title', 'Morning walk')
+                ->where('current_version.completion_rate', 100)
+                ->where('current_version.streak.length', 2)
+                ->has('strategies', 2)
+                ->where('strategies.0.version', 1)
+                ->where('strategies.1.version', 2)
+            );
+    }
+
+    /**
+     * Ported from ProgressShowTest, and the reason it existed still holds: the
+     * writer and the reader have to agree. `latestSummary()` filters to intention
+     * scope, so a WriteReflection writing the wrong scope would be silently
+     * ignored and the screen would keep showing its empty state while the record
+     * filled up. Every other reflection test seeds the row by factory, which
+     * cannot catch that.
+     */
+    public function test_a_reflection_written_by_the_app_is_what_the_lab_record_renders(): void
+    {
+        $user = User::factory()->create();
+        $loop = Intention::factory()->for($user)->create(['status' => Intention::STATUS_ACTIVE]);
+        Strategy::factory()->initial()->for($loop)->create();
+
+        app(WriteReflection::class)->handle($loop, 'Dinner holds. Lunch is where it goes.');
+
+        $this->actingAs($user)
+            ->get("/loops/{$loop->id}")
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('reflection.content', 'Dinner holds. Lunch is where it goes.')
+            );
+    }
+
+    /**
+     * Ported from ProgressShowTest. The experiment framing has to survive the
+     * resource: a planned length, how far in it is, and whether it is due.
+     */
+    public function test_loop_detail_serializes_the_experiment_fields_on_each_version(): void
+    {
+        CarbonImmutable::setTestNow('2026-09-13 12:00:00');
+
+        $user = User::factory()->create();
+        $intention = Intention::factory()->for($user)->create();
+        Strategy::factory()->for($intention)->create([
+            'version' => 1,
+            'status' => Strategy::STATUS_ACTIVE,
+            'created_at' => CarbonImmutable::parse('2026-09-01 12:00:00'),
+            'review_at' => CarbonImmutable::parse('2026-09-22 12:00:00'),
+            'verdict_note' => 'the cue moved but craving still spikes around 3pm',
+        ]);
+
+        $this->actingAs($user)
+            ->get("/loops/{$intention->id}")
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('strategies.0.planned_days', 21)
+                ->where('strategies.0.day_of_experiment', 12)
+                ->where('strategies.0.is_under_review', false)
+                ->where('strategies.0.verdict', null)
+                ->where('strategies.0.review_at', '2026-09-22T12:00:00.000000Z')
+                ->where('strategies.0.verdict_note', 'the cue moved but craving still spikes around 3pm'));
+    }
+
+    /**
+     * Ported from ProgressShowTest. An open-ended experiment is a real state —
+     * it must serialize as null rather than collapsing to a zero-day run.
+     */
+    public function test_loop_detail_serializes_an_open_ended_experiment(): void
+    {
+        CarbonImmutable::setTestNow('2026-09-13 12:00:00');
+
+        $user = User::factory()->create();
+        $intention = Intention::factory()->for($user)->create();
+        Strategy::factory()->for($intention)->create([
+            'version' => 1,
+            'status' => Strategy::STATUS_ACTIVE,
+            'created_at' => CarbonImmutable::parse('2026-09-01 12:00:00'),
+            'review_at' => null,
+        ]);
+
+        $this->actingAs($user)
+            ->get("/loops/{$intention->id}")
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('strategies.0.review_at', null)
+                ->where('strategies.0.planned_days', null)
+                ->where('strategies.0.is_under_review', false));
     }
 }

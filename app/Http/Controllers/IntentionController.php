@@ -12,6 +12,7 @@ use App\Http\Resources\StrategyResource;
 use App\Models\ActionLog;
 use App\Models\Intention;
 use App\Models\Note;
+use App\Services\Progress\LoopProgress;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -51,20 +52,38 @@ class IntentionController extends Controller
         ]);
     }
 
-    public function show(Request $request, Intention $intention): Response
+    public function show(Request $request, Intention $intention, LoopProgress $progress): Response
     {
         Gate::authorize('view', $intention);
 
-        $intention->load('activeStrategy');
+        $intention->load(['activeStrategy', 'latestSummary', 'actionLogs']);
         $strategies = $intention->strategies()->withCount('actionLogs')->orderedByVersion()->get();
         $showingAll = $request->query('history') === 'all';
         // Dates are localised here so the day an occasion belongs to is the
         // user's day, not the browser's.
         $timezone = $request->user()->timezone ?? (string) config('app.timezone');
 
+        $reflection = $intention->latestSummary;
+
         return Inertia::render('loops/show', [
             'intention' => (new IntentionResource($intention))->resolve(),
             'strategies' => StrategyResource::collection($strategies)->resolve(),
+            // The current experiment's own record, kept separate from the loop's
+            // lifetime. Null between experiments, which is a good state — the
+            // screen says so plainly rather than rendering a hollow shape.
+            'current_version' => $progress->forCurrentVersion($intention),
+            // One entry per version, oldest first. Logs attribute through
+            // actions.strategy_id, so this is what says whether changing the
+            // strategy actually changed anything.
+            'experiments' => $progress->experimentsFor($intention),
+            // The window and the count come from the record, not from Claude —
+            // dropping them would leave a claim with no provenance.
+            'reflection' => $reflection === null ? null : [
+                'content' => $reflection->content,
+                'window_start' => $reflection->window_start?->toIso8601String(),
+                'window_end' => $reflection->window_end?->toIso8601String(),
+                'events_count' => $reflection->events_count,
+            ],
             'outcomes' => $this->outcomeHistory($intention, $showingAll, $timezone),
             'outcomes_total' => $intention->actionLogs()->count(),
             'showing_all_history' => $showingAll,
