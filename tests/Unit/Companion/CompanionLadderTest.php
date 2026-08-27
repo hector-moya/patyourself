@@ -62,7 +62,27 @@ class CompanionLadderTest extends TestCase
             $this->assertIsInt($entry['at'], $where);
             $this->assertGreaterThan(0, $entry['at'], $where);
             $this->assertNotSame('', trim($entry['message']), $where);
+
+            if (array_key_exists('roomObject', $entry)) {
+                $this->assertIsString($entry['roomObject'], $where);
+                $this->assertNotSame('', trim($entry['roomObject']), $where);
+            }
         }
+    }
+
+    /**
+     * The room is a record of what happened, so an object belongs to the thing
+     * that earned it. Two entries handing out the same object would put it in
+     * the room twice.
+     */
+    public function test_no_room_object_is_handed_out_twice(): void
+    {
+        $objects = array_values(array_filter(array_map(
+            static fn (array $entry): ?string => $entry['roomObject'] ?? null,
+            $this->ladder(),
+        )));
+
+        $this->assertSame($objects, array_unique($objects));
     }
 
     /**
@@ -215,14 +235,41 @@ class CompanionLadderTest extends TestCase
     }
 
     /**
-     * @return array{kind: string, name: string, variant: ?string, message: string, unlocked_at: ?string}
+     * The room holds only what has been earned, and each object arrives with
+     * the unlock that earned it.
      */
-    private function unlock(string $kind, string $name, ?string $variant = null): array
+    public function test_state_lists_only_the_room_objects_that_were_earned(): void
     {
+        $state = new CompanionState(5, 2, [
+            $this->unlock('body', 'blob'),
+            $this->unlock('ability', 'read', roomObject: 'bookshelf'),
+            $this->unlock('item', 'hat'),
+        ]);
+
+        $this->assertSame(['bookshelf'], $state->roomObjects());
+    }
+
+    public function test_a_room_with_nothing_earned_yet_is_empty_rather_than_outlined(): void
+    {
+        $state = new CompanionState(1, 0, [$this->unlock('body', 'blob')]);
+
+        $this->assertSame([], $state->roomObjects());
+    }
+
+    /**
+     * @return array{kind: string, name: string, variant: ?string, room_object: ?string, message: string, unlocked_at: ?string}
+     */
+    private function unlock(
+        string $kind,
+        string $name,
+        ?string $variant = null,
+        ?string $roomObject = null,
+    ): array {
         return [
             'kind' => $kind,
             'name' => $name,
             'variant' => $variant,
+            'room_object' => $roomObject,
             'message' => "Blob has {$name} now.",
             'unlocked_at' => '2026-08-27T09:00:00+00:00',
         ];

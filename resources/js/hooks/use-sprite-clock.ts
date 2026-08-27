@@ -125,32 +125,43 @@ export function useSpriteClock(ambient: AnimationName = 'idle'): SpriteClock {
     const [frame, setFrame] = useState(0);
     const [reaction, setReaction] = useState<AnimationName | null>(null);
 
-    // When the current reaction started, in clock time. Held in a ref because
-    // it is written from inside the tick and must not itself cause a render.
-    const reactionStartedAt = useRef<number | null>(null);
+    // A one-shot on the ambient channel — a blink. Held apart from `reaction`
+    // so a button press can cut across a blink without the two clearing each
+    // other's state on the way out.
+    const [ambientOneShot, setAmbientOneShot] = useState<AnimationName | null>(
+        null,
+    );
+
+    // When the current one-shot started, in clock time. A ref because it is
+    // written from inside the tick and must not itself cause a render.
+    const startedAt = useRef<number | null>(null);
 
     const reduced = prefersReducedMotion();
 
+    // A reaction always wins. A blink covers the ambient loop but yields to
+    // anything the user did.
+    const playing = reaction ?? ambientOneShot;
+
     // Re-subscribed when the channel changes rather than reading the latest
     // values out of a ref: `ambient` changes when an ability is unlocked and
-    // `reaction` twice per button press, so this costs nothing, and the tick
-    // closing over exactly what it needs is far easier to follow.
+    // `playing` twice per one-shot, so this costs nothing, and the tick closing
+    // over exactly what it needs is far easier to follow.
     useEffect(() => {
         if (reduced) {
             return;
         }
 
         return subscribe((now: number) => {
-            if (reaction !== null) {
-                const spec = ANIMATIONS[reaction];
+            if (playing !== null) {
+                const spec = ANIMATIONS[playing];
 
                 // Stamped on the first tick after the trigger, not at the
-                // trigger itself, so the reaction is timed against the same
+                // trigger itself, so the one-shot is timed against the same
                 // clock that draws it.
-                reactionStartedAt.current ??= now;
+                startedAt.current ??= now;
 
                 const index = Math.floor(
-                    ((now - reactionStartedAt.current) / 1000) * spec.fps,
+                    ((now - startedAt.current) / 1000) * spec.fps,
                 );
 
                 if (index < spec.frames) {
@@ -162,21 +173,64 @@ export function useSpriteClock(ambient: AnimationName = 'idle'): SpriteClock {
                 // Done. Hand the channel back to the ambient, which picks up
                 // from the absolute clock rather than from frame 0 — the
                 // ambient never stopped, it was only covered up.
-                reactionStartedAt.current = null;
+                startedAt.current = null;
                 setReaction(null);
+                setAmbientOneShot(null);
             }
 
             const spec = ANIMATIONS[ambient];
 
             setFrame(Math.floor((now / 1000) * spec.fps) % spec.frames);
         });
-    }, [ambient, reaction, reduced]);
+    }, [ambient, playing, reduced]);
+
+    /**
+     * The auto-timer. Every ambient animation carrying `autoEvery` fires itself
+     * on a random interval inside that range — a blink you could set a watch by
+     * would read as a machine rather than as a thing that is alive.
+     *
+     * Nothing schedules under reduced motion: an unprompted animation is
+     * exactly what that preference is asking not to happen.
+     */
+    useEffect(() => {
+        if (reduced) {
+            return;
+        }
+
+        const timers: number[] = [];
+
+        const schedule = (
+            name: AnimationName,
+            spread: readonly [number, number],
+        ) => {
+            const [min, max] = spread;
+
+            timers.push(
+                window.setTimeout(
+                    () => {
+                        startedAt.current = null;
+                        setAmbientOneShot(name);
+                        schedule(name, spread);
+                    },
+                    min + Math.random() * (max - min),
+                ),
+            );
+        };
+
+        for (const [name, spec] of Object.entries(ANIMATIONS)) {
+            if (spec.channel === 'ambient' && 'autoEvery' in spec) {
+                schedule(name as AnimationName, spec.autoEvery);
+            }
+        }
+
+        return () => timers.forEach((timer) => window.clearTimeout(timer));
+    }, [reduced]);
 
     const react = useCallback(
         (name: AnimationName) => {
             // Restarts rather than queues: pressing Pet twice means "do it
             // again now", not "do it twice".
-            reactionStartedAt.current = null;
+            startedAt.current = null;
             setReaction(name);
 
             // Under reduced motion there is no loop to advance the pose, so the
@@ -188,7 +242,7 @@ export function useSpriteClock(ambient: AnimationName = 'idle'): SpriteClock {
     );
 
     return {
-        animation: reaction ?? ambient,
+        animation: playing ?? ambient,
         // Reduced motion holds frame 0 unless a reaction put a pose there.
         // Derived rather than written into state by an effect, so nothing has
         // to run for the rule to hold.

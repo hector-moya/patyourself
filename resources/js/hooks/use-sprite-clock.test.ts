@@ -54,6 +54,8 @@ beforeEach(() => {
 
 afterEach(() => {
     __resetSpriteClock();
+    vi.useRealTimers();
+    vi.restoreAllMocks();
     vi.unstubAllGlobals();
 });
 
@@ -153,6 +155,57 @@ describe('useSpriteClock', () => {
         expect(result.current.frame).toBe(0);
     });
 
+    /**
+     * The blink fires itself. Its interval is randomised inside the range the
+     * registry gives, because a blink you could set a watch by reads as a
+     * machine rather than as something alive.
+     */
+    it('blinks by itself, on a random interval from the registry', () => {
+        vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+        vi.spyOn(Math, 'random').mockReturnValue(0);
+
+        const { result } = renderHook(() => useSpriteClock('idle'));
+
+        tick(0);
+        expect(result.current.animation).toBe('idle');
+
+        // autoEvery is [4000, 9000], and random 0 puts the first one at 4000.
+        act(() => {
+            vi.advanceTimersByTime(4001);
+        });
+        tick(2000);
+
+        expect(result.current.animation).toBe('blink');
+
+        // blink is 2 frames at 8fps: a quarter of a second, then the ambient
+        // has its channel back.
+        tick(2300);
+        expect(result.current.animation).toBe('idle');
+
+        vi.useRealTimers();
+    });
+
+    /** A reaction always wins, including over a blink already running. */
+    it('lets a reaction cut across a blink', () => {
+        vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+        vi.spyOn(Math, 'random').mockReturnValue(0);
+
+        const { result } = renderHook(() => useSpriteClock('idle'));
+
+        act(() => {
+            vi.advanceTimersByTime(4001);
+        });
+        tick(0);
+        expect(result.current.animation).toBe('blink');
+
+        act(() => result.current.react('pet'));
+        tick(100);
+
+        expect(result.current.animation).toBe('pet');
+
+        vi.useRealTimers();
+    });
+
     it('stops the loop when the last consumer goes away', () => {
         const first = renderHook(() => useSpriteClock('idle'));
         const second = renderHook(() => useSpriteClock('idle'));
@@ -194,6 +247,25 @@ describe('useSpriteClock', () => {
             expect(pending).toHaveLength(0);
             expect(__spriteClockIsRunning()).toBe(false);
             expect(result.current.frame).toBe(0);
+        });
+
+        /**
+         * An animation nobody asked for is exactly what this preference is
+         * asking not to happen, so the auto-timer never schedules.
+         */
+        it('never blinks unprompted', () => {
+            vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+
+            const { result } = renderHook(() => useSpriteClock('idle'));
+
+            act(() => {
+                vi.advanceTimersByTime(60_000);
+            });
+
+            expect(result.current.animation).toBe('idle');
+            expect(pending).toHaveLength(0);
+
+            vi.useRealTimers();
         });
 
         /**

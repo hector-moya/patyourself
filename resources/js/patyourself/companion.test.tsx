@@ -1,37 +1,13 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import { Companion } from './companion';
-import type { CompanionData, CompanionUnlockData } from './companion';
-
-function unlock(
-    overrides: Partial<CompanionUnlockData> = {},
-): CompanionUnlockData {
-    return {
-        kind: 'body',
-        name: 'blob',
-        variant: null,
-        message: 'Blob is here.',
-        unlocked_at: '2026-08-27T09:00:00+00:00',
-        ...overrides,
-    };
-}
-
-function companion(overrides: Partial<CompanionData> = {}): CompanionData {
-    const state: CompanionData = {
-        log_count: 1,
-        insight_count: 0,
-        stage_index: 1,
-        features: ['blob'],
-        items: [],
-        abilities: [],
-        unlocks: [unlock()],
-        latest_unlock: unlock(),
-        ...overrides,
-    };
-
-    return state;
-}
+import {
+    Companion,
+    ambientFor,
+    arrivingItem,
+    describe as label,
+} from './companion';
+import { companion, unlock } from './companion.fixture';
 
 describe('Companion', () => {
     /**
@@ -53,117 +29,15 @@ describe('Companion', () => {
         expect(container).toBeEmptyDOMElement();
     });
 
-    it('draws a body and two eyes once Blob exists', () => {
+    it('puts a viewBox around the drawing and runs the clock', () => {
         const { container } = render(<Companion companion={companion()} />);
-
-        expect(container.querySelector('.blob-body')).not.toBeNull();
-        expect(container.querySelectorAll('.blob-body circle')).toHaveLength(2);
-        expect(container.querySelector('.blob-legs')).toBeNull();
-    });
-
-    it('adds legs only once they have been earned', () => {
-        const { container } = render(
-            <Companion companion={companion({ features: ['blob', 'legs'] })} />,
-        );
-
-        expect(container.querySelectorAll('.blob-legs rect')).toHaveLength(2);
-    });
-
-    /**
-     * The layering rule: an accessory is positioned by its anchor and never by
-     * the body's own geometry, so adding one cannot move Blob.
-     */
-    it('hangs each item off its anchor', () => {
-        const { container } = render(
-            <Companion
-                companion={companion({
-                    features: ['blob', 'legs'],
-                    items: [
-                        { type: 'shoes', variant: null },
-                        { type: 'hat', variant: null },
-                    ],
-                })}
-            />,
-        );
-
-        const layers = Array.from(
-            container.querySelectorAll('.blob-layer'),
-        ).map((layer) => layer.getAttribute('transform'));
-
-        expect(layers).toEqual(['translate(0 40)', 'translate(0 0)']);
-    });
-
-    it('recolours an item when the unlock names a variant', () => {
-        const { container } = render(
-            <Companion
-                companion={companion({
-                    items: [{ type: 'scarf', variant: 'coral' }],
-                })}
-            />,
-        );
-
-        const scarf = container.querySelector('.blob-layer rect');
-
-        expect(scarf?.getAttribute('fill')).toBe('#E8836B');
-    });
-
-    /**
-     * The only transition in the feature, and it is on the layer just earned.
-     * Everything already there is simply there.
-     */
-    it('fades in only the layer earned most recently', () => {
-        const { container } = render(
-            <Companion
-                companion={companion({
-                    items: [
-                        { type: 'shoes', variant: null },
-                        { type: 'scarf', variant: null },
-                    ],
-                    latest_unlock: unlock({ kind: 'item', name: 'scarf' }),
-                })}
-            />,
-        );
-
-        const arriving = container.querySelectorAll('.blob-layer--arriving');
-
-        expect(arriving).toHaveLength(1);
-        expect(arriving[0].getAttribute('transform')).toBe('translate(0 31)');
-    });
-
-    /**
-     * The ladder can name an ability or an item before anyone draws it — that is
-     * what keeps adding a stage a config edit. An undrawn one is skipped rather
-     * than rendered as a hole.
-     */
-    it('skips an item type it has not drawn yet', () => {
-        const { container } = render(
-            <Companion
-                companion={companion({
-                    items: [{ type: 'umbrella', variant: null }],
-                })}
-            />,
-        );
-
-        expect(container.querySelectorAll('.blob-layer')).toHaveLength(0);
-        expect(container.querySelector('.blob-body')).not.toBeNull();
-    });
-
-    it('applies an ability as a class on the root', () => {
-        const { container } = render(
-            <Companion
-                companion={companion({
-                    features: ['blob', 'legs'],
-                    abilities: ['walk', 'wave'],
-                })}
-            />,
-        );
 
         const svg = container.querySelector('svg');
 
-        expect(svg?.classList.contains('blob-walk')).toBe(true);
-        // `wave` is on the ladder but not yet drawn; it contributes no class
-        // rather than an undefined one.
-        expect(svg?.className.baseVal).not.toContain('undefined');
+        expect(svg?.getAttribute('viewBox')).toBe('-32 -22 64 84');
+        expect(
+            svg?.querySelector('.blob-anim')?.getAttribute('data-animation'),
+        ).toBe('idle');
     });
 
     /**
@@ -185,45 +59,12 @@ describe('Companion', () => {
         expect(large?.getAttribute('width')).toBe('300');
     });
 
-    /**
-     * The renderer reads (animation, frame) and turns it into one transform on
-     * one group. Everything Blob wears sits inside that group, so an accessory
-     * follows the body instead of sliding off it.
-     */
-    it('animates one group, with the accessories inside it', () => {
+    it('honours the renderer flag from config', () => {
         const { container } = render(
-            <Companion
-                companion={companion({
-                    features: ['blob', 'legs'],
-                    items: [{ type: 'shoes', variant: null }],
-                })}
-            />,
+            <Companion companion={companion({ renderer: 'sprite' })} />,
         );
 
-        const animated = container.querySelectorAll('.blob-anim');
-
-        expect(animated).toHaveLength(1);
-        expect(animated[0].getAttribute('data-animation')).toBe('idle');
-        expect(animated[0].querySelector('.blob-body')).not.toBeNull();
-        expect(animated[0].querySelector('.blob-layer')).not.toBeNull();
-    });
-
-    /** Walking is what Blob does at rest once it can walk. Same channel. */
-    it('makes walk the ambient once it is unlocked', () => {
-        const { container } = render(
-            <Companion
-                companion={companion({
-                    features: ['blob', 'legs'],
-                    abilities: ['walk'],
-                })}
-            />,
-        );
-
-        expect(
-            container
-                .querySelector('.blob-anim')
-                ?.getAttribute('data-animation'),
-        ).toBe('walk');
+        expect(container.querySelector('.blob-body')).toBeNull();
     });
 
     it('describes what Blob has, without scoring it', () => {
@@ -237,9 +78,50 @@ describe('Companion', () => {
             />,
         );
 
-        const label = screen.getByRole('img').getAttribute('aria-label') ?? '';
+        const description =
+            screen.getByRole('img').getAttribute('aria-label') ?? '';
 
-        expect(label).toBe('Blob, with shoes, walk');
-        expect(label).not.toMatch(/streak|level|%|of \d/i);
+        expect(description).toBe('Blob, with shoes, walk');
+        expect(description).not.toMatch(/streak|level|%|of \d/i);
+    });
+});
+
+describe('ambientFor', () => {
+    /** Walking is what Blob does at rest once it can walk. Same channel. */
+    it('is walk once walking is unlocked, and idle before that', () => {
+        expect(ambientFor(companion())).toBe('idle');
+        expect(ambientFor(companion({ abilities: ['walk'] }))).toBe('walk');
+    });
+});
+
+describe('arrivingItem', () => {
+    it('is the latest unlock when that was something Blob wears', () => {
+        expect(
+            arrivingItem(
+                companion({
+                    latest_unlock: unlock({
+                        kind: 'item',
+                        name: 'scarf',
+                        variant: 'coral',
+                    }),
+                }),
+            ),
+        ).toEqual({ type: 'scarf', variant: 'coral' });
+    });
+
+    it('is nothing when the latest unlock was not worn', () => {
+        expect(
+            arrivingItem(
+                companion({
+                    latest_unlock: unlock({ kind: 'ability', name: 'walk' }),
+                }),
+            ),
+        ).toBeNull();
+    });
+});
+
+describe('describe', () => {
+    it('names Blob alone when it owns nothing yet', () => {
+        expect(label(companion())).toBe('Blob');
     });
 });

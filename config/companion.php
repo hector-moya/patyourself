@@ -33,18 +33,54 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Renderer
+    |--------------------------------------------------------------------------
+    |
+    | Which implementation draws Blob: `svg` (flat geometry, what ships) or
+    | `sprite` (pixel art, not written yet). A flag rather than a rewrite, so
+    | the day sprites exist, switching over is a deploy.
+    |
+    */
+
+    'renderer' => env('COMPANION_RENDERER', 'svg'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | The room
+    |--------------------------------------------------------------------------
+    |
+    | Blob's interior, tinted by the part of the day. Read from the CLIENT
+    | clock — the room should look different at breakfast and at dinner, and
+    | which of those it is depends on where the person is sitting, not on where
+    | the server is.
+    |
+    | `from` is the local hour each part of the day starts at, and they are read
+    | in order, wrapping past midnight. No weather, no seasons, no API: this is
+    | the cheapest liveness in the whole feature and it stays that way.
+    |
+    */
+
+    'room' => [
+        'day' => ['from' => 7, 'wall' => '#EFE6D6', 'window' => '#B9D5E4'],
+        'dusk' => ['from' => 18, 'wall' => '#E7D2BE', 'window' => '#E9A468'],
+        'night' => ['from' => 21, 'wall' => '#2F3A40', 'window' => '#1A2530'],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | The unlock ladder
     |--------------------------------------------------------------------------
     |
     | Ordered, and walked in order: the first unsatisfied entry ends the walk.
     | Each entry is:
     |
-    |   trigger  'logs' (outcomes recorded) or 'insights' (see below)
-    |   at       how many of that trigger this entry needs
-    |   kind     'body' (Blob itself), 'item' (worn) or 'ability' (done)
-    |   name     the body part, item type or ability name
-    |   variant  items only — a colour, once the four types are spent
-    |   message  the app's own voice, relayed verbatim by the coach
+    |   trigger     'logs' (outcomes recorded) or 'insights' (see below)
+    |   at          how many of that trigger this entry needs
+    |   kind        'body' (Blob itself), 'item' (worn) or 'ability' (done)
+    |   name        the body part, item type or ability name
+    |   variant     items only — a colour, once the four types are spent
+    |   roomObject  optional; something this unlock puts in Blob's room, forever
+    |   message     the app's own voice, relayed verbatim by the coach
     |
     | An insight event is an existing record, never a judgement: an experiment
     | concluded (any verdict), a new strategy version started, a loop's
@@ -101,6 +137,9 @@ return [
             'at' => 3,
             'kind' => 'ability',
             'name' => 'read',
+            // Reading gives Blob somewhere to keep what it reads. An object
+            // arrives with the thing that earned it and never leaves.
+            'roomObject' => 'bookshelf',
             'message' => 'Blob can read. What it reads is unclear, but it holds the page the right way up.',
         ],
         [

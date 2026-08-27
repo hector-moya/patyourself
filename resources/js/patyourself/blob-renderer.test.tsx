@@ -1,0 +1,244 @@
+import { render } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
+
+import { BlobRenderer, SpriteBlobRenderer } from './blob-renderer';
+import type { BlobRendererProps } from './blob-renderer';
+
+function draw(overrides: Partial<BlobRendererProps> = {}) {
+    const props: BlobRendererProps = {
+        animation: 'idle',
+        frame: 0,
+        features: ['blob'],
+        items: [],
+        abilities: [],
+        ...overrides,
+    };
+
+    return render(
+        <svg>
+            <BlobRenderer {...props} />
+        </svg>,
+    ).container;
+}
+
+describe('SvgBlobRenderer', () => {
+    it('draws a body and two eyes', () => {
+        const container = draw();
+
+        expect(container.querySelector('.blob-body')).not.toBeNull();
+        expect(container.querySelectorAll('.blob-body circle')).toHaveLength(2);
+        expect(container.querySelector('.blob-legs')).toBeNull();
+    });
+
+    it('adds legs only once they have been earned', () => {
+        const container = draw({ features: ['blob', 'legs'] });
+
+        expect(container.querySelectorAll('.blob-legs rect')).toHaveLength(2);
+    });
+
+    /**
+     * The layering rule: an accessory is positioned by its anchor and never by
+     * the body's own geometry, so adding one cannot move Blob.
+     */
+    it('hangs each item off its anchor', () => {
+        const container = draw({
+            features: ['blob', 'legs'],
+            items: [
+                { type: 'shoes', variant: null },
+                { type: 'hat', variant: null },
+            ],
+        });
+
+        const layers = Array.from(
+            container.querySelectorAll('.blob-layer'),
+        ).map((layer) => layer.getAttribute('transform'));
+
+        expect(layers).toEqual(['translate(0 40)', 'translate(0 0)']);
+    });
+
+    it('recolours an item when the unlock names a variant', () => {
+        const container = draw({
+            items: [{ type: 'scarf', variant: 'coral' }],
+        });
+
+        expect(
+            container.querySelector('.blob-layer rect')?.getAttribute('fill'),
+        ).toBe('#E8836B');
+    });
+
+    it('fades in only the item earned most recently', () => {
+        const container = draw({
+            items: [
+                { type: 'shoes', variant: null },
+                { type: 'scarf', variant: null },
+            ],
+            arriving: { type: 'scarf', variant: null },
+        });
+
+        const arriving = container.querySelectorAll('.blob-layer--arriving');
+
+        expect(arriving).toHaveLength(1);
+        expect(arriving[0].getAttribute('transform')).toBe('translate(0 31)');
+    });
+
+    /**
+     * The ladder can name an item before anyone draws it — that is what keeps
+     * adding a stage a config edit. An undrawn one is skipped, not left as a
+     * hole.
+     */
+    it('skips an item type it has not drawn yet', () => {
+        const container = draw({
+            items: [{ type: 'umbrella', variant: null }],
+        });
+
+        expect(container.querySelectorAll('.blob-layer')).toHaveLength(0);
+        expect(container.querySelector('.blob-body')).not.toBeNull();
+    });
+
+    /**
+     * Everything Blob wears sits inside the animated group, so an accessory
+     * follows the body rather than sliding off it.
+     */
+    it('animates one group, with the accessories inside it', () => {
+        const container = draw({
+            features: ['blob', 'legs'],
+            items: [{ type: 'shoes', variant: null }],
+        });
+
+        const animated = container.querySelectorAll('.blob-anim');
+
+        expect(animated).toHaveLength(1);
+        expect(animated[0].querySelector('.blob-body')).not.toBeNull();
+        expect(animated[0].querySelector('.blob-layer')).not.toBeNull();
+    });
+
+    describe('poses', () => {
+        it('squashes toward the feet on the second idle frame', () => {
+            const rest = draw({ animation: 'idle', frame: 0 });
+            const squashed = draw({ animation: 'idle', frame: 1 });
+
+            expect(
+                rest.querySelector('.blob-anim')?.getAttribute('style'),
+            ).toContain('scaleY(1)');
+            expect(
+                squashed.querySelector('.blob-anim')?.getAttribute('style'),
+            ).toContain('scaleY(0.975)');
+        });
+
+        it('shuts the eyes on the closed frame of a blink', () => {
+            const shut = draw({ animation: 'blink', frame: 0 });
+            const open = draw({ animation: 'blink', frame: 1 });
+
+            expect(
+                shut.querySelector('[data-testid="blob-eyes-closed"]'),
+            ).not.toBeNull();
+            expect(
+                open.querySelector('[data-testid="blob-eyes-closed"]'),
+            ).toBeNull();
+        });
+
+        /** Mirrored from one table, so the legs cannot drift apart. */
+        it('swings the legs in opposite directions while walking', () => {
+            const container = draw({
+                animation: 'walk',
+                frame: 0,
+                features: ['blob', 'legs'],
+            });
+
+            expect(
+                container
+                    .querySelector('.blob-legs__left')
+                    ?.getAttribute('style'),
+            ).toContain('rotate(7deg)');
+            expect(
+                container
+                    .querySelector('.blob-legs__right')
+                    ?.getAttribute('style'),
+            ).toContain('rotate(-7deg)');
+        });
+
+        it('leaves the legs alone when Blob is not walking', () => {
+            const container = draw({
+                animation: 'idle',
+                frame: 0,
+                features: ['blob', 'legs'],
+            });
+
+            expect(
+                container
+                    .querySelector('.blob-legs__left')
+                    ?.getAttribute('style'),
+            ).toBeNull();
+        });
+
+        it('leans and shuts its eyes for a pet', () => {
+            const container = draw({ animation: 'pet', frame: 2 });
+
+            expect(
+                container.querySelector('.blob-anim')?.getAttribute('style'),
+            ).toContain('rotate(6deg)');
+            expect(
+                container.querySelector('[data-testid="blob-eyes-closed"]'),
+            ).not.toBeNull();
+        });
+
+        it('hops for play', () => {
+            const container = draw({ animation: 'play', frame: 3 });
+
+            expect(
+                container.querySelector('.blob-anim')?.getAttribute('style'),
+            ).toContain('translateY(-8px)');
+        });
+
+        /**
+         * A blink is the eyes and nothing else. A body that moved too would
+         * read as a flinch.
+         */
+        it('holds the body still through a blink', () => {
+            const container = draw({ animation: 'blink', frame: 0 });
+
+            expect(
+                container.querySelector('.blob-anim')?.getAttribute('style'),
+            ).toContain('scaleY(1)');
+        });
+    });
+});
+
+describe('BlobRenderer', () => {
+    it('draws with the SVG renderer by default', () => {
+        expect(draw().querySelector('.blob-body')).not.toBeNull();
+    });
+
+    /**
+     * The seam is real rather than hypothetical: the flag already picks a
+     * different implementation, and that one is deliberately empty.
+     */
+    it('switches implementation on the config flag', () => {
+        const container = render(
+            <svg>
+                <BlobRenderer
+                    renderer="sprite"
+                    animation="idle"
+                    frame={0}
+                    features={['blob']}
+                    items={[]}
+                    abilities={[]}
+                />
+            </svg>,
+        ).container;
+
+        expect(container.querySelector('.blob-body')).toBeNull();
+    });
+
+    it('has a sprite renderer that is a stub and says so', () => {
+        expect(
+            SpriteBlobRenderer({
+                animation: 'idle',
+                frame: 0,
+                features: ['blob'],
+                items: [],
+                abilities: [],
+            }),
+        ).toBeNull();
+    });
+});

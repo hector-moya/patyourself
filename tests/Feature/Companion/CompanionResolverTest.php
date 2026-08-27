@@ -276,6 +276,44 @@ class CompanionResolverTest extends TestCase
     }
 
     /**
+     * An object arrives with the unlock that earned it and never leaves. Until
+     * then the room has nothing in it — not an outline of one.
+     */
+    public function test_a_room_object_arrives_with_the_unlock_that_earned_it(): void
+    {
+        $user = User::factory()->create();
+        $this->logOutcomes($user, 5);
+
+        $loop = Intention::factory()->for($user)->create(['craving' => 'To feel less tired']);
+
+        // Two insights: enough for `walk` and `scarf`, not yet for `read`.
+        Strategy::factory()->for($loop)->create(['verdict' => Strategy::VERDICT_WORKED]);
+        app(UpdateIntention::class)->handle($loop, ['craving' => 'To stop thinking about work']);
+
+        $this->assertSame([], $this->resolver()->forUser($user)->roomObjects());
+
+        app(WriteReflection::class)->handle($loop, 'The cue is firing.');
+
+        $state = $this->resolver()->forUser($user);
+
+        $this->assertContains('read', $state->abilities());
+        $this->assertSame(['bookshelf'], $state->roomObjects());
+    }
+
+    /** The renderer flag and the room palette ride along with the state. */
+    public function test_the_state_carries_the_config_the_screens_need(): void
+    {
+        $user = User::factory()->create();
+        $this->logOutcomes($user, 1);
+
+        $payload = $this->resolver()->forUser($user)->toArray();
+
+        $this->assertSame(config('companion.renderer'), $payload['renderer']);
+        $this->assertSame(config('companion.room'), $payload['room']);
+        $this->assertArrayHasKey('room_object', $payload['unlocks'][0]);
+    }
+
+    /**
      * The ladder is walked in order and stops at the first entry the record does
      * not satisfy, so an insight recorded before Blob exists waits for it.
      */

@@ -32,7 +32,11 @@ class CompanionVocabularyTest extends TestCase
             $root.'/app/Services/Companion/CompanionState.php',
             $root.'/app/Services/Companion/CompanionAnnouncement.php',
             $root.'/app/Http/Controllers/CompanionController.php',
+            $root.'/resources/js/hooks/use-sprite-clock.ts',
+            $root.'/resources/js/patyourself/companion-animations.ts',
             $root.'/resources/js/patyourself/companion.tsx',
+            $root.'/resources/js/patyourself/blob-renderer.tsx',
+            $root.'/resources/js/patyourself/companion-room.tsx',
             $root.'/resources/js/pages/companion.tsx',
         ];
     }
@@ -54,6 +58,14 @@ class CompanionVocabularyTest extends TestCase
             ['percent'],
             ['points'],
             ['level up'],
+            // Blob never needs the user. It has no hunger, no loneliness and
+            // nothing that decays while nobody is looking, so none of these
+            // words has anywhere legitimate to appear.
+            ['lonely'],
+            ['hungry'],
+            ['misses you'],
+            ['neglect'],
+            ['cooldown'],
         ];
     }
 

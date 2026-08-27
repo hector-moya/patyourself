@@ -9,7 +9,7 @@ vi.mock('@inertiajs/react', async (importOriginal) => {
     return { ...actual, Head: () => null, usePage: () => page };
 });
 
-import type { CompanionData } from '@/patyourself/companion';
+import { noCompanion } from '@/patyourself/companion.fixture';
 
 import Dashboard from './dashboard';
 import type {ReadyForVerdictData, TodaysOccasionData} from './dashboard';
@@ -40,21 +40,6 @@ function verdict(
         intervention_point: 'cue',
         day_of_experiment: 15,
         planned_days: 14,
-        ...overrides,
-    };
-}
-
-/** A record with nothing in it yet, which is where Blob starts. */
-function noCompanion(overrides: Partial<CompanionData> = {}): CompanionData {
-    return {
-        log_count: 0,
-        insight_count: 0,
-        stage_index: 0,
-        features: [],
-        items: [],
-        abilities: [],
-        unlocks: [],
-        latest_unlock: null,
         ...overrides,
     };
 }

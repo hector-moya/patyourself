@@ -55,6 +55,9 @@ final readonly class CompanionResolver
                 'kind' => (string) $entry['kind'],
                 'name' => (string) $entry['name'],
                 'variant' => $entry['variant'] ?? null,
+                // What this unlock put in the room, if anything. Null for most
+                // entries: the room fills up slowly on purpose.
+                'room_object' => $entry['roomObject'] ?? null,
                 'message' => (string) $entry['message'],
                 // When this one arrived: the moment of the trigger that earned
                 // it, not of the request that noticed it.
@@ -62,7 +65,13 @@ final readonly class CompanionResolver
             ];
         }
 
-        return new CompanionState(count($logs), count($insights), $unlocks);
+        return new CompanionState(
+            count($logs),
+            count($insights),
+            $unlocks,
+            (string) config('companion.renderer', 'svg'),
+            (array) config('companion.room', []),
+        );
     }
 
     /**
