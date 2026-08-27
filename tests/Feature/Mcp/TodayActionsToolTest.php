@@ -16,6 +16,23 @@ class TodayActionsToolTest extends TestCase
 {
     use RefreshDatabase;
 
+    /**
+     * Every test in this file classifies occasions against "today", so all of
+     * them need a fixed clock. Freezing it here rather than per test is what
+     * stops the next fixture written as `now()->subHour()` from reintroducing
+     * a wall-clock dependency: at 00:30 UTC that lands on *yesterday* and the
+     * occasion drops out of today's window entirely.
+     *
+     * Noon on a Monday, well away from both day boundaries, matching the
+     * instant the rest of this suite freezes at.
+     */
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Carbon::setTestNow('2026-08-24 12:00:00');
+    }
+
     protected function tearDown(): void
     {
         Carbon::setTestNow();
@@ -46,14 +63,17 @@ class TodayActionsToolTest extends TestCase
         $user = User::factory()->create(['timezone' => 'UTC']);
         $loop = $this->loopFor($user);
 
+        // Explicit instants rather than offsets off the clock: the whole point
+        // of the split being asserted below is that 10:00 is behind the frozen
+        // noon and 23:50 is ahead of it but still inside the same local day.
         Action::factory()->for($loop)->create([
             'title' => 'Fired earlier today',
-            'series_started_at' => now()->subHours(2),
+            'series_started_at' => Carbon::parse('2026-08-24 10:00:00'),
             'recurrence' => null,
         ]);
         Action::factory()->for($loop)->create([
             'title' => 'Later today',
-            'series_started_at' => now()->endOfDay()->subMinutes(10),
+            'series_started_at' => Carbon::parse('2026-08-24 23:50:00'),
             'recurrence' => null,
         ]);
 
@@ -107,7 +127,7 @@ class TodayActionsToolTest extends TestCase
 
         Action::factory()->for($this->loopFor($user))->create([
             'title' => 'Tomorrow only',
-            'series_started_at' => now()->addDay()->startOfDay()->addHours(9),
+            'series_started_at' => Carbon::parse('2026-08-25 09:00:00'),
             'recurrence' => null,
         ]);
 
@@ -123,7 +143,7 @@ class TodayActionsToolTest extends TestCase
 
         Action::factory()->for($this->loopFor($user, Intention::STATUS_PAUSED))->create([
             'title' => 'Paused loop action',
-            'series_started_at' => now()->subHour(),
+            'series_started_at' => Carbon::parse('2026-08-24 11:00:00'),
             'recurrence' => null,
         ]);
 
@@ -138,7 +158,7 @@ class TodayActionsToolTest extends TestCase
         $foreignLoop = Intention::factory()->create(['status' => Intention::STATUS_ACTIVE]);
         Action::factory()->for($foreignLoop)->create([
             'title' => 'Not yours',
-            'series_started_at' => now()->subHour(),
+            'series_started_at' => Carbon::parse('2026-08-24 11:00:00'),
             'recurrence' => null,
         ]);
 
@@ -150,7 +170,9 @@ class TodayActionsToolTest extends TestCase
 
     public function test_respects_the_users_timezone_for_the_today_boundary(): void
     {
-        $this->travelTo(now()->parse('2026-07-06 12:00:00', 'UTC'));
+        // Deliberately overrides setUp()'s instant: this case is about the
+        // local-day boundary, so it needs a clock the Tokyo offset straddles.
+        $this->travelTo(Carbon::parse('2026-07-06 12:00:00', 'UTC'));
 
         // For a Tokyo user (UTC+9), "today" ends at 2026-07-06 14:59:59 UTC.
         $user = User::factory()->create(['timezone' => 'Asia/Tokyo']);
@@ -180,7 +202,7 @@ class TodayActionsToolTest extends TestCase
 
         Action::factory()->for($this->loopFor($user))->create([
             'title' => 'No timezone set',
-            'series_started_at' => now()->subHour(),
+            'series_started_at' => Carbon::parse('2026-08-24 11:00:00'),
             'recurrence' => null,
         ]);
 
@@ -192,8 +214,6 @@ class TodayActionsToolTest extends TestCase
 
     public function test_it_labels_a_cue_anchored_action_as_anchored(): void
     {
-        Carbon::setTestNow('2026-08-24 12:00:00');
-
         $user = User::factory()->create(['timezone' => 'UTC']);
         $loop = Intention::factory()->for($user)->create(['status' => Intention::STATUS_ACTIVE]);
         Action::factory()->for($loop)->create([
@@ -212,8 +232,6 @@ class TodayActionsToolTest extends TestCase
 
     public function test_it_does_not_list_yesterdays_missed_occasion(): void
     {
-        Carbon::setTestNow('2026-08-24 12:00:00');
-
         $user = User::factory()->create(['timezone' => 'UTC']);
         $loop = Intention::factory()->for($user)->create(['status' => Intention::STATUS_ACTIVE]);
         Action::factory()->for($loop)->create([

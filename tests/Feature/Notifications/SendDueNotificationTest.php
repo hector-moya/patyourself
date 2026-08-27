@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Notifications\ActionDueNotification;
 use App\Services\Scheduling\TriggerEngine;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
 
@@ -23,6 +24,26 @@ class SendDueNotificationTest extends TestCase
 {
     use RefreshDatabase;
 
+    /**
+     * dueOccurrence() means "due a minute ago, today". Off a live clock that
+     * becomes "due a minute ago, yesterday" during the first minute of every
+     * UTC day, and the engine will not fire a stale occasion — so these tests
+     * would fail nightly for reasons unrelated to cue delivery.
+     */
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Carbon::setTestNow('2026-08-24 12:00:00');
+    }
+
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+
+        parent::tearDown();
+    }
+
     private function dueOccurrence(User $user): Occurrence
     {
         $intention = Intention::factory()->for($user)->create(['status' => Intention::STATUS_ACTIVE]);
@@ -31,12 +52,12 @@ class SendDueNotificationTest extends TestCase
         $action = Action::factory()->for($intention)->create([
             'strategy_id' => $strategy->id,
             'status' => Action::STATUS_ACTIVE,
-            'series_started_at' => now()->subMinute(),
+            'series_started_at' => Carbon::parse('2026-08-24 11:59:00'),
             'recurrence' => null,
         ]);
 
         return Occurrence::factory()->for($action)->create([
-            'scheduled_for' => now()->subMinute(),
+            'scheduled_for' => Carbon::parse('2026-08-24 11:59:00'),
         ]);
     }
 
