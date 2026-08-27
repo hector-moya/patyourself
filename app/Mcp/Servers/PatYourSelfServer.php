@@ -3,6 +3,7 @@
 namespace App\Mcp\Servers;
 
 use App\Mcp\Prompts\DailyCheckInPrompt;
+use App\Mcp\Prompts\ReviewExperimentPrompt;
 use App\Mcp\Tools\AddActionTool;
 use App\Mcp\Tools\ConcludeExperimentTool;
 use App\Mcp\Tools\CreateLoopTool;
@@ -148,5 +149,6 @@ class PatYourSelfServer extends Server
      */
     protected array $prompts = [
         DailyCheckInPrompt::class,
+        ReviewExperimentPrompt::class,
     ];
 }
