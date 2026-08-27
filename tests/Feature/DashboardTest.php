@@ -25,14 +25,25 @@ class DashboardTest extends TestCase
         $response->assertOk();
     }
 
-    public function test_dashboard_renders_the_loop_list(): void
+    /**
+     * The dashboard used to alias the loops index — `dashboard` and
+     * `loops.index` pointed at the same controller while the notebook screen
+     * was unbuilt. They now mean two different things: today's occasions here,
+     * the loop list at /loops.
+     *
+     * The route *name* still has to resolve, because config/fortify.php sets
+     * `home` to /dashboard and every login lands on it.
+     */
+    public function test_dashboard_renders_the_notebook_not_the_loop_list(): void
     {
         $user = User::factory()->create();
 
         $this->actingAs($user)
             ->get(route('dashboard'))
             ->assertOk()
-            ->assertInertia(fn ($page) => $page->component('loops/index'));
+            ->assertInertia(fn ($page) => $page->component('dashboard'));
+
+        $this->assertSame('/dashboard', route('dashboard', absolute: false));
     }
 
     public function test_the_chat_endpoint_is_gone(): void
