@@ -50,6 +50,11 @@ and get-loop to see how the current experiment is holding up — and
 start-experiment when the current intervention point is not the right one any
 more.
 
+Two prompts start the common workflows: daily-check-in opens a check-in and
+works through the occasions that went unlogged, and review-experiment takes an
+experiment that has reached its review date to a verdict and a reflection. They
+carry the sequence, not the record — you still call the tools.
+
 conclude-experiment ends the current experiment with a verdict: worked, failed
 or inconclusive. It is a separate act from starting the next one — a version
 concluded as `worked` stays active and keeps running, and inconclusive is a real

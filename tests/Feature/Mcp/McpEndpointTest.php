@@ -17,6 +17,15 @@ class McpEndpointTest extends TestCase
 {
     use RefreshDatabase;
 
+    /**
+     * Hyphenated words in the prompt prose that are English, not tool names.
+     * Adding a hyphenated word to a prompt means adding it here — the guard
+     * below deliberately errs toward failing loudly.
+     *
+     * @var array<int, string>
+     */
+    private const PROSE_COMPOUNDS = ['check-in'];
+
     public function test_publishes_oauth_discovery_metadata(): void
     {
         $this->getJson('/.well-known/oauth-authorization-server')
@@ -122,6 +131,75 @@ class McpEndpointTest extends TestCase
         }
     }
 
+    /**
+     * Same trap as tools/list: Laravel MCP paginates at 15 by default and this
+     * server raises it to 50. Asserted against the registered count rather than
+     * a literal so it keeps holding as prompts are added.
+     */
+    public function test_every_registered_prompt_arrives_on_the_first_page(): void
+    {
+        Passport::actingAs(User::factory()->create(), ['mcp:use']);
+
+        $response = $this->promptsList();
+
+        $response->assertOk();
+
+        $registered = (new \ReflectionClass(PatYourSelfServer::class))
+            ->getDefaultProperties()['prompts'];
+
+        $this->assertCount(count($registered), $response->json('result.prompts'));
+        $this->assertNull($response->json('result.nextCursor'));
+    }
+
+    /**
+     * A prompt seeds a conversation: the guidance is the assistant's, and the
+     * opener has to be the user's, or the coach reads its own instructions back
+     * as though the user had asked for them.
+     */
+    public function test_every_prompt_opens_with_guidance_and_ends_with_the_user_speaking(): void
+    {
+        Passport::actingAs(User::factory()->create(), ['mcp:use']);
+
+        foreach (array_column($this->promptsList()->json('result.prompts'), 'name') as $name) {
+            $this->assertSame(
+                ['assistant', 'user'],
+                array_column($this->promptsGetResult($name)['messages'], 'role'),
+                "Prompt [{$name}] does not open with guidance and end with the user speaking.",
+            );
+        }
+    }
+
+    /**
+     * A prompt that names a tool the server does not register sends Claude after
+     * something that 404s — the mirror image of the instructions guard above.
+     * Scanned out of the rendered messages rather than checked against a literal
+     * list, so a typo in the prose fails here rather than shipping.
+     */
+    public function test_every_tool_a_prompt_names_is_a_registered_tool(): void
+    {
+        Passport::actingAs(User::factory()->create(), ['mcp:use']);
+
+        $registered = array_column($this->toolsList()->json('result.tools'), 'name');
+
+        foreach (array_column($this->promptsList()->json('result.prompts'), 'name') as $name) {
+            $rendered = (string) json_encode($this->promptsGetResult($name)['messages']);
+
+            preg_match_all('/\b[a-z]+(?:-[a-z]+)+\b/', $rendered, $matches);
+
+            $named = array_values(array_diff(array_unique($matches[0]), self::PROSE_COMPOUNDS));
+
+            $this->assertNotEmpty($named, "Prompt [{$name}] names no tools at all.");
+
+            foreach ($named as $tool) {
+                $this->assertContains(
+                    $tool,
+                    $registered,
+                    "Prompt [{$name}] names [{$tool}], which is not a registered tool.",
+                );
+            }
+        }
+    }
+
     private function toolsList(): TestResponse
     {
         return $this->postJson('/mcp', [
@@ -130,6 +208,48 @@ class McpEndpointTest extends TestCase
             'method' => 'tools/list',
             'params' => [],
         ], ['Accept' => 'application/json, text/event-stream']);
+    }
+
+    private function promptsList(): TestResponse
+    {
+        return $this->postJson('/mcp', [
+            'jsonrpc' => '2.0',
+            'id' => 3,
+            'method' => 'prompts/list',
+            'params' => [],
+        ], ['Accept' => 'application/json, text/event-stream']);
+    }
+
+    /**
+     * prompts/get arrives as Server-Sent Events, not JSON.
+     *
+     * A prompt's handle() returns an array of messages, which the server treats
+     * as an iterable and streams — so the body is `data: {...}` frames and
+     * ->json() cannot read it. Exactly one result frame is emitted, because the
+     * messages are accumulated and serialised together.
+     *
+     * @return array<string, mixed>
+     */
+    private function promptsGetResult(string $name): array
+    {
+        $response = $this->postJson('/mcp', [
+            'jsonrpc' => '2.0',
+            'id' => 4,
+            'method' => 'prompts/get',
+            'params' => ['name' => $name],
+        ], ['Accept' => 'application/json, text/event-stream']);
+
+        $response->assertOk();
+
+        $frames = collect(explode("\n\n", trim($response->streamedContent())))
+            ->filter(fn (string $frame): bool => str_starts_with($frame, 'data: '))
+            ->map(fn (string $frame): mixed => json_decode(substr($frame, 6), true))
+            ->values()
+            ->all();
+
+        $this->assertCount(1, $frames, "Prompt [{$name}] did not return exactly one result frame.");
+
+        return $frames[0]['result'] ?? [];
     }
 
     /**
