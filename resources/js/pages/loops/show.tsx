@@ -5,17 +5,22 @@ import { update } from '@/actions/App/Http/Controllers/IntentionController';
 import CoachLayout from '@/layouts/coach-layout';
 import { cn } from '@/lib/utils';
 import { BottomNav } from '@/patyourself/bottom-nav';
+import { ExperimentHeader } from '@/patyourself/experiment-header';
 import { LoopNotes } from '@/patyourself/loop-notes';
 import { OutcomeHistory } from '@/patyourself/outcome-history';
 import { Button } from '@/patyourself/primitives';
+import { Reflection } from '@/patyourself/reflection';
 import {
     SectionHeading,
     StrategyTimeline,
 } from '@/patyourself/strategy-timeline';
 import type {
+    CurrentVersionData,
+    ExperimentData,
     IntentionData,
     NoteData,
     OutcomeEntryData,
+    ReflectionData,
     StrategyData,
 } from '@/patyourself/types';
 
@@ -31,6 +36,44 @@ interface LoopShowProps {
     outcomes_total: number;
     showing_all_history: boolean;
     notes: NoteData[];
+    /** The active experiment's own record. Null between experiments. */
+    current_version?: CurrentVersionData | null;
+    /** One rung per version, oldest first. */
+    experiments?: ExperimentData[];
+    /** The loop's rolling narrative, written through write-reflection. */
+    reflection?: ReflectionData | null;
+}
+
+/**
+ * The rate of the version immediately before the current one, for the header's
+ * comparison.
+ *
+ * Only a version that produced a decision counts — comparing against a version
+ * that was never tested would invent a trend out of nothing. Returns null when
+ * there is no such version, and the header then omits the delta entirely rather
+ * than rendering a placeholder.
+ */
+function previousVersionRate(
+    experiments: ExperimentData[],
+    current: CurrentVersionData | null,
+): number | null {
+    if (current === null) {
+        return null;
+    }
+
+    const previous = experiments
+        .filter((experiment) => experiment.version < current.version)
+        .sort((a, b) => b.version - a.version)[0];
+
+    if (previous === undefined) {
+        return null;
+    }
+
+    const decided = previous.totals.completed + previous.totals.failed;
+
+    return decided === 0
+        ? null
+        : Math.round((previous.totals.completed / decided) * 100);
 }
 
 /**
@@ -52,6 +95,9 @@ export default function LoopShow({
     outcomes_total: outcomesTotal,
     showing_all_history: showingAllHistory,
     notes,
+    current_version: currentVersion = null,
+    experiments = [],
+    reflection = null,
 }: LoopShowProps) {
     const back = (
         <Link
@@ -110,6 +156,23 @@ export default function LoopShow({
                     </p>
                 )}
 
+                {/* What is being tested and whether it is holding, before any
+                    scrolling. The reflection follows it because reading what
+                    the record shows is the point of opening this screen; the
+                    anatomy sits below both because it changes rarely. */}
+                <ExperimentHeader
+                    current={currentVersion}
+                    interventionPoint={
+                        intention.strategy?.intervention_point ?? null
+                    }
+                    previousRate={previousVersionRate(
+                        experiments,
+                        currentVersion,
+                    )}
+                />
+
+                <Reflection reflection={reflection} />
+
                 <Anatomy
                     intention={intention}
                     interventionPoint={
@@ -117,7 +180,10 @@ export default function LoopShow({
                     }
                 />
 
-                <StrategyTimeline strategies={strategies} />
+                <StrategyTimeline
+                    strategies={strategies}
+                    experiments={experiments}
+                />
 
                 <OutcomeHistory
                     outcomes={outcomes}
