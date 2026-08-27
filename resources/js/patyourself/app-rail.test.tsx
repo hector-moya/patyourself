@@ -22,6 +22,13 @@ describe('AppRail', () => {
     it('links every primary tab', () => {
         render(<AppRail />);
 
+        // Today is where Fortify lands every login, so it has to be reachable
+        // from the rail and has to point at the notebook rather than the loops
+        // list the dashboard route used to serve.
+        expect(screen.getByText('Today').closest('a')).toHaveAttribute(
+            'href',
+            '/dashboard',
+        );
         expect(screen.getByText('Loops').closest('a')).toHaveAttribute(
             'href',
             '/loops',

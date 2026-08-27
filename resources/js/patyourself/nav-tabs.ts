@@ -1,8 +1,8 @@
 /**
  * The app's primary navigation, shared by the mobile bottom-nav and the
  * desktop side rail so both stay in lockstep. Each tab links one of the app's
- * top-level screens (Loops, Progress, Inbox); the loop- and progress-detail
- * screens nest under their list, so a tab stays active for its whole section.
+ * top-level screens (Today, Loops, Progress, Inbox); the loop-detail screen
+ * nests under its list, so a tab stays active for its whole section.
  */
 export interface NavTab {
     label: string;
@@ -15,6 +15,14 @@ export interface NavTab {
 }
 
 export const NAV_TABS: NavTab[] = [
+    {
+        // The daily driver, and where Fortify lands every login. First, because
+        // "what am I doing today" is the question the app opens on.
+        label: 'Today',
+        icon: 'sun',
+        href: '/dashboard',
+        match: ['/dashboard'],
+    },
     {
         label: 'Loops',
         icon: 'git-branch',

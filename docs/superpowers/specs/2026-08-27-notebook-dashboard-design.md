@@ -45,7 +45,6 @@ Wednesday 27 August
 DUE NOW
 ○ Lunch without bread                 12:30
 ○ Evening walk                     anchored
-● Breakfast log                      ✓ done
 
 LATER TODAY
 ○ Reading                             21:00
@@ -82,8 +81,14 @@ is impossible (there is no id), and routing everything to the action route would
 log the live slot rather than the occasion on screen. The row picks its endpoint
 from whether it has an `occurrence_id`.
 
-Both endpoints already return `back()`, so Inertia re-renders the dashboard and
-the row moves to its logged state. No new endpoint is added.
+Both endpoints already return `back()`, so Inertia re-renders the dashboard. No
+new endpoint is added.
+
+`TodaysOccasions::for()` returns **unlogged** occasions only, so a logged row
+does not become a tick — it leaves the screen. That is the right behaviour here
+and it is why there is no "done" state to design: the dashboard shows what is
+still open today, and what has been dealt with stops asking. The loop's own
+record keeps the outcome.
 
 ### Ready for a verdict
 
