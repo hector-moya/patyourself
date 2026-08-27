@@ -89,9 +89,14 @@ class LogOutcomeToolTest extends TestCase
 
         $payload = $this->payload($response);
 
+        // `companion` trails the record and only when the outcome moved Blob up
+        // a stage — which this one does, being the user's first. Every other log
+        // returns the ten record keys and nothing else; see
+        // Tests\Feature\Mcp\CompanionAnnouncementTest.
         $this->assertSame([
             'log_id', 'occurrence_id', 'occurred_at', 'outcome', 'reason',
             'context', 'context_fields', 'loop_id', 'loop_title', 'action_title',
+            'companion',
         ], array_keys($payload));
         $this->assertSame(ActionLog::OUTCOME_COMPLETED, $payload['outcome']);
         $this->assertNull($payload['reason']);

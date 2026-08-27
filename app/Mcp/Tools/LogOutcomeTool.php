@@ -6,6 +6,7 @@ use App\Actions\LogAction;
 use App\Models\Action;
 use App\Models\ActionLog;
 use App\Models\Occurrence;
+use App\Services\Companion\CompanionAnnouncement;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\JsonSchema\Types\Type;
@@ -48,7 +49,7 @@ class LogOutcomeTool extends Tool
      * There is no next-due cursor to roll: an outcome attaches to the occasion
      * it describes and nothing else moves.
      */
-    public function handle(Request $request, LogAction $log): Response
+    public function handle(Request $request, LogAction $log, CompanionAnnouncement $companion): Response
     {
         $validated = $request->validate([
             'occurrence_id' => ['nullable', 'integer', 'required_without:action_id'],
@@ -99,6 +100,10 @@ class LogOutcomeTool extends Tool
 
         $action = $occurrence->action;
 
+        // Read before the write, so the comparison afterwards is against where
+        // Blob actually stood rather than where it stands now.
+        $stageBefore = $companion->stageFor($request->user());
+
         $entry = $log->handle(
             $request->user(),
             $action,
@@ -117,6 +122,10 @@ class LogOutcomeTool extends Tool
             'loop_id' => $action->intention_id,
             'loop_title' => $action->intention->title,
             'action_title' => $action->title,
+            // Present only when this outcome moved Blob up a stage, and then
+            // the message is relayed exactly as written. Composing praise here
+            // would put the app's one warm voice in the model's hands.
+            ...$companion->since($request->user(), $stageBefore),
         ]);
     }
 

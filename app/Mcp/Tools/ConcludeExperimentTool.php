@@ -5,6 +5,7 @@ namespace App\Mcp\Tools;
 use App\Actions\ConcludeExperiment;
 use App\Models\Intention;
 use App\Models\Strategy;
+use App\Services\Companion\CompanionAnnouncement;
 use App\Services\Strategy\StrategyTransitionException;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\JsonSchema\Types\Type;
@@ -35,7 +36,7 @@ does not support.
 TEXT)]
 class ConcludeExperimentTool extends Tool
 {
-    public function handle(Request $request, ConcludeExperiment $conclude): Response
+    public function handle(Request $request, ConcludeExperiment $conclude, CompanionAnnouncement $companion): Response
     {
         $validated = $request->validate([
             'intention_id' => ['required', 'integer'],
@@ -67,6 +68,10 @@ class ConcludeExperimentTool extends Tool
             return Response::error('That loop has no active strategy version to conclude.');
         }
 
+        // Read before the write, so the comparison afterwards is against where
+        // Blob actually stood rather than where it stands now.
+        $stageBefore = $companion->stageFor($request->user());
+
         try {
             $concluded = $conclude->handle($current, $validated['verdict'], $note);
         } catch (StrategyTransitionException $e) {
@@ -88,6 +93,10 @@ class ConcludeExperimentTool extends Tool
             'planned_days' => $concluded->plannedDays(),
             'day_of_experiment' => $concluded->dayOfExperiment(),
             'is_under_review' => $concluded->isUnderReview(),
+            // Present only when concluding moved Blob up a stage, and then the
+            // message is relayed exactly as written. Composing praise here would
+            // put the app's one warm voice in the model's hands.
+            ...$companion->since($request->user(), $stageBefore),
         ]);
     }
 

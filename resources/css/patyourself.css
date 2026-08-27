@@ -545,3 +545,30 @@
   --stage-response:#EE7E50; --stage-response-soft:#3A271C;
   --stage-reward:#7CAE89;   --stage-reward-soft:#22301F;
 }
+
+/* ============================================================
+   BLOB — the companion.
+
+   Two rules, and only two. A newly earned layer fades in once, on mount; an
+   unlocked ability animates as a slow, small loop. Nothing here has a
+   diminished state and nothing regresses — the range is neutral to warm.
+
+   The global `prefers-reduced-motion:reduce` rule earlier in this file
+   switches both off, which is the reason neither is written inline.
+
+   No colours live here: Blob's body is a literal hex inside the component so
+   it looks like itself in light mode and dark mode alike.
+   ============================================================ */
+.blob{display:block;overflow:visible;}
+
+/* The one transition in the feature: the layer earned most recently arrives. */
+.blob-layer--arriving{animation:blob-arrive 400ms ease-out both;}
+@keyframes blob-arrive{from{opacity:0;}to{opacity:1;}}
+
+/* walk — a slow step, and a bob small enough to still read at 32px without
+   pulling the eye off whatever the screen is actually for. */
+.blob-walk .blob-body{animation:blob-bob 1.6s ease-in-out infinite;}
+.blob-walk .blob-legs__left{animation:blob-step 1.6s ease-in-out infinite;transform-origin:center top;}
+.blob-walk .blob-legs__right{animation:blob-step 1.6s ease-in-out infinite reverse;transform-origin:center top;}
+@keyframes blob-bob{0%,100%{transform:translateY(0);}50%{transform:translateY(-1.5px);}}
+@keyframes blob-step{0%,100%{transform:rotate(7deg);}50%{transform:rotate(-7deg);}}
