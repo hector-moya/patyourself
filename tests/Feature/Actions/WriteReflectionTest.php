@@ -191,6 +191,54 @@ class WriteReflectionTest extends TestCase
         $this->assertSame(0, $summary->events_count);
     }
 
+    /**
+     * The window closes inclusively: an occasion at exactly `window_end` is
+     * inside it. Only the opening edge is exclusive. Without this, the
+     * half-open rule is only half pinned — an implementation using `<` at the
+     * end would pass every other test here.
+     */
+    public function test_an_occasion_at_the_closing_edge_is_counted(): void
+    {
+        $user = User::factory()->create();
+        $loop = $this->loop($user, CarbonImmutable::parse('2026-08-20 09:00:00'));
+
+        $this->outcomeAt($loop, CarbonImmutable::parse('2026-08-27 12:00:00'));
+
+        $this->assertSame(1, app(WriteReflection::class)->handle($loop, 'right on the edge')->events_count);
+    }
+
+    /**
+     * An outcome with no occurrence falls back to `logged_at`. Nothing writes
+     * such a row today — LogAction always resolves an occurrence, and the
+     * pre-branch backfill gave every historical log one — so this branch is
+     * reachable only by data older than that migration.
+     *
+     * It is tested because of how it could break rather than how it behaves: the
+     * fallback is an `orWhere`, and an `orWhere` lifted out of its wrapping
+     * closure would escape the `intention_id` filter and start counting every
+     * user's unattached logs. That regression is invisible without a row that
+     * takes the branch.
+     */
+    public function test_an_outcome_with_no_occasion_is_counted_only_for_its_own_loop(): void
+    {
+        $user = User::factory()->create();
+        $loop = $this->loop($user, CarbonImmutable::parse('2026-08-20 09:00:00'));
+        $other = $this->loop($user, CarbonImmutable::parse('2026-08-20 09:00:00'));
+
+        foreach ([$loop, $other] as $owner) {
+            $action = Action::factory()->for($owner)->create(['recurrence' => null]);
+
+            ActionLog::factory()->for($action)->create([
+                'user_id' => $owner->user_id,
+                'occurrence_id' => null,
+                'logged_at' => CarbonImmutable::parse('2026-08-22 19:00:00'),
+            ]);
+        }
+
+        // Its own orphan counts; the other loop's must not.
+        $this->assertSame(1, app(WriteReflection::class)->handle($loop, 'one loose end')->events_count);
+    }
+
     public function test_it_never_counts_another_loops_occasions(): void
     {
         $user = User::factory()->create();

@@ -98,11 +98,6 @@ TEXT)]
 class PatYourSelfServer extends Server
 {
     /**
-     * The tools registered with this MCP server.
-     *
-     * @var array<int, class-string<Tool>>
-     */
-    /**
      * Advertise every tool on one page.
      *
      * Laravel MCP defaults `tools/list` to 15 per page, and this server passed
@@ -117,6 +112,11 @@ class PatYourSelfServer extends Server
      */
     public int $defaultPaginationLength = 50;
 
+    /**
+     * The tools registered with this MCP server.
+     *
+     * @var array<int, class-string<Tool>>
+     */
     protected array $tools = [
         ListLoopsTool::class,
         GetLoopTool::class,
