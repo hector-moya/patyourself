@@ -105,6 +105,8 @@ class ConcludeExperimentToolTest extends TestCase
 
         $this->assertNotNull($payload['review_at']);
         $this->assertSame(14, $payload['planned_days']);
+        // Ran exactly its planned length: day 14 of a 14-day experiment.
+        $this->assertSame(14, $payload['day_of_experiment']);
         $this->assertFalse($payload['is_under_review']);
     }
 
@@ -158,7 +160,12 @@ class ConcludeExperimentToolTest extends TestCase
             'verdict' => Strategy::VERDICT_FAILED,
         ]);
 
-        $response->assertHasErrors();
+        // The caller is a model, so the message has to say what to do about it.
+        // Pinned because the custom message is easy to lose back to Laravel's
+        // generic "The note field is required when verdict is failed."
+        $response->assertHasErrors([
+            'A failed verdict needs a note saying what the evidence showed. A failure is only useful to the next experiment if it carries its reason.',
+        ]);
         $this->assertDatabaseMissing('strategies', [
             'intention_id' => $loop->id,
             'verdict' => Strategy::VERDICT_FAILED,
@@ -170,19 +177,43 @@ class ConcludeExperimentToolTest extends TestCase
         $user = User::factory()->create();
         $loop = $this->loopWithActiveVersion($user);
 
+        // Padded and mixed-case on purpose: a note that arrives already tidy
+        // cannot tell a verbatim implementation from a trimming one.
+        $note = '  the cue never actually fired ON work-from-home days.  ';
+
         $response = PatYourSelfServer::actingAs($user)->tool(ConcludeExperimentTool::class, [
             'intention_id' => $loop->id,
             'verdict' => Strategy::VERDICT_FAILED,
-            'note' => 'the cue never actually fired on work-from-home days',
+            'note' => $note,
         ]);
 
         $response->assertOk();
 
         // Verbatim. Never trimmed, squished or sentence-cased.
-        $this->assertSame(
-            'the cue never actually fired on work-from-home days',
-            $this->payload($response)['verdict_note'],
-        );
+        $this->assertSame($note, $this->payload($response)['verdict_note']);
+        $this->assertDatabaseHas('strategies', [
+            'intention_id' => $loop->id,
+            'verdict_note' => $note,
+        ]);
+    }
+
+    /**
+     * The `failed` guard must reject a note that is only whitespace, not just a
+     * missing one — otherwise "  " would satisfy "a failure carries its reason".
+     */
+    public function test_it_refuses_a_failed_verdict_whose_note_is_only_whitespace(): void
+    {
+        $user = User::factory()->create();
+        $loop = $this->loopWithActiveVersion($user);
+
+        $response = PatYourSelfServer::actingAs($user)->tool(ConcludeExperimentTool::class, [
+            'intention_id' => $loop->id,
+            'verdict' => Strategy::VERDICT_FAILED,
+            'note' => '   ',
+        ]);
+
+        $response->assertHasErrors();
+        $this->assertNull($loop->activeStrategy->refresh()->verdict);
     }
 
     public function test_it_rejects_an_unknown_verdict(): void

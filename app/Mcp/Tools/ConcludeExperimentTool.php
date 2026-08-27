@@ -41,16 +41,19 @@ class ConcludeExperimentTool extends Tool
             'intention_id' => ['required', 'integer'],
             'verdict' => ['required', 'string', Rule::in(Strategy::VERDICTS)],
             // A failure carries its reason. Guarded here rather than in the
-            // Action, whose contract other callers already depend on — the same
-            // boundary where start-experiment guards the intervention point.
+            // Action, whose contract other callers already depend on.
+            //
+            // required_if is an implicit rule, so `nullable` does not exempt it,
+            // and validateRequired() trims before testing — so a missing, null
+            // or whitespace-only note all fail here. No manual guard is needed;
+            // the message is customised because the caller is a model, and
+            // "say what the evidence showed" is more actionable than the default.
             'note' => ['required_if:verdict,'.Strategy::VERDICT_FAILED, 'nullable', 'string', 'max:2000'],
+        ], [
+            'note.required_if' => 'A failed verdict needs a note saying what the evidence showed. A failure is only useful to the next experiment if it carries its reason.',
         ]);
 
         $note = $validated['note'] ?? null;
-
-        if ($validated['verdict'] === Strategy::VERDICT_FAILED && trim((string) $note) === '') {
-            return Response::error('A failed verdict needs a note saying what the evidence showed.');
-        }
 
         $loop = $request->user()->intentions()->with('activeStrategy')->find($validated['intention_id']);
 
