@@ -214,10 +214,6 @@
 .py-toggle.is-on .py-toggle__knob{transform:translateX(18px);}
 .py-toggle:focus-visible{outline:none;box-shadow:0 0 0 3px var(--focus);}
 
-/* ---------- Avatar ---------- */
-.py-avatar{display:inline-flex;align-items:center;justify-content:center;border-radius:50%;flex:none;}
-.py-avatar--user{background:var(--bg-sunk);color:var(--fg-body);font-family:var(--font-mono);font-weight:700;border:1px solid var(--border);}
-
 /* ---------- Empty state ---------- */
 .py-empty{display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;padding:48px 28px;}
 .py-empty__icon{display:inline-flex;align-items:center;justify-content:center;width:60px;height:60px;border-radius:var(--radius-lg);background:var(--primary-soft);color:var(--primary);}
@@ -229,18 +225,7 @@
 /* ============================================================
    CHAT
    ============================================================ */
-.py-msg{display:flex;gap:10px;margin:14px 0;animation:py-rise var(--dur-slow) var(--ease-entrance);}
-.py-msg--user{justify-content:flex-end;}
-.py-msg__col{display:flex;flex-direction:column;gap:4px;max-width:78%;}
-.py-msg--user .py-msg__col{align-items:flex-end;}
-.py-msg__time{font-family:var(--font-mono);font-size:11px;color:var(--fg-faint);padding:0 6px;}
 .bubble-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
-
-/* typing */
-.py-typing{display:inline-flex;gap:5px;align-items:center;padding:15px 16px;}
-.py-typing span{width:7px;height:7px;border-radius:50%;background:var(--fg-faint);animation:py-blink 1.3s var(--ease-in-out) infinite;}
-.py-typing span:nth-child(2){animation-delay:.18s;}
-.py-typing span:nth-child(3){animation-delay:.36s;}
 
 .py-systemline{display:flex;align-items:center;justify-content:center;margin:18px 0;}
 .py-systemline span{font-family:var(--font-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--fg-faint);background:var(--bg);padding:0 12px;position:relative;z-index:1;}
@@ -290,10 +275,6 @@
    ============================================================ */
 .chat-inner{max-width:var(--chat-max,640px);margin:0 auto;padding:20px 20px 8px;}
 
-/* ---------- Chat header ---------- */
-.coach-head{flex:none;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 28px;border-bottom:1px solid var(--border);background:var(--bg);}
-.coach-head__title{display:flex;flex-direction:column;gap:3px;}
-.coach-head__title h1{margin:0;font-family:var(--font-display);font-weight:700;font-size:var(--text-xl);letter-spacing:var(--tracking-tight);color:var(--fg);white-space:nowrap;}
 .coach-progress{display:flex;align-items:center;gap:12px;}
 .coach-progress__label{font-family:var(--font-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--fg-muted);}
 .coach-progress__label b{color:var(--success);}
@@ -561,3 +542,31 @@
     radial-gradient(95% 75% at 105% 105%, rgba(124,174,137,0.08), transparent 60%);
 }
 .dark .py-frame-mark{color:#F3ECE0;opacity:0.05;}
+
+/* ============================================================
+   LOOP-STAGE ACCENTS — cue -> craving -> response -> reward
+
+   The same four colours as the raw palette above, promoted out of the
+   `.py-shell, .py-landing, .py-host` scope so the notebook screens can reach
+   them. Those screens cannot simply adopt `.py-host`: that block also defines
+   `--border`, which they already use for shadcn's `border-border`, and the two
+   would fight.
+
+   Namespaced `--stage-*` for the same reason — nothing here may collide with a
+   shadcn token name. Dark values are the palette's own dark-theme pair, and the
+   selector is `.dark` because that is how the app outside the py- screens
+   switches theme.
+   ============================================================ */
+:root {
+  --stage-cue:#5B8398;      --stage-cue-soft:#E4ECEF;
+  --stage-craving:#8A5B79;  --stage-craving-soft:#EFE6EC;
+  --stage-response:#E26B3E; --stage-response-soft:#FCEDE4;
+  --stage-reward:#5E8C6A;   --stage-reward-soft:#E9F1E9;
+}
+
+.dark {
+  --stage-cue:#7BA6BB;      --stage-cue-soft:#22303A;
+  --stage-craving:#B587A4;  --stage-craving-soft:#322230;
+  --stage-response:#EE7E50; --stage-response-soft:#3A271C;
+  --stage-reward:#7CAE89;   --stage-reward-soft:#22301F;
+}
