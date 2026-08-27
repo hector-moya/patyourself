@@ -2,6 +2,8 @@
 
 namespace App\Mcp\Servers;
 
+use App\Mcp\Prompts\DailyCheckInPrompt;
+use App\Mcp\Prompts\ReviewExperimentPrompt;
 use App\Mcp\Tools\AddActionTool;
 use App\Mcp\Tools\ConcludeExperimentTool;
 use App\Mcp\Tools\CreateLoopTool;
@@ -22,6 +24,7 @@ use Laravel\Mcp\Server;
 use Laravel\Mcp\Server\Attributes\Instructions;
 use Laravel\Mcp\Server\Attributes\Name;
 use Laravel\Mcp\Server\Attributes\Version;
+use Laravel\Mcp\Server\Prompt;
 use Laravel\Mcp\Server\Tool;
 
 #[Name('PatYourSelf')]
@@ -46,6 +49,11 @@ reasons back and find where the chain is actually breaking, then loop-progress
 and get-loop to see how the current experiment is holding up — and
 start-experiment when the current intervention point is not the right one any
 more.
+
+Two prompts start the common workflows: daily-check-in opens a check-in and
+works through the occasions that went unlogged, and review-experiment takes an
+experiment that has reached its review date to a verdict and a reflection. They
+carry the sequence, not the record — you still call the tools.
 
 conclude-experiment ends the current experiment with a verdict: worked, failed
 or inconclusive. It is a separate act from starting the next one — a version
@@ -134,5 +142,18 @@ class PatYourSelfServer extends Server
         UpdateLoopTool::class,
         LogNoteTool::class,
         WriteReflectionTool::class,
+    ];
+
+    /**
+     * The prompts registered with this MCP server.
+     *
+     * Named entry points for the workflows that happen often enough to deserve
+     * one. They carry the sequence, not the record.
+     *
+     * @var array<int, class-string<Prompt>>
+     */
+    protected array $prompts = [
+        DailyCheckInPrompt::class,
+        ReviewExperimentPrompt::class,
     ];
 }
