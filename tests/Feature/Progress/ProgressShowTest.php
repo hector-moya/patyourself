@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Progress;
 
+use App\Actions\WriteReflection;
 use App\Models\Action;
 use App\Models\ActionLog;
 use App\Models\Intention;
@@ -52,6 +53,29 @@ class ProgressShowTest extends TestCase
                 ->where('strategies.0.version', 1) // ordered oldest-first
                 ->where('strategies.1.version', 2)
                 ->where('summary', 'You complete most mornings.')
+            );
+    }
+
+    /**
+     * The writer and the reader have to agree. `latestSummary()` filters to
+     * intention scope, so a WriteReflection that wrote the wrong scope would be
+     * silently ignored here and the screen would keep showing its empty state
+     * while the record filled up. Every other test on this page seeds the row by
+     * factory, which cannot catch that.
+     */
+    public function test_a_reflection_written_by_the_app_is_what_the_screen_renders(): void
+    {
+        $user = User::factory()->create();
+        $loop = Intention::factory()->for($user)->create(['status' => Intention::STATUS_ACTIVE]);
+        Strategy::factory()->initial()->for($loop)->create();
+
+        app(WriteReflection::class)->handle($loop, 'Dinner holds. Lunch is where it goes.');
+
+        $this->actingAs($user)
+            ->get("/progress/{$loop->id}")
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('summary', 'Dinner holds. Lunch is where it goes.')
             );
     }
 

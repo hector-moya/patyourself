@@ -17,6 +17,7 @@ use App\Mcp\Tools\StartExperimentTool;
 use App\Mcp\Tools\TodayActionsTool;
 use App\Mcp\Tools\UpdateActionTool;
 use App\Mcp\Tools\UpdateLoopTool;
+use App\Mcp\Tools\WriteReflectionTool;
 use Laravel\Mcp\Server;
 use Laravel\Mcp\Server\Attributes\Instructions;
 use Laravel\Mcp\Server\Attributes\Name;
@@ -77,6 +78,13 @@ update-loop corrects the chain itself. What the user first wrote is a
 hypothesis, and the craving is usually the part that turns out to be wrong —
 fix it there rather than working around it.
 
+write-reflection records the loop's rolling narrative: one synthesis of what
+the record now shows, in prose, replacing whatever you wrote last time. It is
+what the progress screen renders. Write it after reading the outcomes, say what
+the evidence does not show as readily as what it does, and keep it about the
+strategy rather than the user. You supply the words only — the window it covers
+and how many occasions sit inside it are taken from the record.
+
 log-note records something the user noticed that is not an outcome — "worse on
 the days I skip lunch". Notes come back on get-loop and are worth reading before
 writing the next experiment.
@@ -89,6 +97,21 @@ to open the app to review and activate.
 TEXT)]
 class PatYourSelfServer extends Server
 {
+    /**
+     * Advertise every tool on one page.
+     *
+     * Laravel MCP defaults `tools/list` to 15 per page, and this server passed
+     * 15 when write-reflection was added — so the 16th tool landed on page two
+     * and was invisible to any client that does not follow `nextCursor`. The
+     * failure is silent: the tool exists, the server is healthy, and the coach
+     * simply never learns it can call it.
+     *
+     * 50 is the framework's `maxPaginationLength`, so this is the widest single
+     * page available. Passing it means splitting the server or paginating
+     * deliberately, not discovering it through a missing tool.
+     */
+    public int $defaultPaginationLength = 50;
+
     /**
      * The tools registered with this MCP server.
      *
@@ -110,5 +133,6 @@ class PatYourSelfServer extends Server
         RemoveActionTool::class,
         UpdateLoopTool::class,
         LogNoteTool::class,
+        WriteReflectionTool::class,
     ];
 }

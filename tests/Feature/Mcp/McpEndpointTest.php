@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Mcp;
 
+use App\Mcp\Servers\PatYourSelfServer;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Testing\TestResponse;
@@ -74,9 +75,34 @@ class McpEndpointTest extends TestCase
         $response->assertOk();
 
         $this->assertSame(
-            ['list-loops', 'get-loop', 'today-actions', 'pending-outcomes', 'log-outcome', 'loop-outcomes', 'loop-progress', 'create-loop', 'start-experiment', 'conclude-experiment', 'add-action', 'update-action', 'remove-action', 'update-loop', 'log-note'],
+            ['list-loops', 'get-loop', 'today-actions', 'pending-outcomes', 'log-outcome', 'loop-outcomes', 'loop-progress', 'create-loop', 'start-experiment', 'conclude-experiment', 'add-action', 'update-action', 'remove-action', 'update-loop', 'log-note', 'write-reflection'],
             array_column($response->json('result.tools'), 'name'),
         );
+    }
+
+    /**
+     * Every registered tool has to arrive on the first page.
+     *
+     * Laravel MCP paginates `tools/list` at 15 by default. This server passed 15
+     * when write-reflection was added, so the 16th tool landed on page two and
+     * was invisible to any client that does not follow `nextCursor` — a silent
+     * failure, because the server stays healthy and the tool simply never gets
+     * offered. Asserted against the registered count rather than a literal, so
+     * it keeps holding as tools are added.
+     */
+    public function test_every_registered_tool_arrives_on_the_first_page(): void
+    {
+        Passport::actingAs(User::factory()->create(), ['mcp:use']);
+
+        $response = $this->toolsList();
+
+        $response->assertOk();
+
+        $registered = (new \ReflectionClass(PatYourSelfServer::class))
+            ->getDefaultProperties()['tools'];
+
+        $this->assertCount(count($registered), $response->json('result.tools'));
+        $this->assertNull($response->json('result.nextCursor'));
     }
 
     /**
