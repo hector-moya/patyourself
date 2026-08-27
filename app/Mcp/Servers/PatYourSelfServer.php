@@ -2,6 +2,7 @@
 
 namespace App\Mcp\Servers;
 
+use App\Mcp\Prompts\DailyCheckInPrompt;
 use App\Mcp\Tools\AddActionTool;
 use App\Mcp\Tools\ConcludeExperimentTool;
 use App\Mcp\Tools\CreateLoopTool;
@@ -22,6 +23,7 @@ use Laravel\Mcp\Server;
 use Laravel\Mcp\Server\Attributes\Instructions;
 use Laravel\Mcp\Server\Attributes\Name;
 use Laravel\Mcp\Server\Attributes\Version;
+use Laravel\Mcp\Server\Prompt;
 use Laravel\Mcp\Server\Tool;
 
 #[Name('PatYourSelf')]
@@ -134,5 +136,17 @@ class PatYourSelfServer extends Server
         UpdateLoopTool::class,
         LogNoteTool::class,
         WriteReflectionTool::class,
+    ];
+
+    /**
+     * The prompts registered with this MCP server.
+     *
+     * Named entry points for the workflows that happen often enough to deserve
+     * one. They carry the sequence, not the record.
+     *
+     * @var array<int, class-string<Prompt>>
+     */
+    protected array $prompts = [
+        DailyCheckInPrompt::class,
     ];
 }
