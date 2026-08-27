@@ -8,7 +8,9 @@ import { StreakBadge } from './streak-badge';
 export function ProgressCard({ loop }: { loop: LoopProgressCard }) {
     return (
         <Link
-            href={`/progress/${loop.id}`}
+            // Straight to the lab record. /progress/{id} still resolves, but it
+            // is now a redirect, and there is no reason to spend a round trip.
+            href={`/loops/${loop.id}`}
             className="flex flex-col gap-2 rounded-xl border border-border bg-card p-4 transition-colors hover:border-primary/40"
         >
             <div className="flex items-start justify-between gap-2">

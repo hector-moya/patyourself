@@ -222,17 +222,8 @@
 /* ---------- Eyebrow ---------- */
 .py-eyebrow{font-family:var(--font-mono);font-size:var(--text-xs);letter-spacing:var(--tracking-eyebrow);text-transform:uppercase;color:var(--fg-muted);}
 
-/* ============================================================
-   CHAT
-   ============================================================ */
-.bubble-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
-
-.py-systemline{display:flex;align-items:center;justify-content:center;margin:18px 0;}
-.py-systemline span{font-family:var(--font-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--fg-faint);background:var(--bg);padding:0 12px;position:relative;z-index:1;}
-.py-systemline:before{content:"";position:absolute;left:0;right:0;height:1px;background:var(--border);z-index:0;}
-
+/* py-rise is still used by the frame below; py-blink went with .py-typing. */
 @keyframes py-rise{from{transform:translateY(9px);}to{transform:none;}}
-@keyframes py-blink{0%,60%,100%{opacity:.3;transform:translateY(0);}30%{opacity:1;transform:translateY(-2px);}}
 
 /* ============================================================
    APP SHELL (shell.css)
@@ -270,22 +261,6 @@
 .py-sidenav__profile .who b{font-size:var(--text-sm);font-weight:700;color:var(--fg);}
 .py-sidenav__profile .who span{font-family:var(--font-mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--fg-faint);}
 
-/* ============================================================
-   CHAT SCREEN
-   ============================================================ */
-.chat-inner{max-width:var(--chat-max,640px);margin:0 auto;padding:20px 20px 8px;}
-
-.coach-progress{display:flex;align-items:center;gap:12px;}
-.coach-progress__label{font-family:var(--font-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--fg-muted);}
-.coach-progress__label b{color:var(--success);}
-.coach-progress__dots{display:inline-flex;gap:5px;}
-.coach-progress__dots i{width:9px;height:9px;border-radius:50%;background:var(--line-strong);display:block;transition:background var(--dur-base) var(--ease-out);}
-.coach-progress__dots i.done{background:var(--success);}
-
-.coach-body{flex:1;min-height:0;}
-
-/* ---------- Reply chips above composer ---------- */
-.reply-chips{display:flex;gap:8px;flex-wrap:wrap;padding-bottom:10px;}
 
 /* ============================================================
    DAILY-LOG ACTION CARD (desktop.css)
