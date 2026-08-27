@@ -350,6 +350,16 @@ class SeriesAnchorTest extends TestCase
         $this->assertTrue($action->series_started_at->greaterThanOrEqualTo(now()));
     }
 
+    /**
+     * Weekdays proves less than weekly does, and deliberately so.
+     *
+     * `nextAfter()` and `firstOccurrence()` converge for this cadence — both
+     * preserve the clock time and both skip the weekend — so no fixture can
+     * tell a phase-preserving roll from one recomputed off `now`. The weekly
+     * test carries that proof, via the weekday it has to keep. What is left
+     * worth asserting here is the cadence's own promise: a weekdays action
+     * never anchors on a Saturday or a Sunday.
+     */
     public function test_an_inherited_weekdays_cadence_never_lands_on_a_weekend(): void
     {
         Carbon::setTestNow('2026-08-26 21:00:00');
@@ -358,6 +368,7 @@ class SeriesAnchorTest extends TestCase
 
         $this->assertFalse($action->series_started_at->isWeekend());
         $this->assertTrue($action->series_started_at->greaterThanOrEqualTo(now()));
+        $this->assertSame('08:00', $action->series_started_at->setTimezone('UTC')->format('H:i'));
     }
 
     /**
@@ -387,6 +398,11 @@ class SeriesAnchorTest extends TestCase
             $this->fail('Expected the re-anchor to throw.');
         } catch (RuntimeException) {
             // Expected.
+        } finally {
+            // The dispatcher is shared process-wide. Laravel's per-test app
+            // reboot happens to clear it, but this test should not depend on
+            // that to avoid throwing inside an unrelated one.
+            Action::flushEventListeners();
         }
 
         $this->assertDatabaseHas('occurrences', ['id' => $future->id]);

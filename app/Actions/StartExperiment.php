@@ -175,11 +175,11 @@ final class StartExperiment
      *
      * A future anchor is already ahead of the grid and is inherited untouched.
      *
-     * Known residue: nextAfter() returns null for a one-off (no recurrence), so
-     * a past one-off anchor is inherited as-is and leaves a single occasion
-     * behind now. That is one row, it predates this branch, and collapsing it
-     * would need a decision about what "repeat a one-off" even means — so it
-     * stays as it was.
+     * A one-off has no next slot to roll to — nextAfter() returns null for a
+     * null recurrence — so it falls through to the same time of day on the next
+     * day it can happen. Inheriting the past anchor instead would leave exactly
+     * one unlogged occasion behind now, which is the same fabricated miss in
+     * miniature.
      */
     private function inheritedAnchor(?CarbonImmutable $priorAnchor, ?Recurrence $recurrence, string $timezone): ?CarbonImmutable
     {
