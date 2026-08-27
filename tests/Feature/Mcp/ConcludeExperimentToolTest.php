@@ -147,8 +147,9 @@ class ConcludeExperimentToolTest extends TestCase
     }
 
     /**
-     * A failure carries its reason. Enforced at the tool boundary, the same
-     * place start-experiment guards the intervention point.
+     * A failure carries its reason. Enforced at the tool boundary rather than
+     * in ConcludeExperiment, whose `?string $note = null` contract other callers
+     * already depend on.
      */
     public function test_it_refuses_a_failed_verdict_with_no_note(): void
     {
