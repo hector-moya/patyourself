@@ -34,6 +34,32 @@ export interface ActiveStrategySummary {
     approach: string;
     rationale: string | null;
     version: number;
+    /** The experiment's state, so a list of loops answers "what am I running"
+     * without opening each one. `planned_days` is null for an open-ended
+     * experiment — a legitimate state that must never render as a countdown. */
+    day_of_experiment: number;
+    planned_days: number | null;
+    is_under_review: boolean;
+}
+
+/**
+ * The active experiment's own record — LoopProgress::forCurrentVersion().
+ *
+ * Null when no version is active, which is a good state rather than an empty
+ * one: a loop running indefinitely with no experiment under test is a success,
+ * and logging is never gated on one existing.
+ */
+export interface CurrentVersionData {
+    version: number;
+    started_at: string;
+    day_of_experiment: number;
+    planned_days: number | null;
+    is_under_review: boolean;
+    verdict: string | null;
+    streak: { outcome: string | null; length: number };
+    completion_rate: number | null;
+    totals: { completed: number; failed: number; skipped: number };
+    last_logged_at: string | null;
 }
 
 /** The loggable action embedded in an IntentionResource (the card's quick-log target). */
