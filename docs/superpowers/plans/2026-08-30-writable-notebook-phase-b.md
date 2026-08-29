@@ -69,7 +69,7 @@ class ReanchorsSeriesTest extends TestCase
         ]);
 
         $logged = $action->occurrences()->create(['scheduled_for' => now()->subDay()]);
-        $logged->actionLog()->create([
+        $logged->log()->create([
             'user_id' => $user->id,
             'action_id' => $action->id,
             'outcome' => 'completed',
@@ -443,7 +443,6 @@ Expected: FAIL — `Route [occurrences.quick-log] not defined`.
 namespace App\Http\Controllers;
 
 use App\Actions\LogAction;
-use App\Models\ActionLog;
 use App\Models\Occurrence;
 use Illuminate\Contracts\View\View;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -469,13 +468,15 @@ class QuickLogController extends Controller
             throw new NotFoundHttpException;
         }
 
-        $occurrence->loadMissing('action.intention.user');
-        $existing = $occurrence->actionLog;
+        $occurrence->loadMissing(['action.intention.user', 'log']);
 
-        if ($existing instanceof ActionLog) {
+        // Idempotent by reading the record rather than by storing new state:
+        // this is what gives the signed link single-use semantics, and it makes
+        // a double click correct instead of a second write.
+        if ($occurrence->isLogged()) {
             return view('quick-log', [
                 'title' => $occurrence->action->title,
-                'outcome' => $existing->outcome,
+                'outcome' => $occurrence->log->outcome,
                 'alreadyLogged' => true,
             ]);
         }
