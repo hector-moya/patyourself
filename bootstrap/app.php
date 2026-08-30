@@ -7,6 +7,7 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Exceptions\InvalidSignatureException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -48,4 +49,16 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );
+
+        // A quick-log link that is invalid or has passed its seven-day window
+        // must read as "this link has expired," never a stack trace and never a
+        // redirect to login carrying the intended URL — there is no session to
+        // send it back to. Status stays 403; only the body changes.
+        $exceptions->render(function (InvalidSignatureException $e, Request $request) {
+            if ($request->expectsJson()) {
+                return null;
+            }
+
+            return response()->view('errors.link-expired', status: 403);
+        });
     })->create();

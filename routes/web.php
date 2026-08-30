@@ -11,6 +11,7 @@ use App\Http\Controllers\NotebookController;
 use App\Http\Controllers\NoteController;
 use App\Http\Controllers\OccurrenceLogController;
 use App\Http\Controllers\ProgressController;
+use App\Http\Controllers\QuickLogController;
 use App\Http\Controllers\VerdictController;
 use App\Models\Intention;
 use Illuminate\Support\Facades\Gate;
@@ -92,5 +93,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         return redirect()->route('loops.show', $intention);
     })->name('progress.show');
 });
+
+// Answering a cue straight from the email. Outside `auth` by design — see
+// QuickLogController for the trade this accepts and what bounds it.
+Route::get('o/{occurrence}/{outcome}', QuickLogController::class)
+    ->middleware(['signed', 'throttle:20,1'])
+    ->name('occurrences.quick-log');
 
 require __DIR__.'/settings.php';
