@@ -117,6 +117,21 @@ export interface ActiveActionData {
     anchor: string | null;
 }
 
+/**
+ * A live (non-archived) action on the loop, as listed on the lab record's
+ * action layer. Carries the raw scheduling fields rather than a pre-formatted
+ * cadence string so the client can apply the same null-safe cadence rules
+ * `currentCadenceLabel` already established, instead of a second formatter.
+ */
+export interface ActionRecordData {
+    id: number;
+    title: string;
+    next_occurrence_at: string | null;
+    recurrence: string | null;
+    schedule_kind: 'clock' | 'anchored' | null;
+    anchor: string | null;
+}
+
 export interface IntentionData {
     id: number;
     title: string;

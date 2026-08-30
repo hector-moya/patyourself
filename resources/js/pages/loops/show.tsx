@@ -7,6 +7,11 @@ import { cn } from '@/lib/utils';
 import { BottomNav } from '@/patyourself/bottom-nav';
 import { ExperimentHeader } from '@/patyourself/experiment-header';
 import { LoopNotes } from '@/patyourself/loop-notes';
+import { ActionLayer } from '@/patyourself/loops/action-layer';
+import { cadenceLabel, currentCadenceLabel } from '@/patyourself/loops/cadence';
+import { ConcludeExperimentForm } from '@/patyourself/loops/conclude-experiment-form';
+import { NoteForm } from '@/patyourself/loops/note-form';
+import { StartExperimentForm } from '@/patyourself/loops/start-experiment-form';
 import { OutcomeHistory } from '@/patyourself/outcome-history';
 import { Button } from '@/patyourself/primitives';
 import { Reflection } from '@/patyourself/reflection';
@@ -15,6 +20,7 @@ import {
     StrategyTimeline,
 } from '@/patyourself/strategy-timeline';
 import type {
+    ActionRecordData,
     CurrentVersionData,
     ExperimentData,
     IntentionData,
@@ -36,6 +42,8 @@ interface LoopShowProps {
     outcomes_total: number;
     showing_all_history: boolean;
     notes: NoteData[];
+    /** Every live (non-archived) action on the loop, for the action layer. */
+    actions: ActionRecordData[];
     /** The active experiment's own record. Null between experiments. */
     current_version?: CurrentVersionData | null;
     /** One rung per version, oldest first. */
@@ -95,10 +103,29 @@ export default function LoopShow({
     outcomes_total: outcomesTotal,
     showing_all_history: showingAllHistory,
     notes,
+    actions,
     current_version: currentVersion = null,
     experiments = [],
     reflection = null,
 }: LoopShowProps) {
+    // The active version that has not yet been concluded — the one the record
+    // can still answer a review for. A `worked` verdict keeps a version active,
+    // so `status === 'active'` alone is not enough; only the absence of a
+    // verdict means the question is still open.
+    const activeExperiment = strategies.find(
+        (s) => s.status === 'active' && s.verdict === null,
+    );
+
+    // The raw scheduling fields are turned into a display cadence here, with
+    // the same rules `currentCadenceLabel` uses for the active action below —
+    // one formatter, so the two never drift into disagreeing descriptions of
+    // the same kind of fact.
+    const actionSummaries = actions.map((action) => ({
+        id: action.id,
+        title: action.title,
+        cadence: cadenceLabel(action),
+    }));
+
     const back = (
         <Link
             href="/loops"
@@ -171,6 +198,13 @@ export default function LoopShow({
                     )}
                 />
 
+                {activeExperiment && (
+                    <ConcludeExperimentForm
+                        strategyId={activeExperiment.id}
+                        isUnderReview={activeExperiment.is_under_review}
+                    />
+                )}
+
                 <Reflection reflection={reflection} />
 
                 <Anatomy
@@ -185,6 +219,33 @@ export default function LoopShow({
                     experiments={experiments}
                 />
 
+                <section>
+                    <SectionHeading>Actions</SectionHeading>
+                    <ActionLayer
+                        loopId={intention.id}
+                        actions={actionSummaries}
+                    />
+                </section>
+
+                {/* Behind a disclosure, so starting the next experiment does
+                    not compete with the record for attention — it is only
+                    possible to reach when a strategy is active to supersede. */}
+                {intention.strategy && (
+                    <details>
+                        <summary className="ds-label cursor-pointer">
+                            Start the next experiment
+                        </summary>
+                        <div className="mt-3">
+                            <StartExperimentForm
+                                loopId={intention.id}
+                                currentCadence={currentCadenceLabel(
+                                    intention.active_action ?? null,
+                                )}
+                            />
+                        </div>
+                    </details>
+                )}
+
                 <OutcomeHistory
                     outcomes={outcomes}
                     total={outcomesTotal}
@@ -192,6 +253,7 @@ export default function LoopShow({
                     loopId={intention.id}
                 />
 
+                <NoteForm loopId={intention.id} />
                 <LoopNotes notes={notes} />
             </div>
         </CoachLayout>

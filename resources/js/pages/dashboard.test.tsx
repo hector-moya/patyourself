@@ -173,6 +173,18 @@ describe('Dashboard', () => {
         ).not.toBeInTheDocument();
     });
 
+    /**
+     * The dashboard used to state the review with no way to act on it. Each
+     * row now leads to the loop's own record, where the verdict form lives.
+     */
+    it('links a review-due experiment to the record where it can be answered', () => {
+        renderDashboard({ ready_for_verdict: [verdict({ loop_id: 1 })] });
+
+        const link = screen.getByRole('link', { name: /give it a verdict/i });
+
+        expect(link.getAttribute('href')).toContain('/loops/1');
+    });
+
     it('omits the verdict section when nothing is ready', () => {
         renderDashboard({ occasions: [occasion()] });
 

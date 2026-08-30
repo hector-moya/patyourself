@@ -32,18 +32,7 @@ class StartExperimentTool extends Tool
 {
     public function handle(Request $request, StartExperiment $start): Response
     {
-        $validated = $request->validate([
-            'intention_id' => ['required', 'integer'],
-            // The guard that lost its home when ReviseStrategy was deleted:
-            // AuthoredStrategy has none of its own, so this boundary is the only
-            // thing standing between a malformed version and the database.
-            'intervention_point' => ['required', 'string', Rule::in(Strategy::INTERVENTION_POINTS)],
-            'approach' => ['required', 'string', 'min:1', 'max:2000'],
-            'rationale' => ['nullable', 'string', 'max:2000'],
-            'supersedes_reason' => ['nullable', 'string', 'max:2000'],
-            'review_after_days' => ['nullable', 'integer', 'min:1', 'max:365'],
-            'change_reason' => ['nullable', 'string', Rule::in(Strategy::CHANGE_REASONS)],
-        ]);
+        $validated = $request->validate($this->rules());
 
         if (trim($validated['approach']) === '') {
             return Response::error('approach cannot be blank.');
@@ -87,6 +76,34 @@ class StartExperimentTool extends Tool
                 'superseded_reason' => $current->fresh()?->superseded_reason,
             ],
         ]);
+    }
+
+    /**
+     * The MCP twin of StoreExperimentRequest's rules.
+     *
+     * Extracted from handle() (rather than inlined in the validate() call) so
+     * ExperimentBoundaryParityTest can read this boundary's rule array
+     * directly and compare it against the web request's, instead of
+     * string-matching the class source — a comparison that only looks like
+     * parity coverage would have missed the review_after_days divergence that
+     * actually shipped.
+     *
+     * @return array<string, array<int, mixed>>
+     */
+    public function rules(): array
+    {
+        return [
+            'intention_id' => ['required', 'integer'],
+            // The guard that lost its home when ReviseStrategy was deleted:
+            // AuthoredStrategy has none of its own, so this boundary is the only
+            // thing standing between a malformed version and the database.
+            'intervention_point' => ['required', 'string', Rule::in(Strategy::INTERVENTION_POINTS)],
+            'approach' => ['required', 'string', 'min:1', 'max:2000'],
+            'rationale' => ['nullable', 'string', 'max:2000'],
+            'supersedes_reason' => ['nullable', 'string', 'max:2000'],
+            'review_after_days' => ['nullable', 'integer', 'min:1', 'max:365'],
+            'change_reason' => ['nullable', 'string', Rule::in(Strategy::CHANGE_REASONS)],
+        ];
     }
 
     /**

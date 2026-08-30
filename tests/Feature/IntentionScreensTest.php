@@ -255,6 +255,90 @@ class IntentionScreensTest extends TestCase
             );
     }
 
+    /**
+     * The action layer's raw material: live actions only, with the scheduling
+     * fields passed through as-is rather than pre-formatted into a cadence
+     * string — so the client applies the same null-safe cadence rules the
+     * active-action label already established, instead of a second formatter
+     * that can drift from it (or, as here, dangle a "daily at " with nothing
+     * after it when there is no upcoming occurrence to report).
+     */
+    public function test_loop_detail_carries_its_live_actions_with_raw_scheduling_fields(): void
+    {
+        $this->travelTo('2026-08-26 12:00:00');
+
+        $user = User::factory()->create();
+        $intention = Intention::factory()->for($user)->create();
+
+        $clockAction = Action::factory()->for($intention)->create([
+            'title' => 'Weigh in',
+            'recurrence' => 'daily',
+        ]);
+        Occurrence::factory()->create([
+            'action_id' => $clockAction->id,
+            'scheduled_for' => '2026-08-26 19:00:00',
+        ]);
+
+        $anchoredAction = Action::factory()->anchored()->for($intention)->create([
+            'title' => 'Stretch',
+        ]);
+
+        // Retired, not deleted — but the action layer only lists what is
+        // still live.
+        Action::factory()->archived()->for($intention)->create();
+
+        $this->actingAs($user)
+            ->get("/loops/{$intention->id}")
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('actions', 2)
+                ->where('actions.0.id', $clockAction->id)
+                ->where('actions.0.title', 'Weigh in')
+                ->where('actions.0.recurrence', 'daily')
+                ->where('actions.0.schedule_kind', 'clock')
+                ->where('actions.0.anchor', null)
+                ->where('actions.0.next_occurrence_at', '2026-08-26T19:00:00+00:00')
+                ->where('actions.1.id', $anchoredAction->id)
+                ->where('actions.1.title', 'Stretch')
+                ->where('actions.1.schedule_kind', 'anchored')
+                ->where('actions.1.anchor', 'after brushing my teeth')
+                ->where('actions.1.recurrence', null)
+                ->etc()
+            );
+    }
+
+    /**
+     * The defect this task fixed: a clock action with a recurrence but no
+     * occurrence left in today's grid must serialize `next_occurrence_at` as
+     * null, not be pre-formatted server-side into a dangling "daily at ".
+     */
+    public function test_loop_detail_carries_a_null_next_occurrence_when_none_is_left_today(): void
+    {
+        $this->travelTo('2026-08-26 23:55:00');
+
+        $user = User::factory()->create();
+        $intention = Intention::factory()->for($user)->create();
+
+        $action = Action::factory()->for($intention)->create([
+            'title' => 'Weigh in',
+            'recurrence' => 'daily',
+        ]);
+        // The only occurrence today already passed.
+        Occurrence::factory()->create([
+            'action_id' => $action->id,
+            'scheduled_for' => '2026-08-26 07:00:00',
+        ]);
+
+        $this->actingAs($user)
+            ->get("/loops/{$intention->id}")
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('actions.0.recurrence', 'daily')
+                ->where('actions.0.next_occurrence_at', null)
+                ->etc()
+            );
+    }
+
     public function test_loop_detail_forbids_another_users_loop(): void
     {
         $intention = Intention::factory()->create();

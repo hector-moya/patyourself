@@ -4,11 +4,14 @@ use App\Http\Controllers\ActionController;
 use App\Http\Controllers\ActionLogController;
 use App\Http\Controllers\CatchUpController;
 use App\Http\Controllers\CompanionController;
+use App\Http\Controllers\ExperimentController;
 use App\Http\Controllers\InboxController;
 use App\Http\Controllers\IntentionController;
 use App\Http\Controllers\NotebookController;
+use App\Http\Controllers\NoteController;
 use App\Http\Controllers\OccurrenceLogController;
 use App\Http\Controllers\ProgressController;
+use App\Http\Controllers\VerdictController;
 use App\Models\Intention;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Route;
@@ -27,6 +30,28 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('loops', IntentionController::class)
         ->parameters(['loops' => 'intention'])
         ->only(['index', 'show', 'store', 'update', 'destroy']);
+
+    // Answering the review the dashboard already surfaces. Keyed on the strategy
+    // version, because the version is what carries the verdict.
+    Route::post('strategies/{strategy}/verdict', [VerdictController::class, 'store'])
+        ->name('strategies.verdict.store');
+
+    // Starting the next version. Append-only: StartExperiment supersedes the
+    // current version rather than editing it.
+    Route::post('loops/{intention}/experiments', [ExperimentController::class, 'store'])
+        ->name('loops.experiments.store');
+
+    // A note is an observation that is not an outcome. Append-only: no edit,
+    // no delete.
+    Route::post('loops/{intention}/notes', [NoteController::class, 'store'])
+        ->name('loops.notes.store');
+
+    // The action layer, editable between experiments. `destroy` archives —
+    // see ActionController::destroy for why the verb and the write differ.
+    Route::post('loops/{intention}/actions', [ActionController::class, 'store'])
+        ->name('loops.actions.store');
+    Route::delete('actions/{action}', [ActionController::class, 'destroy'])
+        ->name('actions.destroy');
 
     // Log an action's outcome (completion / failure + reason).
     Route::post('actions/{action}/logs', [ActionLogController::class, 'store'])

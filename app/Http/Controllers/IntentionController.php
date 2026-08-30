@@ -9,6 +9,7 @@ use App\Http\Requests\StoreIntentionRequest;
 use App\Http\Requests\UpdateIntentionRequest;
 use App\Http\Resources\IntentionResource;
 use App\Http\Resources\StrategyResource;
+use App\Models\Action;
 use App\Models\ActionLog;
 use App\Models\Intention;
 use App\Models\Note;
@@ -56,7 +57,7 @@ class IntentionController extends Controller
     {
         Gate::authorize('view', $intention);
 
-        $intention->load(['activeStrategy', 'latestSummary', 'actionLogs']);
+        $intention->load(['activeStrategy', 'activeAction', 'latestSummary', 'actionLogs']);
         $strategies = $intention->strategies()->withCount('actionLogs')->orderedByVersion()->get();
         $showingAll = $request->query('history') === 'all';
         // Dates are localised here so the day an occasion belongs to is the
@@ -92,6 +93,24 @@ class IntentionController extends Controller
                     'id' => $note->id,
                     'body' => $note->body,
                     'noted_at' => $note->noted_at->timezone($timezone)->toIso8601String(),
+                ])->values()->all(),
+            // Live actions for the action layer. The raw scheduling fields
+            // are sent as-is, mirroring `active_action` on IntentionResource,
+            // so the client formats the cadence with the one function that
+            // already handles every null combination — see cadenceLabel in
+            // resources/js/patyourself/loops/cadence.ts. A schedule_kind of
+            // "clock" with a recurrence but no upcoming occurrence must read
+            // as "daily", not "daily at " with nothing after it.
+            'actions' => $intention->actions()
+                ->where('status', '!=', Action::STATUS_ARCHIVED)
+                ->get()
+                ->map(fn (Action $action): array => [
+                    'id' => $action->id,
+                    'title' => $action->title,
+                    'recurrence' => $action->recurrence,
+                    'schedule_kind' => $action->metadata['schedule_kind'] ?? null,
+                    'anchor' => $action->metadata['anchor'] ?? null,
+                    'next_occurrence_at' => $action->nextOccurrenceAt()?->timezone($timezone)->toIso8601String(),
                 ])->values()->all(),
         ]);
     }

@@ -38,19 +38,7 @@ class ConcludeExperimentTool extends Tool
 {
     public function handle(Request $request, ConcludeExperiment $conclude, CompanionAnnouncement $companion): Response
     {
-        $validated = $request->validate([
-            'intention_id' => ['required', 'integer'],
-            'verdict' => ['required', 'string', Rule::in(Strategy::VERDICTS)],
-            // A failure carries its reason. Guarded here rather than in the
-            // Action, whose contract other callers already depend on.
-            //
-            // required_if is an implicit rule, so `nullable` does not exempt it,
-            // and validateRequired() trims before testing — so a missing, null
-            // or whitespace-only note all fail here. No manual guard is needed;
-            // the message is customised because the caller is a model, and
-            // "say what the evidence showed" is more actionable than the default.
-            'note' => ['required_if:verdict,'.Strategy::VERDICT_FAILED, 'nullable', 'string', 'max:2000'],
-        ], [
+        $validated = $request->validate($this->rules(), [
             'note.required_if' => 'A failed verdict needs a note saying what the evidence showed. A failure is only useful to the next experiment if it carries its reason.',
         ]);
 
@@ -98,6 +86,34 @@ class ConcludeExperimentTool extends Tool
             // put the app's one warm voice in the model's hands.
             ...$companion->since($request->user(), $stageBefore),
         ]);
+    }
+
+    /**
+     * The MCP twin of StoreVerdictRequest's rules.
+     *
+     * Extracted from handle() so ExperimentBoundaryParityTest can read this
+     * boundary's rule array directly rather than string-matching the class
+     * source. See StartExperimentTool::rules() for why that distinction
+     * matters.
+     *
+     * @return array<string, array<int, mixed>>
+     */
+    public function rules(): array
+    {
+        return [
+            'intention_id' => ['required', 'integer'],
+            'verdict' => ['required', 'string', Rule::in(Strategy::VERDICTS)],
+            // A failure carries its reason. Guarded here rather than in the
+            // Action, whose contract other callers already depend on.
+            //
+            // required_if is an implicit rule, so `nullable` does not exempt it,
+            // and validateRequired() trims before testing — so a missing, null
+            // or whitespace-only note all fail here. No manual guard is needed;
+            // the message is customised in handle() because the caller is a
+            // model, and "say what the evidence showed" is more actionable
+            // than the default.
+            'note' => ['required_if:verdict,'.Strategy::VERDICT_FAILED, 'nullable', 'string', 'max:2000'],
+        ];
     }
 
     /**
