@@ -9,6 +9,7 @@ use App\Http\Controllers\IntentionController;
 use App\Http\Controllers\NotebookController;
 use App\Http\Controllers\OccurrenceLogController;
 use App\Http\Controllers\ProgressController;
+use App\Http\Controllers\VerdictController;
 use App\Models\Intention;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Route;
@@ -27,6 +28,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('loops', IntentionController::class)
         ->parameters(['loops' => 'intention'])
         ->only(['index', 'show', 'store', 'update', 'destroy']);
+
+    // Answering the review the dashboard already surfaces. Keyed on the strategy
+    // version, because the version is what carries the verdict.
+    Route::post('strategies/{strategy}/verdict', [VerdictController::class, 'store'])
+        ->name('strategies.verdict.store');
 
     // Log an action's outcome (completion / failure + reason).
     Route::post('actions/{action}/logs', [ActionLogController::class, 'store'])
