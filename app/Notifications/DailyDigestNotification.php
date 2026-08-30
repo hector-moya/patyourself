@@ -8,6 +8,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\URL;
 
 /**
  * The daily digest: everything the user owes today, in one email at their
@@ -46,6 +47,24 @@ class DailyDigestNotification extends Notification implements ShouldQueue
                 : 'when the cue happens';
 
             $mail->line("• {$occasion->action->title} — {$occasion->action->intention->title} ({$when})");
+
+            // A cue-anchored action has no occurrence yet — logging it is what
+            // creates one — so there is nothing to build a one-click link
+            // against. It stays listed above, without links, until it fires.
+            if ($occasion->occurrence !== null) {
+                $done = URL::temporarySignedRoute('occurrences.quick-log', now()->addDays(7), [
+                    'occurrence' => $occasion->occurrence->id,
+                    'outcome' => 'completed',
+                ]);
+
+                $skipped = URL::temporarySignedRoute('occurrences.quick-log', now()->addDays(7), [
+                    'occurrence' => $occasion->occurrence->id,
+                    'outcome' => 'skipped',
+                ]);
+
+                $mail->line("  Done: {$done}");
+                $mail->line("  Didn't happen: {$skipped}");
+            }
         }
 
         return $mail->action('Open PatYourSelf', route('dashboard'))

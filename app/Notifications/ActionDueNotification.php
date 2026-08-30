@@ -8,6 +8,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
+use Illuminate\Support\Facades\URL;
 
 /**
  * The cue: an occasion's scheduled moment has arrived (SP2 fired it). Always
@@ -62,12 +63,26 @@ class ActionDueNotification extends Notification implements ShouldQueue
         $action = $this->occurrence->action;
         $loop = $action->intention;
 
+        $done = URL::temporarySignedRoute('occurrences.quick-log', now()->addDays(7), [
+            'occurrence' => $this->occurrence->id,
+            'outcome' => 'completed',
+        ]);
+
+        $skipped = URL::temporarySignedRoute('occurrences.quick-log', now()->addDays(7), [
+            'occurrence' => $this->occurrence->id,
+            'outcome' => 'skipped',
+        ]);
+
         return (new MailMessage)
             ->subject($action->title)
             ->line("It's time for: {$action->title}")
             ->line("Loop: {$loop->title}")
             ->line("Cue: {$loop->cue}")
-            ->action('Open PatYourSelf', route('loops.show', $loop->id))
+            ->action('Done', $done)
+            ->line("Didn't happen: {$skipped}")
+            // Not one-click on purpose: a failure carries your own reason, and
+            // this link opens the app so you can write it.
+            ->line("It happened and the strategy didn't hold: ".route('loops.show', $loop->id))
             ->line('Manage your reminders: '.route('notifications.edit'));
     }
 
