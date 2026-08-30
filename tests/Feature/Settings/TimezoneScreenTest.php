@@ -178,4 +178,36 @@ class TimezoneScreenTest extends TestCase
         $this->assertDatabaseHas('occurrences', ['id' => $future->id]);
         $this->assertTrue($action->fresh()->series_started_at->equalTo($originalAnchor));
     }
+
+    /**
+     * A user who has never set a timezone stores null, and the app default
+     * (config('app.timezone')) is what the edit screen shows and what
+     * re-submitting unchanged sends back. previousTimezone has to be
+     * computed as that default, not left null, so this still lands on the
+     * no-op guard — otherwise it would always disagree with the submitted
+     * value and run ReanchorsSeries::forActions() on a save that changed
+     * nothing, advancing series_started_at and deleting unlogged future
+     * occurrences.
+     */
+    public function test_a_null_stored_timezone_saving_the_app_default_leaves_the_schedule_alone(): void
+    {
+        $user = User::factory()->create(['timezone' => null]);
+        $loop = Intention::factory()->for($user)->create();
+        $action = Action::factory()->for($loop, 'intention')->create([
+            'metadata' => ['schedule_kind' => 'clock'],
+            'recurrence' => 'daily',
+            'status' => Action::STATUS_ACTIVE,
+            'series_started_at' => now()->subDays(2),
+        ]);
+        $originalAnchor = $action->series_started_at;
+        $future = $action->occurrences()->create(['scheduled_for' => now()->addDay()]);
+
+        $this->actingAs($user)
+            ->patch(route('timezone.update'), ['timezone' => (string) config('app.timezone')])
+            ->assertRedirect();
+
+        $this->assertSame((string) config('app.timezone'), $user->refresh()->timezone);
+        $this->assertDatabaseHas('occurrences', ['id' => $future->id]);
+        $this->assertTrue($action->fresh()->series_started_at->equalTo($originalAnchor));
+    }
 }
