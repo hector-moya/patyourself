@@ -79,7 +79,7 @@ final readonly class MarkdownRecordFormatter
             $lines[] = '## Notes';
             $lines[] = '';
             foreach ($loop['notes'] as $note) {
-                $lines[] = "- {$note['noted_at']} — {$note['body']}";
+                $lines = [...$lines, ...$this->bulletWithPrefix('', "{$note['noted_at']} — ", (string) $note['body'])];
             }
             $lines[] = '';
         }
@@ -107,8 +107,11 @@ final readonly class MarkdownRecordFormatter
         $lines = [
             "### Version {$strategy['version']} — intervening at ".($strategy['intervention_point'] ?? 'an unrecorded point'),
             '',
-            '- **Approach:** '.($strategy['approach'] ?? '—'),
-            '- **Rationale:** '.($strategy['rationale'] ?? '—'),
+            // Without this a reader cannot tell from the prose which version
+            // is the one currently running.
+            '- **Status:** '.$strategy['status'],
+            ...$this->bulletWithPrefix('', '**Approach:** ', (string) ($strategy['approach'] ?? '—')),
+            ...$this->bulletWithPrefix('', '**Rationale:** ', (string) ($strategy['rationale'] ?? '—')),
         ];
 
         // An open-ended experiment is described, never counted down.
@@ -117,12 +120,18 @@ final readonly class MarkdownRecordFormatter
         if ($strategy['verdict'] !== null) {
             $lines[] = "- **Verdict:** {$strategy['verdict']}";
             if ($strategy['verdict_note'] !== null) {
-                $lines[] = "- **In their words:** {$strategy['verdict_note']}";
+                $lines = [...$lines, ...$this->bulletWithPrefix('', '**In their words:** ', (string) $strategy['verdict_note'])];
             }
         }
 
+        // The whole narrative of a lab notebook: whether this version arose
+        // from a stacked success or a restrategize after a stated failure.
+        if ($strategy['change_reason'] !== null) {
+            $lines[] = "- **Changed because:** {$strategy['change_reason']}";
+        }
+
         if ($strategy['superseded_reason'] !== null) {
-            $lines[] = "- **Superseded because:** {$strategy['superseded_reason']}";
+            $lines = [...$lines, ...$this->bulletWithPrefix('', '**Superseded because:** ', (string) $strategy['superseded_reason'])];
         }
 
         $lines[] = '';
@@ -139,10 +148,16 @@ final readonly class MarkdownRecordFormatter
         $lines = [
             "## Action: {$action['title']}",
             '',
-            '- **Recurrence:** '.($action['recurrence'] ?? 'one-off'),
-            '- **Status:** '.$action['status'],
-            '',
         ];
+
+        if (($action['description'] ?? null) !== null && $action['description'] !== '') {
+            $lines[] = $action['description'];
+            $lines[] = '';
+        }
+
+        $lines[] = '- **Recurrence:** '.($action['recurrence'] ?? 'one-off');
+        $lines[] = '- **Status:** '.$action['status'];
+        $lines[] = '';
 
         if ($action['occurrences'] === []) {
             return $lines;
@@ -160,23 +175,68 @@ final readonly class MarkdownRecordFormatter
                 continue;
             }
 
-            $line = "- {$occurrence['scheduled_for']} — {$outcome['outcome']}";
+            $lines[] = "- {$occurrence['scheduled_for']} — {$outcome['outcome']}";
 
+            // The reason a strategy did not hold, in the user's own words.
+            // Nested under its occasion — like `context` below — rather than
+            // inlined onto the line above, because `reason` is a free-text
+            // `<textarea>` with no line-count limit and inlining a multi-line
+            // value would sever its second line into a detached paragraph.
             if ($outcome['reason'] !== null && $outcome['reason'] !== '') {
-                $line .= " — {$outcome['reason']}";
+                $lines = [...$lines, ...$this->bulletWithPrefix('  ', '**Reason:** ', (string) $outcome['reason'])];
             }
-
-            $lines[] = $line;
 
             // The mechanics of what happened, in the user's own words. Indented
             // under its occasion rather than flattened into the line above, so a
             // long account stays readable. Verbatim, like the reason.
             if (($outcome['context'] ?? null) !== null && $outcome['context'] !== '') {
-                $lines[] = "  - {$outcome['context']}";
+                $lines = [...$lines, ...$this->bulletWithPrefix('  ', '**Context:** ', (string) $outcome['context'])];
+            }
+
+            // The structured half of the same free-text record as `context` —
+            // dropping it would silently discard data the JSON export carries.
+            if (($outcome['context_fields'] ?? null) !== null && $outcome['context_fields'] !== []) {
+                $lines[] = '  - **Also:** '.$this->contextFields($outcome['context_fields']);
             }
         }
 
         $lines[] = '';
+
+        return $lines;
+    }
+
+    /**
+     * @param  array<string, mixed>  $fields
+     */
+    private function contextFields(array $fields): string
+    {
+        $parts = [];
+
+        foreach ($fields as $key => $value) {
+            $parts[] = "{$key}: {$value}";
+        }
+
+        return implode(', ', $parts);
+    }
+
+    /**
+     * Wraps a bulleted line whose value may itself contain newlines.
+     * `reason`, `context`, note bodies, and several strategy fields are all
+     * free-text values with no line-count constraint, so continuation lines
+     * are indented to stay inside the same Markdown list item — otherwise a
+     * second line detaches into an unindented paragraph, severed from the
+     * occasion or version it belongs to.
+     *
+     * @return array<int, string>
+     */
+    private function bulletWithPrefix(string $indent, string $prefix, string $value): array
+    {
+        $rows = explode("\n", $value);
+        $lines = ["{$indent}- {$prefix}".array_shift($rows)];
+
+        foreach ($rows as $row) {
+            $lines[] = "{$indent}  {$row}";
+        }
 
         return $lines;
     }

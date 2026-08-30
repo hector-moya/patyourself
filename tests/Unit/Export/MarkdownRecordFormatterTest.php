@@ -125,4 +125,60 @@ class MarkdownRecordFormatterTest extends TestCase
         $this->assertStringContainsString('PatYourSelf', $markdown);
         $this->assertStringContainsString('No loops', $markdown);
     }
+
+    public function test_it_renders_the_outcome_context_fields(): void
+    {
+        $markdown = (new MarkdownRecordFormatter)->render($this->record());
+
+        // `context_fields` is the structured half of the same "complete dump"
+        // as `context` — Task 1's review escalated both together.
+        $this->assertStringContainsString('mood: tired', $markdown);
+    }
+
+    public function test_it_keeps_a_multi_line_reason_and_context_inside_their_list_items(): void
+    {
+        $record = $this->record();
+        $record['loops'][0]['actions'][0]['occurrences'][0]['outcome']['reason']
+            = "slept in\nand felt guilty about it";
+        $record['loops'][0]['actions'][0]['occurrences'][0]['outcome']['context']
+            = "alarm did not go off\nphone was on silent";
+
+        $markdown = (new MarkdownRecordFormatter)->render($record);
+
+        // `reason` and `context` are free-text `<textarea>` fields with no
+        // line-count constraint. A continuation line must stay indented under
+        // the bullet that introduces it, not detach into an unindented
+        // paragraph severed from the occasion it describes.
+        $this->assertStringContainsString("- **Reason:** slept in\n    and felt guilty about it", $markdown);
+        $this->assertStringContainsString("- **Context:** alarm did not go off\n    phone was on silent", $markdown);
+    }
+
+    public function test_it_renders_an_actions_description(): void
+    {
+        $record = $this->record();
+        $record['loops'][0]['actions'][0]['description'] = 'do these before coffee, not after';
+
+        $markdown = (new MarkdownRecordFormatter)->render($record);
+
+        $this->assertStringContainsString('do these before coffee, not after', $markdown);
+    }
+
+    public function test_it_renders_each_versions_status(): void
+    {
+        $markdown = (new MarkdownRecordFormatter)->render($this->record());
+
+        // Without this a reader cannot tell from the prose which version is
+        // the one currently running.
+        $this->assertStringContainsString('**Status:** superseded', $markdown);
+        $this->assertStringContainsString('**Status:** active', $markdown);
+    }
+
+    public function test_it_renders_why_a_version_changed(): void
+    {
+        $markdown = (new MarkdownRecordFormatter)->render($this->record());
+
+        // The whole narrative of a lab notebook: whether a version arose from
+        // a stacked success or a restrategize after failure.
+        $this->assertStringContainsString('**Changed because:** abandoned', $markdown);
+    }
 }
