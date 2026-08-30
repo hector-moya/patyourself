@@ -91,6 +91,23 @@ class ActionLayerWebTest extends TestCase
             ->assertSessionHasErrors('title');
     }
 
+    public function test_a_stranger_cannot_add_an_action(): void
+    {
+        $stranger = User::factory()->create();
+        $loop = $this->loopWithActiveVersion(User::factory()->create());
+
+        $this->actingAs($stranger)
+            ->post(route('loops.actions.store', $loop), [
+                'title' => 'Second meal check-in',
+                'kind' => 'clock',
+                'time' => '19:00',
+                'recurrence' => 'daily',
+            ])
+            ->assertForbidden();
+
+        $this->assertDatabaseMissing('actions', ['title' => 'Second meal check-in']);
+    }
+
     public function test_retiring_an_action_archives_it_and_keeps_its_history(): void
     {
         $user = User::factory()->create();
