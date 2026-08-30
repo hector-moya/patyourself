@@ -1,8 +1,11 @@
 import type * as InertiaReact from '@inertiajs/react';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
 import type {
+    ActiveActionData,
+    ActiveStrategySummary,
     CurrentVersionData,
     ExperimentData,
     IntentionData,
@@ -81,6 +84,36 @@ function experiment(overrides: Partial<ExperimentData> = {}): ExperimentData {
         verdict_note: null,
         outcomes: [],
         totals: { completed: 0, failed: 0, skipped: 0 },
+        ...overrides,
+    };
+}
+
+function activeStrategy(
+    overrides: Partial<ActiveStrategySummary> = {},
+): ActiveStrategySummary {
+    return {
+        intervention_point: 'cue',
+        approach: 'Lay your shoes by the door',
+        rationale: null,
+        version: 1,
+        day_of_experiment: 5,
+        planned_days: 14,
+        is_under_review: false,
+        ...overrides,
+    };
+}
+
+function activeAction(
+    overrides: Partial<ActiveActionData> = {},
+): ActiveActionData {
+    return {
+        id: 1,
+        title: 'Read ten pages',
+        description: null,
+        next_occurrence_at: null,
+        recurrence: null,
+        schedule_kind: null,
+        anchor: null,
         ...overrides,
     };
 }
@@ -351,5 +384,119 @@ describe('LoopShow', () => {
         );
 
         expect(screen.queryByLabelText(/it worked/i)).not.toBeInTheDocument();
+    });
+
+    /**
+     * Starting the next experiment supersedes the currently active one, so
+     * the disclosure that leads to it only makes sense when there is an
+     * active strategy to supersede.
+     */
+    it('does not offer to start the next experiment without an active strategy', () => {
+        render(
+            <LoopShow intention={intention()} strategies={[]} {...record} />,
+        );
+
+        expect(
+            screen.queryByText(/start the next experiment/i),
+        ).not.toBeInTheDocument();
+    });
+
+    it('offers to start the next experiment behind a disclosure when a strategy is active', () => {
+        render(
+            <LoopShow
+                intention={intention({ strategy: activeStrategy() })}
+                strategies={[]}
+                {...record}
+            />,
+        );
+
+        expect(
+            screen.getByText(/start the next experiment/i),
+        ).toBeInTheDocument();
+    });
+
+    /**
+     * The keep option names the active action's cadence so inheriting it is a
+     * legible choice rather than a hidden default — see StartExperimentForm.
+     * The anchored kind needs no time formatting, so it is the deterministic
+     * case to prove the label reaches the form at all.
+     */
+    it('names an anchored cadence in the keep option', async () => {
+        render(
+            <LoopShow
+                intention={intention({
+                    strategy: activeStrategy(),
+                    active_action: activeAction({
+                        schedule_kind: 'anchored',
+                        anchor: 'brushing your teeth',
+                    }),
+                })}
+                strategies={[]}
+                {...record}
+            />,
+        );
+
+        await userEvent.click(screen.getByText(/start the next experiment/i));
+
+        expect(
+            screen.getByLabelText(
+                /keep the current cadence \(after brushing your teeth\)/i,
+            ),
+        ).toBeInTheDocument();
+    });
+
+    /** Same wiring, exercised through the clock kind. */
+    it('names a clock cadence in the keep option', async () => {
+        const nextOccurrenceAt = '2026-08-18T19:00:00+00:00';
+        const time = new Date(nextOccurrenceAt).toLocaleTimeString('en-GB', {
+            hour: '2-digit',
+            minute: '2-digit',
+        });
+
+        render(
+            <LoopShow
+                intention={intention({
+                    strategy: activeStrategy(),
+                    active_action: activeAction({
+                        schedule_kind: 'clock',
+                        recurrence: 'daily',
+                        next_occurrence_at: nextOccurrenceAt,
+                    }),
+                })}
+                strategies={[]}
+                {...record}
+            />,
+        );
+
+        await userEvent.click(screen.getByText(/start the next experiment/i));
+
+        expect(
+            screen.getByLabelText(
+                new RegExp(
+                    `keep the current cadence \\(daily at ${time}\\)`,
+                    'i',
+                ),
+            ),
+        ).toBeInTheDocument();
+    });
+
+    /**
+     * Without an active action there is nothing to name — the option must
+     * read cleanly, not with a dangling "()".
+     */
+    it('reads the keep option without empty parentheses when there is no active action', async () => {
+        render(
+            <LoopShow
+                intention={intention({ strategy: activeStrategy() })}
+                strategies={[]}
+                {...record}
+            />,
+        );
+
+        await userEvent.click(screen.getByText(/start the next experiment/i));
+
+        expect(
+            screen.getByLabelText(/^keep the current cadence$/i),
+        ).toBeInTheDocument();
     });
 });

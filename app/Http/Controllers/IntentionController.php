@@ -56,7 +56,7 @@ class IntentionController extends Controller
     {
         Gate::authorize('view', $intention);
 
-        $intention->load(['activeStrategy', 'latestSummary', 'actionLogs']);
+        $intention->load(['activeStrategy', 'activeAction', 'latestSummary', 'actionLogs']);
         $strategies = $intention->strategies()->withCount('actionLogs')->orderedByVersion()->get();
         $showingAll = $request->query('history') === 'all';
         // Dates are localised here so the day an occasion belongs to is the

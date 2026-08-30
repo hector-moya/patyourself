@@ -8,6 +8,7 @@ import { BottomNav } from '@/patyourself/bottom-nav';
 import { ExperimentHeader } from '@/patyourself/experiment-header';
 import { LoopNotes } from '@/patyourself/loop-notes';
 import { ConcludeExperimentForm } from '@/patyourself/loops/conclude-experiment-form';
+import { StartExperimentForm } from '@/patyourself/loops/start-experiment-form';
 import { OutcomeHistory } from '@/patyourself/outcome-history';
 import { Button } from '@/patyourself/primitives';
 import { Reflection } from '@/patyourself/reflection';
@@ -16,6 +17,7 @@ import {
     StrategyTimeline,
 } from '@/patyourself/strategy-timeline';
 import type {
+    ActiveActionData,
     CurrentVersionData,
     ExperimentData,
     IntentionData,
@@ -75,6 +77,47 @@ function previousVersionRate(
     return decided === 0
         ? null
         : Math.round((previous.totals.completed / decided) * 100);
+}
+
+/**
+ * A human-readable description of the active action's cadence — "daily at
+ * 19:00", "after brushing teeth" — for the start-experiment form's keep
+ * option. Named there rather than left as a hidden default, so choosing to
+ * inherit it is a legible choice rather than a guess at what "keep" means.
+ *
+ * Null when the loop has no active action; the form then renders the option
+ * without empty parentheses rather than a hollow "()".
+ */
+function currentCadenceLabel(
+    activeAction: ActiveActionData | null,
+): string | null {
+    if (activeAction === null) {
+        return null;
+    }
+
+    if (activeAction.schedule_kind === 'anchored') {
+        return activeAction.anchor === null
+            ? null
+            : `after ${activeAction.anchor}`;
+    }
+
+    const time =
+        activeAction.next_occurrence_at === null
+            ? null
+            : formatTime(activeAction.next_occurrence_at);
+
+    if (activeAction.recurrence !== null && time !== null) {
+        return `${activeAction.recurrence} at ${time}`;
+    }
+
+    return activeAction.recurrence ?? time;
+}
+
+function formatTime(iso: string): string {
+    return new Date(iso).toLocaleTimeString('en-GB', {
+        hour: '2-digit',
+        minute: '2-digit',
+    });
 }
 
 /**
@@ -200,6 +243,25 @@ export default function LoopShow({
                     strategies={strategies}
                     experiments={experiments}
                 />
+
+                {/* Behind a disclosure, so starting the next experiment does
+                    not compete with the record for attention — it is only
+                    possible to reach when a strategy is active to supersede. */}
+                {intention.strategy && (
+                    <details>
+                        <summary className="ds-label cursor-pointer">
+                            Start the next experiment
+                        </summary>
+                        <div className="mt-3">
+                            <StartExperimentForm
+                                loopId={intention.id}
+                                currentCadence={currentCadenceLabel(
+                                    intention.active_action ?? null,
+                                )}
+                            />
+                        </div>
+                    </details>
+                )}
 
                 <OutcomeHistory
                     outcomes={outcomes}
