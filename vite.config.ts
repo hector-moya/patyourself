@@ -103,6 +103,7 @@ export default defineConfig({
                 name: 'PatYourSelf',
                 short_name: 'PatYourSelf',
                 start_url: '/dashboard',
+                scope: '/',
                 display: 'standalone',
                 background_color: '#ffffff',
                 theme_color: '#ffffff',

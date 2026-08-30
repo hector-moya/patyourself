@@ -31,6 +31,12 @@ class PwaManifestTest extends TestCase
 
     public function test_the_app_shell_references_the_manifest(): void
     {
+        // Plain Blade markup, not a Vite-built asset — but @vite() still runs
+        // on the same page and would throw ViteException on an unbuilt
+        // checkout without this, breaking the "stay green everywhere"
+        // invariant this file exists to uphold.
+        $this->withoutVite();
+
         // The link is load-bearing: without it there is no install prompt at
         // all, regardless of how correct the manifest or worker are.
         $response = $this->get(route('login'));
@@ -43,12 +49,19 @@ class PwaManifestTest extends TestCase
      * Workbox's generated precache manifest is a JS array literal embedded in
      * the minified service worker, not JSON — whether its keys are quoted,
      * and their order, isn't guaranteed across workbox versions or build
-     * options (moving the worker off `/build/` alone changes both, since the
-     * manifest entry it adds for itself bypasses the normal URL-prefixing
-     * step). Pulling every `url` value out with a regex and checking its
-     * shape — it must end in a real static asset extension — catches an
-     * accidentally-precached document regardless of how workbox happens to
-     * format the surrounding object.
+     * options. Pulling every `url` value out with a regex is tolerant of
+     * that; asserting each one *resolves to a real file on disk* is the
+     * strong version of the check — stronger than testing the string shape
+     * (a prefix or an extension), because it also catches the build silently
+     * producing a broken reference rather than a document. That's not
+     * hypothetical: the manifest's own precache entry is added through a
+     * workbox-build code path that `modifyURLPrefix` never sees, so
+     * `vite.config.ts` patches its prefix by hand — a plain string replace
+     * that would no-op silently if a future workbox/rollup bump changes how
+     * that one entry is quoted or ordered, leaving `/manifest.webmanifest`
+     * (unprefixed, 404) in the precache list. `assertFileExists` catches
+     * that the moment it happens, rather than only catching this one
+     * instance of it.
      */
     private function assertNoDocumentUrlsInPrecacheManifest(string $contents): void
     {
@@ -59,10 +72,9 @@ class PwaManifestTest extends TestCase
         $this->assertNotEmpty($urls, 'Expected to find at least one precached entry in the service worker.');
 
         foreach ($urls as $url) {
-            $this->assertMatchesRegularExpression(
-                '/\.(js|css|woff2?|png|svg|webmanifest)$/i',
-                $url,
-                "Precached URL [{$url}] does not look like a static asset — it may be a document, which must never be cached."
+            $this->assertFileExists(
+                public_path(ltrim($url, '/')),
+                "Precached URL [{$url}] does not resolve to a real file on disk — it may be a document (which must never be cached) or a broken prefix."
             );
         }
     }
