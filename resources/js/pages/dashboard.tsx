@@ -8,6 +8,7 @@ import type { CompanionData } from '@/patyourself/companion';
 import { Button } from '@/patyourself/primitives';
 import { SectionHeading } from '@/patyourself/strategy-timeline';
 import type { LogOutcome } from '@/patyourself/types';
+import { show } from '@/routes/loops';
 
 export interface TodaysOccasionData {
     /** Null for an anchored action with no materialised slot. Decides which
@@ -230,11 +231,7 @@ function OccasionRow({ occasion }: { occasion: TodaysOccasionData }) {
                         )}
 
                         {outcome !== null && (
-                            <Button
-                                type="submit"
-                                disabled={processing}
-                                className="self-start"
-                            >
+                            <Button type="submit" disabled={processing}>
                                 Log it
                             </Button>
                         )}
@@ -248,21 +245,31 @@ function OccasionRow({ occasion }: { occasion: TodaysOccasionData }) {
 /**
  * A version that has reached its review date. Stated in the same weight as the
  * rest of the screen: a decision is available, not overdue. Nothing in this app
- * is late.
+ * is late — `day_of_experiment` and `planned_days` are carried on the prop but
+ * not rendered here, so an open-ended experiment (`planned_days: null`) has
+ * nothing to misread as a countdown.
+ *
+ * The row itself is not the link — the verdict form it leads to lives at the
+ * loop's own record, so the door is named for the decision, not the record.
  */
 function VerdictRow({ experiment }: { experiment: ReadyForVerdictData }) {
     return (
-        <Link
-            href={`/loops/${experiment.loop_id}`}
-            className="flex items-baseline justify-between gap-3 rounded-xl border border-border p-3 transition-colors hover:border-foreground/20 hover:bg-accent/40"
-        >
-            <span className="min-w-0 truncate text-sm text-foreground">
-                {experiment.loop_title}
-            </span>
-            <span className="shrink-0 font-mono text-xs text-muted-foreground">
-                v{experiment.version} · {experiment.intervention_point}
-            </span>
-        </Link>
+        <div className="rounded-xl border border-border p-3">
+            <div className="flex items-baseline justify-between gap-3">
+                <span className="min-w-0 truncate text-sm text-foreground">
+                    {experiment.loop_title}
+                </span>
+                <span className="shrink-0 font-mono text-xs text-muted-foreground">
+                    v{experiment.version} · {experiment.intervention_point}
+                </span>
+            </div>
+            <Link
+                href={show.url(experiment.loop_id)}
+                className="mt-2 inline-block text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+            >
+                Give it a verdict
+            </Link>
+        </div>
     );
 }
 
