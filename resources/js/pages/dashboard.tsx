@@ -231,9 +231,11 @@ function OccasionRow({ occasion }: { occasion: TodaysOccasionData }) {
                         )}
 
                         {outcome !== null && (
-                            <Button type="submit" disabled={processing}>
-                                Log it
-                            </Button>
+                            <div className="self-start">
+                                <Button type="submit" disabled={processing}>
+                                    Log it
+                                </Button>
+                            </div>
                         )}
                     </>
                 )}
