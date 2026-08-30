@@ -14,6 +14,17 @@ class QuickLogTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // Every route this controller answers renders a Blade view
+        // (quick-log or errors/link-expired), both carrying @vite — this
+        // suite must stay green on a fresh clone that has never run
+        // `npm run build`.
+        $this->withoutVite();
+    }
+
     private function occurrence(): Occurrence
     {
         $user = User::factory()->create();
@@ -39,7 +50,13 @@ class QuickLogTest extends TestCase
     {
         $occurrence = $this->occurrence();
 
-        $this->get($this->signedUrl($occurrence, 'completed'))->assertOk();
+        $response = $this->get($this->signedUrl($occurrence, 'completed'));
+
+        $response->assertOk();
+        $response->assertSee('Marked');
+        $response->assertSee('Completed');
+        // No gamification: the confirmation states the fact, not a cheer.
+        $response->assertDontSee('Nice work!');
 
         $this->assertDatabaseHas('action_logs', [
             'occurrence_id' => $occurrence->id,
