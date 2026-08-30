@@ -1,5 +1,6 @@
 <?php
 
+use App\Console\Commands\AlertFailedJobs;
 use App\Console\Commands\FireDueActions;
 use App\Console\Commands\SendReminderDigests;
 use Illuminate\Foundation\Inspiring;
@@ -21,3 +22,8 @@ Schedule::command(FireDueActions::class)->everyMinute()->withoutOverlapping();
 // withoutOverlapping(5): a short lock. The default 1440-minute lock would strand
 // a SIGKILLed run for 24h, costing every user that day's digest.
 Schedule::command(SendReminderDigests::class)->everyMinute()->withoutOverlapping(5);
+
+// The queue's own smoke alarm. Hourly is often enough to matter and rare
+// enough not to nag; it sends synchronously, because an alert about a broken
+// queue that is itself queued would never arrive.
+Schedule::command(AlertFailedJobs::class)->hourly()->withoutOverlapping();
