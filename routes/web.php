@@ -5,6 +5,7 @@ use App\Http\Controllers\ActionLogController;
 use App\Http\Controllers\CatchUpController;
 use App\Http\Controllers\CompanionController;
 use App\Http\Controllers\ExperimentController;
+use App\Http\Controllers\ExportController;
 use App\Http\Controllers\InboxController;
 use App\Http\Controllers\IntentionController;
 use App\Http\Controllers\NotebookController;
@@ -92,6 +93,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         return redirect()->route('loops.show', $intention);
     })->name('progress.show');
+
+    // The record, in full, in the user's hands. Read-only by design — see
+    // ExportController for why there is no importer.
+    Route::get('export', [ExportController::class, 'show'])->name('export.show');
 });
 
 // Answering a cue straight from the email. Outside `auth` by design — see
