@@ -72,12 +72,30 @@ class LoopsIndexFilterTest extends TestCase
     {
         $user = User::factory()->create();
         Intention::factory()->for($user)->create(['title' => 'give 100% at the gym']);
-        Intention::factory()->for($user)->create(['title' => 'read before bed']);
+        Intention::factory()->for($user)->create(['title' => 'run 100 reps at the gym']);
 
-        // A bare `%` would wildcard and match both rows.
+        // Unescaped, `%100%%` collapses to `%100%` and matches BOTH titles.
+        // Escaped, only the title carrying a literal percent sign matches.
         $this->actingAs($user)->get(route('loops.index', ['q' => '100%']))
             ->assertOk()
-            ->assertInertia(fn (AssertableInertia $page) => $page->has('intentions', 1));
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->has('intentions', 1)
+                ->where('intentions.0.title', 'give 100% at the gym'));
+    }
+
+    public function test_an_underscore_in_the_search_is_a_literal_not_a_single_character_wildcard(): void
+    {
+        $user = User::factory()->create();
+        Intention::factory()->for($user)->create(['title' => 'a_b']);
+        Intention::factory()->for($user)->create(['title' => 'axb']);
+
+        // Unescaped, `_` is a single-character wildcard, so `%a_b%` matches BOTH titles.
+        // Escaped, only the title carrying a literal underscore matches.
+        $this->actingAs($user)->get(route('loops.index', ['q' => 'a_b']))
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->has('intentions', 1)
+                ->where('intentions.0.title', 'a_b'));
     }
 
     public function test_an_unknown_status_is_ignored_rather_than_erroring(): void
