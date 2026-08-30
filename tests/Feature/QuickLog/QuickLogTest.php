@@ -69,7 +69,13 @@ class QuickLogTest extends TestCase
     {
         $occurrence = $this->occurrence();
 
-        $this->get("/o/{$occurrence->id}/completed")->assertForbidden();
+        $response = $this->get("/o/{$occurrence->id}/completed");
+
+        $response->assertForbidden();
+        // Never a redirect to login carrying the intended URL — there is no
+        // session to send it back to, so the response must render in place.
+        $response->assertHeaderMissing('Location');
+        $response->assertSee('This link has expired');
 
         $this->assertDatabaseCount('action_logs', 0);
     }
@@ -81,7 +87,12 @@ class QuickLogTest extends TestCase
 
         $this->travel(8)->days();
 
-        $this->get($url)->assertForbidden();
+        $response = $this->get($url);
+
+        $response->assertForbidden();
+        $response->assertHeaderMissing('Location');
+        $response->assertSee('This link has expired');
+
         $this->assertDatabaseCount('action_logs', 0);
     }
 

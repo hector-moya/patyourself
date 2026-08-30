@@ -116,4 +116,30 @@ class EmailVerificationTest extends TestCase
         Event::assertNotDispatched(Verified::class);
         $this->assertTrue($user->fresh()->hasVerifiedEmail());
     }
+
+    /**
+     * `signed` also guards the quick-log route (see QuickLogController), which
+     * renders its own "this link has expired" page for an invalid signature.
+     * That page is scoped to the quick-log route by name specifically so it
+     * cannot leak onto this — an unrelated — signed route. Pinning it here so
+     * a change to the exception renderer's scoping cannot regress silently.
+     */
+    public function test_an_expired_verification_link_does_not_render_quick_log_copy(): void
+    {
+        $user = User::factory()->unverified()->create();
+
+        $verificationUrl = URL::temporarySignedRoute(
+            'verification.verify',
+            now()->addMinutes(60),
+            ['id' => $user->id, 'hash' => sha1($user->email)],
+        );
+
+        $this->travel(61)->minutes();
+
+        $response = $this->actingAs($user)->get($verificationUrl);
+
+        $response->assertForbidden();
+        $response->assertDontSee('This link has expired');
+        $response->assertDontSee('Reminder links work for seven days');
+    }
 }

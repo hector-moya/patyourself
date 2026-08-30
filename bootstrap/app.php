@@ -54,8 +54,12 @@ return Application::configure(basePath: dirname(__DIR__))
         // must read as "this link has expired," never a stack trace and never a
         // redirect to login carrying the intended URL — there is no session to
         // send it back to. Status stays 403; only the body changes.
+        //
+        // Scoped to the quick-log route by name: `signed` also guards Fortify's
+        // email-verification link, and that flow's own expired-signature case
+        // needs its own copy and its own destination, not this one's.
         $exceptions->render(function (InvalidSignatureException $e, Request $request) {
-            if ($request->expectsJson()) {
+            if ($request->expectsJson() || ! $request->routeIs('occurrences.quick-log')) {
                 return null;
             }
 
