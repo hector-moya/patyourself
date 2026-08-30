@@ -39,8 +39,21 @@ class IntentionController extends Controller
 
     public function index(Request $request): Response
     {
+        // Only a known status filters; anything else is ignored rather than
+        // erroring, so a hand-edited URL still shows the user their loops.
+        $status = in_array($request->query('status'), Intention::STATUSES, true)
+            ? (string) $request->query('status')
+            : null;
+
+        $term = trim((string) $request->query('q', ''));
+        $search = $term === '' ? null : $term;
+
         $intentions = $request->user()->intentions()
             ->with('activeStrategy')
+            ->when($status !== null, fn (Builder $query) => $query->where('status', $status))
+            ->when($search !== null, fn (Builder $query) => $query->where(
+                fn (Builder $inner) => $this->matchTitleOrChain($inner, $search),
+            ))
             ->latest()
             ->get()
             // Surface the loops the user is actively working first; the rest
@@ -50,7 +63,26 @@ class IntentionController extends Controller
 
         return Inertia::render('loops/index', [
             'intentions' => IntentionResource::collection($intentions)->resolve(),
+            'filters' => ['status' => $status, 'q' => $search],
         ]);
+    }
+
+    /**
+     * The cue is often what you remember, so search covers the whole chain and
+     * not just the title.
+     *
+     * The term is bound, never interpolated. `%`, `_` and `\` are escaped so a
+     * literal percent in a title is a percent rather than a wildcard — the
+     * column list is a hardcoded allowlist, which is the only reason it is safe
+     * to interpolate the column name into the raw fragment.
+     */
+    private function matchTitleOrChain(Builder $query, string $term): void
+    {
+        $escaped = str_replace(['\\', '%', '_'], ['\\\\', '\%', '\_'], $term);
+
+        foreach (['title', 'cue', 'craving', 'response', 'reward'] as $column) {
+            $query->orWhereRaw("{$column} LIKE ? ESCAPE '\\'", ['%'.$escaped.'%']);
+        }
     }
 
     public function show(Request $request, Intention $intention, LoopProgress $progress): Response

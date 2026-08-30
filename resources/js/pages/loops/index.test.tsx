@@ -2,10 +2,7 @@ import type * as InertiaReact from '@inertiajs/react';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-import type {
-    ActiveStrategySummary,
-    IntentionData,
-} from '@/patyourself/types';
+import type { ActiveStrategySummary, IntentionData } from '@/patyourself/types';
 
 const page = { url: '/loops', props: { unread_notifications_count: 0 } };
 vi.mock('@inertiajs/react', async (importOriginal) => {
@@ -51,9 +48,16 @@ function intention(overrides: Partial<IntentionData> = {}): IntentionData {
     };
 }
 
+const noFilters = { status: null, q: null };
+
 describe('LoopsIndex', () => {
     it('shows how far into its run each experiment is', () => {
-        render(<LoopsIndex intentions={[intention({ strategy: strategy() })]} />);
+        render(
+            <LoopsIndex
+                intentions={[intention({ strategy: strategy() })]}
+                filters={noFilters}
+            />,
+        );
 
         expect(screen.getByTestId('loop-experiment-1')).toHaveTextContent(
             /v2 · day 9 of 14/i,
@@ -76,6 +80,7 @@ describe('LoopsIndex', () => {
                         }),
                     }),
                 ]}
+                filters={noFilters}
             />,
         );
 
@@ -91,6 +96,7 @@ describe('LoopsIndex', () => {
                 intentions={[
                     intention({ strategy: strategy({ planned_days: null }) }),
                 ]}
+                filters={noFilters}
             />,
         );
 
@@ -105,7 +111,12 @@ describe('LoopsIndex', () => {
      * says logging continues and offers no prompt to start one.
      */
     it('reads a loop with no experiment as a good state', () => {
-        render(<LoopsIndex intentions={[intention({ strategy: null })]} />);
+        render(
+            <LoopsIndex
+                intentions={[intention({ strategy: null })]}
+                filters={noFilters}
+            />,
+        );
 
         const row = screen.getByTestId('loop-experiment-1');
 
@@ -120,7 +131,12 @@ describe('LoopsIndex', () => {
      * A number there would turn the record into a scoreboard.
      */
     it('links to catch-up without counting anything back', () => {
-        render(<LoopsIndex intentions={[intention({ strategy: strategy() })]} />);
+        render(
+            <LoopsIndex
+                intentions={[intention({ strategy: strategy() })]}
+                filters={noFilters}
+            />,
+        );
 
         const link = screen.getByRole('link', { name: /catch up/i });
 

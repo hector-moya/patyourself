@@ -1,31 +1,38 @@
-import { Link } from '@inertiajs/react';
+import { Link, router } from '@inertiajs/react';
+import { useState } from 'react';
 
 import CoachLayout from '@/layouts/coach-layout';
 import { cn } from '@/lib/utils';
 import { BottomNav } from '@/patyourself/bottom-nav';
 import { Icon } from '@/patyourself/primitives';
-import type {
-    ActiveStrategySummary,
-    IntentionData,
-} from '@/patyourself/types';
+import type { ActiveStrategySummary, IntentionData } from '@/patyourself/types';
 
 interface LoopsIndexProps {
     intentions: IntentionData[];
+    filters: { status: string | null; q: string | null };
 }
+
+const STATUSES = ['active', 'paused', 'completed', 'archived'] as const;
 
 /**
  * Loops list — every loop the user is working, status at a glance, each tapping
  * through to its detail screen. Active loops surface first (ordered server-side).
  */
-export default function LoopsIndex({ intentions }: LoopsIndexProps) {
+export default function LoopsIndex({ intentions, filters }: LoopsIndexProps) {
     const activeCount = intentions.filter(
         (loop) => loop.status === 'active',
     ).length;
+    const filtering = filters.status !== null || filters.q !== null;
 
     return (
         <CoachLayout title="Loops" bottomNav={<BottomNav />} wide>
+            <FilterBar filters={filters} />
             {intentions.length === 0 ? (
-                <EmptyState />
+                filtering ? (
+                    <NoMatches />
+                ) : (
+                    <EmptyState />
+                )
             ) : (
                 <>
                     <div className="mb-3 flex items-baseline justify-between gap-3">
@@ -54,6 +61,97 @@ export default function LoopsIndex({ intentions }: LoopsIndexProps) {
                 </>
             )}
         </CoachLayout>
+    );
+}
+
+/**
+ * Status chips and a search box. Search covers the whole chain server-side —
+ * the cue is often what you remember about a loop.
+ */
+function FilterBar({ filters }: { filters: LoopsIndexProps['filters'] }) {
+    const [term, setTerm] = useState(filters.q ?? '');
+
+    const submit = (event: React.FormEvent) => {
+        event.preventDefault();
+        router.get(
+            '/loops',
+            {
+                ...(filters.status ? { status: filters.status } : {}),
+                ...(term.trim() ? { q: term.trim() } : {}),
+            },
+            { preserveState: true, preserveScroll: true },
+        );
+    };
+
+    return (
+        <div className="mb-3 flex flex-col gap-2">
+            <form onSubmit={submit}>
+                <input
+                    type="search"
+                    value={term}
+                    onChange={(event) => setTerm(event.target.value)}
+                    placeholder="Search the title or the chain"
+                    aria-label="Search loops"
+                    className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                />
+            </form>
+            <div className="flex flex-wrap gap-1.5">
+                <FilterChip
+                    label="All"
+                    href={hrefFor(null, filters.q)}
+                    active={filters.status === null}
+                />
+                {STATUSES.map((status) => (
+                    <FilterChip
+                        key={status}
+                        label={status}
+                        href={hrefFor(status, filters.q)}
+                        active={filters.status === status}
+                    />
+                ))}
+            </div>
+        </div>
+    );
+}
+
+function hrefFor(status: string | null, q: string | null): string {
+    const params = new URLSearchParams();
+
+    if (status) {
+        params.set('status', status);
+    }
+
+    if (q) {
+        params.set('q', q);
+    }
+
+    const query = params.toString();
+
+    return query ? `/loops?${query}` : '/loops';
+}
+
+function FilterChip({
+    label,
+    href,
+    active,
+}: {
+    label: string;
+    href: string;
+    active: boolean;
+}) {
+    return (
+        <Link
+            href={href}
+            preserveScroll
+            className={cn(
+                'rounded-full border px-2.5 py-1 text-xs capitalize transition-colors',
+                active
+                    ? 'border-foreground/30 bg-accent text-foreground'
+                    : 'border-border text-muted-foreground hover:text-foreground',
+            )}
+        >
+            {label}
+        </Link>
     );
 }
 
@@ -101,7 +199,7 @@ function LoopRow({ loop }: { loop: IntentionData }) {
                     data-testid={`loop-experiment-${loop.id}`}
                     className="mt-0.5 block font-mono text-[10px] tracking-wide text-muted-foreground uppercase"
                 >
-                    {experimentState(loop.strategy)}
+                    {experimentState(loop.strategy ?? null)}
                 </span>
             </span>
 
@@ -164,6 +262,22 @@ function EmptyState() {
                 Loops are created by talking to Claude through the PatYourSelf
                 connector, then reviewed here.
             </p>
+        </div>
+    );
+}
+
+function NoMatches() {
+    return (
+        <div className="flex flex-1 flex-col items-center justify-center gap-2 text-center">
+            <p className="text-sm text-muted-foreground">
+                No loops match that.
+            </p>
+            <Link
+                href="/loops"
+                className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+            >
+                Clear the filters
+            </Link>
         </div>
     );
 }
