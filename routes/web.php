@@ -8,6 +8,7 @@ use App\Http\Controllers\ExperimentController;
 use App\Http\Controllers\InboxController;
 use App\Http\Controllers\IntentionController;
 use App\Http\Controllers\NotebookController;
+use App\Http\Controllers\NoteController;
 use App\Http\Controllers\OccurrenceLogController;
 use App\Http\Controllers\ProgressController;
 use App\Http\Controllers\VerdictController;
@@ -39,6 +40,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // current version rather than editing it.
     Route::post('loops/{intention}/experiments', [ExperimentController::class, 'store'])
         ->name('loops.experiments.store');
+
+    // A note is an observation that is not an outcome. Append-only: no edit,
+    // no delete.
+    Route::post('loops/{intention}/notes', [NoteController::class, 'store'])
+        ->name('loops.notes.store');
+
+    // The action layer, editable between experiments. `destroy` archives —
+    // see ActionController::destroy for why the verb and the write differ.
+    Route::post('loops/{intention}/actions', [ActionController::class, 'store'])
+        ->name('loops.actions.store');
+    Route::delete('actions/{action}', [ActionController::class, 'destroy'])
+        ->name('actions.destroy');
 
     // Log an action's outcome (completion / failure + reason).
     Route::post('actions/{action}/logs', [ActionLogController::class, 'store'])
