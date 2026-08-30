@@ -59,7 +59,14 @@ final readonly class MarkdownRecordFormatter
         $lines[] = '## The chain';
         $lines[] = '';
         foreach (['cue' => 'Cue', 'craving' => 'Craving', 'response' => 'Response', 'reward' => 'Reward'] as $key => $label) {
-            $lines[] = "- **{$label}:** ".($loop['chain'][$key] ?? '—');
+            // `cue`/`craving`/`response`/`reward` are free-text values with
+            // no line-count constraint (StoreIntentionRequest validates only
+            // `max:2000`), reachable from the MCP `create-loop` conversation
+            // where multi-sentence values are normal. Inlining a multi-line
+            // value here would detach its continuation into a floating
+            // paragraph above `## Experiments` — in the four fields that
+            // define the loop.
+            $lines = [...$lines, ...$this->bulletWithPrefix('', "**{$label}:** ", (string) ($loop['chain'][$key] ?? '—'))];
         }
         $lines[] = '';
 
@@ -155,7 +162,17 @@ final readonly class MarkdownRecordFormatter
             $lines[] = '';
         }
 
-        $lines[] = '- **Recurrence:** '.($action['recurrence'] ?? 'one-off');
+        // An action is either clock-scheduled or cue-anchored — never both.
+        // `recurrence` is always null for an anchored action, so falling
+        // back to "one-off" there would be a false statement about the
+        // record, not a gap. The anchor is user-authored free text (a text
+        // input, not line-limited by its `max:255` rule), so it goes
+        // through the same continuation-safe path as `reason` and `context`.
+        if (($action['anchor'] ?? null) !== null) {
+            $lines = [...$lines, ...$this->bulletWithPrefix('', '**When:** ', (string) $action['anchor'])];
+        } else {
+            $lines[] = '- **Recurrence:** '.($action['recurrence'] ?? 'one-off');
+        }
         $lines[] = '- **Status:** '.$action['status'];
         $lines[] = '';
 

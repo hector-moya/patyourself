@@ -48,7 +48,8 @@ class MarkdownRecordFormatterTest extends TestCase
                 ],
                 'actions' => [[
                     'title' => 'press-ups', 'description' => null,
-                    'recurrence' => 'daily', 'status' => 'active',
+                    'recurrence' => 'daily', 'schedule_kind' => 'clock', 'anchor' => null,
+                    'status' => 'active',
                     'series_started_at' => '2026-08-15T07:00:00+00:00',
                     'occurrences' => [[
                         'scheduled_for' => '2026-08-16T07:00:00+00:00',
@@ -180,5 +181,67 @@ class MarkdownRecordFormatterTest extends TestCase
         // The whole narrative of a lab notebook: whether a version arose from
         // a stacked success or a restrategize after failure.
         $this->assertStringContainsString('**Changed because:** abandoned', $markdown);
+    }
+
+    /**
+     * An action is either clock-scheduled or cue-anchored; the two are
+     * mutually exclusive. `recurrence` is always null for an anchored
+     * action, so printing "Recurrence: one-off" for one is not a gap — it
+     * is a false statement about the record.
+     */
+    public function test_an_anchored_action_is_never_described_as_one_off(): void
+    {
+        $record = $this->record();
+        $record['loops'][0]['actions'][0]['recurrence'] = null;
+        $record['loops'][0]['actions'][0]['schedule_kind'] = 'anchored';
+        $record['loops'][0]['actions'][0]['anchor'] = 'after I close the laptop';
+
+        $markdown = (new MarkdownRecordFormatter)->render($record);
+
+        $this->assertStringContainsString('**When:** after I close the laptop', $markdown);
+        $this->assertStringNotContainsString('one-off', $markdown);
+    }
+
+    public function test_a_clock_scheduled_action_still_reports_its_recurrence(): void
+    {
+        $markdown = (new MarkdownRecordFormatter)->render($this->record());
+
+        $this->assertStringContainsString('**Recurrence:** daily', $markdown);
+    }
+
+    /**
+     * `anchor` is user text typed into a free-text input (`StoreActionRequest`
+     * caps it at 255 chars, but that is a length limit, not a line limit), so
+     * it must go through the same continuation-safe path as `reason` and
+     * `context` rather than being inlined onto the bullet.
+     */
+    public function test_a_multi_line_anchor_stays_inside_its_list_item(): void
+    {
+        $record = $this->record();
+        $record['loops'][0]['actions'][0]['recurrence'] = null;
+        $record['loops'][0]['actions'][0]['schedule_kind'] = 'anchored';
+        $record['loops'][0]['actions'][0]['anchor'] = "after I close the laptop\nand stand up";
+
+        $markdown = (new MarkdownRecordFormatter)->render($record);
+
+        $this->assertStringContainsString("- **When:** after I close the laptop\n  and stand up", $markdown);
+    }
+
+    /**
+     * `cue`, `craving`, `response` and `reward` are free-text `<textarea>`
+     * values validated only `max:2000` (StoreIntentionRequest) — reachable
+     * from the MCP `create-loop` conversation where multi-sentence values
+     * are normal. A newline must not detach the remainder into a floating
+     * paragraph above `## Experiments`, in the four fields that define the
+     * loop.
+     */
+    public function test_a_multi_line_cue_stays_inside_its_list_item(): void
+    {
+        $record = $this->record();
+        $record['loops'][0]['chain']['cue'] = "the kettle clicks off\nand the room goes quiet";
+
+        $markdown = (new MarkdownRecordFormatter)->render($record);
+
+        $this->assertStringContainsString("- **Cue:** the kettle clicks off\n  and the room goes quiet", $markdown);
     }
 }

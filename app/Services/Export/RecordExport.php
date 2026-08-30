@@ -119,6 +119,13 @@ final readonly class RecordExport
             'title' => $action->title,
             'description' => $action->description,
             'recurrence' => $action->recurrence,
+            // A cue-anchored action has no `recurrence` at all — its
+            // schedule lives entirely in `metadata`. Without these two, the
+            // anchor's own words (a validated, user-authored field) never
+            // reach the export and `recurrence: null` reads as "no
+            // schedule" rather than "scheduled by a cue instead of a clock".
+            'schedule_kind' => $action->metadata['schedule_kind'] ?? null,
+            'anchor' => $action->metadata['anchor'] ?? null,
             'status' => $action->status,
             'series_started_at' => $this->timestamp($action->series_started_at),
             'occurrences' => $action->occurrences

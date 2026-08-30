@@ -186,6 +186,40 @@ class RecordExportTest extends TestCase
         $this->assertSame('mine', $record['loops'][0]['title']);
     }
 
+    public function test_it_carries_an_anchored_actions_own_words(): void
+    {
+        // Cue-anchored actions carry a user-authored `anchor` and a
+        // `schedule_kind` of `anchored` in `metadata`, not `recurrence` —
+        // dropping metadata drops the anchor's own words entirely.
+        $user = User::factory()->create();
+        $loop = Intention::factory()->for($user)->create();
+        Action::factory()->for($loop, 'intention')->anchored()->create([
+            'metadata' => ['schedule_kind' => 'anchored', 'anchor' => 'after I close the laptop'],
+        ]);
+
+        $record = app(RecordExport::class)->forUser($user);
+        $action = $record['loops'][0]['actions'][0];
+
+        $this->assertSame('anchored', $action['schedule_kind']);
+        $this->assertSame('after I close the laptop', $action['anchor']);
+        $this->assertNull($action['recurrence']);
+    }
+
+    public function test_a_clock_scheduled_action_carries_no_anchor(): void
+    {
+        $user = User::factory()->create();
+        $loop = Intention::factory()->for($user)->create();
+        Action::factory()->for($loop, 'intention')->create([
+            'metadata' => ['schedule_kind' => 'clock'],
+        ]);
+
+        $record = app(RecordExport::class)->forUser($user);
+        $action = $record['loops'][0]['actions'][0];
+
+        $this->assertSame('clock', $action['schedule_kind']);
+        $this->assertNull($action['anchor']);
+    }
+
     public function test_an_empty_account_produces_a_valid_document(): void
     {
         $user = User::factory()->create();
