@@ -13,6 +13,16 @@ class TimezoneScreenTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // The screen itself renders through app.blade.php's @vite — this
+        // suite must stay green on a fresh clone that has never run
+        // `npm run build`.
+        $this->withoutVite();
+    }
+
     public function test_the_screen_shows_the_stored_timezone(): void
     {
         $user = User::factory()->create(['timezone' => 'Australia/Brisbane']);
@@ -54,6 +64,38 @@ class TimezoneScreenTest extends TestCase
             ->assertSessionHasErrors('timezone');
 
         $this->assertSame('Australia/Brisbane', $user->refresh()->timezone);
+    }
+
+    /**
+     * `timezone_identifiers_list()` excludes backward-compat aliases —
+     * `US/Pacific` has no entry in it on this PHP build. Without pushing the
+     * user's own stored zone into the option list, the controlled <select>
+     * would have no matching <option>, the browser would fall back to its
+     * first entry, and Inertia's <Form> would serialise that on Save —
+     * silently rewriting an untouched user's zone to something else.
+     */
+    public function test_a_stored_legacy_alias_stays_selectable_and_survives_an_untouched_save(): void
+    {
+        $this->assertNotContains(
+            'US/Pacific',
+            timezone_identifiers_list(),
+            'This pin assumes US/Pacific is a legacy alias on the running PHP build; if that ever changes, pick another alias.'
+        );
+
+        $user = User::factory()->create(['timezone' => 'US/Pacific']);
+
+        $this->actingAs($user)->get(route('timezone.edit'))
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->component('settings/timezone')
+                ->where('timezone', 'US/Pacific')
+                ->where('timezones', fn ($timezones) => collect($timezones)->contains('US/Pacific')));
+
+        $this->actingAs($user)
+            ->patch(route('timezone.update'), ['timezone' => 'US/Pacific'])
+            ->assertRedirect();
+
+        $this->assertSame('US/Pacific', $user->refresh()->timezone);
     }
 
     /**
@@ -111,10 +153,10 @@ class TimezoneScreenTest extends TestCase
     }
 
     /**
-     * Re-submitting the already-stored zone — including the automatic
-     * first-load PATCH firing again with the same browser-detected zone —
-     * has nothing to move. Uses a genuinely stale action so this pins the
-     * no-op guard itself rather than piggy-backing on the staleness filter.
+     * Re-submitting the already-stored zone — e.g. pressing Save without
+     * touching the control — has nothing to move. Uses a genuinely stale
+     * action so this pins the no-op guard itself rather than piggy-backing
+     * on the staleness filter.
      */
     public function test_a_no_op_save_does_not_touch_anything(): void
     {
