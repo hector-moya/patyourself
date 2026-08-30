@@ -125,6 +125,25 @@ class LoopsIndexFilterTest extends TestCase
         }
     }
 
+    /**
+     * `status` two lines above already tolerates garbage rather than
+     * erroring, and `ExportController` makes the same promise for `format`.
+     * `q` should keep it too: `?q[]=x` hands `query('q', '')` an array, and
+     * `(string) $array` raises a PHP warning that Laravel's error handler
+     * turns into an `ErrorException` — a 500 from a hand-edited URL.
+     */
+    public function test_an_array_shaped_q_is_ignored_rather_than_erroring(): void
+    {
+        $user = User::factory()->create();
+        Intention::factory()->for($user)->create(['title' => 'running']);
+
+        $this->actingAs($user)->get(route('loops.index', ['q' => ['x']]))
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('filters.q', null)
+                ->has('intentions', 1));
+    }
+
     public function test_an_unknown_status_is_ignored_rather_than_erroring(): void
     {
         $user = User::factory()->create();

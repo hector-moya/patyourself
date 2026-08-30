@@ -45,7 +45,12 @@ class IntentionController extends Controller
             ? (string) $request->query('status')
             : null;
 
-        $term = trim((string) $request->query('q', ''));
+        // Only a genuine string is a search term; a hand-edited `?q[]=x`
+        // hands `query()` an array, and `(string) $array` raises a warning
+        // that Laravel's error handler turns into a 500. `status` above and
+        // `ExportController`'s `format` both tolerate garbage the same way.
+        $rawQuery = $request->query('q', '');
+        $term = is_string($rawQuery) ? trim($rawQuery) : '';
         $search = $term === '' ? null : $term;
 
         $intentions = $request->user()->intentions()
