@@ -105,12 +105,17 @@ In the server's **Scheduler** tab, add the Laravel scheduler for this site:
 - Command: `php artisan schedule:run`
 - Frequency: every minute.
 
-Two commands ship on this schedule (`routes/console.php`), both `everyMinute()`:
+Three commands ship on this schedule (`routes/console.php`):
 
-- `actions:fire` — fires any action whose scheduled moment has arrived (drives
-  the in-app cue and the every-cue email).
-- `reminders:digest` — sends the daily digest email to any user whose local
-  `digest_time` has arrived.
+- `actions:fire` — `everyMinute()`. Fires any action whose scheduled moment
+  has arrived (drives the in-app cue and the every-cue email).
+- `reminders:digest` — `everyMinute()`. Sends the daily digest email to any
+  user whose local `digest_time` has arrived.
+- `jobs:alert-failed` — `hourly()`. Mails the owner when a background job has
+  failed since the last check — the alarm that tells you the other two are
+  broken. It only means anything with **`MAIL_MAILER=ses`** configured (or
+  whatever mailer is actually delivering in production); with the `log`
+  driver it fires into the log file instead of an inbox.
 
 A queue worker (step 5) is **also required** for reminder emails and for the
 coaching closure — both are `ShouldQueue`. Without a running worker, queued

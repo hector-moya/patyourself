@@ -2,9 +2,9 @@
 
 namespace App\Notifications;
 
-use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
+use Illuminate\Support\Str;
 
 /**
  * Tells the owner that background jobs have failed since the last check.
@@ -18,7 +18,8 @@ use Illuminate\Notifications\Notification;
  */
 class FailedJobsNotification extends Notification
 {
-    use Queueable;
+    /** A full stack trace can run 5-50 KB; CommonMark would collapse it into one unreadable paragraph. */
+    private const EXCEPTION_PREVIEW_LENGTH = 1000;
 
     public function __construct(
         public readonly int $count,
@@ -42,6 +43,6 @@ class FailedJobsNotification extends Notification
             ->line("{$this->count} background {$noun} failed since the last check.")
             ->line('Reminders and digests ride that queue, so some may not have been delivered.')
             ->line('Most recent exception:')
-            ->line($this->latestException ?? 'No exception was recorded.');
+            ->line(Str::limit($this->latestException ?? 'No exception was recorded.', self::EXCEPTION_PREVIEW_LENGTH));
     }
 }

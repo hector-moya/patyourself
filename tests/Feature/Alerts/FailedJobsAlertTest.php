@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Notifications\FailedJobsNotification;
 use App\Services\Alerts\FailedJobsAlert;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
@@ -15,7 +16,7 @@ class FailedJobsAlertTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function recordFailure(string $uuid = 'a-uuid'): void
+    private function recordFailure(string $uuid = 'a-uuid', ?\DateTimeInterface $failedAt = null): void
     {
         DB::table('failed_jobs')->insert([
             'uuid' => $uuid,
@@ -23,7 +24,7 @@ class FailedJobsAlertTest extends TestCase
             'queue' => 'default',
             'payload' => '{}',
             'exception' => 'RuntimeException: the worker died',
-            'failed_at' => now(),
+            'failed_at' => $failedAt ?? now(),
         ]);
     }
 
@@ -72,9 +73,10 @@ class FailedJobsAlertTest extends TestCase
         Notification::fake();
         User::factory()->create();
 
-        // These failures predate the alert ever having run. A cold mark must
-        // not turn into a report of the entire historical backlog.
-        $this->recordFailure('pre-existing-uuid');
+        // This failure predates the alert ever having run, and is well
+        // outside the recent window a lost mark falls back to. A cold mark
+        // must not turn into a report of the entire historical backlog.
+        $this->recordFailure('pre-existing-uuid', now()->subDays(2));
 
         $reported = app(FailedJobsAlert::class)->sendIfAny();
 
@@ -88,6 +90,52 @@ class FailedJobsAlertTest extends TestCase
 
         $this->assertSame(1, app(FailedJobsAlert::class)->sendIfAny());
         Notification::assertSentTimes(FailedJobsNotification::class, 1);
+    }
+
+    /**
+     * Pins the fix for the docblock's false claim: on a lost mark (a cleared
+     * cache, e.g. `cache:clear` during troubleshooting), any failure inside
+     * the recent window must still be reported — a duplicate alert, never
+     * silence. Before this fix, a lost mark re-seeded to the current maximum
+     * id and returned 0, dropping every unreported failure between the lost
+     * mark and now.
+     */
+    public function test_a_lost_mark_reports_a_recent_failure_instead_of_going_silent(): void
+    {
+        Notification::fake();
+        User::factory()->create();
+
+        app(FailedJobsAlert::class)->sendIfAny(); // cold start: establishes the baseline
+
+        $this->recordFailure('never-reported-before-the-cache-was-lost');
+
+        // Simulate `cache:clear`: the high-water mark is gone, but the
+        // failure above was never reported.
+        Cache::flush();
+
+        $reported = app(FailedJobsAlert::class)->sendIfAny();
+
+        $this->assertSame(1, $reported);
+        Notification::assertSentTimes(FailedJobsNotification::class, 1);
+    }
+
+    /**
+     * The recent-window fallback bounds how far a lost mark reaches back —
+     * it must not resurrect the entire historical backlog either, only
+     * what is genuinely recent.
+     */
+    public function test_a_lost_mark_does_not_resurrect_failures_from_before_the_recent_window(): void
+    {
+        Notification::fake();
+        User::factory()->create();
+
+        $this->recordFailure('old-failure', now()->subDays(3));
+        Cache::flush();
+
+        $reported = app(FailedJobsAlert::class)->sendIfAny();
+
+        $this->assertSame(0, $reported);
+        Notification::assertNothingSent();
     }
 
     public function test_it_does_not_advance_the_mark_when_sending_throws(): void

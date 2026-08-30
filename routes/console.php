@@ -26,4 +26,11 @@ Schedule::command(SendReminderDigests::class)->everyMinute()->withoutOverlapping
 // The queue's own smoke alarm. Hourly is often enough to matter and rare
 // enough not to nag; it sends synchronously, because an alert about a broken
 // queue that is itself queued would never arrive.
-Schedule::command(AlertFailedJobs::class)->hourly()->withoutOverlapping();
+// withoutOverlapping(5): a short lock, same reasoning as the digest above —
+// the conditions that SIGKILL a scheduler run correlate with the conditions
+// that fail jobs, so this is exactly the alarm a 24h-stranded lock would
+// silence. runInBackground(): a slow synchronous SES call must not block
+// schedule:run from reaching FireDueActions/SendReminderDigests behind it —
+// that property is about the *process*, not the notification, which still
+// sends synchronously within its own background run.
+Schedule::command(AlertFailedJobs::class)->hourly()->withoutOverlapping(5)->runInBackground();
