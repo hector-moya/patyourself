@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { BottomNav } from '@/patyourself/bottom-nav';
 import { ExperimentHeader } from '@/patyourself/experiment-header';
 import { LoopNotes } from '@/patyourself/loop-notes';
+import { ConcludeExperimentForm } from '@/patyourself/loops/conclude-experiment-form';
 import { OutcomeHistory } from '@/patyourself/outcome-history';
 import { Button } from '@/patyourself/primitives';
 import { Reflection } from '@/patyourself/reflection';
@@ -99,6 +100,14 @@ export default function LoopShow({
     experiments = [],
     reflection = null,
 }: LoopShowProps) {
+    // The active version that has not yet been concluded — the one the record
+    // can still answer a review for. A `worked` verdict keeps a version active,
+    // so `status === 'active'` alone is not enough; only the absence of a
+    // verdict means the question is still open.
+    const activeExperiment = strategies.find(
+        (s) => s.status === 'active' && s.verdict === null,
+    );
+
     const back = (
         <Link
             href="/loops"
@@ -170,6 +179,13 @@ export default function LoopShow({
                         currentVersion,
                     )}
                 />
+
+                {activeExperiment && (
+                    <ConcludeExperimentForm
+                        strategyId={activeExperiment.id}
+                        isUnderReview={activeExperiment.is_under_review}
+                    />
+                )}
 
                 <Reflection reflection={reflection} />
 

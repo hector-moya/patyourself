@@ -6,6 +6,7 @@ import type {
     CurrentVersionData,
     ExperimentData,
     IntentionData,
+    StrategyData,
 } from '@/patyourself/types';
 
 const page = { url: '/loops/1', props: { unread_notifications_count: 0 } };
@@ -80,6 +81,30 @@ function experiment(overrides: Partial<ExperimentData> = {}): ExperimentData {
         verdict_note: null,
         outcomes: [],
         totals: { completed: 0, failed: 0, skipped: 0 },
+        ...overrides,
+    };
+}
+
+function strategy(overrides: Partial<StrategyData> = {}): StrategyData {
+    return {
+        id: 1,
+        version: 1,
+        status: 'active',
+        intervention_point: 'cue',
+        approach: 'Lay your shoes by the door',
+        rationale: null,
+        change_reason: null,
+        superseded_reason: null,
+        review_at: null,
+        verdict: null,
+        verdict_note: null,
+        day_of_experiment: 5,
+        planned_days: 14,
+        is_under_review: false,
+        parent_strategy_id: null,
+        metadata: null,
+        created_at: null,
+        updated_at: null,
         ...overrides,
     };
 }
@@ -270,5 +295,61 @@ describe('LoopShow', () => {
         expect(
             screen.getByText(/no reflection written yet/i),
         ).toBeInTheDocument();
+    });
+
+    /**
+     * The active, not-yet-concluded version is the one the record can still
+     * answer a review for. `status === 'active'` alone is not enough — a
+     * `worked` verdict leaves a version active while the question is closed.
+     */
+    it('offers a verdict for the active, unconcluded version', () => {
+        const { container } = render(
+            <LoopShow
+                intention={intention()}
+                strategies={[
+                    strategy({ id: 7, status: 'active', verdict: null }),
+                ]}
+                {...record}
+            />,
+        );
+
+        expect(screen.getByLabelText(/it worked/i)).toBeInTheDocument();
+        expect(
+            container
+                .querySelector('form[action*="/verdict"]')
+                ?.getAttribute('action'),
+        ).toContain('/strategies/7/verdict');
+    });
+
+    it('does not offer a verdict for a version already concluded', () => {
+        render(
+            <LoopShow
+                intention={intention()}
+                strategies={[
+                    strategy({ id: 7, status: 'active', verdict: 'worked' }),
+                ]}
+                {...record}
+            />,
+        );
+
+        expect(screen.queryByLabelText(/it worked/i)).not.toBeInTheDocument();
+    });
+
+    it('does not offer a verdict when no version is active', () => {
+        render(
+            <LoopShow
+                intention={intention()}
+                strategies={[
+                    strategy({
+                        id: 7,
+                        status: 'superseded',
+                        verdict: 'failed',
+                    }),
+                ]}
+                {...record}
+            />,
+        );
+
+        expect(screen.queryByLabelText(/it worked/i)).not.toBeInTheDocument();
     });
 });
