@@ -98,6 +98,12 @@ export default defineConfig({
         }),
         VitePWA({
             registerType: 'autoUpdate',
+            // app.tsx registers the worker itself (see its own comment for why).
+            // Without this, vite-plugin-pwa still emits build/registerSW.js
+            // containing the overruled `register('/build/sw.js', {scope:
+            // '/build/'})` — inert since nothing loads it, but it contradicts
+            // app.tsx and burns a precache entry for no reason.
+            injectRegister: null,
             outDir: 'public/build',
             manifest: {
                 name: 'PatYourSelf',
@@ -118,6 +124,12 @@ export default defineConfig({
                 // Inertia HTML response serves a stale CSRF token, and the 419s
                 // that follow look like random logouts. Do not "optimise" this.
                 globPatterns: ['**/*.{js,css,woff2,png,svg}'],
+                // The Inertia page glob picks up resources/js/pages/**/*.test.tsx,
+                // so vitest-only chunks land in the build the same as any other
+                // page. Never loaded in production, but the PWA turns "code-split,
+                // never loaded" into "downloaded eagerly onto every installed
+                // device" by precaching them anyway.
+                globIgnores: ['**/*.test-*.js'],
                 navigateFallback: null,
                 // The worker itself moves to the web root (see
                 // relocateServiceWorkerToWebRoot below), but the assets it
