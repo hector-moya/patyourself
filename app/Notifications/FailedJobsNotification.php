@@ -9,9 +9,12 @@ use Illuminate\Notifications\Notification;
 /**
  * Tells the owner that background jobs have failed since the last check.
  *
- * Deliberately NOT queued, and pinned to the sync connection: this is an alert
- * about the queue, so routing it through the queue would mean the failure that
- * matters most is the one that never gets reported.
+ * Deliberately NOT ShouldQueue: an alert about a broken queue must not ride
+ * that queue, or the failure that matters most would be the one that never
+ * gets reported. Omitting ShouldQueue is what makes NotificationSender call
+ * sendNow() directly — a viaConnections() pin (the trick ActionDueNotification
+ * uses) only takes effect for notifications that *do* implement ShouldQueue,
+ * so it would be dead code here and is deliberately not declared.
  */
 class FailedJobsNotification extends Notification
 {
@@ -28,14 +31,6 @@ class FailedJobsNotification extends Notification
     public function via(object $notifiable): array
     {
         return ['mail'];
-    }
-
-    /**
-     * @return array<string, string>
-     */
-    public function viaConnections(): array
-    {
-        return ['mail' => 'sync'];
     }
 
     public function toMail(object $notifiable): MailMessage

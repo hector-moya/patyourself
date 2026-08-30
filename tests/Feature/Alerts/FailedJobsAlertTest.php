@@ -8,6 +8,7 @@ use App\Services\Alerts\FailedJobsAlert;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
 class FailedJobsAlertTest extends TestCase
@@ -30,6 +31,10 @@ class FailedJobsAlertTest extends TestCase
     {
         Notification::fake();
         $owner = User::factory()->create();
+
+        // Cold start: establishes the baseline before anything has failed.
+        $this->assertSame(0, app(FailedJobsAlert::class)->sendIfAny());
+
         $this->recordFailure();
 
         $reported = app(FailedJobsAlert::class)->sendIfAny();
@@ -42,6 +47,7 @@ class FailedJobsAlertTest extends TestCase
     {
         Notification::fake();
         User::factory()->create();
+        app(FailedJobsAlert::class)->sendIfAny(); // seed the baseline
         $this->recordFailure();
 
         app(FailedJobsAlert::class)->sendIfAny();
@@ -61,9 +67,33 @@ class FailedJobsAlertTest extends TestCase
         Notification::assertNothingSent();
     }
 
+    public function test_it_does_not_alert_on_pre_existing_failures_at_cold_start(): void
+    {
+        Notification::fake();
+        User::factory()->create();
+
+        // These failures predate the alert ever having run. A cold mark must
+        // not turn into a report of the entire historical backlog.
+        $this->recordFailure('pre-existing-uuid');
+
+        $reported = app(FailedJobsAlert::class)->sendIfAny();
+
+        $this->assertSame(0, $reported);
+        Notification::assertNothingSent();
+
+        // The baseline is now set at the pre-existing row, so a genuinely new
+        // failure afterwards is still caught — the cold start did not just
+        // suppress alerting forever.
+        $this->recordFailure('genuinely-new-uuid');
+
+        $this->assertSame(1, app(FailedJobsAlert::class)->sendIfAny());
+        Notification::assertSentTimes(FailedJobsNotification::class, 1);
+    }
+
     public function test_it_does_not_advance_the_mark_when_sending_throws(): void
     {
         $owner = User::factory()->create();
+        app(FailedJobsAlert::class)->sendIfAny(); // seed the baseline
         $this->recordFailure();
 
         Notification::shouldReceive('send')->once()->andThrow(new \RuntimeException('smtp is down'));
@@ -79,19 +109,28 @@ class FailedJobsAlertTest extends TestCase
         $this->assertSame(1, app(FailedJobsAlert::class)->sendIfAny());
     }
 
-    public function test_the_notification_sends_on_the_sync_connection(): void
+    public function test_the_notification_does_not_ride_the_queue(): void
     {
-        // An alert about a broken queue that is itself queued is not an alert.
-        $this->assertSame(
-            ['mail' => 'sync'],
-            (new FailedJobsNotification(1, 'RuntimeException: the worker died'))->viaConnections(),
-        );
+        // An alert about a broken queue that is itself queued is not an
+        // alert. viaConnections() only takes effect for ShouldQueue
+        // notifications, so the real guarantee is that nothing here ever
+        // reaches the queue in the first place.
+        Queue::fake();
+        $owner = User::factory()->create();
+
+        Notification::send($owner, new FailedJobsNotification(1, 'RuntimeException: the worker died'));
+
+        Queue::assertNothingPushed();
     }
 
     public function test_the_command_runs(): void
     {
         Notification::fake();
         User::factory()->create();
+
+        // Establish the baseline before the failure exists.
+        $this->artisan('jobs:alert-failed')->assertSuccessful();
+
         $this->recordFailure();
 
         $this->artisan('jobs:alert-failed')->assertSuccessful();

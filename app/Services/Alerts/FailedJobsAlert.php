@@ -4,7 +4,6 @@ namespace App\Services\Alerts;
 
 use App\Models\User;
 use App\Notifications\FailedJobsNotification;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
@@ -21,6 +20,18 @@ use Illuminate\Support\Facades\Notification;
  * to fail in. The mark only advances after the notification is actually sent,
  * so a mail failure means the next tick tries again instead of swallowing it.
  *
+ * The mark tracks `failed_jobs.id`, not a timestamp. `failed_at` is a
+ * second-precision column, so a burst of failures inside one wall-clock
+ * second (exactly what an outage produces) can tie with the moment the
+ * previous tick wrote its mark and be silently, permanently skipped. An
+ * auto-increment id has no such tie: every row gets a distinct, monotonic
+ * value, so "greater than the mark" unambiguously means "not yet reported."
+ *
+ * On a cold mark (cache cleared, or first run ever) the service seeds the
+ * baseline to the current maximum id and reports nothing, rather than mailing
+ * a report of the entire historical backlog. Only failures after that point
+ * are ever reported.
+ *
  * The recipient is the first registered account. This app is single-user in
  * practice and the owner is account one; a multi-user future needs an explicit
  * owner flag rather than this assumption.
@@ -31,17 +42,20 @@ final readonly class FailedJobsAlert
 
     public function sendIfAny(): int
     {
-        $since = Cache::get(self::MARK);
-        $checkedAt = Carbon::now();
+        $mark = Cache::get(self::MARK);
+
+        if ($mark === null) {
+            Cache::forever(self::MARK, $this->currentMaxId());
+
+            return 0;
+        }
 
         $failures = DB::table('failed_jobs')
-            ->when($since !== null, fn ($query) => $query->where('failed_at', '>', $since))
-            ->orderBy('failed_at')
+            ->where('id', '>', $mark)
+            ->orderBy('id')
             ->get();
 
         if ($failures->isEmpty()) {
-            Cache::forever(self::MARK, $checkedAt);
-
             return 0;
         }
 
@@ -58,8 +72,13 @@ final readonly class FailedJobsAlert
 
         // Only now. If sending threw, the mark is untouched and the next tick
         // reports the same failures rather than losing them.
-        Cache::forever(self::MARK, $checkedAt);
+        Cache::forever(self::MARK, $failures->last()->id);
 
         return $failures->count();
+    }
+
+    private function currentMaxId(): int
+    {
+        return (int) (DB::table('failed_jobs')->max('id') ?? 0);
     }
 }
