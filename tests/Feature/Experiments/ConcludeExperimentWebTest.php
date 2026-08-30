@@ -82,7 +82,10 @@ class ConcludeExperimentWebTest extends TestCase
         ]);
 
         $this->actingAs($user)
-            ->post(route('strategies.verdict.store', $strategy), ['verdict' => Strategy::VERDICT_FAILED])
+            ->post(route('strategies.verdict.store', $strategy), [
+                'verdict' => Strategy::VERDICT_FAILED,
+                'note' => 'This should fail because already concluded.',
+            ])
             ->assertSessionHasErrors('verdict');
 
         $this->assertSame(Strategy::VERDICT_WORKED, $strategy->refresh()->verdict);

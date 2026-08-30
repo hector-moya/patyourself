@@ -22,13 +22,11 @@ class StoreVerdictRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'verdict' => ['required', 'string', Rule::in(Strategy::VERDICTS), Rule::prohibitedIf(
-                fn (): bool => $this->route('strategy')?->isConcluded() === true,
-            )],
+            'verdict' => ['required', 'string', Rule::in(Strategy::VERDICTS)],
             // A failed experiment has to say what did not hold. The note is what
             // the next experiment gets written from, exactly as a failure reason is.
             'note' => ['nullable', 'string', 'max:2000', Rule::requiredIf(
-                fn (): bool => $this->input('verdict') === Strategy::VERDICT_FAILED && $this->route('strategy')?->isConcluded() !== true,
+                fn (): bool => $this->input('verdict') === Strategy::VERDICT_FAILED,
             )],
         ];
     }
@@ -40,7 +38,6 @@ class StoreVerdictRequest extends FormRequest
     {
         return [
             'note.required' => 'Say what the strategy did not do. This is what the next experiment is written from.',
-            'verdict.prohibited' => 'This experiment is already concluded.',
         ];
     }
 }

@@ -66,6 +66,20 @@ class ActionLogWebTest extends TestCase
             ->assertSessionHasErrors('reason');
     }
 
+    public function test_the_reason_is_stored_verbatim(): void
+    {
+        $user = User::factory()->create();
+        $action = $this->action($user);
+        $reason = '  Forgot my wallet.   Only had 10 minutes.  ';
+
+        $this->actingAs($user)->post("/actions/{$action->id}/logs", [
+            'outcome' => ActionLog::OUTCOME_FAILED,
+            'reason' => $reason,
+        ]);
+
+        $this->assertSame($reason, $action->logs()->first()->reason);
+    }
+
     public function test_forbids_logging_another_users_action(): void
     {
         $action = $this->action(User::factory()->create());

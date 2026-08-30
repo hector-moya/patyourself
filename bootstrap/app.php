@@ -18,7 +18,10 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
 
-        $middleware->trimStrings(except: ['note']);
+        // Exclude fields documented as verbatim (never trimmed, squished, or sentence-cased).
+        // These are the raw material for strategy rewrites and need exact preservation.
+        // When adding a new verbatim field (e.g., in a Form Request), add it here.
+        $middleware->trimStrings(except: ['note', 'reason', 'content']);
 
         $middleware->web(append: [
             HandleAppearance::class,
