@@ -4,11 +4,11 @@ namespace App\Notifications;
 
 use App\Models\Occurrence;
 use App\Models\User;
+use App\Services\Reminders\QuickLogLinks;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
-use Illuminate\Support\Facades\URL;
 
 /**
  * The cue: an occasion's scheduled moment has arrived (SP2 fired it). Always
@@ -63,26 +63,22 @@ class ActionDueNotification extends Notification implements ShouldQueue
         $action = $this->occurrence->action;
         $loop = $action->intention;
 
-        $done = URL::temporarySignedRoute('occurrences.quick-log', now()->addDays(7), [
-            'occurrence' => $this->occurrence->id,
-            'outcome' => 'completed',
-        ]);
+        $links = QuickLogLinks::linksFor($this->occurrence);
 
-        $skipped = URL::temporarySignedRoute('occurrences.quick-log', now()->addDays(7), [
-            'occurrence' => $this->occurrence->id,
-            'outcome' => 'skipped',
-        ]);
-
+        // Laravel's mail Markdown environment registers CommonMarkCoreExtension
+        // and TableExtension only — no autolink extension — so a bare URL in a
+        // ->line() renders as plain text, not an <a href>. Markdown link syntax
+        // is what actually survives to a styled, clickable anchor.
         return (new MailMessage)
             ->subject($action->title)
             ->line("It's time for: {$action->title}")
             ->line("Loop: {$loop->title}")
             ->line("Cue: {$loop->cue}")
-            ->action('Done', $done)
-            ->line("Didn't happen: {$skipped}")
+            ->action('Done', $links['done'])
+            ->line("[Didn't happen]({$links['skipped']})")
             // Not one-click on purpose: a failure carries your own reason, and
             // this link opens the app so you can write it.
-            ->line("It happened and the strategy didn't hold: ".route('loops.show', $loop->id))
+            ->line("[It happened and the strategy didn't hold](".route('loops.show', $loop->id).')')
             ->line('Manage your reminders: '.route('notifications.edit'));
     }
 

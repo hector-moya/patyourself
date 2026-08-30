@@ -2,13 +2,13 @@
 
 namespace App\Notifications;
 
+use App\Services\Reminders\QuickLogLinks;
 use App\Services\Scheduling\TodaysOccasion;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\URL;
 
 /**
  * The daily digest: everything the user owes today, in one email at their
@@ -52,18 +52,12 @@ class DailyDigestNotification extends Notification implements ShouldQueue
             // creates one — so there is nothing to build a one-click link
             // against. It stays listed above, without links, until it fires.
             if ($occasion->occurrence !== null) {
-                $done = URL::temporarySignedRoute('occurrences.quick-log', now()->addDays(7), [
-                    'occurrence' => $occasion->occurrence->id,
-                    'outcome' => 'completed',
-                ]);
+                $links = QuickLogLinks::linksFor($occasion->occurrence);
 
-                $skipped = URL::temporarySignedRoute('occurrences.quick-log', now()->addDays(7), [
-                    'occurrence' => $occasion->occurrence->id,
-                    'outcome' => 'skipped',
-                ]);
-
-                $mail->line("  Done: {$done}");
-                $mail->line("  Didn't happen: {$skipped}");
+                // Markdown link syntax, not a bare URL: Laravel's mail Markdown
+                // environment has no autolink extension, so a bare URL in a
+                // ->line() would render as plain text, not a clickable anchor.
+                $mail->line("[Done]({$links['done']}) · [Didn't happen]({$links['skipped']})");
             }
         }
 
