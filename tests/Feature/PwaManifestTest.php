@@ -62,6 +62,15 @@ class PwaManifestTest extends TestCase
      * (unprefixed, 404) in the precache list. `assertFileExists` catches
      * that the moment it happens, rather than only catching this one
      * instance of it.
+     *
+     * `assertFileExists` alone is not the whole guard: for `url:"/"`,
+     * `ltrim('/', '/')` yields `''`, and `public_path('')` resolves to the
+     * public directory itself, which `file_exists()` happily reports as
+     * existing because it exists as a directory. That is exactly the entry
+     * this guard exists to catch, and the bare file-existence check would
+     * wave it through, along with a precached `/build/index.html`.
+     * Requiring every URL to also end in a known asset extension closes that
+     * hole without weakening the file-existence check; both must hold.
      */
     private function assertNoDocumentUrlsInPrecacheManifest(string $contents): void
     {
@@ -72,6 +81,12 @@ class PwaManifestTest extends TestCase
         $this->assertNotEmpty($urls, 'Expected to find at least one precached entry in the service worker.');
 
         foreach ($urls as $url) {
+            $this->assertMatchesRegularExpression(
+                '/\.(js|css|woff2|png|svg|webmanifest)$/',
+                $url,
+                "Precached URL [{$url}] does not end in a known asset extension; it may be a document, which must never be cached."
+            );
+
             $this->assertFileExists(
                 public_path(ltrim($url, '/')),
                 "Precached URL [{$url}] does not resolve to a real file on disk — it may be a document (which must never be cached) or a broken prefix."
