@@ -75,13 +75,23 @@ class IntentionController extends Controller
      * literal percent in a title is a percent rather than a wildcard — the
      * column list is a hardcoded allowlist, which is the only reason it is safe
      * to interpolate the column name into the raw fragment.
+     *
+     * The escape character is bound as its own parameter rather than embedded
+     * as a quoted literal in the raw SQL text. `ESCAPE '\\'` (a PHP
+     * double-quoted string collapses `\\` to one backslash) sends MySQL the
+     * literal `ESCAPE '\'` — under MySQL's default sql_mode a backslash is
+     * itself a string-escape character, so `\'` is consumed as an escaped
+     * quote and the literal never closes, turning every `?q=` search into a
+     * syntax error. SQLite has no such escaping and lets it through, which is
+     * why the test suite (SQLite-backed) could not catch it. Binding `?` is
+     * portable across both drivers and removes the fragile construct outright.
      */
     private function matchTitleOrChain(Builder $query, string $term): void
     {
         $escaped = str_replace(['\\', '%', '_'], ['\\\\', '\%', '\_'], $term);
 
         foreach (['title', 'cue', 'craving', 'response', 'reward'] as $column) {
-            $query->orWhereRaw("{$column} LIKE ? ESCAPE '\\'", ['%'.$escaped.'%']);
+            $query->orWhereRaw("{$column} LIKE ? ESCAPE ?", ['%'.$escaped.'%', '\\']);
         }
     }
 

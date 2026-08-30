@@ -5,6 +5,7 @@ namespace Tests\Feature\Loops;
 use App\Models\Intention;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia;
 use Tests\TestCase;
 
@@ -17,11 +18,6 @@ class LoopsIndexFilterTest extends TestCase
         parent::setUp();
 
         $this->withoutVite();
-    }
-
-    private function titles(AssertableInertia $page): array
-    {
-        return array_column($page->toArray()['props']['intentions'], 'title');
     }
 
     public function test_the_status_filter_narrows_the_list(): void
@@ -96,6 +92,37 @@ class LoopsIndexFilterTest extends TestCase
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->has('intentions', 1)
                 ->where('intentions.0.title', 'a_b'));
+    }
+
+    /**
+     * SQLite (this suite's driver) tolerates `ESCAPE '\'` as raw SQL text, but
+     * under MySQL's default sql_mode a backslash inside a string literal is
+     * itself an escape character, so that quoted literal never closes and the
+     * query 500s in production. No SQLite-backed execution test can see that
+     * failure, so this pins the property structurally: the escape character
+     * must be a bound parameter (`ESCAPE ?`), never embedded as a quoted
+     * literal (`ESCAPE '...'`), in the SQL actually sent to the driver.
+     */
+    public function test_the_search_binds_the_escape_character_rather_than_embedding_it(): void
+    {
+        $user = User::factory()->create();
+        Intention::factory()->for($user)->create(['title' => 'anything']);
+
+        $queries = [];
+        DB::listen(function ($query) use (&$queries): void {
+            $queries[] = $query->sql;
+        });
+
+        $this->actingAs($user)->get(route('loops.index', ['q' => 'anything']))->assertOk();
+
+        $searchQueries = array_filter($queries, fn (string $sql): bool => str_contains($sql, 'LIKE'));
+
+        $this->assertNotEmpty($searchQueries, 'Expected the request to run a LIKE search query.');
+
+        foreach ($searchQueries as $sql) {
+            $this->assertStringContainsString('ESCAPE ?', $sql);
+            $this->assertStringNotContainsString("ESCAPE '", $sql);
+        }
     }
 
     public function test_an_unknown_status_is_ignored_rather_than_erroring(): void
