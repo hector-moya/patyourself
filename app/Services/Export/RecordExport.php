@@ -34,7 +34,12 @@ final readonly class RecordExport
             ->with([
                 'strategies' => fn ($query) => $query->orderBy('version'),
                 'actions.occurrences.log',
-                'notes' => fn ($query) => $query->orderBy('noted_at'),
+                // `Intention::notes()` bakes in `latest('noted_at')` (DESC) for
+                // its normal, newest-first UI use. Appending another
+                // `orderBy('noted_at')` here would be a no-op — the first
+                // ORDER BY already fully sorts the rows — so `reorder()`
+                // clears it before applying the export's chronological order.
+                'notes' => fn ($query) => $query->reorder('noted_at'),
                 'summaries' => fn ($query) => $query->orderBy('created_at'),
             ])
             ->orderBy('created_at')
@@ -137,6 +142,12 @@ final readonly class RecordExport
             // Verbatim. The reason is the user's own words about why a strategy
             // did not hold, and it is the most important text in the record.
             'reason' => $log->reason,
+            // Verbatim. The free-text mechanics of what happened — the primary
+            // record alongside `reason`, per LogOutcomeTool's own description.
+            'context' => $log->context,
+            // Already decoded by ActionLog's `array` cast, so this nests as
+            // real structure in a JSON export rather than an embedded string.
+            'context_fields' => $log->context_fields,
             'logged_at' => $this->timestamp($log->logged_at),
         ];
     }

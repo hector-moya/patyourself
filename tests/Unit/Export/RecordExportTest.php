@@ -6,6 +6,7 @@ use App\Models\Action;
 use App\Models\Intention;
 use App\Models\Note;
 use App\Models\Strategy;
+use App\Models\Summary;
 use App\Models\User;
 use App\Services\Export\RecordExport;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -81,7 +82,7 @@ class RecordExportTest extends TestCase
         ]);
         $loop->summaries()->create([
             'user_id' => $user->id,
-            'scope' => 'loop',
+            'scope' => Summary::SCOPE_INTENTION,
             'content' => 'three weeks in, the cue is the problem and not the response',
             'events_count' => 12,
         ]);
@@ -96,6 +97,80 @@ class RecordExportTest extends TestCase
             'three weeks in, the cue is the problem and not the response',
             $record['loops'][0]['reflections'][0]['content'],
         );
+    }
+
+    public function test_it_carries_notes_in_chronological_order(): void
+    {
+        $user = User::factory()->create();
+        $loop = Intention::factory()->for($user)->create();
+        // Created in reverse order on purpose: the export orders by
+        // `noted_at`, never by insertion order.
+        Note::factory()->for($loop, 'intention')->create([
+            'body' => 'noted more recently',
+            'noted_at' => now()->subDay(),
+        ]);
+        Note::factory()->for($loop, 'intention')->create([
+            'body' => 'noted first',
+            'noted_at' => now()->subWeek(),
+        ]);
+
+        $record = app(RecordExport::class)->forUser($user);
+        $notes = $record['loops'][0]['notes'];
+
+        $this->assertSame('noted first', $notes[0]['body']);
+        $this->assertSame('noted more recently', $notes[1]['body']);
+    }
+
+    public function test_it_carries_reflections_in_chronological_order(): void
+    {
+        $user = User::factory()->create();
+        $loop = Intention::factory()->for($user)->create();
+        // Factory (not the relation) so `created_at` can be forced apart —
+        // Summary does not fillable-expose it for mass assignment.
+        Summary::factory()->for($loop, 'intention')->create([
+            'user_id' => $user->id,
+            'content' => 'summary written second',
+            'created_at' => now(),
+        ]);
+        Summary::factory()->for($loop, 'intention')->create([
+            'user_id' => $user->id,
+            'content' => 'summary written first',
+            'created_at' => now()->subWeek(),
+        ]);
+
+        $record = app(RecordExport::class)->forUser($user);
+        $reflections = $record['loops'][0]['reflections'];
+
+        $this->assertSame('summary written first', $reflections[0]['content']);
+        $this->assertSame('summary written second', $reflections[1]['content']);
+    }
+
+    public function test_it_carries_the_outcome_context_out_byte_for_byte(): void
+    {
+        // Leading and trailing whitespace on purpose, same as the reason
+        // field: `context` is the primary, free-text record of what
+        // happened, and it is not allowed to be tidied either.
+        $context = '  pressed snooze twice before giving up entirely  ';
+
+        $user = User::factory()->create();
+        $loop = Intention::factory()->for($user)->create();
+        $action = Action::factory()->for($loop, 'intention')->create(['status' => Action::STATUS_ACTIVE]);
+        $occurrence = $action->occurrences()->create(['scheduled_for' => now()->subDay()]);
+        $occurrence->log()->create([
+            'user_id' => $user->id,
+            'action_id' => $action->id,
+            'outcome' => 'failed',
+            'reason' => 'overslept',
+            'context' => $context,
+            'context_fields' => ['mood' => 'tired'],
+            'logged_at' => now()->subDay(),
+        ]);
+
+        $record = app(RecordExport::class)->forUser($user);
+        $outcome = $record['loops'][0]['actions'][0]['occurrences'][0]['outcome'];
+
+        $this->assertSame($context, $outcome['context']);
+        $this->assertSame(['mood' => 'tired'], $outcome['context_fields']);
     }
 
     public function test_another_users_record_never_appears(): void
