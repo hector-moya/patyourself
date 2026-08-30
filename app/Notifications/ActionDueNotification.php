@@ -79,7 +79,7 @@ class ActionDueNotification extends Notification implements ShouldQueue
             // Not one-click on purpose: a failure carries your own reason, and
             // this link opens the app so you can write it.
             ->line("[It happened and the strategy didn't hold](".route('loops.show', $loop->id).')')
-            ->line('Manage your reminders: '.route('notifications.edit'));
+            ->line('[Manage your reminders]('.route('notifications.edit').')');
     }
 
     /**
