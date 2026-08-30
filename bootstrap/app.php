@@ -22,9 +22,11 @@ return Application::configure(basePath: dirname(__DIR__))
         // input and are stored verbatim (never trimmed, squished, or sentence-cased) because
         // they are the raw material for strategy rewrites.
         //
-        // Genuine cases: `reason` (outcome-logging routes) and `note` (verdict route).
-        // See tests/Feature/ActionLogWebTest.php::test_the_reason_is_stored_verbatim for
-        // end-to-end verification.
+        // Genuine cases: `reason` (outcome-logging routes), `note` (verdict route), and
+        // `approach` / `rationale` / `supersedes_reason` (start-experiment route).
+        // See tests/Feature/ActionLogWebTest.php::test_the_reason_is_stored_verbatim and
+        // tests/Feature/Experiments/StartExperimentWebTest.php::test_the_approach_rationale_and_supersedes_reason_are_stored_verbatim
+        // for end-to-end verification.
         //
         // `content` is listed defensively: the write-reflection MCP tool bypasses this
         // middleware entirely (HttpTransport feeds raw JSON-RPC body, not parsed input bag).
@@ -32,7 +34,7 @@ return Application::configure(basePath: dirname(__DIR__))
         //
         // When adding a new verbatim field: use its REQUEST field name here (the name
         // in the form payload), not the database column name—they do not always match.
-        $middleware->trimStrings(except: ['note', 'reason', 'content']);
+        $middleware->trimStrings(except: ['note', 'reason', 'content', 'approach', 'rationale', 'supersedes_reason']);
 
         $middleware->web(append: [
             HandleAppearance::class,

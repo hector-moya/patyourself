@@ -4,6 +4,7 @@ use App\Http\Controllers\ActionController;
 use App\Http\Controllers\ActionLogController;
 use App\Http\Controllers\CatchUpController;
 use App\Http\Controllers\CompanionController;
+use App\Http\Controllers\ExperimentController;
 use App\Http\Controllers\InboxController;
 use App\Http\Controllers\IntentionController;
 use App\Http\Controllers\NotebookController;
@@ -33,6 +34,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // version, because the version is what carries the verdict.
     Route::post('strategies/{strategy}/verdict', [VerdictController::class, 'store'])
         ->name('strategies.verdict.store');
+
+    // Starting the next version. Append-only: StartExperiment supersedes the
+    // current version rather than editing it.
+    Route::post('loops/{intention}/experiments', [ExperimentController::class, 'store'])
+        ->name('loops.experiments.store');
 
     // Log an action's outcome (completion / failure + reason).
     Route::post('actions/{action}/logs', [ActionLogController::class, 'store'])
