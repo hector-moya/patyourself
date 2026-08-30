@@ -7,7 +7,10 @@ import { cn } from '@/lib/utils';
 import { BottomNav } from '@/patyourself/bottom-nav';
 import { ExperimentHeader } from '@/patyourself/experiment-header';
 import { LoopNotes } from '@/patyourself/loop-notes';
+import { ActionLayer } from '@/patyourself/loops/action-layer';
+import { cadenceLabel, currentCadenceLabel } from '@/patyourself/loops/cadence';
 import { ConcludeExperimentForm } from '@/patyourself/loops/conclude-experiment-form';
+import { NoteForm } from '@/patyourself/loops/note-form';
 import { StartExperimentForm } from '@/patyourself/loops/start-experiment-form';
 import { OutcomeHistory } from '@/patyourself/outcome-history';
 import { Button } from '@/patyourself/primitives';
@@ -17,7 +20,7 @@ import {
     StrategyTimeline,
 } from '@/patyourself/strategy-timeline';
 import type {
-    ActiveActionData,
+    ActionRecordData,
     CurrentVersionData,
     ExperimentData,
     IntentionData,
@@ -39,6 +42,8 @@ interface LoopShowProps {
     outcomes_total: number;
     showing_all_history: boolean;
     notes: NoteData[];
+    /** Every live (non-archived) action on the loop, for the action layer. */
+    actions: ActionRecordData[];
     /** The active experiment's own record. Null between experiments. */
     current_version?: CurrentVersionData | null;
     /** One rung per version, oldest first. */
@@ -80,47 +85,6 @@ function previousVersionRate(
 }
 
 /**
- * A human-readable description of the active action's cadence — "daily at
- * 19:00", "after brushing teeth" — for the start-experiment form's keep
- * option. Named there rather than left as a hidden default, so choosing to
- * inherit it is a legible choice rather than a guess at what "keep" means.
- *
- * Null when the loop has no active action; the form then renders the option
- * without empty parentheses rather than a hollow "()".
- */
-function currentCadenceLabel(
-    activeAction: ActiveActionData | null,
-): string | null {
-    if (activeAction === null) {
-        return null;
-    }
-
-    if (activeAction.schedule_kind === 'anchored') {
-        return activeAction.anchor === null
-            ? null
-            : `after ${activeAction.anchor}`;
-    }
-
-    const time =
-        activeAction.next_occurrence_at === null
-            ? null
-            : formatTime(activeAction.next_occurrence_at);
-
-    if (activeAction.recurrence !== null && time !== null) {
-        return `${activeAction.recurrence} at ${time}`;
-    }
-
-    return activeAction.recurrence ?? time;
-}
-
-function formatTime(iso: string): string {
-    return new Date(iso).toLocaleTimeString('en-GB', {
-        hour: '2-digit',
-        minute: '2-digit',
-    });
-}
-
-/**
  * The lab record for one loop: the habit anatomy (cue → craving → response →
  * reward, with the stage the active strategy intervenes on highlighted), the
  * versioned experiment timeline, the outcomes those experiments produced, and
@@ -139,6 +103,7 @@ export default function LoopShow({
     outcomes_total: outcomesTotal,
     showing_all_history: showingAllHistory,
     notes,
+    actions,
     current_version: currentVersion = null,
     experiments = [],
     reflection = null,
@@ -150,6 +115,16 @@ export default function LoopShow({
     const activeExperiment = strategies.find(
         (s) => s.status === 'active' && s.verdict === null,
     );
+
+    // The raw scheduling fields are turned into a display cadence here, with
+    // the same rules `currentCadenceLabel` uses for the active action below —
+    // one formatter, so the two never drift into disagreeing descriptions of
+    // the same kind of fact.
+    const actionSummaries = actions.map((action) => ({
+        id: action.id,
+        title: action.title,
+        cadence: cadenceLabel(action),
+    }));
 
     const back = (
         <Link
@@ -244,6 +219,14 @@ export default function LoopShow({
                     experiments={experiments}
                 />
 
+                <section>
+                    <SectionHeading>Actions</SectionHeading>
+                    <ActionLayer
+                        loopId={intention.id}
+                        actions={actionSummaries}
+                    />
+                </section>
+
                 {/* Behind a disclosure, so starting the next experiment does
                     not compete with the record for attention — it is only
                     possible to reach when a strategy is active to supersede. */}
@@ -270,6 +253,7 @@ export default function LoopShow({
                     loopId={intention.id}
                 />
 
+                <NoteForm loopId={intention.id} />
                 <LoopNotes notes={notes} />
             </div>
         </CoachLayout>

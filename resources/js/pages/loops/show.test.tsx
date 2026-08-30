@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
 import type {
+    ActionRecordData,
     ActiveActionData,
     ActiveStrategySummary,
     CurrentVersionData,
@@ -47,6 +48,7 @@ const record = {
     outcomes_total: 0,
     showing_all_history: false,
     notes: [],
+    actions: [],
 };
 
 function currentVersion(
@@ -110,6 +112,20 @@ function activeAction(
         id: 1,
         title: 'Read ten pages',
         description: null,
+        next_occurrence_at: null,
+        recurrence: null,
+        schedule_kind: null,
+        anchor: null,
+        ...overrides,
+    };
+}
+
+function actionRecord(
+    overrides: Partial<ActionRecordData> = {},
+): ActionRecordData {
+    return {
+        id: 1,
+        title: 'Read ten pages',
         next_occurrence_at: null,
         recurrence: null,
         schedule_kind: null,
@@ -498,5 +514,71 @@ describe('LoopShow', () => {
         expect(
             screen.getByLabelText(/^keep the current cadence$/i),
         ).toBeInTheDocument();
+    });
+
+    it('mounts the note form above the notes list', () => {
+        render(
+            <LoopShow intention={intention()} strategies={[]} {...record} />,
+        );
+
+        expect(
+            screen.getByPlaceholderText(/something you noticed/i),
+        ).toBeInTheDocument();
+    });
+
+    it('lists a live action with its cadence in the action layer', () => {
+        const nextOccurrenceAt = '2026-08-18T19:00:00+00:00';
+        const time = new Date(nextOccurrenceAt).toLocaleTimeString('en-GB', {
+            hour: '2-digit',
+            minute: '2-digit',
+        });
+
+        render(
+            <LoopShow
+                intention={intention()}
+                strategies={[]}
+                {...record}
+                actions={[
+                    actionRecord({
+                        id: 9,
+                        title: 'Weigh in',
+                        schedule_kind: 'clock',
+                        recurrence: 'daily',
+                        next_occurrence_at: nextOccurrenceAt,
+                    }),
+                ]}
+            />,
+        );
+
+        expect(screen.getByText('Weigh in')).toBeInTheDocument();
+        expect(screen.getByText(`daily at ${time}`)).toBeInTheDocument();
+    });
+
+    /**
+     * The defect fixed in this task: the brief's own Step 8 would have
+     * formatted this as "daily at " with nothing after it. An action with a
+     * recurrence but no occurrence left in today's grid must read as the
+     * recurrence alone.
+     */
+    it('does not render a dangling cadence for an action with no occurrence left to report', () => {
+        render(
+            <LoopShow
+                intention={intention()}
+                strategies={[]}
+                {...record}
+                actions={[
+                    actionRecord({
+                        id: 9,
+                        title: 'Weigh in',
+                        schedule_kind: 'clock',
+                        recurrence: 'daily',
+                        next_occurrence_at: null,
+                    }),
+                ]}
+            />,
+        );
+
+        expect(screen.getByText('daily')).toBeInTheDocument();
+        expect(screen.queryByText(/daily at/i)).not.toBeInTheDocument();
     });
 });
