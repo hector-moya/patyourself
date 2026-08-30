@@ -18,6 +18,7 @@ class EmailVerificationTest extends TestCase
     {
         parent::setUp();
 
+        $this->withoutVite();
         $this->skipUnlessFortifyHas(Features::emailVerification());
     }
 

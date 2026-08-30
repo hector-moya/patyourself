@@ -13,6 +13,13 @@ class SecurityTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->withoutVite();
+    }
+
     public function test_security_page_is_displayed()
     {
         $this->skipUnlessFortifyHas(Features::twoFactorAuthentication());
