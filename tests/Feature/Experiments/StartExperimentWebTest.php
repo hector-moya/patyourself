@@ -212,6 +212,43 @@ class StartExperimentWebTest extends TestCase
             ->assertSessionHasErrors('action_time');
     }
 
+    public function test_superseding_a_worked_version_records_stacked_on_success(): void
+    {
+        $user = User::factory()->create();
+        $loop = $this->loopWithActiveVersion($user);
+        $loop->activeStrategy->update(['verdict' => Strategy::VERDICT_WORKED]);
+
+        $this->actingAs($user)->post(route('loops.experiments.store', $loop), [
+            'intervention_point' => Strategy::POINT_CRAVING,
+            'approach' => 'Keep going with what worked, one step further.',
+            'cadence' => 'keep',
+        ]);
+
+        $this->assertSame(
+            Strategy::REASON_STACKED_ON_SUCCESS,
+            $loop->refresh()->activeStrategy->change_reason,
+        );
+    }
+
+    public function test_superseding_an_unconcluded_version_records_restrategized_on_failure(): void
+    {
+        $user = User::factory()->create();
+        $loop = $this->loopWithActiveVersion($user);
+
+        $this->actingAs($user)->post(route('loops.experiments.store', $loop), [
+            'intervention_point' => Strategy::POINT_CRAVING,
+            'approach' => 'Name the craving first.',
+            'cadence' => 'keep',
+        ]);
+
+        // We have no record of success here, so guessing stacked_on_success
+        // would be a permanent, unrecoverable falsehood — history is append-only.
+        $this->assertSame(
+            Strategy::REASON_RESTRATEGIZED_ON_FAILURE,
+            $loop->refresh()->activeStrategy->change_reason,
+        );
+    }
+
     public function test_a_stranger_cannot_start_an_experiment(): void
     {
         $stranger = User::factory()->create();

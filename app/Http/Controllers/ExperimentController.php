@@ -42,7 +42,7 @@ class ExperimentController extends Controller
                     approach: $request->string('approach')->toString(),
                     rationale: $request->input('rationale'),
                 ),
-                changeReason: $request->input('change_reason', Strategy::REASON_RESTRATEGIZED_ON_FAILURE),
+                changeReason: $request->input('change_reason') ?? $this->defaultChangeReason($current),
                 supersededReason: $request->input('supersedes_reason'),
                 reviewAfterDays: $request->filled('review_after_days')
                     ? $request->integer('review_after_days')
@@ -56,6 +56,27 @@ class ExperimentController extends Controller
         }
 
         return back();
+    }
+
+    /**
+     * Guesses why the outgoing version is being superseded, for the case where
+     * the form did not say. The form has no change_reason field — the MCP tool
+     * takes it explicitly because the model can be asked, but this boundary
+     * cannot ask the user a follow-up question mid-submit.
+     *
+     * History is append-only: a version's change_reason is never edited after
+     * the fact, so a wrong guess here is permanent, not merely wrong until
+     * corrected. stacked_on_success is only safe to guess when the outgoing
+     * version's own verdict says `worked` — that is a fact already on the
+     * record, not an inference. Anything else (no verdict yet, or `failed`)
+     * has no recorded success to build on, so it defaults to
+     * restrategized_on_failure rather than claim one.
+     */
+    private function defaultChangeReason(Strategy $current): string
+    {
+        return $current->verdict === Strategy::VERDICT_WORKED
+            ? Strategy::REASON_STACKED_ON_SUCCESS
+            : Strategy::REASON_RESTRATEGIZED_ON_FAILURE;
     }
 
     private function revisedAction(StoreExperimentRequest $request): ?AuthoredAction
