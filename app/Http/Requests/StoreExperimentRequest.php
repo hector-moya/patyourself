@@ -31,8 +31,11 @@ class StoreExperimentRequest extends FormRequest
             'rationale' => ['nullable', 'string', 'max:2000'],
             'supersedes_reason' => ['nullable', 'string', 'max:2000'],
             'change_reason' => ['nullable', 'string', Rule::in(Strategy::CHANGE_REASONS)],
-            // Null is open-ended, and open-ended is a valid experiment.
-            'review_after_days' => ['nullable', 'integer', 'min:0', 'max:365'],
+            // Null is open-ended, and open-ended is a valid experiment. 0 is not
+            // allowed: it would set review_at to now, so isUnderReview() would
+            // be true the instant the experiment starts and the notebook would
+            // nag before anything has run.
+            'review_after_days' => ['nullable', 'integer', 'min:1', 'max:365'],
 
             // Passing an action re-proposes the cadence; omitting it inherits the
             // prior one. That is the least guessable part of StartExperiment's

@@ -101,7 +101,7 @@ export function StartExperimentForm({ loopId, currentCadence }: Props) {
                             id="review_after_days"
                             name="review_after_days"
                             type="number"
-                            min={0}
+                            min={1}
                             className={FIELD_CLASS}
                         />
                         <p className="text-sm opacity-70">

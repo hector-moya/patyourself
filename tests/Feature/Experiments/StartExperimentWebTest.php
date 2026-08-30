@@ -114,6 +114,25 @@ class StartExperimentWebTest extends TestCase
             ->assertSessionHasErrors('review_after_days');
     }
 
+    public function test_a_zero_review_window_is_rejected(): void
+    {
+        $user = User::factory()->create();
+        $loop = $this->loopWithActiveVersion($user);
+
+        $this->actingAs($user)
+            ->post(route('loops.experiments.store', $loop), [
+                'intervention_point' => Strategy::POINT_REWARD,
+                'approach' => 'Log the reward you actually got.',
+                'review_after_days' => 0,
+                'cadence' => 'keep',
+            ])
+            ->assertSessionHasErrors('review_after_days');
+
+        // review_at = now() would make isUnderReview() true immediately, and
+        // the notebook would ask for a verdict on an experiment that just started.
+        $this->assertSame(1, $loop->refresh()->activeStrategy->version);
+    }
+
     public function test_an_omitted_review_window_leaves_the_experiment_open_ended(): void
     {
         $user = User::factory()->create();
