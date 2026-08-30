@@ -27,6 +27,22 @@ class PwaManifestTest extends TestCase
         // token and the user sees random 419s that look like being logged out.
         $this->assertNoDocumentUrlsInPrecacheManifest($contents);
         $this->assertStringContainsString('NetworkOnly', $contents);
+
+        // Regression guards for two build-config-only fixes with no other
+        // coverage: injectRegister: null in vite.config.ts stops
+        // vite-plugin-pwa from generating (and precaching) the overruled
+        // register('/build/sw.js', {scope: '/build/'}) script — app.tsx
+        // registers the worker itself — and globIgnores stops vitest-only
+        // chunks (picked up by the Inertia page glob matching
+        // resources/js/pages/**/*.test.tsx) from being downloaded onto every
+        // installed device. Both would otherwise regress silently on a
+        // plugin bump.
+        $this->assertStringNotContainsString(
+            'registerSW.js',
+            $contents,
+            "The overruled register('/build/sw.js', {scope: '/build/'}) script should not be generated or precached."
+        );
+        $this->assertNoTestBundlesInPrecacheManifest($contents);
     }
 
     public function test_the_app_shell_references_the_manifest(): void
@@ -91,6 +107,34 @@ class PwaManifestTest extends TestCase
                 public_path(ltrim($url, '/')),
                 "Precached URL [{$url}] does not resolve to a real file on disk — it may be a document (which must never be cached) or a broken prefix."
             );
+        }
+    }
+
+    /**
+     * Mirrors vite.config.ts's globIgnores patterns exactly, so a future
+     * workbox/vite-plugin-pwa bump that silently stops honouring one of them
+     * — or a new vitest-only chunk shape the current patterns miss — fails
+     * this test rather than shipping to an installed device unnoticed.
+     */
+    private function assertNoTestBundlesInPrecacheManifest(string $contents): void
+    {
+        preg_match_all('/"?url"?\s*:\s*"([^"]*)"/', $contents, $matches);
+
+        $testBundlePatterns = [
+            '/\.test-[^\/]*\.js$/',
+            '/\/test\.[^\/]*\.js$/',
+            '/\.fixture-[^\/]*\.js$/',
+            '/magic-string\.es-[^\/]*\.js$/',
+        ];
+
+        foreach ($matches[1] as $url) {
+            foreach ($testBundlePatterns as $pattern) {
+                $this->assertDoesNotMatchRegularExpression(
+                    $pattern,
+                    $url,
+                    "Precached URL [{$url}] looks like a vitest-only chunk — globIgnores in vite.config.ts should have excluded it."
+                );
+            }
         }
     }
 }

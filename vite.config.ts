@@ -128,8 +128,22 @@ export default defineConfig({
                 // so vitest-only chunks land in the build the same as any other
                 // page. Never loaded in production, but the PWA turns "code-split,
                 // never loaded" into "downloaded eagerly onto every installed
-                // device" by precaching them anyway.
-                globIgnores: ['**/*.test-*.js'],
+                // device" by precaching them anyway. Four patterns because the
+                // chunk names don't share one shape: per-page suites bundle as
+                // `<page>.test-<hash>.js`, but the shared test runtime chunk is
+                // `test.<hash>-<hash>.js` (no ".test-"), fixtures are
+                // `<name>.fixture-<hash>.js`, and magic-string is a transitive
+                // dependency pulled in under its own package-named chunk.
+                // Safe to exclude from precache: documents are NetworkOnly, so
+                // anything left out of the manifest just loads from the network
+                // — which never happens here anyway, since these chunks are
+                // dead code in production regardless of caching.
+                globIgnores: [
+                    '**/*.test-*.js',
+                    '**/test.*.js',
+                    '**/*.fixture-*.js',
+                    '**/magic-string.es-*.js',
+                ],
                 navigateFallback: null,
                 // The worker itself moves to the web root (see
                 // relocateServiceWorkerToWebRoot below), but the assets it
