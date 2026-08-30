@@ -18,9 +18,20 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
 
-        // Exclude fields documented as verbatim (never trimmed, squished, or sentence-cased).
-        // These are the raw material for strategy rewrites and need exact preservation.
-        // When adding a new verbatim field (e.g., in a Form Request), add it here.
+        // Exclude verbatim fields from TrimStrings middleware. These arrive as HTTP form
+        // input and are stored verbatim (never trimmed, squished, or sentence-cased) because
+        // they are the raw material for strategy rewrites.
+        //
+        // Genuine cases: `reason` (outcome-logging routes) and `note` (verdict route).
+        // See tests/Feature/ActionLogWebTest.php::test_the_reason_is_stored_verbatim for
+        // end-to-end verification.
+        //
+        // `content` is listed defensively: the write-reflection MCP tool bypasses this
+        // middleware entirely (HttpTransport feeds raw JSON-RPC body, not parsed input bag).
+        // But a future web route writing reflections would benefit from the protection.
+        //
+        // When adding a new verbatim field: use its REQUEST field name here (the name
+        // in the form payload), not the database column name—they do not always match.
         $middleware->trimStrings(except: ['note', 'reason', 'content']);
 
         $middleware->web(append: [
