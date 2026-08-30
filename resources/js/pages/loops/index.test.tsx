@@ -1,14 +1,21 @@
 import type * as InertiaReact from '@inertiajs/react';
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { ActiveStrategySummary, IntentionData } from '@/patyourself/types';
+
+const { routerGetMock } = vi.hoisted(() => ({ routerGetMock: vi.fn() }));
 
 const page = { url: '/loops', props: { unread_notifications_count: 0 } };
 vi.mock('@inertiajs/react', async (importOriginal) => {
     const actual = await importOriginal<typeof InertiaReact>();
 
-    return { ...actual, Head: () => null, usePage: () => page };
+    return {
+        ...actual,
+        Head: () => null,
+        usePage: () => page,
+        router: { ...actual.router, get: routerGetMock },
+    };
 });
 
 import LoopsIndex from './index';
@@ -51,6 +58,10 @@ function intention(overrides: Partial<IntentionData> = {}): IntentionData {
 const noFilters = { status: null, q: null };
 
 describe('LoopsIndex', () => {
+    beforeEach(() => {
+        routerGetMock.mockClear();
+    });
+
     it('shows how far into its run each experiment is', () => {
         render(
             <LoopsIndex
@@ -142,5 +153,110 @@ describe('LoopsIndex', () => {
 
         expect(link).toBeInTheDocument();
         expect(link).not.toHaveTextContent(/\d/);
+    });
+
+    describe('filter bar', () => {
+        it('preserves the active search term when a status chip is tapped', () => {
+            render(
+                <LoopsIndex
+                    intentions={[intention()]}
+                    filters={{ status: null, q: 'kettle' }}
+                />,
+            );
+
+            const chip = screen.getByRole('link', { name: 'paused' });
+
+            expect(chip).toHaveAttribute('href', '/loops?status=paused&q=kettle');
+        });
+
+        it('preserves the current status filter when searching', () => {
+            render(
+                <LoopsIndex
+                    intentions={[intention()]}
+                    filters={{ status: 'paused', q: null }}
+                />,
+            );
+
+            fireEvent.change(screen.getByLabelText('Search loops'), {
+                target: { value: 'kettle' },
+            });
+            fireEvent.submit(screen.getByLabelText('Search loops').closest('form')!);
+
+            expect(routerGetMock).toHaveBeenCalledWith(
+                '/loops',
+                { status: 'paused', q: 'kettle' },
+                expect.objectContaining({ preserveState: true, preserveScroll: true }),
+            );
+        });
+
+        it('marks the current status chip as active and leaves the others inactive', () => {
+            render(
+                <LoopsIndex
+                    intentions={[intention()]}
+                    filters={{ status: 'paused', q: null }}
+                />,
+            );
+
+            expect(screen.getByRole('link', { name: 'paused' }).className).toContain(
+                'bg-accent',
+            );
+            expect(screen.getByRole('link', { name: 'active' }).className).not.toContain(
+                'bg-accent',
+            );
+            expect(screen.getByRole('link', { name: 'All' }).className).not.toContain(
+                'bg-accent',
+            );
+        });
+
+        it('marks "All" active when no status filter is set', () => {
+            render(
+                <LoopsIndex intentions={[intention()]} filters={noFilters} />,
+            );
+
+            expect(screen.getByRole('link', { name: 'All' }).className).toContain(
+                'bg-accent',
+            );
+        });
+    });
+
+    describe('empty vs filtered-empty states', () => {
+        /**
+         * A brand-new user with zero loops and a user whose filters happen to
+         * match nothing are told materially different things: onboarding copy
+         * for the former, "clear your filters" for the latter. Showing either
+         * to the wrong audience is wrong.
+         */
+        it('shows onboarding copy for a genuinely empty account', () => {
+            render(<LoopsIndex intentions={[]} filters={noFilters} />);
+
+            expect(screen.getByText('No loops yet')).toBeInTheDocument();
+            expect(
+                screen.queryByText('No loops match that.'),
+            ).not.toBeInTheDocument();
+        });
+
+        it('shows "no matches" copy when a status filter excludes everything', () => {
+            render(
+                <LoopsIndex
+                    intentions={[]}
+                    filters={{ status: 'archived', q: null }}
+                />,
+            );
+
+            expect(screen.getByText('No loops match that.')).toBeInTheDocument();
+            expect(screen.queryByText('No loops yet')).not.toBeInTheDocument();
+        });
+
+        it('shows "no matches" copy when a search excludes everything', () => {
+            render(
+                <LoopsIndex
+                    intentions={[]}
+                    filters={{ status: null, q: 'nothing matches this' }}
+                />,
+            );
+
+            expect(screen.getByText('No loops match that.')).toBeInTheDocument();
+            expect(screen.queryByText('No loops yet')).not.toBeInTheDocument();
+        });
     });
 });
