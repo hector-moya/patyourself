@@ -45,17 +45,15 @@ final readonly class RescheduleAction
         // whose write lands after the commit can still re-create old rows.
         // Closing that needs a row lock on the per-minute materialisation path,
         // which costs more than the stale slots it would prevent.
-        DB::transaction(function () use ($action, $scheduledFor, $rule, $metadata, $timezone): void {
+        DB::transaction(function () use ($action, $scheduledFor, $rule, $metadata): void {
             // Purges the grid the action is abandoning. Only unlogged future
             // slots go: anything already logged is evidence and the record is
-            // append-only. Reused from ReanchorsSeries rather than repeated
-            // here — see its docblock for why the duplication was reversed.
-            //
-            // The service also rolls the old cadence's anchor forward, but a
-            // reschedule replaces that anchor with an explicit new one below,
-            // not a continuation of the old cadence — so that computed value
-            // is immediately overwritten.
-            $this->reanchor->forActions(collect([$action]), $timezone);
+            // append-only. Shared with ReanchorsSeries::forActions() rather
+            // than repeated here — see its docblock for why the duplication
+            // was reversed. Unconditional, regardless of whether the action
+            // carries a series anchor: a cue-anchored action can still have a
+            // stray future occurrence to drop.
+            $this->reanchor->purgeAbandonedOccurrences($action, CarbonImmutable::now());
 
             $action->update([
                 // The anchor marks where the action's *current* cadence began, so

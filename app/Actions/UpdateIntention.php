@@ -114,6 +114,8 @@ final readonly class UpdateIntention
             ->where('series_started_at', '<=', $now)
             ->get();
 
-        $this->reanchor->forActions($staleActions, $timezone);
+        // The loop's timezone did not change between pause and reactivation,
+        // so the anchor was authored in, and is re-armed in, the same zone.
+        $this->reanchor->forActions($staleActions, $timezone, $timezone);
     }
 }

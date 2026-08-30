@@ -230,6 +230,27 @@ class SeriesAnchorTest extends TestCase
         $this->assertNull($fresh->series_started_at);
     }
 
+    /**
+     * The purge is unconditional on the shape of the action being replaced —
+     * a cue-anchored action carries no series anchor, but it can still have a
+     * stray unlogged future occasion (e.g. left over from before it became
+     * anchored), and rescheduling it must still drop that grid.
+     */
+    public function test_rescheduling_a_cue_anchored_action_purges_unlogged_future_occasions(): void
+    {
+        Carbon::setTestNow('2026-08-24 12:00:00');
+
+        $action = Action::factory()->anchored()->create();
+
+        $future = Occurrence::factory()->for($action)->create([
+            'scheduled_for' => Carbon::parse('2026-08-24 21:00:00'),
+        ]);
+
+        app(RescheduleAction::class)->handle($action, 'anchored', null, null, 'after brushing my teeth', 'UTC');
+
+        $this->assertDatabaseMissing('occurrences', ['id' => $future->id]);
+    }
+
     public function test_rescheduling_purges_unlogged_future_occasions(): void
     {
         Carbon::setTestNow('2026-08-24 12:00:00');
