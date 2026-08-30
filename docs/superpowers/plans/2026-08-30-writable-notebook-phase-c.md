@@ -73,7 +73,15 @@ The shape it returns, which Task 2 depends on:
                 'series_started_at' => ?string,
                 'occurrences' => [[
                     'scheduled_for' => ?string, 'fired_at' => ?string,
-                    'outcome' => null | ['outcome' => string, 'reason' => ?string, 'logged_at' => ?string],
+                    'outcome' => null | [
+                        'outcome' => string, 'reason' => ?string,
+                        // `context` is free text the user wrote about the mechanics of what
+                        // happened — LogOutcomeTool calls it "the primary record". Verbatim,
+                        // like `reason`. `context_fields` is an array cast; export the decoded
+                        // structure, never a re-encoded string.
+                        'context' => ?string, 'context_fields' => ?array,
+                        'logged_at' => ?string,
+                    ],
                 ]],
             ]],
             'notes' => [['body' => string, 'noted_at' => ?string]],
@@ -612,6 +620,8 @@ class MarkdownRecordFormatterTest extends TestCase
                         'outcome' => [
                             'outcome' => 'failed',
                             'reason' => '  slept through it  ',
+                            'context' => 'alarm went off, I turned it off in my sleep',
+                            'context_fields' => ['mood' => 'tired'],
                             'logged_at' => '2026-08-16T20:00:00+00:00',
                         ],
                     ]],
@@ -644,6 +654,18 @@ class MarkdownRecordFormatterTest extends TestCase
 
         // The stored text had surrounding whitespace and keeps it.
         $this->assertStringContainsString('  slept through it  ', $markdown);
+    }
+
+    public function test_it_carries_the_outcome_context(): void
+    {
+        $markdown = (new MarkdownRecordFormatter)->render($this->record());
+
+        // `context` is what LogOutcomeTool calls "the primary record" — the
+        // mechanics of what happened. Prose that drops it is not the notebook.
+        $this->assertStringContainsString(
+            'alarm went off, I turned it off in my sleep',
+            $markdown,
+        );
     }
 
     public function test_it_never_scores_the_record(): void
@@ -845,6 +867,13 @@ final readonly class MarkdownRecordFormatter
             }
 
             $lines[] = $line;
+
+            // The mechanics of what happened, in the user's own words. Indented
+            // under its occasion rather than flattened into the line above, so a
+            // long account stays readable. Verbatim, like the reason.
+            if (($outcome['context'] ?? null) !== null && $outcome['context'] !== '') {
+                $lines[] = "  - {$outcome['context']}";
+            }
         }
 
         $lines[] = '';
@@ -855,7 +884,7 @@ final readonly class MarkdownRecordFormatter
 ```
 
 Run: `php artisan test --compact --filter=MarkdownRecordFormatterTest`
-Expected: PASS, 4 tests.
+Expected: PASS, 5 tests.
 
 - [ ] **Step 6: Write the controller**
 
