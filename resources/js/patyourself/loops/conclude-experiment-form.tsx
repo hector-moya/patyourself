@@ -1,5 +1,6 @@
 import { Form } from '@inertiajs/react';
 import { useState } from 'react';
+import { Button } from '@/patyourself/primitives';
 import verdict from '@/routes/strategies/verdict';
 
 type Props = {
@@ -67,7 +68,7 @@ export function ConcludeExperimentForm({ strategyId, isUnderReview }: Props) {
                             </label>
                         ))}
                         {errors.verdict && (
-                            <p className="text-sm text-red-600">
+                            <p className="text-sm text-destructive">
                                 {errors.verdict}
                             </p>
                         )}
@@ -82,23 +83,22 @@ export function ConcludeExperimentForm({ strategyId, isUnderReview }: Props) {
                                 id="verdict-note"
                                 name="note"
                                 rows={3}
-                                className="w-full rounded border p-2"
+                                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
                             />
                             {errors.note && (
-                                <p className="text-sm text-red-600">
+                                <p className="text-sm text-destructive">
                                     {errors.note}
                                 </p>
                             )}
                         </div>
                     )}
 
-                    <button
+                    <Button
                         type="submit"
                         disabled={processing || choice === ''}
-                        className="rounded border px-3 py-2"
                     >
                         Record the verdict
-                    </button>
+                    </Button>
                 </>
             )}
         </Form>
