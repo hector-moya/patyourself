@@ -13,6 +13,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('settings/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('settings/profile', [ProfileController::class, 'update'])->name('profile.update');
 
+    Route::get('settings/timezone', [TimezoneController::class, 'edit'])->name('timezone.edit');
     Route::patch('settings/timezone', [TimezoneController::class, 'update'])->name('timezone.update');
 
     Route::get('settings/notifications', [NotificationsController::class, 'edit'])->name('notifications.edit');

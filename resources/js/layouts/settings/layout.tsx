@@ -9,6 +9,7 @@ import { edit as editAppearance } from '@/routes/appearance';
 import { edit as editNotifications } from '@/routes/notifications';
 import { edit } from '@/routes/profile';
 import { edit as editSecurity } from '@/routes/security';
+import { edit as editTimezone } from '@/routes/timezone';
 import type { NavItem } from '@/types';
 
 const sidebarNavItems: NavItem[] = [
@@ -25,6 +26,11 @@ const sidebarNavItems: NavItem[] = [
     {
         title: 'Notifications',
         href: editNotifications(),
+        icon: null,
+    },
+    {
+        title: 'Timezone',
+        href: editTimezone(),
         icon: null,
     },
     {

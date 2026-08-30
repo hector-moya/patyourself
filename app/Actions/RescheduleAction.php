@@ -3,6 +3,7 @@
 namespace App\Actions;
 
 use App\Models\Action;
+use App\Services\Scheduling\ReanchorsSeries;
 use App\Services\Scheduling\Recurrence;
 use App\Services\Scheduling\Schedule;
 use Carbon\CarbonImmutable;
@@ -15,6 +16,8 @@ use Illuminate\Support\Facades\DB;
  */
 final readonly class RescheduleAction
 {
+    public function __construct(private ReanchorsSeries $reanchor) {}
+
     public function handle(Action $action, string $kind, ?string $time, ?string $recurrence, ?string $anchor, string $timezone): Action
     {
         $rule = $kind === 'clock' ? Recurrence::tryFromToken($recurrence) : null;
@@ -42,13 +45,17 @@ final readonly class RescheduleAction
         // whose write lands after the commit can still re-create old rows.
         // Closing that needs a row lock on the per-minute materialisation path,
         // which costs more than the stale slots it would prevent.
-        DB::transaction(function () use ($action, $scheduledFor, $rule, $metadata): void {
-            // Only unlogged future slots go: anything already logged is evidence
-            // and the record is append-only.
-            $action->occurrences()
-                ->unlogged()
-                ->where('scheduled_for', '>', CarbonImmutable::now())
-                ->delete();
+        DB::transaction(function () use ($action, $scheduledFor, $rule, $metadata, $timezone): void {
+            // Purges the grid the action is abandoning. Only unlogged future
+            // slots go: anything already logged is evidence and the record is
+            // append-only. Reused from ReanchorsSeries rather than repeated
+            // here — see its docblock for why the duplication was reversed.
+            //
+            // The service also rolls the old cadence's anchor forward, but a
+            // reschedule replaces that anchor with an explicit new one below,
+            // not a continuation of the old cadence — so that computed value
+            // is immediately overwritten.
+            $this->reanchor->forActions(collect([$action]), $timezone);
 
             $action->update([
                 // The anchor marks where the action's *current* cadence began, so
