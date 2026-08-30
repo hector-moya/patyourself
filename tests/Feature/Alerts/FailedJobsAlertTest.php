@@ -157,6 +157,64 @@ class FailedJobsAlertTest extends TestCase
         $this->assertSame(1, app(FailedJobsAlert::class)->sendIfAny());
     }
 
+    /**
+     * The narrower regression the recent-window fix introduced: on a LOST
+     * mark specifically, the backstop must only ever be used as a query
+     * bound, never persisted before a send is confirmed. Persisting it
+     * eagerly (the bug) means a thrown send on the recovery tick still
+     * advances the mark to `currentMaxId()`, so the next tick sees nothing
+     * newer and the recovered failure is dropped forever — the exact
+     * silent-loss mode this whole fix exists to prevent, reintroduced in a
+     * narrower branch. `test_it_does_not_advance_the_mark_when_sending_throws`
+     * does not catch this: it seeds the baseline first, so it only exercises
+     * the steady-state branch, never the lost-mark one.
+     */
+    public function test_a_lost_mark_still_reports_after_a_send_failure_on_the_recovery_tick(): void
+    {
+        User::factory()->create();
+
+        app(FailedJobsAlert::class)->sendIfAny(); // cold start: establishes the baseline
+        $this->recordFailure('never-reported-before-the-cache-was-lost');
+
+        // Simulate `cache:clear`: the high-water mark is gone.
+        Cache::flush();
+
+        // The recovery tick's send fails — a transient SES outage, exactly
+        // the kind of infrastructure trouble that prompts an operator to
+        // start clearing caches in the first place.
+        Notification::shouldReceive('send')->once()->andThrow(new \RuntimeException('smtp is down'));
+
+        try {
+            app(FailedJobsAlert::class)->sendIfAny();
+        } catch (\RuntimeException) {
+            // expected
+        }
+
+        // The mark must not have advanced past the never-reported failure.
+        Notification::fake();
+        $this->assertSame(1, app(FailedJobsAlert::class)->sendIfAny());
+        Notification::assertSentTimes(FailedJobsNotification::class, 1);
+    }
+
+    /**
+     * The same ordering guarantee, for the other early-return on a lost
+     * mark: no owner yet. The mark must not advance just because the
+     * backlog has nowhere to be sent yet.
+     */
+    public function test_a_lost_mark_does_not_advance_when_there_is_no_owner_yet(): void
+    {
+        $this->recordFailure('never-reported-before-the-cache-was-lost');
+        Cache::flush();
+
+        $this->assertSame(0, app(FailedJobsAlert::class)->sendIfAny());
+
+        // Once an owner exists, the same failure must still be reportable.
+        Notification::fake();
+        $owner = User::factory()->create();
+        $this->assertSame(1, app(FailedJobsAlert::class)->sendIfAny());
+        Notification::assertSentTo($owner, FailedJobsNotification::class);
+    }
+
     public function test_the_notification_does_not_ride_the_queue(): void
     {
         // An alert about a broken queue that is itself queued is not an

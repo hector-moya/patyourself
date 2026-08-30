@@ -4,7 +4,6 @@ namespace Tests\Feature\Notifications;
 
 use App\Models\User;
 use App\Notifications\FailedJobsNotification;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Tests\TestCase;
 
 class FailedJobsNotificationTest extends TestCase
@@ -43,11 +42,5 @@ class FailedJobsNotificationTest extends TestCase
         $this->assertStringContainsString($headline, $mail);
         // A frame this far into a 100-frame trace must have been cut off.
         $this->assertStringNotContainsString('#99 ', $mail);
-    }
-
-    /** Deliberately not ShouldQueue: see the class docblock. */
-    public function test_it_is_not_a_queueable_notification(): void
-    {
-        $this->assertNotInstanceOf(ShouldQueue::class, new FailedJobsNotification(1, 'x'));
     }
 }
