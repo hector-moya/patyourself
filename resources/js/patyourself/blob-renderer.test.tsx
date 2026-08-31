@@ -1,7 +1,11 @@
 import { render } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import { BlobRenderer, SpriteBlobRenderer } from './blob-renderer';
+import {
+    BlobRenderer,
+    SpriteBlobRenderer,
+    SvgBlobRenderer,
+} from './blob-renderer';
 import type { BlobRendererProps } from './blob-renderer';
 
 function draw(overrides: Partial<BlobRendererProps> = {}) {
@@ -240,5 +244,48 @@ describe('BlobRenderer', () => {
                 abilities: [],
             }),
         ).toBeNull();
+    });
+});
+
+function drawWithAbilities(abilities: string[]) {
+    return render(
+        <svg>
+            <SvgBlobRenderer
+                animation="idle"
+                frame={0}
+                features={['blob', 'legs']}
+                items={[]}
+                abilities={abilities}
+            />
+        </svg>,
+    );
+}
+
+describe('ability props', () => {
+    it('draws a book once Blob can read', () => {
+        const { container } = drawWithAbilities(['read']);
+
+        expect(container.querySelector('.blob-ability--read')).not.toBeNull();
+    });
+
+    it('draws nothing for read before it is unlocked', () => {
+        const { container } = drawWithAbilities([]);
+
+        expect(container.querySelector('.blob-ability--read')).toBeNull();
+    });
+
+    it('draws something to carry once Blob can carry', () => {
+        const { container } = drawWithAbilities(['carry']);
+
+        expect(container.querySelector('.blob-ability--carry')).not.toBeNull();
+    });
+
+    it('renders the body and no prop for an ability nothing draws', () => {
+        // `wave` is a pose, not a prop: it has frames, not an ABILITIES entry.
+        // The contract is that this cannot break the screen.
+        const { container } = drawWithAbilities(['wave']);
+
+        expect(container.querySelector('.blob-anim')).not.toBeNull();
+        expect(container.querySelector('[class*="blob-ability--"]')).toBeNull();
     });
 });

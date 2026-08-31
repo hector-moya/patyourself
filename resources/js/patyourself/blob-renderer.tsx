@@ -158,8 +158,70 @@ interface AbilitySpec {
  * What Blob can do. Unbounded — the interesting track. An ability with no entry
  * here needs nothing drawn beyond the body, which is why the ladder can name
  * `wave` long before anyone poses it.
+ *
+ * Both entries below are positioned relative to `ANCHOR.hand`, the only anchor
+ * an ability can draw from. Coordinates are chosen against the real `BODY`
+ * (44 wide, 40 tall) and `ANCHOR.hand` ([26, 34], just outside the body's right
+ * edge) rather than a guessed body span, so the props sit against Blob instead
+ * of floating off it or bleeding past the 64-wide viewBox the dashboard corner
+ * draws at 32px.
  */
-const ABILITIES: Record<string, AbilitySpec> = {};
+const ABILITIES: Record<string, AbilitySpec> = {
+    /**
+     * A book, held low against Blob's right side (its own left, since the hand
+     * anchor sits on the viewer's right). What Blob reads is unclear, but it
+     * holds the page the right way up — the ladder's words, so the drawing has
+     * to agree.
+     */
+    read: {
+        extra: () => (
+            <g className="blob-ability blob-ability--read">
+                {/* Two leaves and a spine between them, low enough to clear
+                    the right leg (visible only below y=40) entirely. */}
+                <rect
+                    x={-14}
+                    y={-4}
+                    width={8}
+                    height={8}
+                    rx={1}
+                    fill={PALETTE.rust}
+                />
+                <rect
+                    x={-6}
+                    y={-4}
+                    width={8}
+                    height={8}
+                    rx={1}
+                    fill={PALETTE.coral}
+                />
+                <rect x={-6.5} y={-4} width={1} height={8} fill={INK} />
+            </g>
+        ),
+    },
+
+    /**
+     * Something to carry, stacked above the book rather than mirrored beside
+     * it — the viewBox leaves little room to the right of the hand anchor, and
+     * stacking still keeps a Blob that both reads and carries from looking
+     * like it is holding two things in one spot. The ladder says Blob "has not
+     * settled on what", so this stays a plain shape rather than a recognisable
+     * object.
+     */
+    carry: {
+        extra: () => (
+            <g className="blob-ability blob-ability--carry">
+                <rect
+                    x={-4}
+                    y={-14}
+                    width={8}
+                    height={8}
+                    rx={2}
+                    fill={PALETTE.amber}
+                />
+            </g>
+        ),
+    },
+};
 
 export interface BlobItem {
     type: string;
