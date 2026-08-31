@@ -261,6 +261,14 @@ return [
     |               length that shares a factor with 4, which would lock each
     |               type to a single colour forever.
     |
+    |               `variants` and `messages` are indexed by the SAME `$index`
+    |               in CompanionResolver::tailUnlocks(), so they cycle in
+    |               lockstep — if their counts shared a factor, one variant
+    |               would be permanently welded to one template (coral always
+    |               template 0, forever). 5 variants and 6 messages are
+    |               coprime, so a (variant, message) pairing does not repeat
+    |               for 30 rungs.
+    |
     */
 
     'tail' => [
@@ -286,6 +294,7 @@ return [
             'Blob swapped to the {variant} {type} this morning. No occasion.',
             'There is a {type} now, in {variant}. Blob wore it immediately and has not mentioned it.',
             'The {variant} {type} arrived. Blob tried it on twice before settling.',
+            'Something changed: the {type} is {variant} now. Blob has not commented.',
         ],
     ],
 
