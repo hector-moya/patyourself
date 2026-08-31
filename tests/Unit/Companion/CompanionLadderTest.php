@@ -173,7 +173,9 @@ class CompanionLadderTest extends TestCase
 
     /**
      * Blob is not a score. This is the acceptance criterion the copy has to keep
-     * as much as the code does.
+     * as much as the code does — the tail included, since it is the copy
+     * surface with the longest life and the least supervision: nobody reviews
+     * a rung's wording by hand once it is past the authored ladder.
      */
     #[DataProvider('bannedCopyProvider')]
     public function test_the_copy_never_keeps_score(string $banned): void
@@ -183,6 +185,14 @@ class CompanionLadderTest extends TestCase
                 $banned,
                 $entry['message'],
                 "ladder entry {$index} says \"{$banned}\"",
+            );
+        }
+
+        foreach ($this->config()['tail']['messages'] ?? [] as $index => $template) {
+            $this->assertStringNotContainsStringIgnoringCase(
+                $banned,
+                $template,
+                "tail message {$index} says \"{$banned}\"",
             );
         }
     }
@@ -201,6 +211,57 @@ class CompanionLadderTest extends TestCase
             ['%'],
             ['!'],
         ];
+    }
+
+    /**
+     * The tail's templates are rendered against a real item type and a real
+     * colour at read time (CompanionResolver::tailUnlocks()), so the grammar
+     * has to hold for every combination the resolver can actually produce —
+     * not just the ones that happened to ship first. This is what would have
+     * caught "Blob has another shoes" and "There is a amber glasses now": the
+     * copy-never-keeps-score guard above cannot, because neither is a banned
+     * word, both are a banned SHAPE.
+     *
+     * Mirrors the substitution CompanionResolver::tailUnlocks() does —
+     * `{type}` through `item_display_names`, `{variant}` raw — so a future
+     * change to either mapping is exercised here rather than only in
+     * production.
+     */
+    public function test_the_tail_copy_reads_correctly_for_every_type_and_colour(): void
+    {
+        $config = $this->config();
+        $messages = $config['tail']['messages'] ?? [];
+        $variants = $config['tail']['variants'] ?? [];
+        $displayNames = $config['item_display_names'] ?? [];
+        $types = $this->itemTypes();
+
+        $this->assertNotEmpty($messages);
+        $this->assertNotEmpty($variants);
+        $this->assertNotEmpty($types);
+
+        foreach ($messages as $messageIndex => $template) {
+            foreach ($types as $type) {
+                $displayType = $displayNames[$type] ?? $type;
+
+                foreach ($variants as $variant) {
+                    $rendered = str_replace(['{type}', '{variant}'], [$displayType, $variant], $template);
+                    $where = "tail message {$messageIndex} with type \"{$type}\" and variant \"{$variant}\" rendered as \"{$rendered}\"";
+
+                    $this->assertStringNotContainsStringIgnoringCase(' a shoes', $rendered, $where);
+                    $this->assertStringNotContainsStringIgnoringCase(' a glasses', $rendered, $where);
+                    $this->assertStringNotContainsStringIgnoringCase(' another shoes', $rendered, $where);
+                    $this->assertStringNotContainsStringIgnoringCase(' another glasses', $rendered, $where);
+                    $this->assertStringNotContainsStringIgnoringCase(' a amber', $rendered, $where);
+
+                    // No indefinite article directly before a vowel-initial
+                    // colour, whichever colour that happens to be — avoiding
+                    // the construction rather than special-casing vowels.
+                    if (preg_match('/^[aeiou]/i', $variant) === 1) {
+                        $this->assertStringNotContainsStringIgnoringCase(" a {$variant}", $rendered, $where);
+                    }
+                }
+            }
+        }
     }
 
     public function test_state_sorts_unlocks_into_features_items_and_abilities(): void

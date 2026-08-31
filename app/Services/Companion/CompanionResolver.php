@@ -243,6 +243,7 @@ final readonly class CompanionResolver
         $roomEvery = (int) ($tail['room_every'] ?? 0);
         $roomObjects = array_values((array) ($tail['room_objects'] ?? []));
         $types = array_values((array) config('companion.item_types', []));
+        $displayNames = (array) config('companion.item_display_names', []);
 
         // An absent or incomplete tail block simply ends the ladder, which is
         // what happened before this existed.
@@ -275,9 +276,13 @@ final readonly class CompanionResolver
                 'room_object' => $bringsObject
                     ? $roomObjects[(intdiv($rung, $roomEvery) - 1) % count($roomObjects)]
                     : null,
+                // {type} is rendered through the display-noun map, not the
+                // raw type: `shoes` and `glasses` are plural, and "another
+                // shoes" is not a sentence. `name` above stays the raw type —
+                // that is what the renderer and CompanionState key items by.
                 'message' => str_replace(
                     ['{type}', '{variant}'],
-                    [$type, $variant],
+                    [$displayNames[$type] ?? $type, $variant],
                     $messages[$index % count($messages)],
                 ),
                 'unlocked_at' => $insights[$at - 1]->toIso8601String(),

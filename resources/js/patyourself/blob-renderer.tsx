@@ -48,13 +48,22 @@ export const BLOB_VIEWBOX = '-32 -22 64 84';
 const BODY_COLOUR = '#7A9E7E';
 const INK = '#2A2622';
 
-/** Accessory colours, and the variants a recolour can name. */
+/**
+ * Accessory colours, and the variants a recolour can name.
+ *
+ * Every name in `config('companion.tail.variants')` has to be a key here —
+ * CompanionTailPaletteTest guards it — or `Worn()` silently falls back to the
+ * item's own default colour instead of applying the recolour the ladder's
+ * message just announced.
+ */
 const PALETTE: Record<string, string> = {
     slate: '#3E4A55',
     rust: '#C25B4A',
     coral: '#E8836B',
     moss: '#6E8F5A',
     amber: '#D4942E',
+    plum: '#8C5B7A',
+    sand: '#C9A66B',
 };
 
 type AnchorName = keyof typeof ANCHOR;

@@ -107,14 +107,44 @@ class CompanionTailTest extends TestCase
         }
     }
 
-    public function test_the_tail_does_not_start_before_the_authored_ladder_is_finished(): void
+    /**
+     * `count($insights) < 9` alone is not a scenario that exercises the guard
+     * at CompanionResolver::tailUnlocks() — with too few logs to even clear
+     * the ladder's first `insights`-triggered rung, the walk breaks on
+     * arithmetic before the tail's own gate ever matters, and the test would
+     * pass identically with that gate deleted. The record this actually has
+     * to protect is one rich in insights and poor in logs: plenty of
+     * concluded experiments, but the ladder's log-triggered rungs (logs: 1,
+     * 3, 5) never cleared, so the authored walk stops at `logs: 3` having
+     * granted only `blob`. Without the guard, 40 insight events would still
+     * satisfy the tail's own arithmetic and hand a Blob with no legs ten
+     * recoloured scarves.
+     */
+    public function test_the_tail_does_not_start_while_the_authored_ladder_is_still_open(): void
     {
-        // Five insights satisfies some authored rungs but not the last.
-        $user = $this->userWithInsights(5);
+        $user = User::factory()->create();
+        $loop = Intention::factory()->for($user)->create();
+
+        // Clears `logs: 1` (blob) but not `logs: 3` (legs) — the walk stops
+        // there regardless of how many insights follow.
+        for ($i = 0; $i < 2; $i++) {
+            ActionLog::factory()->create([
+                'user_id' => $user->id,
+                'outcome' => ActionLog::OUTCOME_COMPLETED,
+                'logged_at' => now()->subDays(30 - $i),
+            ]);
+        }
+
+        for ($i = 0; $i < 40; $i++) {
+            Strategy::factory()->for($loop, 'intention')->create([
+                'version' => $i + 1,
+                'verdict' => 'worked',
+            ]);
+        }
 
         $state = app(CompanionResolver::class)->forUser($user);
 
-        $this->assertLessThan(count(config('companion.ladder')), count($state->unlocks));
+        $this->assertCount(1, $state->unlocks);
     }
 
     public function test_an_absent_tail_block_ends_the_ladder_where_it_ends_today(): void

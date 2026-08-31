@@ -33,6 +33,25 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Item display nouns
+    |--------------------------------------------------------------------------
+    |
+    | What a type is called in a sentence. `shoes` and `glasses` are plural
+    | nouns — "another shoes" and "a amber glasses" are not English — so the
+    | tail's copy substitutes this noun for `{type}` instead of the raw type
+    | name. `name` (what the resolver and renderer key everything by) is
+    | untouched; only the words shown to a person change. Types not listed
+    | here map to themselves.
+    |
+    */
+
+    'item_display_names' => [
+        'shoes' => 'pair of shoes',
+        'glasses' => 'pair of glasses',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Renderer
     |--------------------------------------------------------------------------
     |
@@ -218,15 +237,36 @@ return [
     |   every       further insights each tail rung costs
     |   variants    colour names, walked in order and wrapped
     |   room_every  a room object arrives every Nth tail rung, not every rung
-    |   room_objects  what arrives, walked in order and wrapped
-    |   messages    authored lines; {type} and {variant} are substituted
+    |   room_objects  what arrives, walked in order and wrapped — three of
+    |               these four (`rug`, `lamp`, `plant`) are also handed out by
+    |               authored rungs, so most tail room-object hand-outs are a
+    |               REPEAT of something Blob already has. That is a known,
+    |               ruled-on overlap, not a bug: `CompanionState::roomObjects()`
+    |               dedupes before the view ever sees a name twice, so a
+    |               repeated hand-out is an ordinary recolour rung with no
+    |               bonus object, never an empty one. See
+    |               CompanionLadderTest::test_the_tail_object_pool_overlaps_the_authored_ladder_on_purpose.
+    |   messages    authored lines; {type} and {variant} are substituted.
+    |               {type} is rendered through `item_display_names` above, not
+    |               the raw type, so a plural type ("shoes", "glasses") still
+    |               reads as English. Every variant here MUST be a colour the
+    |               renderer's PALETTE knows (blob-renderer.tsx) and MUST NOT
+    |               equal an item's own default colour — CompanionTailPaletteTest
+    |               guards both. `slate` and `rust` are deliberately absent:
+    |               they are `shoes`/`hat`'s and `scarf`'s own default colours,
+    |               so a rung naming them would announce a recolour that never
+    |               shows up on screen. The palette is 5 long against 4 item
+    |               types on purpose (coprime, so a full cycle is 20 rungs
+    |               before any type/colour pairing repeats) rather than a
+    |               length that shares a factor with 4, which would lock each
+    |               type to a single colour forever.
     |
     */
 
     'tail' => [
         'every' => 3,
 
-        'variants' => ['coral', 'moss', 'slate', 'amber', 'plum', 'rust'],
+        'variants' => ['coral', 'moss', 'amber', 'plum', 'sand'],
 
         'room_every' => 3,
 
@@ -234,11 +274,17 @@ return [
 
         // Copy rules as everywhere else: sentence case, no exclamation marks,
         // never congratulating. These describe Blob, not the person reading.
+        // No template places an indefinite article ("a"/"an") directly before
+        // {variant}: colour names include vowel-initial ones (amber) and
+        // consonant-initial ones (coral, moss, plum, sand), and picking the
+        // right article per name is exactly the bug this avoids by
+        // construction rather than by special-casing vowels. "the {variant}"
+        // and "in {variant}" both sidestep the agreement question entirely.
         'messages' => [
             'Blob has another {type}, in {variant}. It keeps the old one, folded somewhere.',
-            'A {variant} {type} turned up. Blob has opinions about the colour and is not sharing them.',
+            'A {type} turned up in {variant}. Blob has opinions about the colour and is not sharing them.',
             'Blob swapped to the {variant} {type} this morning. No occasion.',
-            'There is a {variant} {type} now. Blob wore it immediately and has not mentioned it.',
+            'There is a {type} now, in {variant}. Blob wore it immediately and has not mentioned it.',
             'The {variant} {type} arrived. Blob tried it on twice before settling.',
         ],
     ],
