@@ -65,6 +65,13 @@ final readonly class CompanionResolver
             ];
         }
 
+        // The tail begins only once the authored ladder is finished. A partial
+        // walk means the record has not reached the end yet, and the tail is
+        // what happens after the end.
+        if (count($unlocks) === count($ladder)) {
+            $unlocks = [...$unlocks, ...$this->tailUnlocks($insights)];
+        }
+
         return new CompanionState(
             count($logs),
             count($insights),
@@ -212,5 +219,92 @@ final readonly class CompanionResolver
     {
         return Strategy::query()
             ->whereHas('intention', static fn (Builder $query) => $query->where('user_id', $user->id));
+    }
+
+    /**
+     * Rungs past the last authored one, recolouring what Blob already owns.
+     *
+     * Every value is derived from the rung's index — which type, which variant,
+     * which message, whether a room object comes with it. Nothing is random,
+     * because a rung is history the moment it is earned and history cannot
+     * reword itself between two reads of the same record.
+     *
+     * @param  list<CarbonImmutable>  $insights
+     * @return list<array<string, mixed>>
+     */
+    private function tailUnlocks(array $insights): array
+    {
+        /** @var array<string, mixed> $tail */
+        $tail = (array) config('companion.tail', []);
+
+        $every = (int) ($tail['every'] ?? 0);
+        $variants = array_values((array) ($tail['variants'] ?? []));
+        $messages = array_values((array) ($tail['messages'] ?? []));
+        $roomEvery = (int) ($tail['room_every'] ?? 0);
+        $roomObjects = array_values((array) ($tail['room_objects'] ?? []));
+        $types = array_values((array) config('companion.item_types', []));
+
+        // An absent or incomplete tail block simply ends the ladder, which is
+        // what happened before this existed.
+        if ($every < 1 || $variants === [] || $messages === [] || $types === []) {
+            return [];
+        }
+
+        $base = $this->lastAuthoredInsightThreshold();
+        $unlocks = [];
+
+        for ($rung = 1; ; $rung++) {
+            $at = $base + $rung * $every;
+
+            if (count($insights) < $at) {
+                break;
+            }
+
+            $index = $rung - 1;
+            $type = $types[$index % count($types)];
+            $variant = $variants[$index % count($variants)];
+
+            $bringsObject = $roomEvery > 0
+                && $roomObjects !== []
+                && $rung % $roomEvery === 0;
+
+            $unlocks[] = [
+                'kind' => 'item',
+                'name' => $type,
+                'variant' => $variant,
+                'room_object' => $bringsObject
+                    ? $roomObjects[(intdiv($rung, $roomEvery) - 1) % count($roomObjects)]
+                    : null,
+                'message' => str_replace(
+                    ['{type}', '{variant}'],
+                    [$type, $variant],
+                    $messages[$index % count($messages)],
+                ),
+                'unlocked_at' => $insights[$at - 1]->toIso8601String(),
+            ];
+        }
+
+        return $unlocks;
+    }
+
+    /**
+     * The insight count the last authored insight rung sits at — where the tail
+     * starts counting from. Read from the ladder rather than hardcoded, so
+     * appending an authored rung still moves the tail along behind it.
+     */
+    private function lastAuthoredInsightThreshold(): int
+    {
+        /** @var array<int, array<string, mixed>> $ladder */
+        $ladder = config('companion.ladder', []);
+
+        $thresholds = array_map(
+            static fn (array $entry): int => (int) ($entry['at'] ?? 0),
+            array_filter(
+                $ladder,
+                static fn (array $entry): bool => ($entry['trigger'] ?? 'logs') === 'insights',
+            ),
+        );
+
+        return $thresholds === [] ? 0 : max($thresholds);
     }
 }

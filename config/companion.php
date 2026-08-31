@@ -189,4 +189,49 @@ return [
         ],
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | The tail
+    |--------------------------------------------------------------------------
+    |
+    | What happens after the last authored rung. Blob does not finish: it keeps
+    | receiving recolours of things it already owns, at a slower cadence than
+    | the authored ladder, forever.
+    |
+    | A recolour rather than a fifth item type, because the four-type cap is
+    | permanent — see `item_types` above. This is the case that cap was written
+    | for.
+    |
+    | Everything here is walked BY INDEX and never randomly. A tail rung is
+    | history the moment it is earned, and history cannot reword itself between
+    | two reads of the same record.
+    |
+    |   every       further insights each tail rung costs
+    |   variants    colour names, walked in order and wrapped
+    |   room_every  a room object arrives every Nth tail rung, not every rung
+    |   room_objects  what arrives, walked in order and wrapped
+    |   messages    authored lines; {type} and {variant} are substituted
+    |
+    */
+
+    'tail' => [
+        'every' => 3,
+
+        'variants' => ['coral', 'moss', 'slate', 'amber', 'plum', 'rust'],
+
+        'room_every' => 3,
+
+        'room_objects' => ['rug', 'lamp', 'plant', 'stool'],
+
+        // Copy rules as everywhere else: sentence case, no exclamation marks,
+        // never congratulating. These describe Blob, not the person reading.
+        'messages' => [
+            'Blob has another {type}, in {variant}. It keeps the old one, folded somewhere.',
+            'A {variant} {type} turned up. Blob has opinions about the colour and is not sharing them.',
+            'Blob swapped to the {variant} {type} this morning. No occasion.',
+            'There is a {variant} {type} now. Blob wore it immediately and has not mentioned it.',
+            'The {variant} {type} arrived. Blob tried it on twice before settling.',
+        ],
+    ],
+
 ];
