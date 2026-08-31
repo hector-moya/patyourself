@@ -274,17 +274,24 @@ class CompanionLadderTest extends TestCase
                     $rendered = str_replace(['{type}', '{variant}'], [$displayType, $variant], $template);
                     $where = "tail message {$messageIndex} with type \"{$type}\" and variant \"{$variant}\" rendered as \"{$rendered}\"";
 
-                    $this->assertStringNotContainsStringIgnoringCase(' a shoes', $rendered, $where);
-                    $this->assertStringNotContainsStringIgnoringCase(' a glasses', $rendered, $where);
-                    $this->assertStringNotContainsStringIgnoringCase(' another shoes', $rendered, $where);
-                    $this->assertStringNotContainsStringIgnoringCase(' another glasses', $rendered, $where);
-                    $this->assertStringNotContainsStringIgnoringCase(' a amber', $rendered, $where);
+                    // Padded with a leading space so a banned construction at
+                    // the very start of the sentence cannot hide from a
+                    // substring check that requires a space before it —
+                    // template 1 starts with "A {type}...", which is exactly
+                    // the shape of the bug this guards against.
+                    $padded = ' '.$rendered;
+
+                    $this->assertStringNotContainsStringIgnoringCase(' a shoes', $padded, $where);
+                    $this->assertStringNotContainsStringIgnoringCase(' a glasses', $padded, $where);
+                    $this->assertStringNotContainsStringIgnoringCase(' another shoes', $padded, $where);
+                    $this->assertStringNotContainsStringIgnoringCase(' another glasses', $padded, $where);
+                    $this->assertStringNotContainsStringIgnoringCase(' a amber', $padded, $where);
 
                     // No indefinite article directly before a vowel-initial
                     // colour, whichever colour that happens to be — avoiding
                     // the construction rather than special-casing vowels.
                     if (preg_match('/^[aeiou]/i', $variant) === 1) {
-                        $this->assertStringNotContainsStringIgnoringCase(" a {$variant}", $rendered, $where);
+                        $this->assertStringNotContainsStringIgnoringCase(" a {$variant}", $padded, $where);
                     }
                 }
             }

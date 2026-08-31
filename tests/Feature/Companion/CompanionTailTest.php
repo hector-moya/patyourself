@@ -64,6 +64,30 @@ class CompanionTailTest extends TestCase
         $this->assertNotNull($state->unlocks[$authored]['variant']);
     }
 
+    /**
+     * CompanionLadderTest's grammar guard mirrors CompanionResolver's
+     * `{type}` substitution independently, in test code — it never touches
+     * the resolver itself. So a regression that dropped the
+     * `item_display_names` substitution back to the raw type would pass
+     * every test in the suite except this one. This asserts against the
+     * actual string the resolver produces.
+     *
+     * The first tail rung's type is always `item_types[0]` — `shoes`, a
+     * plural noun — so its message has to read "pair of shoes", not "shoes".
+     */
+    public function test_the_first_tail_rungs_message_uses_the_plural_display_noun(): void
+    {
+        $authored = count(config('companion.ladder'));
+        $every = (int) config('companion.tail.every');
+
+        $user = $this->userWithInsights(9 + $every);
+
+        $state = app(CompanionResolver::class)->forUser($user);
+
+        $this->assertSame('shoes', $state->unlocks[$authored]['name']);
+        $this->assertStringContainsString('pair of shoes', $state->unlocks[$authored]['message']);
+    }
+
     public function test_a_tail_rung_is_identical_across_two_reads(): void
     {
         $user = $this->userWithInsights(9 + (int) config('companion.tail.every'));
