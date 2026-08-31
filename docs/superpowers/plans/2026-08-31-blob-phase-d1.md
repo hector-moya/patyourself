@@ -768,6 +768,119 @@ git commit -m "feat(blob): the room keeps filling"
 
 ---
 
+### Task 5: Waving and jumping look like something
+
+**Added after Task 3's review.** Task 3 gave `wave` and `jump` frames and made them self-start once earned — but `bodyTransform` has no `case` for either, so both fall through to `default`, which holds the body still. The frames advance and nothing moves: Blob "waves" by standing there.
+
+That is the exact gap D1 exists to close, reappearing in the two abilities the plan treated as poses. The plan specified the animations and the gating and never said to draw them.
+
+**Files:**
+- Modify: `resources/js/patyourself/blob-renderer.tsx` (`bodyTransform`, and `legTransform` if the jump needs it)
+- Test: `resources/js/patyourself/blob-renderer.test.tsx`
+
+**Interfaces:** none. `bodyTransform(animation, frame, hasLegs)` and `legTransform(animation, frame, side)` are private to the file and already receive everything needed.
+
+- [ ] **Step 1: Read the existing poses first**
+
+`bodyTransform`'s existing cases are the vocabulary: `idle` is a `scaleY` breath, `walk` a `translateY` bob riding the mid-step frames, `pet` a `rotate` lean that deliberately does not return all the way, `play` a six-frame `translateY` hop. Match that register — small numbers, a `transitionDuration` in the 90–140ms range for anything sharp.
+
+**Blob has no arms.** The body is a rounded blob over two legs, so a wave cannot be an arm. Read it as a rock: a tilt one way, further the other, and back.
+
+- [ ] **Step 2: Write the failing test**
+
+`bodyTransform` is not exported, so test it the way the file's existing tests do — through `SvgBlobRenderer`, asserting on the rendered group's inline `style`. Follow whatever the existing animation tests in `blob-renderer.test.tsx` already do rather than inventing a new approach.
+
+```tsx
+describe('poses', () => {
+    it('moves the body through a wave', () => {
+        const styles = [0, 1, 2, 3].map(
+            (frame) => renderBody('wave', frame).getAttribute('style') ?? '',
+        );
+
+        // Not every frame identical: a pose that never moves is the bug this
+        // task exists to fix.
+        expect(new Set(styles).size).toBeGreaterThan(1);
+    });
+
+    it('moves the body through a jump', () => {
+        const styles = [0, 1, 2, 3].map(
+            (frame) => renderBody('jump', frame).getAttribute('style') ?? '',
+        );
+
+        expect(new Set(styles).size).toBeGreaterThan(1);
+    });
+
+    it('lands a jump where it started', () => {
+        // The ladder's own words: "Both feet leave the ground, briefly, and it
+        // lands where it started."
+        expect(renderBody('jump', 0).getAttribute('style')).toBe(
+            renderBody('jump', 3).getAttribute('style'),
+        );
+    });
+
+    it('leaves the body still for a blink', () => {
+        // The existing contract, which must survive: blink changes the eyes and
+        // nothing else.
+        expect(renderBody('blink', 0).getAttribute('style')).toBe(
+            renderBody('blink', 1).getAttribute('style'),
+        );
+    });
+});
+```
+
+`renderBody(animation, frame)` does not exist — write it as a small helper returning the `.blob-anim` element, following the file's existing render setup.
+
+- [ ] **Step 3: Run it to verify it fails**
+
+Run: `npx vitest run resources/js/patyourself/blob-renderer.test.tsx`
+Expected: FAIL — `wave` and `jump` fall through to `default`, so all four frames produce an identical style and the set has size 1.
+
+- [ ] **Step 4: Add the two poses**
+
+In `bodyTransform`, before the `default`:
+
+```tsx
+        case 'wave':
+            // No arms to raise, so Blob waves with the whole of itself: a tilt
+            // one way, further the other, and back to standing. The asymmetry
+            // is what stops it reading as a metronome.
+            return {
+                ...origin,
+                transform: `rotate(${[0, -7, 9, 0][frame] ?? 0}deg)`,
+                transitionDuration: '110ms',
+            };
+
+        case 'jump':
+            // Crouch, leave the ground, land where it started — the ladder's
+            // own words. The squash on frame 1 is what sells the takeoff;
+            // without it the body just slides upward.
+            return {
+                ...origin,
+                transform: `translateY(${[0, 1, -7, 0][frame] ?? 0}px) scaleY(${[1, 0.94, 1.02, 1][frame] ?? 1})`,
+                transitionDuration: '90ms',
+            };
+```
+
+**`jump` must not read as `play`.** `play` is already a six-frame `translateY` hop on the reaction channel, and a four-frame translate-only jump would look like a shorter version of it. The crouch-and-squash is what distinguishes them — keep it, and if the two still feel the same when you look, say so.
+
+If the legs should tuck on the jump, `legTransform` currently early-returns for anything that is not `walk`. Extending it is in scope; leaving it alone is also fine. Say which you chose.
+
+- [ ] **Step 5: Look at it**
+
+Render Blob mid-`wave` and mid-`jump` and actually look, the way Task 4 did for the room. A pose that passes "the styles differ" can still look wrong. Report what you saw.
+
+- [ ] **Step 6: Run everything and commit**
+
+```bash
+npx vitest run
+npx tsc --noEmit
+php artisan test --compact
+git add resources/js/patyourself/blob-renderer.tsx resources/js/patyourself/blob-renderer.test.tsx
+git commit -m "feat(blob): waving and jumping look like something"
+```
+
+---
+
 ## D1 self-review checklist
 
 - [ ] `php artisan test --compact` — green, 783 baseline plus the new tests
