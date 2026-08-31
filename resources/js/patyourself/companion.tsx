@@ -16,6 +16,7 @@
 import { useSpriteClock } from '@/hooks/use-sprite-clock';
 import { BLOB_VIEWBOX, BlobRenderer } from '@/patyourself/blob-renderer';
 import type { BlobItem } from '@/patyourself/blob-renderer';
+import { ANIMATIONS } from '@/patyourself/companion-animations';
 import type { AnimationName } from '@/patyourself/companion-animations';
 
 export type CompanionItemData = BlobItem;
@@ -65,6 +66,24 @@ export function ambientFor(companion: CompanionData): AnimationName {
 }
 
 /**
+ * Which self-starting animations this Blob is allowed to fire.
+ *
+ * `blink` always: it is not an ability, it is being alive. Everything else has
+ * to have been earned, or the body would be doing things the ladder has not
+ * announced yet.
+ */
+export function selfStartedFor(companion: CompanionData): AnimationName[] {
+    const earned = companion.abilities.filter(
+        (ability): ability is AnimationName =>
+            ability in ANIMATIONS &&
+            ANIMATIONS[ability as AnimationName].channel === 'ambient' &&
+            'autoEvery' in ANIMATIONS[ability as AnimationName],
+    );
+
+    return ['blink', ...earned];
+}
+
+/**
  * Renders nothing until Blob exists. Before the first outcome there is no
  * placeholder, no outline and no "unlocks soon" — an empty slot is a to-do, and
  * Blob is not one.
@@ -80,7 +99,10 @@ export function Companion({
 }) {
     // Called before the early return: a Blob that does not exist yet still has
     // to obey the rules of hooks.
-    const { animation, frame } = useSpriteClock(ambientFor(companion));
+    const { animation, frame } = useSpriteClock(
+        ambientFor(companion),
+        selfStartedFor(companion),
+    );
 
     if (!companion.features.includes('blob')) {
         return null;

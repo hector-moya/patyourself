@@ -185,6 +185,48 @@ describe('useSpriteClock', () => {
         vi.useRealTimers();
     });
 
+    it('never self-starts an ability the Blob has not unlocked', () => {
+        vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+        vi.spyOn(Math, 'random').mockReturnValue(0);
+
+        const { result } = renderHook(() => useSpriteClock('idle', ['blink']));
+
+        tick(0);
+
+        // wave's autoEvery is [14000, 30000]; random 0 puts its first firing at
+        // 14000, well inside this window.
+        act(() => {
+            vi.advanceTimersByTime(14_001);
+        });
+        tick(2000);
+
+        expect(result.current.animation).not.toBe('wave');
+
+        vi.useRealTimers();
+    });
+
+    it('self-starts an ability the Blob has earned', () => {
+        vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+        vi.spyOn(Math, 'random').mockReturnValue(0);
+
+        const { result } = renderHook(() =>
+            useSpriteClock('idle', ['blink', 'wave']),
+        );
+
+        tick(0);
+
+        // blink reschedules itself every 4000, so several have already come and
+        // gone by here; wave fires last, at 14000, and owns the channel.
+        act(() => {
+            vi.advanceTimersByTime(14_001);
+        });
+        tick(2000);
+
+        expect(result.current.animation).toBe('wave');
+
+        vi.useRealTimers();
+    });
+
     /** A reaction always wins, including over a blink already running. */
     it('lets a reaction cut across a blink', () => {
         vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });

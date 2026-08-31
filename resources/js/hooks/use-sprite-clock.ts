@@ -121,7 +121,10 @@ export interface SpriteClock {
  * still lands — it applies its pose in a single step and stops there — because
  * a button that does nothing is worse than a button that does not animate.
  */
-export function useSpriteClock(ambient: AnimationName = 'idle'): SpriteClock {
+export function useSpriteClock(
+    ambient: AnimationName = 'idle',
+    selfStarted: readonly AnimationName[] = ['blink'],
+): SpriteClock {
     const [frame, setFrame] = useState(0);
     const [reaction, setReaction] = useState<AnimationName | null>(null);
 
@@ -184,10 +187,21 @@ export function useSpriteClock(ambient: AnimationName = 'idle'): SpriteClock {
         });
     }, [ambient, playing, reduced]);
 
+    // A joined string rather than the array itself: `selfStarted` is a fresh
+    // array on every render for a caller that builds it inline (the selector
+    // is called fresh each time), and depending on its identity would tear
+    // down and restart every pending timer on every render. The content is
+    // what matters, and animation names never contain a comma.
+    const selfStartedKey = selfStarted.join(',');
+
     /**
      * The auto-timer. Every ambient animation carrying `autoEvery` fires itself
      * on a random interval inside that range — a blink you could set a watch by
      * would read as a machine rather than as a thing that is alive.
+     *
+     * Only what this Blob has actually unlocked gets scheduled. Without that
+     * gate, a Blob that cannot wave would wave anyway — the body doing
+     * something the ladder has not announced yet.
      *
      * Nothing schedules under reduced motion: an unprompted animation is
      * exactly what that preference is asking not to happen.
@@ -218,13 +232,21 @@ export function useSpriteClock(ambient: AnimationName = 'idle'): SpriteClock {
         };
 
         for (const [name, spec] of Object.entries(ANIMATIONS)) {
-            if (spec.channel === 'ambient' && 'autoEvery' in spec) {
+            if (
+                spec.channel === 'ambient' &&
+                'autoEvery' in spec &&
+                selfStarted.includes(name as AnimationName)
+            ) {
                 schedule(name as AnimationName, spec.autoEvery);
             }
         }
 
         return () => timers.forEach((timer) => window.clearTimeout(timer));
-    }, [reduced]);
+
+        // `selfStarted` drives this effect through `selfStartedKey` above —
+        // its content, not its identity, is what should restart the timers.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [reduced, selfStartedKey]);
 
     const react = useCallback(
         (name: AnimationName) => {

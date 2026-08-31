@@ -1,7 +1,7 @@
 import { useSpriteClock } from '@/hooks/use-sprite-clock';
 import CoachLayout from '@/layouts/coach-layout';
 import { BottomNav } from '@/patyourself/bottom-nav';
-import { ambientFor } from '@/patyourself/companion';
+import { ambientFor, selfStartedFor } from '@/patyourself/companion';
 import type {
     CompanionData,
     CompanionUnlockData,
@@ -27,7 +27,10 @@ interface CompanionPageProps {
  * to reach it. Everything on this screen reads the same two numbers.
  */
 export default function CompanionPage({ companion }: CompanionPageProps) {
-    const { animation, frame, react } = useSpriteClock(ambientFor(companion));
+    const { animation, frame, react } = useSpriteClock(
+        ambientFor(companion),
+        selfStartedFor(companion),
+    );
     const nothingYet = companion.unlocks.length === 0;
 
     return (

@@ -21,8 +21,10 @@ export interface AnimationSpec {
     loop: boolean;
     channel: AnimationChannel;
     /**
-     * Fire this one by itself, at a random interval in [min, max] ms. Read by
-     * the auto-timer, which is not wired up yet.
+     * Fire this one by itself, at a random interval in [min, max] ms. The
+     * auto-timer in `use-sprite-clock.ts` schedules it for whichever of these
+     * a given Blob has self-started for — `blink` always, everything else
+     * only once earned.
      */
     autoEvery?: [number, number];
 }
@@ -37,6 +39,20 @@ export const ANIMATIONS = {
         autoEvery: [4000, 9000],
     },
     walk: { frames: 4, fps: 6, loop: true, channel: 'ambient' },
+    wave: {
+        frames: 4,
+        fps: 8,
+        loop: false,
+        channel: 'ambient',
+        autoEvery: [14000, 30000],
+    },
+    jump: {
+        frames: 4,
+        fps: 8,
+        loop: false,
+        channel: 'ambient',
+        autoEvery: [20000, 45000],
+    },
     pet: { frames: 4, fps: 8, loop: false, channel: 'reaction' },
     play: { frames: 6, fps: 8, loop: false, channel: 'reaction' },
 } as const satisfies Record<string, AnimationSpec>;

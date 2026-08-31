@@ -6,6 +6,7 @@ import {
     ambientFor,
     arrivingItem,
     describe as label,
+    selfStartedFor,
 } from './companion';
 import { companion, unlock } from './companion.fixture';
 
@@ -123,5 +124,32 @@ describe('arrivingItem', () => {
 describe('describe', () => {
     it('names Blob alone when it owns nothing yet', () => {
         expect(label(companion())).toBe('Blob');
+    });
+});
+
+describe('selfStartedFor', () => {
+    it('lets every Blob blink, and nothing else, before anything is earned', () => {
+        expect(selfStartedFor(companion({ abilities: [] }))).toEqual([
+            'blink',
+        ]);
+    });
+
+    it('adds an ability that has a self-starting animation', () => {
+        expect(selfStartedFor(companion({ abilities: ['wave'] }))).toContain(
+            'wave',
+        );
+    });
+
+    it('ignores an ability that has no animation to start', () => {
+        // `carry` is a prop, not a pose: it draws, but it never plays.
+        expect(selfStartedFor(companion({ abilities: ['carry'] }))).toEqual([
+            'blink',
+        ]);
+    });
+
+    it('ignores `walk`, which is the ambient rather than a one-shot', () => {
+        expect(selfStartedFor(companion({ abilities: ['walk'] }))).toEqual([
+            'blink',
+        ]);
     });
 });
