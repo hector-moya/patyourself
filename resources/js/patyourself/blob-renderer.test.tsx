@@ -1,6 +1,7 @@
 import { render } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
+import type { AnimationName } from '@/patyourself/companion-animations';
 import {
     BlobRenderer,
     SpriteBlobRenderer,
@@ -23,6 +24,12 @@ function draw(overrides: Partial<BlobRendererProps> = {}) {
             <BlobRenderer {...props} />
         </svg>,
     ).container;
+}
+
+function renderBody(animation: AnimationName, frame: number) {
+    const container = draw({ animation, frame });
+
+    return container.querySelector('.blob-anim') as Element;
 }
 
 describe('SvgBlobRenderer', () => {
@@ -204,6 +211,40 @@ describe('SvgBlobRenderer', () => {
             expect(
                 container.querySelector('.blob-anim')?.getAttribute('style'),
             ).toContain('scaleY(1)');
+        });
+
+        it('moves the body through a wave', () => {
+            const styles = [0, 1, 2, 3].map(
+                (frame) => renderBody('wave', frame).getAttribute('style') ?? '',
+            );
+
+            // Not every frame identical: a pose that never moves is the bug
+            // this task exists to fix.
+            expect(new Set(styles).size).toBeGreaterThan(1);
+        });
+
+        it('moves the body through a jump', () => {
+            const styles = [0, 1, 2, 3].map(
+                (frame) => renderBody('jump', frame).getAttribute('style') ?? '',
+            );
+
+            expect(new Set(styles).size).toBeGreaterThan(1);
+        });
+
+        it('lands a jump where it started', () => {
+            // The ladder's own words: "Both feet leave the ground, briefly,
+            // and it lands where it started."
+            expect(renderBody('jump', 0).getAttribute('style')).toBe(
+                renderBody('jump', 3).getAttribute('style'),
+            );
+        });
+
+        it('leaves the body still for a blink', () => {
+            // The existing contract, which must survive: blink changes the
+            // eyes and nothing else.
+            expect(renderBody('blink', 0).getAttribute('style')).toBe(
+                renderBody('blink', 1).getAttribute('style'),
+            );
         });
     });
 });

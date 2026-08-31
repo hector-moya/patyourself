@@ -485,6 +485,26 @@ function bodyTransform(
                 transitionDuration: '90ms',
             };
 
+        case 'wave':
+            // No arms to raise, so Blob waves with the whole of itself: a
+            // tilt one way, further the other, and back to standing. The
+            // asymmetry is what stops it reading as a metronome.
+            return {
+                ...origin,
+                transform: `rotate(${[0, -7, 9, 0][frame] ?? 0}deg)`,
+                transitionDuration: '110ms',
+            };
+
+        case 'jump':
+            // Crouch, leave the ground, land where it started — the
+            // ladder's own words. The squash on frame 1 is what sells the
+            // takeoff; without it the body just slides upward.
+            return {
+                ...origin,
+                transform: `translateY(${[0, 1, -7, 0][frame] ?? 0}px) scaleY(${[1, 0.94, 1.02, 1][frame] ?? 1})`,
+                transitionDuration: '90ms',
+            };
+
         // blink changes the eyes and nothing else. Holding the body still is
         // what makes it read as a blink rather than a flinch.
         default:
