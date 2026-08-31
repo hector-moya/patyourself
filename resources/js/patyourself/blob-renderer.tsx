@@ -185,25 +185,17 @@ const ABILITIES: Record<string, AbilitySpec> = {
     read: {
         extra: () => (
             <g className="blob-ability blob-ability--read">
-                {/* Two leaves and a spine between them, low enough to clear
-                    the right leg (visible only below y=40) entirely. */}
-                <rect
-                    x={-14}
-                    y={-4}
-                    width={8}
-                    height={8}
-                    rx={1}
-                    fill={PALETTE.rust}
-                />
-                <rect
-                    x={-6}
-                    y={-4}
-                    width={8}
-                    height={8}
-                    rx={1}
-                    fill={PALETTE.coral}
-                />
-                <rect x={-6.5} y={-4} width={1} height={8} fill={INK} />
+                {/* Two leaves and a spine between them. Rendered in the room,
+                    the scarf's default colour (PALETTE.rust) sits at this
+                    same hand anchor's original height, and its hanging tail
+                    reaches y=14 in this frame (y=48 absolute) — so the book
+                    sits below both the scarf's main band and that tail, and
+                    is coloured outside the red family entirely (the slate
+                    blue the bookshelf's own books already use) so the two
+                    never read as one shape even where the boxes come close. */}
+                <rect x={-10} y={6} width={8} height={8} rx={1} fill="#5B8398" />
+                <rect x={-2} y={6} width={8} height={8} rx={1} fill="#7FA3B5" />
+                <rect x={-2.5} y={6} width={1} height={8} fill={INK} />
             </g>
         ),
     },
