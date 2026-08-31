@@ -221,6 +221,12 @@ describe('SvgBlobRenderer', () => {
             // Not every frame identical: a pose that never moves is the bug
             // this task exists to fix.
             expect(new Set(styles).size).toBeGreaterThan(1);
+
+            // Pin the shape of the motion, not just that it moves: a wave
+            // rocks the body via rotation, one way then further the other,
+            // not a slide.
+            expect(styles[1]).toContain('rotate(-7deg)');
+            expect(styles[2]).toContain('rotate(9deg)');
         });
 
         it('moves the body through a jump', () => {
@@ -229,6 +235,11 @@ describe('SvgBlobRenderer', () => {
             );
 
             expect(new Set(styles).size).toBeGreaterThan(1);
+
+            // Pin the crouch-and-leap shape: a squash on the way down, then
+            // height at the peak — not a plain translate.
+            expect(styles[1]).toContain('scaleY(0.94)');
+            expect(styles[2]).toContain('translateY(-7px)');
         });
 
         it('lands a jump where it started', () => {
