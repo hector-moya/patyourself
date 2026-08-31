@@ -106,3 +106,29 @@ describe('CompanionRoom', () => {
         expect(container.querySelector('.blob-body')).not.toBeNull();
     });
 });
+
+describe('room objects', () => {
+    it('draws an object the record has earned', () => {
+        expect(
+            room({ room_objects: ['rug'] }).querySelector('.room-object--rug'),
+        ).not.toBeNull();
+    });
+
+    it('skips an object it does not know rather than leaving a gap', () => {
+        const container = room({ room_objects: ['spaceship'] });
+
+        expect(container.querySelector('.room-object--spaceship')).toBeNull();
+        // The room itself still renders.
+        expect(container.querySelector('svg')).not.toBeNull();
+    });
+
+    it('draws every object the record has earned, at once', () => {
+        const container = room({
+            room_objects: ['bookshelf', 'rug', 'lamp', 'plant', 'stool'],
+        });
+
+        expect(
+            container.querySelectorAll('[class*="room-object--"]'),
+        ).toHaveLength(5);
+    });
+});

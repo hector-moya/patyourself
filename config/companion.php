@@ -154,6 +154,9 @@ return [
             'at' => 5,
             'kind' => 'ability',
             'name' => 'wave',
+            // A rug to wave from. An object arrives with the thing that earned
+            // it and never leaves.
+            'roomObject' => 'rug',
             'message' => 'Blob can wave. It mostly waves at things that have not arrived yet.',
         ],
         [
@@ -168,6 +171,9 @@ return [
             'at' => 7,
             'kind' => 'ability',
             'name' => 'jump',
+            // Somewhere to land the jump under. An object arrives with the
+            // thing that earned it and never leaves.
+            'roomObject' => 'lamp',
             'message' => 'Blob can jump. Both feet leave the ground, briefly, and it lands where it started.',
         ],
         // The four types are spent. From here an item stage recolours one Blob
@@ -185,6 +191,9 @@ return [
             'at' => 9,
             'kind' => 'ability',
             'name' => 'carry',
+            // Something to carry toward. An object arrives with the thing
+            // that earned it and never leaves.
+            'roomObject' => 'plant',
             'message' => 'Blob can carry something. It has not settled on what.',
         ],
     ],

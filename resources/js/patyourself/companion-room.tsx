@@ -44,7 +44,7 @@ interface RoomObjectSpec {
 const ROOM_OBJECTS: Record<string, RoomObjectSpec> = {
     bookshelf: {
         render: () => (
-            <g>
+            <g className="room-object room-object--bookshelf">
                 <rect
                     x={-64}
                     y={10}
@@ -64,7 +64,114 @@ const ROOM_OBJECTS: Record<string, RoomObjectSpec> = {
             </g>
         ),
     },
+
+    // Wave's object: a rug flat on the floor, under Blob's own feet. Positioned
+    // at x[-18, 18], clear of the bookshelf (ends at -34) on one side and of
+    // everything on the right (which starts at 35) on the other.
+    rug: {
+        render: () => (
+            <g className="room-object room-object--rug">
+                <rect
+                    x={-18}
+                    y={49}
+                    width={36}
+                    height={3}
+                    rx={1.5}
+                    fill="#C6603F"
+                />
+                <rect x={-14} y={49.6} width={28} height={1} fill="#A64B30" />
+            </g>
+        ),
+    },
+
+    // Jump's object: a floor lamp against the right wall, past the window
+    // (which ends at x=58) with room to spare before the room's own edge
+    // (x=72). The shade tints to the part of the day — lit and warm once the
+    // wall reads dark, muted otherwise. That is the one object in the room
+    // that looks different at night, which is the point of handing it the
+    // palette at all.
+    lamp: {
+        render: (palette) => {
+            const lit = isDark(palette.wall);
+
+            return (
+                <g className="room-object room-object--lamp">
+                    <rect
+                        x={62}
+                        y={49}
+                        width={8}
+                        height={3}
+                        rx={1.5}
+                        fill="#5B5850"
+                    />
+                    <rect x={65.5} y={6} width={1} height={43} fill="#5B5850" />
+                    {lit && (
+                        <circle
+                            cx={66}
+                            cy={-3}
+                            r={5}
+                            fill="#F2C572"
+                            opacity={0.35}
+                        />
+                    )}
+                    <path
+                        d="M 62 6 L 70 6 L 68 -12 L 64 -12 Z"
+                        fill={lit ? '#F2C572' : '#D8CBB0'}
+                    />
+                </g>
+            );
+        },
+    },
+
+    // Carry's object: a potted plant, clear of the stool on its right (starts
+    // at 51) and of Blob's own footprint on its left (ends at 22).
+    plant: {
+        render: () => (
+            <g className="room-object room-object--plant">
+                <path
+                    d="M 37 52 L 47 52 L 45.5 44 L 38.5 44 Z"
+                    fill="#B5713F"
+                />
+                <circle cx={42} cy={35} r={7} fill="#5C8A52" />
+                <circle cx={39} cy={32} r={4} fill="#6E9F5E" />
+                <circle cx={45.5} cy={32} r={3.5} fill="#4C7A44" />
+            </g>
+        ),
+    },
+
+    // The tail's own object, with no authored rung: a stool between the plant
+    // and the lamp.
+    stool: {
+        render: () => (
+            <g className="room-object room-object--stool">
+                <rect
+                    x={51}
+                    y={38}
+                    width={9}
+                    height={3}
+                    rx={1.5}
+                    fill="#A9835C"
+                />
+                <rect x={52.5} y={41} width={1.5} height={11} fill="#6B5039" />
+                <rect x={58} y={41} width={1.5} height={11} fill="#6B5039" />
+            </g>
+        ),
+    },
 };
+
+/**
+ * Whether a wall colour reads as a lit room or a dark one, by relative
+ * luminance rather than a fixed hour — so the lamp keyed off it still reads
+ * correctly if the palette in config ever changes.
+ */
+function isDark(hex: string): boolean {
+    const value = parseInt(hex.slice(1), 16);
+    const r = (value >> 16) & 0xff;
+    const g = (value >> 8) & 0xff;
+    const b = value & 0xff;
+
+    return (0.299 * r + 0.587 * g + 0.114 * b) / 255 < 0.5;
+}
 
 /**
  * Which part of the day it is, from the CLIENT clock.
