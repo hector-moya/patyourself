@@ -86,14 +86,20 @@ final readonly class CompanionState
      * listed. A room showing six grey outlines of what has not happened is a
      * task list wearing a rug.
      *
+     * Deduplicated by name: the tail's own object pool overlaps the authored
+     * ladder's on purpose (see config('companion.tail.room_objects')), so a
+     * later rung can re-earn an object Blob already has. Handing the same
+     * name to the view twice would both be a lie (it does not put a second
+     * rug in the room) and a duplicate React key on the client.
+     *
      * @return list<string>
      */
     public function roomObjects(): array
     {
-        return array_values(array_filter(array_map(
+        return array_values(array_unique(array_filter(array_map(
             static fn (array $unlock): ?string => $unlock['room_object'],
             $this->unlocks,
-        )));
+        ))));
     }
 
     /**

@@ -86,6 +86,33 @@ class CompanionLadderTest extends TestCase
     }
 
     /**
+     * The tail's own object pool is NOT disjoint from the authored ladder's —
+     * the owner ruled ship it repeating for now, and dedupe on the way out
+     * (`CompanionState::roomObjects()`) rather than invent a second pool just
+     * for the tail. This test documents that overlap on purpose, so the next
+     * person who changes either list sees it here rather than discovering it
+     * from a dev-console duplicate-key warning.
+     *
+     * If this ever goes red because the overlap changed, update the asserted
+     * set (and the config comment explaining it) — do not delete the test.
+     */
+    public function test_the_tail_object_pool_overlaps_the_authored_ladder_on_purpose(): void
+    {
+        $authored = array_values(array_filter(array_map(
+            static fn (array $entry): ?string => $entry['roomObject'] ?? null,
+            $this->ladder(),
+        )));
+
+        $tailObjects = $this->config()['tail']['room_objects'] ?? [];
+
+        $this->assertSame(
+            ['rug', 'lamp', 'plant'],
+            array_values(array_intersect($tailObjects, $authored)),
+            'the tail room-object pool no longer overlaps the authored ladder the way this test documents',
+        );
+    }
+
+    /**
      * The resolver walks the ladder in order and stops at the first unsatisfied
      * entry, so a threshold that goes backwards within a trigger would make an
      * earlier entry unreachable once a later one is satisfied.
@@ -315,6 +342,24 @@ class CompanionLadderTest extends TestCase
         $state = new CompanionState(1, 0, [$this->unlock('body', 'blob')]);
 
         $this->assertSame([], $state->roomObjects());
+    }
+
+    /**
+     * The tail's own room-object pool overlaps the authored ladder's on
+     * purpose (see config('companion.tail.room_objects')), so the same name
+     * can legitimately be earned twice. A repeated name reaching the view
+     * would both misrepresent the room — it does not gain a second rug — and
+     * hand the room's `<g key={name}>` a duplicate React key.
+     */
+    public function test_state_deduplicates_a_room_object_earned_twice(): void
+    {
+        $state = new CompanionState(9, 14, [
+            $this->unlock('body', 'blob'),
+            $this->unlock('ability', 'wave', roomObject: 'rug'),
+            $this->unlock('item', 'shoes', variant: 'coral', roomObject: 'rug'),
+        ]);
+
+        $this->assertSame(['rug'], $state->roomObjects());
     }
 
     /**
