@@ -23,6 +23,23 @@ class CompanionResolverTest extends TestCase
 {
     use RefreshDatabase;
 
+    /**
+     * Every timestamp in this file is derived from `now()`, and
+     * {@see test_a_failed_outcome_advances_blob_exactly_as_far_as_a_completed_one}
+     * compares three users' entire resolved state — `unlocked_at` included.
+     *
+     * Unfrozen, a run that crosses a second boundary between the first user's
+     * outcomes and the third's produces timestamps one second apart and fails
+     * on a difference that says nothing about Blob. Nothing in this class needs
+     * the clock to move, so it does not.
+     */
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->freezeTime();
+    }
+
     private function resolver(): CompanionResolver
     {
         return app(CompanionResolver::class);
