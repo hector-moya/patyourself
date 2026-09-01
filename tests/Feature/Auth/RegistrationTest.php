@@ -42,6 +42,76 @@ class RegistrationTest extends TestCase
     }
 
     /**
+     * Every schedule in the app derives from this, and the settings screen used
+     * to be its only writer — so a new account ran silently on
+     * config('app.timezone') until someone thought to go and look.
+     */
+    public function test_registering_captures_the_browsers_timezone(): void
+    {
+        $this->post(route('register.store'), [
+            'name' => 'Test User',
+            'email' => 'test@example.com',
+            'password' => 'password',
+            'password_confirmation' => 'password',
+            'timezone' => 'Europe/London',
+        ]);
+
+        $this->assertSame('Europe/London', User::firstWhere('email', 'test@example.com')->timezone);
+    }
+
+    /**
+     * `timezone_identifiers_list()` drops backward aliases, and browsers do
+     * still report them. Rejecting one would be worse than useless.
+     */
+    public function test_a_legacy_timezone_alias_is_still_captured(): void
+    {
+        $this->post(route('register.store'), [
+            'name' => 'Test User',
+            'email' => 'test@example.com',
+            'password' => 'password',
+            'password_confirmation' => 'password',
+            'timezone' => 'US/Pacific',
+        ]);
+
+        $this->assertSame('US/Pacific', User::firstWhere('email', 'test@example.com')->timezone);
+    }
+
+    /**
+     * The zone is a hint, never a gate. A browser reporting something this PHP
+     * build has never heard of must not cost someone their account — they fall
+     * back to the app default exactly as they did before it was captured.
+     */
+    public function test_an_unknown_timezone_is_dropped_rather_than_blocking_registration(): void
+    {
+        $response = $this->post(route('register.store'), [
+            'name' => 'Test User',
+            'email' => 'test@example.com',
+            'password' => 'password',
+            'password_confirmation' => 'password',
+            'timezone' => 'Mars/Olympus_Mons',
+        ]);
+
+        $this->assertAuthenticated();
+        $response->assertRedirect(route('dashboard', absolute: false));
+        $this->assertNull(User::firstWhere('email', 'test@example.com')->timezone);
+    }
+
+    /** A form that sends no zone at all — SSR before hydration, or no JS. */
+    public function test_registering_without_a_timezone_still_works(): void
+    {
+        $this->post(route('register.store'), [
+            'name' => 'Test User',
+            'email' => 'test@example.com',
+            'password' => 'password',
+            'password_confirmation' => 'password',
+            'timezone' => '',
+        ]);
+
+        $this->assertAuthenticated();
+        $this->assertNull(User::firstWhere('email', 'test@example.com')->timezone);
+    }
+
+    /**
      * Registering must email a verification link. Laravel's
      * SendEmailVerificationNotification listener only fires when the user is an
      * instance of the MustVerifyEmail *contract* — the trait on the framework's

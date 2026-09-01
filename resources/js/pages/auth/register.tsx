@@ -1,4 +1,6 @@
 import { Form, Head } from '@inertiajs/react';
+import { useEffect, useState } from 'react';
+
 import InputError from '@/components/input-error';
 import PasswordInput from '@/components/password-input';
 import TextLink from '@/components/text-link';
@@ -14,6 +16,16 @@ type Props = {
 };
 
 export default function Register({ passwordRules }: Props) {
+    // Read after mount rather than at module scope: under SSR this file runs on
+    // the server, and `Intl` would then report the SERVER's zone — which is
+    // worse than reporting none, because it looks like a real answer. Empty
+    // until hydration, and the server drops anything it does not recognise.
+    const [timezone, setTimezone] = useState('');
+
+    useEffect(() => {
+        setTimezone(Intl.DateTimeFormat().resolvedOptions().timeZone);
+    }, []);
+
     return (
         <>
             <Head title="Register" />
@@ -89,6 +101,16 @@ export default function Register({ passwordRules }: Props) {
                                     message={errors.password_confirmation}
                                 />
                             </div>
+
+                            {/* Every schedule in the app is worked out from
+                                this. Captured here so a new account is right
+                                from the start rather than silently running on
+                                the app default until someone visits settings. */}
+                            <input
+                                type="hidden"
+                                name="timezone"
+                                value={timezone}
+                            />
 
                             <Button
                                 type="submit"
