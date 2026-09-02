@@ -28,6 +28,24 @@ class CompanionRemarkTest extends TestCase
         $this->withoutVite();
     }
 
+    private function remarks(): CompanionRemarks
+    {
+        return app(CompanionRemarks::class);
+    }
+
+    /**
+     * One logged outcome is enough for Blob to exist ({@see CompanionResolver}
+     * unlocks the first rung at the first log). Everything below that assumes
+     * Blob is already on screen for there to be anybody to relay a remark to.
+     */
+    private function blobExistsFor(User $user): void
+    {
+        ActionLog::factory()->create([
+            'user_id' => $user->id,
+            'logged_at' => now()->subDay(),
+        ]);
+    }
+
     public function test_a_remark_belongs_to_a_user_and_optionally_to_a_loop(): void
     {
         $user = User::factory()->create();
@@ -51,11 +69,6 @@ class CompanionRemarkTest extends TestCase
             ->create(['intention_id' => null, 'body' => $body]);
 
         $this->assertSame($body, $remark->refresh()->body);
-    }
-
-    private function remarks(): CompanionRemarks
-    {
-        return app(CompanionRemarks::class);
     }
 
     public function test_a_general_remark_is_always_eligible(): void
@@ -143,6 +156,15 @@ class CompanionRemarkTest extends TestCase
     public function test_it_does_not_repeat_the_one_shown_last_visit(): void
     {
         $user = User::factory()->create();
+
+        // Two throwaway remarks on other users, burning ids first: under
+        // RefreshDatabase both $user->id and $first->id would otherwise be 1,
+        // and the binding assertion below would pass merely because the
+        // user_id binding happens to equal the excluded id — not because the
+        // exclusion itself reached the query.
+        CompanionRemark::factory()->for(User::factory())->create(['intention_id' => null]);
+        CompanionRemark::factory()->for(User::factory())->create(['intention_id' => null]);
+
         $first = CompanionRemark::factory()->for($user)->create(['intention_id' => null]);
         $second = CompanionRemark::factory()->for($user)->create(['intention_id' => null]);
 
@@ -222,19 +244,6 @@ class CompanionRemarkTest extends TestCase
         $this->assertContains(Intention::STATUS_ACTIVE, $read->bindings);
     }
 
-    /**
-     * One logged outcome is enough for Blob to exist ({@see CompanionResolver}
-     * unlocks the first rung at the first log). Everything below that assumes
-     * Blob is already on screen for there to be anybody to relay a remark to.
-     */
-    private function blobExistsFor(User $user): void
-    {
-        ActionLog::factory()->create([
-            'user_id' => $user->id,
-            'logged_at' => now()->subDay(),
-        ]);
-    }
-
     public function test_the_screen_carries_one_remark(): void
     {
         $user = User::factory()->create();
@@ -251,11 +260,11 @@ class CompanionRemarkTest extends TestCase
      * With no remarks Blob says nothing. No placeholder, no default line, and
      * nothing that reads as a missing thing.
      *
-     * Both assertions matter: `has()` proves the prop is present at all — the
-     * frontend contract is that `remark` always arrives, `null` when there is
-     * nothing to say — and `where()` proves that value is null rather than
-     * some other falsy stand-in. Either assertion alone would also pass if the
-     * prop were simply missing from the response.
+     * `where()` alone is the whole guard: `Matching::where()` calls `has()`
+     * before it compares anything, so a `remark` prop that was simply missing
+     * from the response would already fail here — on the existence check,
+     * before the value is ever read — rather than being compared against
+     * `null` and passing by accident.
      */
     public function test_an_account_with_no_remarks_gets_silence(): void
     {
@@ -265,10 +274,7 @@ class CompanionRemarkTest extends TestCase
         $this->actingAs($user)
             ->get('/companion')
             ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page
-                ->has('remark')
-                ->where('remark', null),
-            );
+            ->assertInertia(fn (Assert $page) => $page->where('remark', null));
     }
 
     /**

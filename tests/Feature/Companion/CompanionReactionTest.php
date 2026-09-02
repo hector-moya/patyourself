@@ -76,7 +76,16 @@ class CompanionReactionTest extends TestCase
         $occurrence = $this->occasion($user);
 
         $this->actingAs($user)->post("/occurrences/{$occurrence->id}/logs", ['outcome' => 'completed']);
-        $this->actingAs($user)->get('/dashboard')->assertOk();
+
+        // The "before" half of the transition, asserted here rather than left
+        // to its sibling test: this test should prove the reaction fired at
+        // all before it proves the second visit does not replay it.
+        $this->actingAs($user)
+            ->get('/dashboard')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('logged_outcome_id', ActionLog::firstOrFail()->id),
+            );
 
         $this->actingAs($user)
             ->get('/dashboard')
@@ -86,13 +95,13 @@ class CompanionReactionTest extends TestCase
 
     public function test_a_plain_visit_carries_no_reaction(): void
     {
+        // `where()` alone is the whole guard: it calls `has()` internally
+        // before comparing, so a missing `logged_outcome_id` prop would fail
+        // here rather than being compared against `null` and passing anyway.
         $this->actingAs(User::factory()->create(['timezone' => 'UTC']))
             ->get('/dashboard')
             ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page
-                ->has('logged_outcome_id')
-                ->where('logged_outcome_id', null),
-            );
+            ->assertInertia(fn (Assert $page) => $page->where('logged_outcome_id', null));
     }
 
     public function test_the_action_keyed_endpoint_reacts_too(): void
