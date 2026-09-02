@@ -281,12 +281,16 @@ class CompanionRemarkTest extends TestCase
         $user = User::factory()->create();
         CompanionRemark::factory()->for($user)->create(['intention_id' => null]);
 
-        $this->actingAs($user)
-            ->get('/companion')
-            ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page->where('remark', null));
+        $response = $this->actingAs($user)->get('/companion')->assertOk();
 
+        // Checked before the prop assertion, deliberately: the session is the
+        // thing this test exists to guard. A future refactor that decouples
+        // the pick from the render — writing the session for a remark the
+        // prop never carries — would still render `null` and pass the prop
+        // check below; checking the session first is what catches that.
         $this->assertNull(session(CompanionRemarks::SESSION_KEY));
+
+        $response->assertInertia(fn (Assert $page) => $page->where('remark', null));
     }
 
     /**
