@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Companion;
 
+use App\Models\ActionLog;
 use App\Models\CompanionRemark;
 use App\Models\Intention;
 use App\Models\User;
@@ -9,6 +10,7 @@ use App\Services\Companion\CompanionRemarks;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Inertia\Testing\AssertableInertia as Assert;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
@@ -218,5 +220,110 @@ class CompanionRemarkTest extends TestCase
             'A value is written into the SQL rather than bound.',
         );
         $this->assertContains(Intention::STATUS_ACTIVE, $read->bindings);
+    }
+
+    /**
+     * One logged outcome is enough for Blob to exist ({@see CompanionResolver}
+     * unlocks the first rung at the first log). Everything below that assumes
+     * Blob is already on screen for there to be anybody to relay a remark to.
+     */
+    private function blobExistsFor(User $user): void
+    {
+        ActionLog::factory()->create([
+            'user_id' => $user->id,
+            'logged_at' => now()->subDay(),
+        ]);
+    }
+
+    public function test_the_screen_carries_one_remark(): void
+    {
+        $user = User::factory()->create();
+        $this->blobExistsFor($user);
+        $remark = CompanionRemark::factory()->for($user)->create(['intention_id' => null]);
+
+        $this->actingAs($user)
+            ->get('/companion')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->where('remark', $remark->body));
+    }
+
+    /**
+     * With no remarks Blob says nothing. No placeholder, no default line, and
+     * nothing that reads as a missing thing.
+     *
+     * Both assertions matter: `has()` proves the prop is present at all — the
+     * frontend contract is that `remark` always arrives, `null` when there is
+     * nothing to say — and `where()` proves that value is null rather than
+     * some other falsy stand-in. Either assertion alone would also pass if the
+     * prop were simply missing from the response.
+     */
+    public function test_an_account_with_no_remarks_gets_silence(): void
+    {
+        $user = User::factory()->create();
+        $this->blobExistsFor($user);
+
+        $this->actingAs($user)
+            ->get('/companion')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('remark')
+                ->where('remark', null),
+            );
+    }
+
+    /**
+     * Before Blob exists there is nobody to relay anything, and picking a
+     * remark nothing renders would burn it — the session would record it as
+     * shown when it never was.
+     */
+    public function test_before_blob_exists_no_remark_is_drawn(): void
+    {
+        $user = User::factory()->create();
+        CompanionRemark::factory()->for($user)->create(['intention_id' => null]);
+
+        $this->actingAs($user)
+            ->get('/companion')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->where('remark', null));
+
+        $this->assertNull(session(CompanionRemarks::SESSION_KEY));
+    }
+
+    /**
+     * Two eligible remarks, one excluded by the first visit, leaves exactly one
+     * candidate for the second — see {@see CompanionRemarks::nextFor()}: with
+     * `$excluding` set it queries the eligible set minus that one id, and with
+     * only two eligible rows total that set has exactly one member. So this is
+     * not a draw the assertion happens to win; the second visit's pick is
+     * forced.
+     *
+     * The two remarks are given explicit, distinct bodies rather than left to
+     * the factory's `randomElement` default — two random picks could land on
+     * the same string, which would fail this assertion for the wrong reason.
+     */
+    public function test_two_visits_do_not_repeat_the_same_remark(): void
+    {
+        $user = User::factory()->create();
+        $this->blobExistsFor($user);
+        CompanionRemark::factory()->for($user)->create([
+            'intention_id' => null,
+            'body' => 'Blob has been standing by the window a lot this week.',
+        ]);
+        CompanionRemark::factory()->for($user)->create([
+            'intention_id' => null,
+            'body' => 'Blob moved the rug twice and put it back where it was.',
+        ]);
+
+        $shown = [];
+
+        foreach ([0, 1] as $visit) {
+            $this->actingAs($user)->get('/companion')->assertInertia(
+                function (Assert $page) use (&$shown): void {
+                    $shown[] = $page->toArray()['props']['remark'];
+                },
+            );
+        }
+
+        $this->assertNotSame($shown[0], $shown[1]);
     }
 }

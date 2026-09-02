@@ -12,6 +12,14 @@ import { SectionHeading } from '@/patyourself/strategy-timeline';
 
 interface CompanionPageProps {
     companion: CompanionData;
+    /**
+     * One thing Blob has to say this visit, or null. Written by the coach and
+     * relayed verbatim — the app does not compose it and does not edit it.
+     *
+     * Only ever on this screen. A line beside every logged breakfast is
+     * wallpaper within a week, and wallpaper is worse than silence.
+     */
+    remark?: string | null;
 }
 
 /**
@@ -26,7 +34,10 @@ interface CompanionPageProps {
  * The clock lives here rather than inside the drawing because the buttons need
  * to reach it. Everything on this screen reads the same two numbers.
  */
-export default function CompanionPage({ companion }: CompanionPageProps) {
+export default function CompanionPage({
+    companion,
+    remark = null,
+}: CompanionPageProps) {
     const { animation, frame, react } = useSpriteClock(
         ambientFor(companion),
         selfStartedFor(companion),
@@ -52,6 +63,15 @@ export default function CompanionPage({ companion }: CompanionPageProps) {
                             frame={frame}
                             className="w-full max-w-md rounded-xl border border-border"
                         />
+
+                        {remark !== null && (
+                            <p
+                                data-testid="companion-remark"
+                                className="max-w-md text-center text-sm text-balance text-muted-foreground"
+                            >
+                                {remark}
+                            </p>
+                        )}
 
                         {/* Always enabled. Nothing makes them wait, nothing
                             limits them by the day, and nothing counts them:
