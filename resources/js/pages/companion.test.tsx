@@ -101,9 +101,7 @@ describe('Companion screen', () => {
     it('says nothing when there is nothing to say', () => {
         render(<CompanionPage companion={companion()} remark={null} />);
 
-        expect(
-            screen.queryByTestId('companion-remark'),
-        ).toBeNull();
+        expect(screen.queryByTestId('companion-remark')).toBeNull();
         expect(screen.queryByText(/nothing to say|no remarks/i)).toBeNull();
     });
 
