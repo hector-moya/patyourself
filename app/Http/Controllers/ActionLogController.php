@@ -19,8 +19,12 @@ class ActionLogController extends Controller
     {
         Gate::authorize('log', $action);
 
-        $log->handle($request->user(), $action, $request->validated());
+        $entry = $log->handle($request->user(), $action, $request->validated());
 
-        return back();
+        // Blob's corner reaction, carried as a one-request flash so the reward
+        // arrives with the act rather than the next time the dashboard opens.
+        // The id, not a flag: two outcomes in a row each deserve a reaction,
+        // and a flag that is already set never changes.
+        return back()->with('logged_outcome_id', $entry->id);
     }
 }

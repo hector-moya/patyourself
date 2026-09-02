@@ -53,6 +53,10 @@ class NotebookController extends Controller
             // Blob rides along in the corner. Derived, so it costs a read and
             // there is nothing on this screen to keep in step with it.
             'companion' => $companion->forUser($user)->toArray(),
+            // The outcome recorded on the request that redirected here, if any.
+            // Session flash, so it is gone by the next request and coming back
+            // to this screen later never replays the reaction.
+            'logged_outcome_id' => $request->session()->get('logged_outcome_id'),
         ]);
     }
 

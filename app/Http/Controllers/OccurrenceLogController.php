@@ -25,8 +25,10 @@ class OccurrenceLogController extends Controller
             return back()->withErrors(['outcome' => 'That occasion already has an outcome.']);
         }
 
-        $log->handle($request->user(), $occurrence->action, $request->validated(), $occurrence);
+        $entry = $log->handle($request->user(), $occurrence->action, $request->validated(), $occurrence);
 
-        return back();
+        // See ActionLogController: the corner reaction rides the session for
+        // exactly one request.
+        return back()->with('logged_outcome_id', $entry->id);
     }
 }

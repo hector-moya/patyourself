@@ -9,7 +9,7 @@ vi.mock('@inertiajs/react', async (importOriginal) => {
     return { ...actual, Head: () => null, usePage: () => page };
 });
 
-import { noCompanion } from '@/patyourself/companion.fixture';
+import { companion, noCompanion } from '@/patyourself/companion.fixture';
 
 import Dashboard from './dashboard';
 import type {ReadyForVerdictData, TodaysOccasionData} from './dashboard';
@@ -228,5 +228,31 @@ describe('Dashboard', () => {
         expect(
             screen.queryByText(/behind|missed|overdue|catch up/i),
         ).not.toBeInTheDocument();
+    });
+
+    /**
+     * The corner is the only place the reaction lands. Nothing else on this
+     * screen changes when an outcome is recorded — no copy, no toast, no line.
+     */
+    it('hands the just-recorded outcome to the corner Blob', () => {
+        const { container } = renderDashboard({
+            companion: companion(),
+            logged_outcome_id: 101,
+        });
+
+        expect(
+            container.querySelector('.blob-anim')?.getAttribute('data-animation'),
+        ).toBe('notice');
+    });
+
+    it('leaves Blob at rest on a plain visit', () => {
+        const { container } = renderDashboard({
+            companion: companion(),
+            logged_outcome_id: null,
+        });
+
+        expect(
+            container.querySelector('.blob-anim')?.getAttribute('data-animation'),
+        ).toBe('idle');
     });
 });
