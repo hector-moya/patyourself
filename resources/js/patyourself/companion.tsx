@@ -110,16 +110,25 @@ export function Companion({
 }) {
     // Called before the early return: a Blob that does not exist yet still has
     // to obey the rules of hooks.
-    const { animation, frame, react } = useSpriteClock(
+    const { animation, frame, react, reduced } = useSpriteClock(
         ambientFor(companion),
         selfStartedFor(companion),
     );
 
+    // Unlike Pet and Play, nobody pressed anything for this one — it fires the
+    // moment an outcome is recorded, in the corner of the most-visited screen.
+    // Under reduced motion there is no loop left to run the one-shot back down
+    // once it lands (see use-sprite-clock's effect), so calling `react` here
+    // would leave Blob stuck in the noticed pose for good. The design's rule
+    // for this reaction is movement only, and a permanently held pose is
+    // neither movement nor the neutral rest state reduced motion asks for —
+    // so an unprompted reaction is skipped outright rather than fired and
+    // left stranded.
     useEffect(() => {
-        if (reactTo !== null) {
+        if (reactTo !== null && !reduced) {
             react('notice');
         }
-    }, [reactTo, react]);
+    }, [reactTo, react, reduced]);
 
     if (!companion.features.includes('blob')) {
         return null;

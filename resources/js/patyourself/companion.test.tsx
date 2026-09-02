@@ -1,5 +1,5 @@
 import { act, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { __resetSpriteClock } from '@/hooks/use-sprite-clock';
 import {
@@ -18,6 +18,26 @@ import { companion, unlock } from './companion.fixture';
 afterEach(() => {
     vi.unstubAllGlobals();
     __resetSpriteClock();
+});
+
+/**
+ * Same stub as use-sprite-clock.test.ts: jsdom has no real matchMedia, so this
+ * overwrites the never-matching stub from test/setup.ts for the duration of a
+ * test. Reset to `false` before every test in this file — a direct assignment
+ * outlives `vi.unstubAllGlobals()`, which only undoes `vi.stubGlobal` stubs.
+ */
+function reduceMotion(matches: boolean): void {
+    window.matchMedia = ((query: string) =>
+        ({
+            matches: matches && query.includes('prefers-reduced-motion'),
+            media: query,
+            addEventListener: vi.fn(),
+            removeEventListener: vi.fn(),
+        }) as unknown as MediaQueryList) as typeof window.matchMedia;
+}
+
+beforeEach(() => {
+    reduceMotion(false);
 });
 
 describe('Companion', () => {
@@ -196,6 +216,29 @@ describe('Companion', () => {
                 .querySelector('.blob-anim')
                 ?.getAttribute('data-animation'),
         ).toBe('idle');
+    });
+
+    /**
+     * `notice` is unprompted — nobody pressed a button, an outcome was just
+     * logged elsewhere. Under reduced motion there is no loop left to run the
+     * one-shot back down once it lands, so firing it here would leave Blob
+     * stuck in the noticed pose for the rest of the page's life. The correct
+     * behaviour is silence: Blob stays on the ambient, exactly as if `reactTo`
+     * had never changed.
+     */
+    it('does not react to a new outcome id under reduced motion', () => {
+        reduceMotion(true);
+
+        const { container, rerender } = render(
+            <Companion companion={companion()} reactTo={null} />,
+        );
+
+        rerender(<Companion companion={companion()} reactTo={101} />);
+
+        const blob = container.querySelector('.blob-anim');
+
+        expect(blob?.getAttribute('data-animation')).toBe('idle');
+        expect(blob?.getAttribute('data-frame')).toBe('0');
     });
 });
 
