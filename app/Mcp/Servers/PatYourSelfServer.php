@@ -19,6 +19,7 @@ use App\Mcp\Tools\StartExperimentTool;
 use App\Mcp\Tools\TodayActionsTool;
 use App\Mcp\Tools\UpdateActionTool;
 use App\Mcp\Tools\UpdateLoopTool;
+use App\Mcp\Tools\WriteBlobRemarkTool;
 use App\Mcp\Tools\WriteReflectionTool;
 use Laravel\Mcp\Server;
 use Laravel\Mcp\Server\Attributes\Instructions;
@@ -97,6 +98,12 @@ log-note records something the user noticed that is not an outcome — "worse on
 the days I skip lunch". Notes come back on get-loop and are worth reading before
 writing the next experiment.
 
+write-blob-remark gives Blob something to say on its own screen. Blob is the
+companion, not a scoreboard: a remark describes Blob or the work, never how
+well the user is doing. Attach it to a loop when it is about that loop, and a
+remark on a loop that later pauses stops being shown. Do not write one after
+every check-in — a line every time is wallpaper within a week.
+
 Use create-loop when the user wants to start a new habit. Ask them for their
 real cue, craving, response and reward and get their agreement on the
 wording — do not invent the chain for them, because the loop only works if it
@@ -142,6 +149,7 @@ class PatYourSelfServer extends Server
         UpdateLoopTool::class,
         LogNoteTool::class,
         WriteReflectionTool::class,
+        WriteBlobRemarkTool::class,
     ];
 
     /**
