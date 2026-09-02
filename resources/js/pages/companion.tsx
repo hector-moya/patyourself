@@ -12,6 +12,14 @@ import { SectionHeading } from '@/patyourself/strategy-timeline';
 
 interface CompanionPageProps {
     companion: CompanionData;
+    /**
+     * One thing Blob has to say this visit, or null. Written by the coach and
+     * relayed verbatim — the app does not compose it and does not edit it.
+     *
+     * Only ever on this screen. A line beside every logged breakfast is
+     * wallpaper within a week, and wallpaper is worse than silence.
+     */
+    remark?: string | null;
 }
 
 /**
@@ -26,17 +34,32 @@ interface CompanionPageProps {
  * The clock lives here rather than inside the drawing because the buttons need
  * to reach it. Everything on this screen reads the same two numbers.
  */
-export default function CompanionPage({ companion }: CompanionPageProps) {
+export default function CompanionPage({
+    companion,
+    remark = null,
+}: CompanionPageProps) {
     const { animation, frame, react } = useSpriteClock(
         ambientFor(companion),
         selfStartedFor(companion),
     );
     const nothingYet = companion.unlocks.length === 0;
 
+    // Whether the remark shows is `remark !== null` alone — the server's call,
+    // via CompanionController, on whether Blob exists. `nothingYet` decides
+    // the room and the buttons here, same as always, but must never also gate
+    // the remark: `nothingYet` and the controller's `stageIndex() === 0` are
+    // two independent expressions of the same fact, identical today only
+    // because nothing enforces that they agree. If they ever diverged, a
+    // remark nested inside the `nothingYet` branch would have already been
+    // burned into the session by the controller and then never drawn — the
+    // exact failure `test_before_blob_exists_no_remark_is_drawn` exists to
+    // prevent, just reached from the other side.
+    const showRoomCluster = !nothingYet || remark !== null;
+
     return (
         <CoachLayout title="Blob" bottomNav={<BottomNav />}>
             <div className="flex flex-col gap-8">
-                {nothingYet ? (
+                {nothingYet && (
                     // Stated as a fact about the record, with nothing to act
                     // on and nothing owed. Not an empty slot, and no empty
                     // room either — there is nobody to put in it yet.
@@ -44,35 +67,50 @@ export default function CompanionPage({ companion }: CompanionPageProps) {
                         Blob turns up once there is something in the record. Log
                         an outcome — any outcome — and it arrives.
                     </p>
-                ) : (
+                )}
+
+                {showRoomCluster && (
                     <div className="flex flex-col items-center gap-4">
-                        <CompanionRoom
-                            companion={companion}
-                            animation={animation}
-                            frame={frame}
-                            className="w-full max-w-md rounded-xl border border-border"
-                        />
+                        {!nothingYet && (
+                            <CompanionRoom
+                                companion={companion}
+                                animation={animation}
+                                frame={frame}
+                                className="w-full max-w-md rounded-xl border border-border"
+                            />
+                        )}
+
+                        {remark !== null && (
+                            <p
+                                data-testid="companion-remark"
+                                className="max-w-md text-center text-sm text-balance text-muted-foreground"
+                            >
+                                {remark}
+                            </p>
+                        )}
 
                         {/* Always enabled. Nothing makes them wait, nothing
                             limits them by the day, and nothing counts them:
                             these are not progress, they touch nothing the
                             resolver reads, and Blob never asks to be pressed. */}
-                        <div className="flex gap-2">
-                            <Button
-                                variant="secondary"
-                                size="sm"
-                                onClick={() => react('pet')}
-                            >
-                                Pet
-                            </Button>
-                            <Button
-                                variant="secondary"
-                                size="sm"
-                                onClick={() => react('play')}
-                            >
-                                Play
-                            </Button>
-                        </div>
+                        {!nothingYet && (
+                            <div className="flex gap-2">
+                                <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    onClick={() => react('pet')}
+                                >
+                                    Pet
+                                </Button>
+                                <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    onClick={() => react('play')}
+                                >
+                                    Play
+                                </Button>
+                            </div>
+                        )}
                     </div>
                 )}
 

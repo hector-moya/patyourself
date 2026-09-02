@@ -1,6 +1,7 @@
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { act, render, screen } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { __resetSpriteClock } from '@/hooks/use-sprite-clock';
 import {
     Companion,
     ambientFor,
@@ -9,6 +10,35 @@ import {
     selfStartedFor,
 } from './companion';
 import { companion, unlock } from './companion.fixture';
+
+// The clock behind Companion is a module-level singleton (see
+// use-sprite-clock.test.ts). Only one test below drives it by hand with a
+// stubbed requestAnimationFrame, but the teardown runs unconditionally so a
+// failed assertion still can't leak a stubbed clock into the next test.
+afterEach(() => {
+    vi.unstubAllGlobals();
+    __resetSpriteClock();
+});
+
+/**
+ * Same stub as use-sprite-clock.test.ts: jsdom has no real matchMedia, so this
+ * overwrites the never-matching stub from test/setup.ts for the duration of a
+ * test. Reset to `false` before every test in this file — a direct assignment
+ * outlives `vi.unstubAllGlobals()`, which only undoes `vi.stubGlobal` stubs.
+ */
+function reduceMotion(matches: boolean): void {
+    window.matchMedia = ((query: string) =>
+        ({
+            matches: matches && query.includes('prefers-reduced-motion'),
+            media: query,
+            addEventListener: vi.fn(),
+            removeEventListener: vi.fn(),
+        }) as unknown as MediaQueryList) as typeof window.matchMedia;
+}
+
+beforeEach(() => {
+    reduceMotion(false);
+});
 
 describe('Companion', () => {
     /**
@@ -85,6 +115,131 @@ describe('Companion', () => {
         expect(description).toBe('Blob, with shoes, walk');
         expect(description).not.toMatch(/streak|level|%|of \d/i);
     });
+
+    /**
+     * The reward has to arrive with the act that earned it. A number rather
+     * than a boolean because two outcomes logged in a row have to fire twice,
+     * and a flag that is already `true` never changes.
+     */
+    it('reacts when handed an outcome id', () => {
+        const { container, rerender } = render(
+            <Companion companion={companion()} reactTo={null} />,
+        );
+
+        expect(
+            container
+                .querySelector('.blob-anim')
+                ?.getAttribute('data-animation'),
+        ).toBe('idle');
+
+        rerender(<Companion companion={companion()} reactTo={101} />);
+
+        expect(
+            container
+                .querySelector('.blob-anim')
+                ?.getAttribute('data-animation'),
+        ).toBe('notice');
+    });
+
+    it('reacts again when a second outcome is logged', () => {
+        // The shared clock only advances when something drives its
+        // requestAnimationFrame loop, so proving the first reaction actually
+        // ends means driving it by hand rather than assuming it did — see
+        // use-sprite-clock.test.ts for the pattern this borrows.
+        let pending: FrameRequestCallback[] = [];
+        let handle = 0;
+
+        vi.stubGlobal(
+            'requestAnimationFrame',
+            (callback: FrameRequestCallback): number => {
+                pending.push(callback);
+
+                return ++handle;
+            },
+        );
+        vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+        const tick = (now: number) => {
+            const due = pending;
+            pending = [];
+
+            act(() => {
+                for (const callback of due) {
+                    callback(now);
+                }
+            });
+        };
+
+        const { container, rerender } = render(
+            <Companion companion={companion()} reactTo={101} />,
+        );
+
+        // Establishes the reaction's start time on the clock.
+        tick(0);
+
+        expect(
+            container
+                .querySelector('.blob-anim')
+                ?.getAttribute('data-animation'),
+        ).toBe('notice');
+
+        // notice is 4 frames at 8fps: 500ms finishes it and hands the channel
+        // back to the ambient. Asserted explicitly, so this proves the first
+        // reaction ended rather than assuming it.
+        tick(500);
+
+        expect(
+            container
+                .querySelector('.blob-anim')
+                ?.getAttribute('data-animation'),
+        ).toBe('idle');
+
+        rerender(<Companion companion={companion()} reactTo={102} />);
+
+        expect(
+            container
+                .querySelector('.blob-anim')
+                ?.getAttribute('data-animation'),
+        ).toBe('notice');
+    });
+
+    /** A plain visit, with nothing just recorded, must not make Blob move. */
+    it('does not react without an outcome id', () => {
+        const { container, rerender } = render(
+            <Companion companion={companion()} />,
+        );
+
+        rerender(<Companion companion={companion()} />);
+
+        expect(
+            container
+                .querySelector('.blob-anim')
+                ?.getAttribute('data-animation'),
+        ).toBe('idle');
+    });
+
+    /**
+     * `notice` is unprompted — nobody pressed a button, an outcome was just
+     * logged elsewhere. Under reduced motion there is no loop left to run the
+     * one-shot back down once it lands, so firing it here would leave Blob
+     * stuck in the noticed pose for the rest of the page's life. The correct
+     * behaviour is silence: Blob stays on the ambient, exactly as if `reactTo`
+     * had never changed.
+     */
+    it('does not react to a new outcome id under reduced motion', () => {
+        reduceMotion(true);
+
+        const { container, rerender } = render(
+            <Companion companion={companion()} reactTo={null} />,
+        );
+
+        rerender(<Companion companion={companion()} reactTo={101} />);
+
+        const blob = container.querySelector('.blob-anim');
+
+        expect(blob?.getAttribute('data-animation')).toBe('idle');
+        expect(blob?.getAttribute('data-frame')).toBe('0');
+    });
 });
 
 describe('ambientFor', () => {
@@ -129,9 +284,7 @@ describe('describe', () => {
 
 describe('selfStartedFor', () => {
     it('lets every Blob blink, and nothing else, before anything is earned', () => {
-        expect(selfStartedFor(companion({ abilities: [] }))).toEqual([
-            'blink',
-        ]);
+        expect(selfStartedFor(companion({ abilities: [] }))).toEqual(['blink']);
     });
 
     it('adds an ability that has a self-starting animation', () => {

@@ -202,6 +202,20 @@ describe('SvgBlobRenderer', () => {
         });
 
         /**
+         * Movement only. The reaction lands beside the app's most protected
+         * interaction, so it has to be visibly smaller than pet or play — and it
+         * has to actually move, or the whole half of D2 is a no-op.
+         */
+        it('gives notice its own pose, and returns to standing', () => {
+            const at = (frame: number) =>
+                renderBody('notice', frame).getAttribute('style');
+
+            expect(at(0)).toContain('translateY(0px)');
+            expect(at(1)).toContain('translateY(-3px)');
+            expect(at(3)).toContain('translateY(0px)');
+        });
+
+        /**
          * A blink is the eyes and nothing else. A body that moved too would
          * read as a flinch.
          */
@@ -215,7 +229,8 @@ describe('SvgBlobRenderer', () => {
 
         it('moves the body through a wave', () => {
             const styles = [0, 1, 2, 3].map(
-                (frame) => renderBody('wave', frame).getAttribute('style') ?? '',
+                (frame) =>
+                    renderBody('wave', frame).getAttribute('style') ?? '',
             );
 
             // Not every frame identical: a pose that never moves is the bug
@@ -231,7 +246,8 @@ describe('SvgBlobRenderer', () => {
 
         it('moves the body through a jump', () => {
             const styles = [0, 1, 2, 3].map(
-                (frame) => renderBody('jump', frame).getAttribute('style') ?? '',
+                (frame) =>
+                    renderBody('jump', frame).getAttribute('style') ?? '',
             );
 
             expect(new Set(styles).size).toBeGreaterThan(1);

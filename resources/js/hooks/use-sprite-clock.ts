@@ -108,6 +108,17 @@ export interface SpriteClock {
     frame: number;
     /** Fire a reaction. Restarts it if the same one is already playing. */
     react: (name: AnimationName) => void;
+    /**
+     * Whether `prefers-reduced-motion: reduce` is active.
+     *
+     * Exposed so a caller can tell an *unprompted* reaction — one the user did
+     * not ask for by pressing a button — apart from one they did. `react()`
+     * still applies a held pose either way (a button that does nothing is
+     * worse than a button that does not animate), but a reaction fired at a
+     * user who never acted has nothing to justify freezing their screen, and
+     * this is what lets the caller skip it instead.
+     */
+    reduced: boolean;
 }
 
 /**
@@ -270,5 +281,6 @@ export function useSpriteClock(
         // to run for the rule to hold.
         frame: reduced && reaction === null ? 0 : frame,
         react,
+        reduced,
     };
 }

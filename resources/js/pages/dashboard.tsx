@@ -37,6 +37,19 @@ interface DashboardProps {
     occasions: TodaysOccasionData[];
     ready_for_verdict: ReadyForVerdictData[];
     companion: CompanionData;
+    /**
+     * The outcome recorded on the request that landed here, or null. Carried
+     * from the server as a one-request flash, so it is null again the next
+     * time this screen is opened.
+     *
+     * That guarantee is server-side only. Inertia keeps this page's props,
+     * this one included, in `history.state` and restores them on `popstate`
+     * without a round trip — so logging an outcome, visiting /companion, then
+     * pressing Back replays this same id and Blob notices again. Known and
+     * left alone: the cost is one extra ~500ms lift, and a fix would have to
+     * live on the client, not here.
+     */
+    logged_outcome_id?: number | null;
 }
 
 const SECTIONS: { due: TodaysOccasionData['due']; heading: string }[] = [
@@ -61,6 +74,7 @@ export default function Dashboard({
     occasions,
     ready_for_verdict: readyForVerdict,
     companion,
+    logged_outcome_id: loggedOutcomeId = null,
 }: DashboardProps) {
     const nothingToday = occasions.length === 0;
 
@@ -68,7 +82,12 @@ export default function Dashboard({
         <CoachLayout
             title="Today"
             bottomNav={<BottomNav />}
-            headerActions={<CompanionCorner companion={companion} />}
+            headerActions={
+                <CompanionCorner
+                    companion={companion}
+                    reactTo={loggedOutcomeId}
+                />
+            }
         >
             <div className="flex flex-col gap-6">
                 <p className="font-mono text-xs tracking-wide text-muted-foreground uppercase">
@@ -131,8 +150,17 @@ export default function Dashboard({
  * Renders nothing before the first outcome — no placeholder and no outline,
  * because an empty slot in the header would be one more thing owed. The link
  * carries no count and no badge for the same reason.
+ *
+ * `reactTo` is how the corner learns an outcome was just recorded. Movement
+ * only: no copy is added here, and none should be.
  */
-function CompanionCorner({ companion }: { companion: CompanionData }) {
+function CompanionCorner({
+    companion,
+    reactTo = null,
+}: {
+    companion: CompanionData;
+    reactTo?: number | null;
+}) {
     if (companion.stage_index === 0) {
         return null;
     }
@@ -143,7 +171,7 @@ function CompanionCorner({ companion }: { companion: CompanionData }) {
             aria-label="Blob"
             className="flex items-center rounded-md p-1 transition-opacity hover:opacity-80"
         >
-            <Companion companion={companion} size={32} />
+            <Companion companion={companion} size={32} reactTo={reactTo} />
         </Link>
     );
 }

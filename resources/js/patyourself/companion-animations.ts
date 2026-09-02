@@ -55,6 +55,14 @@ export const ANIMATIONS = {
     },
     pet: { frames: 4, fps: 8, loop: false, channel: 'reaction' },
     play: { frames: 6, fps: 8, loop: false, channel: 'reaction' },
+    /**
+     * An outcome has just been recorded. The `reaction` channel, because this
+     * arrives from outside Blob rather than being something Blob does by
+     * itself — and deliberately the smallest reaction there is: it lands in
+     * the 32px corner while the user is mid-flow, and anything larger would
+     * interrupt the one interaction this app protects most.
+     */
+    notice: { frames: 4, fps: 8, loop: false, channel: 'reaction' },
 } as const satisfies Record<string, AnimationSpec>;
 
 export type AnimationName = keyof typeof ANIMATIONS;

@@ -81,6 +81,30 @@ describe('Companion screen', () => {
         ).toBeNull();
     });
 
+    it('relays what Blob has to say, near Blob', () => {
+        render(
+            <CompanionPage
+                companion={companion()}
+                remark="Blob has been standing by the window a lot this week."
+            />,
+        );
+
+        expect(
+            screen.getByText(/standing by the window a lot this week/i),
+        ).toBeInTheDocument();
+    });
+
+    /**
+     * Silence, not a placeholder and not a default line. Nothing on the screen
+     * should suggest a remark is missing.
+     */
+    it('says nothing when there is nothing to say', () => {
+        render(<CompanionPage companion={companion()} remark={null} />);
+
+        expect(screen.queryByTestId('companion-remark')).toBeNull();
+        expect(screen.queryByText(/nothing to say|no remarks/i)).toBeNull();
+    });
+
     it('names a recoloured item by its variant', () => {
         render(
             <CompanionPage
