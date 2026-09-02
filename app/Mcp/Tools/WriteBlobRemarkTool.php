@@ -60,10 +60,6 @@ class WriteBlobRemarkTool extends Tool
         /** @var string $body */
         $body = $validated['body'];
 
-        if (trim($body) === '') {
-            return Response::error('A remark cannot be blank.');
-        }
-
         if (mb_strlen($body) > self::CAP) {
             return Response::error(
                 'A remark is capped at '.self::CAP.' characters. This one is '.mb_strlen($body).'.',

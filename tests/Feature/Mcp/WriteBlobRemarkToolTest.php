@@ -144,7 +144,14 @@ class WriteBlobRemarkToolTest extends TestCase
         $this->assertSame(0, CompanionRemark::count());
     }
 
-    public function test_it_rejects_a_blank_body(): void
+    /**
+     * The tool itself has no blank check — Laravel's `required` rule already
+     * treats a whitespace-only string as absent (it does its own
+     * `trim($value) === ''`), so a body of all spaces never reaches the
+     * handler's own content checks. Do not re-add a check here thinking this
+     * is uncovered: it is covered one layer up, on purpose.
+     */
+    public function test_it_rejects_a_whitespace_only_body(): void
     {
         PatYourSelfServer::actingAs(User::factory()->create())
             ->tool(WriteBlobRemarkTool::class, ['body' => '   '])
