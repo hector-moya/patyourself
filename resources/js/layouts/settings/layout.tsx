@@ -8,6 +8,7 @@ import { cn, toUrl } from '@/lib/utils';
 import { edit as editAppearance } from '@/routes/appearance';
 import { edit as editNotifications } from '@/routes/notifications';
 import { edit } from '@/routes/profile';
+import { edit as editRecord } from '@/routes/record';
 import { edit as editSecurity } from '@/routes/security';
 import { edit as editTimezone } from '@/routes/timezone';
 import type { NavItem } from '@/types';
@@ -36,6 +37,11 @@ const sidebarNavItems: NavItem[] = [
     {
         title: 'Appearance',
         href: editAppearance(),
+        icon: null,
+    },
+    {
+        title: 'Your record',
+        href: editRecord(),
         icon: null,
     },
 ];

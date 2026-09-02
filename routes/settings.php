@@ -32,4 +32,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('user-password.update');
 
     Route::inertia('settings/appearance', 'settings/appearance')->name('appearance.edit');
+
+    // The handle on the export door. A static page — the record itself is
+    // streamed by ExportController, and this screen only points at it — so it
+    // needs no controller. It sits in this group rather than the one above
+    // because `export.show` is gated on `verified` too, and a page whose only
+    // two links answer 403 would be worse than no page.
+    Route::inertia('settings/record', 'settings/record')->name('record.edit');
 });
