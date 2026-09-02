@@ -30,10 +30,17 @@ export default function Record() {
                     description="Everything the app holds about your loops, in full"
                 />
 
+                {/* No claim here about where the record does or does not go.
+                    An earlier draft said "nothing leaves the app until you ask
+                    for it", which is not true: the coach reads loops, outcomes
+                    and the reasons through MCP on every turn. Saying it on the
+                    one screen about handing the record over would read as a
+                    guarantee, and the sensitive part — what someone wrote about
+                    their own failures — is exactly what it would be wrong
+                    about. */}
                 <p className="text-sm text-muted-foreground">
                     Every loop, every strategy version, every outcome and the
-                    reasons you gave. It downloads as one file and nothing
-                    leaves the app until you ask for it.
+                    reasons you gave. It downloads as one file.
                 </p>
 
                 <div className="flex flex-wrap gap-3">

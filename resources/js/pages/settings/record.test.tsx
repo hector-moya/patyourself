@@ -52,15 +52,21 @@ describe('Your record screen', () => {
             };
 
             document.addEventListener('click', record);
-            screen
-                .getByRole('link', { name })
-                .dispatchEvent(
+
+            try {
+                screen.getByRole('link', { name }).dispatchEvent(
                     new MouseEvent('click', {
                         bubbles: true,
                         cancelable: true,
                     }),
                 );
-            document.removeEventListener('click', record);
+            } finally {
+                // Paired here rather than after the dispatch: RTL's cleanup
+                // unmounts React trees and leaves raw document listeners
+                // alone, so a throw inside the loop would leak this one into
+                // every later test in the file.
+                document.removeEventListener('click', record);
+            }
 
             expect(preventedByTheApp).toBe(false);
         }
@@ -73,6 +79,9 @@ describe('Your record screen', () => {
     it('does not offer an import', () => {
         render(<Record />);
 
-        expect(screen.queryByText(/import|upload|restore/i)).toBeNull();
+        // Word-bounded: an unbounded /import/ would one day fail on an
+        // innocent "important" somewhere in the copy, and a guard that cries
+        // wolf gets deleted rather than read.
+        expect(screen.queryByText(/\b(import|upload|restore)\b/i)).toBeNull();
     });
 });

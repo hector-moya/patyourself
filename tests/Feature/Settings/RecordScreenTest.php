@@ -57,6 +57,13 @@ class RecordScreenTest extends TestCase
      * A page whose only two links answer 403 is worse than no page, and the two
      * routes are declared in different files, so nothing else would notice them
      * drifting apart.
+     *
+     * Compares the whole gathered stack, which today is just the group
+     * middleware each route is declared inside — neither `ExportController` nor
+     * the `Route::inertia` controller contributes any of its own. If one of
+     * them ever does (a throttle on large exports, say), this goes red for a
+     * reason that is not "the gates differ": widen it to compare only the auth
+     * middleware rather than deleting it.
      */
     public function test_it_sits_behind_the_same_gate_as_the_endpoint_it_links_to(): void
     {
