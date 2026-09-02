@@ -1,5 +1,5 @@
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { act, render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
     Companion,
@@ -85,6 +85,69 @@ describe('Companion', () => {
         expect(description).toBe('Blob, with shoes, walk');
         expect(description).not.toMatch(/streak|level|%|of \d/i);
     });
+
+    /**
+     * The reward has to arrive with the act that earned it. A number rather
+     * than a boolean because two outcomes logged in a row have to fire twice,
+     * and a flag that is already `true` never changes.
+     */
+    it('reacts when handed an outcome id', () => {
+        const { container, rerender } = render(
+            <Companion companion={companion()} reactTo={null} />,
+        );
+
+        expect(
+            container
+                .querySelector('.blob-anim')
+                ?.getAttribute('data-animation'),
+        ).toBe('idle');
+
+        rerender(<Companion companion={companion()} reactTo={101} />);
+
+        expect(
+            container
+                .querySelector('.blob-anim')
+                ?.getAttribute('data-animation'),
+        ).toBe('notice');
+    });
+
+    it('reacts again when a second outcome is logged', () => {
+        const { container, rerender } = render(
+            <Companion companion={companion()} reactTo={101} />,
+        );
+
+        // Let the reaction finish and hand the channel back. Scoped to this
+        // test alone — real timers return immediately after, so no other
+        // test in the file inherits a mocked clock.
+        vi.useFakeTimers();
+        act(() => {
+            vi.advanceTimersByTime(0);
+        });
+        vi.useRealTimers();
+
+        rerender(<Companion companion={companion()} reactTo={102} />);
+
+        expect(
+            container
+                .querySelector('.blob-anim')
+                ?.getAttribute('data-animation'),
+        ).toBe('notice');
+    });
+
+    /** A plain visit, with nothing just recorded, must not make Blob move. */
+    it('does not react without an outcome id', () => {
+        const { container, rerender } = render(
+            <Companion companion={companion()} />,
+        );
+
+        rerender(<Companion companion={companion()} />);
+
+        expect(
+            container
+                .querySelector('.blob-anim')
+                ?.getAttribute('data-animation'),
+        ).toBe('idle');
+    });
 });
 
 describe('ambientFor', () => {
@@ -129,9 +192,7 @@ describe('describe', () => {
 
 describe('selfStartedFor', () => {
     it('lets every Blob blink, and nothing else, before anything is earned', () => {
-        expect(selfStartedFor(companion({ abilities: [] }))).toEqual([
-            'blink',
-        ]);
+        expect(selfStartedFor(companion({ abilities: [] }))).toEqual(['blink']);
     });
 
     it('adds an ability that has a self-starting animation', () => {

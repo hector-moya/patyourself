@@ -193,7 +193,14 @@ const ABILITIES: Record<string, AbilitySpec> = {
                     is coloured outside the red family entirely (the slate
                     blue the bookshelf's own books already use) so the two
                     never read as one shape even where the boxes come close. */}
-                <rect x={-10} y={6} width={8} height={8} rx={1} fill="#5B8398" />
+                <rect
+                    x={-10}
+                    y={6}
+                    width={8}
+                    height={8}
+                    rx={1}
+                    fill="#5B8398"
+                />
                 <rect x={-2} y={6} width={8} height={8} rx={1} fill="#7FA3B5" />
                 <rect x={-2.5} y={6} width={1} height={8} fill={INK} />
             </g>
@@ -483,6 +490,17 @@ function bodyTransform(
             return {
                 ...origin,
                 transform: `translateY(${[0, -4, -8, -8, -4, 0][frame] ?? 0}px)`,
+                transitionDuration: '90ms',
+            };
+
+        case 'notice':
+            // A small lift, a settle, and back to standing — half the height
+            // of play's hop, because this one was not asked for. No copy and
+            // never congratulating anywhere near it: movement is the whole
+            // reward.
+            return {
+                ...origin,
+                transform: `translateY(${[0, -3, -1, 0][frame] ?? 0}px) scaleY(${[1, 1.03, 0.99, 1][frame] ?? 1})`,
                 transitionDuration: '90ms',
             };
 

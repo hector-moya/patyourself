@@ -13,6 +13,8 @@
  * The same component renders the 32px corner instance on Today and the big one
  * on /companion. Nothing is sized in pixels — the viewBox does the scaling.
  */
+import { useEffect } from 'react';
+
 import { useSpriteClock } from '@/hooks/use-sprite-clock';
 import { BLOB_VIEWBOX, BlobRenderer } from '@/patyourself/blob-renderer';
 import type { BlobItem } from '@/patyourself/blob-renderer';
@@ -92,17 +94,32 @@ export function Companion({
     companion,
     size = 120,
     className = '',
+    reactTo = null,
 }: {
     companion: CompanionData;
     size?: number;
     className?: string;
+    /**
+     * The id of an outcome recorded on the request that rendered this page,
+     * or null. Blob reacts once each time it changes.
+     *
+     * An id rather than a flag: two outcomes logged one after the other both
+     * deserve a reaction, and a boolean that is already `true` never changes.
+     */
+    reactTo?: number | null;
 }) {
     // Called before the early return: a Blob that does not exist yet still has
     // to obey the rules of hooks.
-    const { animation, frame } = useSpriteClock(
+    const { animation, frame, react } = useSpriteClock(
         ambientFor(companion),
         selfStartedFor(companion),
     );
+
+    useEffect(() => {
+        if (reactTo !== null) {
+            react('notice');
+        }
+    }, [reactTo, react]);
 
     if (!companion.features.includes('blob')) {
         return null;
