@@ -33,10 +33,6 @@ class LogNoteTool extends Tool
             'noted_at' => ['nullable', 'date'],
         ]);
 
-        if (trim($validated['note']) === '') {
-            return Response::error('A note cannot be blank.');
-        }
-
         $loop = $request->user()->intentions()->find($validated['intention_id']);
 
         if (! $loop instanceof Intention) {
