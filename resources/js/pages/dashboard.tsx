@@ -41,6 +41,13 @@ interface DashboardProps {
      * The outcome recorded on the request that landed here, or null. Carried
      * from the server as a one-request flash, so it is null again the next
      * time this screen is opened.
+     *
+     * That guarantee is server-side only. Inertia keeps this page's props,
+     * this one included, in `history.state` and restores them on `popstate`
+     * without a round trip — so logging an outcome, visiting /companion, then
+     * pressing Back replays this same id and Blob notices again. Known and
+     * left alone: the cost is one extra ~500ms lift, and a fix would have to
+     * live on the client, not here.
      */
     logged_outcome_id?: number | null;
 }

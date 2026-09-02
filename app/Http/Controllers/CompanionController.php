@@ -28,6 +28,13 @@ use Inertia\Response;
  */
 class CompanionController extends Controller
 {
+    /**
+     * Not idempotent: a plain GET here can pick a remark and write its id to
+     * the session. Inertia's `prefetch` fires this on hover, so wiring it onto
+     * the Blob link would rotate the remark every time a cursor passed over
+     * it — burning remarks nobody read. Never add `prefetch` to a link aimed
+     * at this route.
+     */
     public function index(Request $request, CompanionResolver $resolver, CompanionRemarks $remarks): Response
     {
         $user = $request->user();

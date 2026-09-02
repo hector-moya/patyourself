@@ -60,9 +60,11 @@ class WriteBlobRemarkTool extends Tool
         /** @var string $body */
         $body = $validated['body'];
 
-        if (mb_strlen($body) > self::CAP) {
+        $length = mb_strlen($body);
+
+        if ($length > self::CAP) {
             return Response::error(
-                'A remark is capped at '.self::CAP.' characters. This one is '.mb_strlen($body).'.',
+                'A remark is capped at '.self::CAP.' characters. This one is '.$length.'.',
             );
         }
 
