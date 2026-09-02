@@ -1,6 +1,7 @@
 import { act, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { __resetSpriteClock } from '@/hooks/use-sprite-clock';
 import {
     Companion,
     ambientFor,
@@ -9,6 +10,15 @@ import {
     selfStartedFor,
 } from './companion';
 import { companion, unlock } from './companion.fixture';
+
+// The clock behind Companion is a module-level singleton (see
+// use-sprite-clock.test.ts). Only one test below drives it by hand with a
+// stubbed requestAnimationFrame, but the teardown runs unconditionally so a
+// failed assertion still can't leak a stubbed clock into the next test.
+afterEach(() => {
+    vi.unstubAllGlobals();
+    __resetSpriteClock();
+});
 
 describe('Companion', () => {
     /**
@@ -112,18 +122,57 @@ describe('Companion', () => {
     });
 
     it('reacts again when a second outcome is logged', () => {
+        // The shared clock only advances when something drives its
+        // requestAnimationFrame loop, so proving the first reaction actually
+        // ends means driving it by hand rather than assuming it did — see
+        // use-sprite-clock.test.ts for the pattern this borrows.
+        let pending: FrameRequestCallback[] = [];
+        let handle = 0;
+
+        vi.stubGlobal(
+            'requestAnimationFrame',
+            (callback: FrameRequestCallback): number => {
+                pending.push(callback);
+
+                return ++handle;
+            },
+        );
+        vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+        const tick = (now: number) => {
+            const due = pending;
+            pending = [];
+
+            act(() => {
+                for (const callback of due) {
+                    callback(now);
+                }
+            });
+        };
+
         const { container, rerender } = render(
             <Companion companion={companion()} reactTo={101} />,
         );
 
-        // Let the reaction finish and hand the channel back. Scoped to this
-        // test alone — real timers return immediately after, so no other
-        // test in the file inherits a mocked clock.
-        vi.useFakeTimers();
-        act(() => {
-            vi.advanceTimersByTime(0);
-        });
-        vi.useRealTimers();
+        // Establishes the reaction's start time on the clock.
+        tick(0);
+
+        expect(
+            container
+                .querySelector('.blob-anim')
+                ?.getAttribute('data-animation'),
+        ).toBe('notice');
+
+        // notice is 4 frames at 8fps: 500ms finishes it and hands the channel
+        // back to the ambient. Asserted explicitly, so this proves the first
+        // reaction ended rather than assuming it.
+        tick(500);
+
+        expect(
+            container
+                .querySelector('.blob-anim')
+                ?.getAttribute('data-animation'),
+        ).toBe('idle');
 
         rerender(<Companion companion={companion()} reactTo={102} />);
 
