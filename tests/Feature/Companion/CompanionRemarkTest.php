@@ -109,22 +109,62 @@ class CompanionRemarkTest extends TestCase
         $this->assertNull($this->remarks()->nextFor(User::factory()->create()));
     }
 
+    /**
+     * The dangerous case, not just the easy one: the `orWhereHas` that admits
+     * an active-loop remark has to sit inside the same closure that scopes to
+     * `$user->companionRemarks()`, or every active-loop remark in the database
+     * becomes eligible for every user regardless of whose loop it is on.
+     */
+    public function test_another_users_remark_on_an_active_loop_is_never_eligible(): void
+    {
+        $other = User::factory()->create();
+        $loop = Intention::factory()->for($other)->create(['status' => Intention::STATUS_ACTIVE]);
+        CompanionRemark::factory()->for($other)->for($loop)->create();
+
+        $this->assertNull($this->remarks()->nextFor(User::factory()->create()));
+    }
+
     public function test_with_no_remarks_there_is_nothing_to_say(): void
     {
         $this->assertNull($this->remarks()->nextFor(User::factory()->create()));
     }
 
+    /**
+     * Two assertions, deliberately not one. With exactly two eligible remarks
+     * and one excluded, the eligible-minus-excluded set has exactly one member,
+     * so the outcome check below is not a draw at all — it proves the result.
+     * The second assertion proves the mechanism: that `$excluding` actually
+     * reached the query as a bound value with a key-exclusion predicate, which
+     * is what a dropped `whereKeyNot()` would remove without the outcome check
+     * alone reliably catching it (see the task report for the sabotage proof).
+     */
     public function test_it_does_not_repeat_the_one_shown_last_visit(): void
     {
         $user = User::factory()->create();
         $first = CompanionRemark::factory()->for($user)->create(['intention_id' => null]);
-        CompanionRemark::factory()->for($user)->create(['intention_id' => null]);
+        $second = CompanionRemark::factory()->for($user)->create(['intention_id' => null]);
 
-        // Ten draws: a picker that ignored `$excluding` would return the
-        // excluded one within a handful of tries.
-        for ($attempt = 0; $attempt < 10; $attempt++) {
-            $this->assertNotSame($first->id, $this->remarks()->nextFor($user, $first->id)?->id);
-        }
+        $this->assertSame($second->id, $this->remarks()->nextFor($user, $first->id)?->id);
+
+        $queries = [];
+
+        DB::listen(static function (QueryExecuted $query) use (&$queries): void {
+            $queries[] = $query;
+        });
+
+        $this->remarks()->nextFor($user, $first->id);
+
+        $read = collect($queries)->first(
+            static fn (QueryExecuted $query): bool => str_contains($query->sql, 'companion_remarks'),
+        );
+
+        $this->assertNotNull($read, 'The exclusion read never ran.');
+        $this->assertContains($first->id, $read->bindings);
+        $this->assertStringContainsString(
+            '"companion_remarks"."id" != ?',
+            $read->sql,
+            'The excluded id never reached the query as a key-exclusion predicate.',
+        );
     }
 
     /**
@@ -168,11 +208,15 @@ class CompanionRemarkTest extends TestCase
 
         $this->assertNotNull($read, 'The eligibility read never ran.');
         $this->assertStringContainsStringIgnoringCase('exists', $read->sql);
-        $this->assertContains(Intention::STATUS_ACTIVE, $read->bindings);
+        // Checked before the binding assertion below: PHPUnit stops at the
+        // first failure in a test method, and a value embedded rather than
+        // bound would satisfy this one and only trip the binding check, which
+        // reports the missing binding rather than the embedded literal itself.
         $this->assertStringNotContainsString(
             "'",
             $read->sql,
             'A value is written into the SQL rather than bound.',
         );
+        $this->assertContains(Intention::STATUS_ACTIVE, $read->bindings);
     }
 }
