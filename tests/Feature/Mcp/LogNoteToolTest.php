@@ -85,7 +85,14 @@ class LogNoteToolTest extends TestCase
         $this->assertSame('2026-08-22 10:00:00', Note::firstOrFail()->noted_at->utc()->toDateTimeString());
     }
 
-    public function test_it_rejects_an_empty_note(): void
+    /**
+     * The rejection comes from the `required` rule, not from a check in the
+     * tool: Laravel treats a whitespace-only string as absent (it does its own
+     * `trim($value) === ''`), so a note of all spaces never reaches the
+     * handler's own body. Do not re-add a check here thinking this is
+     * uncovered — it is covered one layer up, on purpose.
+     */
+    public function test_it_rejects_a_whitespace_only_note(): void
     {
         $user = User::factory()->create(['timezone' => 'UTC']);
         $loop = Intention::factory()->for($user)->create();
