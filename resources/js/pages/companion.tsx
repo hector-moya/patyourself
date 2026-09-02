@@ -44,10 +44,22 @@ export default function CompanionPage({
     );
     const nothingYet = companion.unlocks.length === 0;
 
+    // Whether the remark shows is `remark !== null` alone — the server's call,
+    // via CompanionController, on whether Blob exists. `nothingYet` decides
+    // the room and the buttons here, same as always, but must never also gate
+    // the remark: `nothingYet` and the controller's `stageIndex() === 0` are
+    // two independent expressions of the same fact, identical today only
+    // because nothing enforces that they agree. If they ever diverged, a
+    // remark nested inside the `nothingYet` branch would have already been
+    // burned into the session by the controller and then never drawn — the
+    // exact failure `test_before_blob_exists_no_remark_is_drawn` exists to
+    // prevent, just reached from the other side.
+    const showRoomCluster = !nothingYet || remark !== null;
+
     return (
         <CoachLayout title="Blob" bottomNav={<BottomNav />}>
             <div className="flex flex-col gap-8">
-                {nothingYet ? (
+                {nothingYet && (
                     // Stated as a fact about the record, with nothing to act
                     // on and nothing owed. Not an empty slot, and no empty
                     // room either — there is nobody to put in it yet.
@@ -55,14 +67,18 @@ export default function CompanionPage({
                         Blob turns up once there is something in the record. Log
                         an outcome — any outcome — and it arrives.
                     </p>
-                ) : (
+                )}
+
+                {showRoomCluster && (
                     <div className="flex flex-col items-center gap-4">
-                        <CompanionRoom
-                            companion={companion}
-                            animation={animation}
-                            frame={frame}
-                            className="w-full max-w-md rounded-xl border border-border"
-                        />
+                        {!nothingYet && (
+                            <CompanionRoom
+                                companion={companion}
+                                animation={animation}
+                                frame={frame}
+                                className="w-full max-w-md rounded-xl border border-border"
+                            />
+                        )}
 
                         {remark !== null && (
                             <p
@@ -77,22 +93,24 @@ export default function CompanionPage({
                             limits them by the day, and nothing counts them:
                             these are not progress, they touch nothing the
                             resolver reads, and Blob never asks to be pressed. */}
-                        <div className="flex gap-2">
-                            <Button
-                                variant="secondary"
-                                size="sm"
-                                onClick={() => react('pet')}
-                            >
-                                Pet
-                            </Button>
-                            <Button
-                                variant="secondary"
-                                size="sm"
-                                onClick={() => react('play')}
-                            >
-                                Play
-                            </Button>
-                        </div>
+                        {!nothingYet && (
+                            <div className="flex gap-2">
+                                <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    onClick={() => react('pet')}
+                                >
+                                    Pet
+                                </Button>
+                                <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    onClick={() => react('play')}
+                                >
+                                    Play
+                                </Button>
+                            </div>
+                        )}
                     </div>
                 )}
 
