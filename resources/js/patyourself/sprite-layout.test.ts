@@ -69,7 +69,8 @@ describe('sprite layout', () => {
      * the top-left corner of the cell.
      *
      * Frame 2 is the mid-stride frame: the measured walk table only moves
-     * the feet on the frame a real step is at its lowest (README, arms/walk),
+     * the feet on the frame a real step is at its highest (README, arms/walk,
+     * where the feet offsets are `[0, 0, -1, 0]` — one row up on frame 2),
      * matching the SVG renderer's own note that the bob rides on mid-step
      * frames. Frame 0 is measured flat, so it cannot be the frame this test
      * reaches for.
@@ -161,18 +162,24 @@ describe('sprite layout', () => {
     /**
      * The anchors and foot rows are measured off the art in Task 1 and
      * hand-copied here, which is exactly the kind of step that ships with
-     * its placeholder zeros still in it. Nothing sits at the top-left
-     * corner of a cell, and no character's feet rest on row zero.
+     * its placeholder zeros still in it. Nothing sits at the top edge of a
+     * cell, and no character's feet rest on row zero.
+     *
+     * The row is the component checked, because it is the only one that can
+     * be a placeholder. Every anchor's `x` is measured from the centre column
+     * and lands off it, so `x !== 0 || y !== 0` — what this asserted before —
+     * held for any `y` at all, including the literal `[-1, 0]` the docblock
+     * warns about.
      */
     it('carries measured constants rather than placeholder zeros', () => {
         for (const form of FORMS) {
             expect(form.foot).toBeGreaterThan(0);
 
-            for (const [name, [x, y]] of Object.entries(form.anchors)) {
+            for (const [name, [, y]] of Object.entries(form.anchors)) {
                 expect(
-                    x !== 0 || y !== 0,
-                    `${form.feature}.${name} is still [0, 0]`,
-                ).toBe(true);
+                    y,
+                    `${form.feature}.${name} sits on row zero`,
+                ).toBeGreaterThan(0);
             }
         }
     });
