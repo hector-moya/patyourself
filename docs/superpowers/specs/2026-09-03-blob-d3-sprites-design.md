@@ -147,11 +147,21 @@ unlock is therefore one new config entry and one new line of copy** — the only
 branch, and the only place its voice has to be written. It says what Blob can now do and never how
 well anyone is performing, like every line beside it.
 
-### The renderer flag is not flipped
+### Sprites become the default
 
-`COMPANION_RENDERER` still defaults to `svg`. This branch makes `sprite` real and verifiable; making
-it the default is a deploy decision taken separately, once the remaining animations and forms exist.
-The SVG renderer is untouched and stays the fallback.
+`COMPANION_RENDERER` defaults to **`sprite`**. This reverses an earlier draft of this document, which
+held the flag at `svg` and deferred the flip to a separate deploy — that deferral existed because the
+`legs` rung could not be made honest, and the three forms solved it. With the blocker gone there is
+nothing left for a second decision to weigh.
+
+The SVG renderer is untouched and becomes the fallback rather than the default. It ignores feature
+names it does not recognise, so a record carrying `arms` still draws under it.
+
+The animation coverage this ships with is deliberately uneven: all eight animations for the `arms`
+form, `idle` and `blink` only for `blob` and `legs`. Those two forms are visible for a handful of
+logs each and `arms` is visible forever after, so the art budget goes where the time is spent.
+Anything ungenerated holds the first `idle` frame, which is what `prefers-reduced-motion` already
+does — an established behaviour rather than a new compromise.
 
 ## Scale, and what it costs
 
@@ -300,7 +310,8 @@ clock reads them, and every form must supply every animation at exactly those co
 - **Any change to what earns a rung.** `logs` and `insights` stay exactly as they are. Experience is
   the act of recording — more experiments recorded, more outcomes recorded — and succeeding or
   failing at a loop does not change what Blob gains. That is already the shipped mechanic.
-- **Flipping `COMPANION_RENDERER` to `sprite` by default.**
+- **The remaining animations for the `blob` and `legs` forms.** They ship with `idle` and `blink`;
+  everything else holds the idle frame until there is art.
 - **A fifth item type.** The cap is data and `CompanionLadderTest` asserts it.
 - **Room objects in pixel art.** The room stays vector this branch; Blob standing in it is the thing
   being proven.
