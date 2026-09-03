@@ -75,7 +75,12 @@ outline, sprout and eye highlight are now separated by **colour** rather than by
 - `face` — the row with the most white eye-highlight pixels (the specks in the eyes). Glasses hang
   off this, not `head`: the two do not move together on every frame (see Offsets below), and hanging
   glasses off `head` put them on the mouth during `notice` and on the forehead during `jump`.
-- `neck` — the widest body row. Unchanged in method and in value; this one was already right.
+- `neck` — `face + 9`. **Corrected in review round 2.** This was originally "the widest body row",
+  blessed as unchanged because its numbers hadn't moved — but the method was wrong from the start on
+  a creature with no neck that isn't the throat. The widest row is the shoulders on `blob` (right by
+  luck), *above the eye line* on `legs`, and the raised arm itself on `arms` — so a scarf crossed the
+  mouth on `legs` and sat at the hips, tail through the floor, on `arms`. The mouth measures at
+  exactly `face + 6` on every form; a collar belongs a few rows below that, hence `face + 9`.
 - `feet` — the lowest opaque row. Unchanged.
 - `hand` — the body's right edge, at the midpoint between skull and feet, on every form including
   `arms`: the ability props anchored here are simple shapes rather than something held in a drawn
@@ -83,9 +88,9 @@ outline, sprout and eye highlight are now separated by **colour** rather than by
 
 | Form | `foot` | `head` | `face` | `neck` | `feet` | `hand` |
 | --- | --- | --- | --- | --- | --- | --- |
-| `blob` | 51 | `[-1, 21]` | `[-1, 34]` | `[-1, 37]` | `[-1, 51]` | `[16, 36]` |
-| `legs` | 53 | `[-1, 19]` | `[-1, 32]` | `[-1, 31]` | `[-1, 53]` | `[14, 36]` |
-| `arms` | 53 | `[-1, 21]` | `[-1, 34]` | `[-1, 41]` | `[-1, 53]` | `[18, 37]` |
+| `blob` | 51 | `[-1, 21]` | `[-1, 34]` | `[-1, 43]` | `[-1, 51]` | `[16, 36]` |
+| `legs` | 53 | `[-1, 19]` | `[-1, 32]` | `[-1, 41]` | `[-1, 53]` | `[14, 36]` |
+| `arms` | 53 | `[-1, 21]` | `[-1, 34]` | `[-1, 43]` | `[-1, 53]` | `[18, 37]` |
 
 ### Foot centres, for the shoes
 
@@ -110,11 +115,15 @@ not a gap left to fill.** Any animation absent from a form's table needs no offs
 horizontal components are zero** — nothing in these animations translates sideways.
 
 These are not a garnish. The body breathes by changing height, which carries the skull with it, so a
-hat pinned to one fixed row drifts off during anything that swells. `wave`'s neck moves −15px and
-`notice`'s −9px while their heads move only −3px and −6px: the body squashes rather than simply
-rising, so the widest row travels further than the skull does. A scarf that tracked `head` would ride
-up the face on those frames — this is why `neck` is measured separately rather than derived from
-`head`.
+hat pinned to one fixed row drifts off during anything that swells.
+
+**`neck`'s own delta is `face`'s, not a separate measurement — corrected in review round 2.** An
+earlier pass here cited `wave` moving the (then widest-row) `neck` by −15px and `notice` by −9px,
+against heads moving only −3px and −6px, as evidence that `neck` had to be measured independently.
+That argued for the wrong thing: those larger numbers were the same "widest row" bug as the anchor
+itself, reading the raised arm mid-`wave` rather than anything near the throat. Now that `neck` is
+`face + 9`, it rides the skull exactly as `face` does, so every `neck` row below is a copy of that
+animation's `face` row.
 
 Where the eyes are **closed** — every frame of `pet` after the first, and the closed frame of
 `blink` — the eye line cannot be measured, so `face` takes `head`'s own delta for that frame. The two
@@ -122,32 +131,29 @@ ride the same skull, so this is a derivation rather than a second guess, and it 
 `head` and `face` simply carrying identical numbers on those rows.
 
 ```
-blob   idle    head [0,-1]   face [0,-2]   neck [0,1]
+blob   idle    head [0,-1]   face [0,-2]   neck [0,-2]
 
-legs   idle    head [0,1]    face [0,2]
+legs   idle    head [0,1]    face [0,2]    neck [0,2]
        blink   head [1,0]    face [1,0]    neck [1,0]
 
-arms   idle    head [0,-2]   face [0,-3]
-       blink   neck [1,0]
-       walk    head [-2,-3,-3,-2]      face [-2,-3,-3,-2]
-               neck [-1,-4,-6,-5]      feet [0,0,-1,0]
-       wave    head [-1,-2,-3,-2]      face [-1,-3,-3,-2]
-               neck [-2,-10,-15,-8]
-       jump    head [0,-3,-6,-4]       face [2,-1,-6,-4]
-               neck [-1,-5,-9,-5]      feet [0,-1,-4,-1]
-       pet     head [0,0,0,-1]         face [0,0,0,-1]
-               neck [0,1,-3,-3]
-       play    head [-1,-3,-5,-6,-4,-2]   face [-1,-3,-5,-7,-5,-3]
-               neck [-1,-2,-6,-10,-6,-2]  feet [0,0,-2,-5,-2,0]
-       notice  head [-2,-6,-4,-2]      face [-3,-8,-6,-4]
-               neck [-5,-9,-9,-5]      feet [0,-3,-4,-1]
+arms   idle    head [0,-2]   face [0,-3]   neck [0,-3]
+       walk    head [-2,-3,-3,-2]      face [-2,-3,-3,-2]      neck [-2,-3,-3,-2]
+               feet [0,0,-1,0]
+       wave    head [-1,-2,-3,-2]      face [-1,-3,-3,-2]      neck [-1,-3,-3,-2]
+       jump    head [0,-3,-6,-4]       face [2,-1,-6,-4]       neck [2,-1,-6,-4]
+               feet [0,-1,-4,-1]
+       pet     head [0,0,0,-1]         face [0,0,0,-1]         neck [0,0,0,-1]
+       play    head [-1,-3,-5,-6,-4,-2]   face [-1,-3,-5,-7,-5,-3]   neck [-1,-3,-5,-7,-5,-3]
+               feet [0,0,-2,-5,-2,0]
+       notice  head [-2,-6,-4,-2]      face [-3,-8,-6,-4]      neck [-3,-8,-6,-4]
+               feet [0,-3,-4,-1]
 ```
 
 Each bracketed list is that anchor's y-delta per frame, in order — `[0,-1]` on a 2-frame animation
 means frame 0 is unmoved and frame 1 is 1px higher, not a single `(x, y)` pair. `blob` and `arms`
-carry no `blink` entry for `head`/`face` (only `arms`'s `neck` moves, 1px, during its own blink):
-holding the skull still is what makes a blink read as a blink rather than a flinch, the same reading
-the SVG renderer gives its own blink.
+carry no `blink` entry at all: holding the skull still is what makes a blink read as a blink rather
+than a flinch, the same reading the SVG renderer gives its own blink — and now that `neck` follows
+`face`, it holds still along with the rest of the skull rather than carrying a delta of its own.
 
 ## Adding a form
 

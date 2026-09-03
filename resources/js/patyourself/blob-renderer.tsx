@@ -14,6 +14,7 @@ import type { CSSProperties, ReactNode } from 'react';
 
 import type { AnimationName } from '@/patyourself/companion-animations';
 import { SPRITE_ITEMS } from '@/patyourself/sprite-items';
+import type { PaletteKey } from '@/patyourself/sprite-items';
 import {
     anchorFor,
     CELL,
@@ -363,14 +364,27 @@ export function SvgBlobRenderer({
 }
 
 /**
- * `SPRITE_ITEMS` names its default colour by PALETTE *key* (a plain string)
- * rather than by value, so that module never has to import `PALETTE` to
- * read it — see its own docblock for why that import would be a cycle.
- * This is where the key is resolved back into a colour, alongside `INK` for
- * glasses, whose default isn't a tail-recolourable accessory shade at all.
+ * `SPRITE_ITEMS` names its default colour by PALETTE *key* (`PaletteKey`, a
+ * literal union, not a plain string) rather than by value, so that module
+ * never has to import `PALETTE` to read it — see its own docblock for why
+ * that import would be a cycle. This is where the key is resolved back into
+ * a colour, alongside `INK` for glasses, whose default isn't a
+ * tail-recolourable accessory shade at all.
+ *
+ * Typed as `Record<PaletteKey | 'ink', string>` rather than `Record<string,
+ * string>` on purpose: every branch `spec.colourKey` can take is listed
+ * explicitly below, so a key added to `PaletteKey` without an entry here (or
+ * vice versa) is a compile error, not a raw key string silently reaching the
+ * DOM as an unresolved CSS `fill`.
  */
-const SPRITE_ITEM_DEFAULT_COLOURS: Record<string, string> = {
-    ...PALETTE,
+const SPRITE_ITEM_DEFAULT_COLOURS: Record<PaletteKey | 'ink', string> = {
+    slate: PALETTE.slate,
+    rust: PALETTE.rust,
+    coral: PALETTE.coral,
+    moss: PALETTE.moss,
+    amber: PALETTE.amber,
+    plum: PALETTE.plum,
+    sand: PALETTE.sand,
     ink: INK,
 };
 
@@ -444,9 +458,12 @@ export function SpriteBlobRenderer({
                         return null;
                     }
 
+                    // `SPRITE_ITEM_DEFAULT_COLOURS` is total over
+                    // `PaletteKey | 'ink'`, the same type `colourKey` is
+                    // declared as, so this lookup can never miss — no `??`
+                    // fallback to a raw key string needed.
                     const defaultColour =
-                        SPRITE_ITEM_DEFAULT_COLOURS[spec.colourKey] ??
-                        spec.colourKey;
+                        SPRITE_ITEM_DEFAULT_COLOURS[spec.colourKey];
                     const colour =
                         item.variant === null
                             ? defaultColour
@@ -457,15 +474,6 @@ export function SpriteBlobRenderer({
                         fallback ? 'idle' : animation,
                         drawnFrame,
                     );
-                    // The enclosing `<g>` is translated by `-CELL / 2` so the
-                    // sprite's own centre column sits at x=0 (see the sheet's
-                    // own transform above) — but every anchor's `x` is
-                    // measured from that same centre line, in the same units
-                    // the anchor table already uses. Undoing the enclosing
-                    // shift here is what puts x=0 back at the cell's left
-                    // edge for this nested group, so the anchor's own
-                    // centre-relative x lands where the anchor table says it
-                    // should, not 32px off to the left of it.
                     const isArriving =
                         arriving !== null &&
                         arriving.type === item.type &&
@@ -474,6 +482,17 @@ export function SpriteBlobRenderer({
                     return (
                         <g
                             key={`${item.type}-${item.variant ?? 'plain'}-${index}`}
+                            // The enclosing `<g>` is translated by
+                            // `-CELL / 2` so the sprite's own centre column
+                            // sits at x=0 (see the sheet's own transform
+                            // above) — but every anchor's `x` is measured
+                            // from that same centre line, in the same units
+                            // the anchor table already uses. Undoing the
+                            // enclosing shift here is what puts x=0 back at
+                            // the cell's left edge for this nested group, so
+                            // the anchor's own centre-relative x lands where
+                            // the anchor table says it should, not 32px off
+                            // to the left of it.
                             transform={translate([anchorX + CELL / 2, anchorY])}
                             className={
                                 isArriving

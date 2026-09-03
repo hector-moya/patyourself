@@ -19,8 +19,12 @@
  * Coordinates are cell pixels relative to the item's anchor. `head` is the
  * skull's top row and `face` is the eye line — both colour-measured (skin
  * tone, eye-highlight white), not position-measured, after `head` was found
- * to have originally landed on the sprout's own outline instead. `neck`
- * (the widest row) and `feet` (the lowest opaque row) were already correct.
+ * to have originally landed on the sprout's own outline instead. `neck` is
+ * `face + 9` for the same reason: "the widest row" sounded like a fine way
+ * to find a throat, but on a creature with no neck the widest row is the
+ * shoulders on one form and the raised arm mid-`wave` on another, so it
+ * rode the body's own bulk rather than anything worn could sensibly track.
+ * `feet` (the lowest opaque row) was the one already correct as measured.
  * See `sprites/README.md` for the measurement itself.
  *
  * Shoes are the one item whose geometry depends on the form: `blob` has no
@@ -32,18 +36,45 @@ import type { ReactNode } from 'react';
 
 import type { AnchorName, SpriteForm } from '@/patyourself/sprite-layout';
 
+/**
+ * PALETTE's own keys, kept here as a literal union rather than imported —
+ * importing the values themselves is the cycle this module exists to avoid
+ * (see above). Keeping the *names* as a type costs nothing at runtime and
+ * turns an unknown key into a compile error instead of a raw string
+ * reaching the DOM as a CSS `fill`, which `string` could not catch.
+ */
+export type PaletteKey =
+    | 'slate'
+    | 'rust'
+    | 'coral'
+    | 'moss'
+    | 'amber'
+    | 'plum'
+    | 'sand';
+
 export interface SpriteItemSpec {
     anchor: AnchorName;
-    /** Resolved against PALETTE (or blob-renderer.tsx's INK) by the caller. */
-    colourKey: string;
+    /**
+     * Resolved against PALETTE by blob-renderer.tsx, where PALETTE lives —
+     * `'ink'` is the one key that isn't a PALETTE entry at all, resolved
+     * against that module's own ink constant instead.
+     */
+    colourKey: PaletteKey | 'ink';
     render: (colour: string, form: SpriteForm) => ReactNode;
 }
 
 /**
- * Foot centre and width, per form, from the cell's centre line — measured
- * two rows above the sole, where the nub is at its widest rather than
- * tapering into the floor. `blob` has no legs to narrow its stance; `legs`
- * and `arms` grow the same feet, so they share one entry.
+ * Foot centre and width, per form, measured from the cell's **centre
+ * line** (column 32) — two rows above the sole, where the nub is at its
+ * widest rather than tapering into the floor. `blob` has no legs to narrow
+ * its stance; `legs` and `arms` grow the same feet, so they share one
+ * entry.
+ *
+ * These are centre-line measurements, not anchor-relative ones: `render`
+ * subtracts the `feet` anchor's own `x` (−1, not 0 — the anchor sits one
+ * column left of centre) before using them, rather than baking that
+ * correction into the constants here. That way a later form whose centre
+ * isn't −1 still lands correctly without this table changing at all.
  */
 const FOOT_RECTS: Record<
     string,
@@ -63,18 +94,19 @@ export const SPRITE_ITEMS: Record<string, SpriteItemSpec> = {
         colourKey: 'slate',
         render: (colour, form) => {
             const feet = FOOT_RECTS[form.feature] ?? FOOT_RECTS.legs;
+            const [anchorX] = form.anchors.feet;
 
             return (
                 <>
                     <rect
-                        x={feet.left.x}
+                        x={feet.left.x - anchorX}
                         y={-2}
                         width={feet.left.width}
                         height={3}
                         fill={colour}
                     />
                     <rect
-                        x={feet.right.x}
+                        x={feet.right.x - anchorX}
                         y={-2}
                         width={feet.right.width}
                         height={3}
@@ -87,14 +119,16 @@ export const SPRITE_ITEMS: Record<string, SpriteItemSpec> = {
     scarf: {
         anchor: 'neck',
         colourKey: 'rust',
-        // `neck` sits at the widest row, which on this round body is cheek
-        // height — right on the mouth. Drawn a few rows below the anchor
-        // instead of on it, so the band clears the mouth and reads as a
-        // collar rather than a mask.
+        // `neck` is measured as `face + 9` — three rows below the mouth on
+        // every form (sprites/README.md) — so the anchor itself is already
+        // where a collar belongs. No compensating offset needed here; that
+        // was only ever standing in for `neck` measuring the widest row
+        // instead, which put it anywhere from the throat to the arms
+        // depending on the form.
         render: (colour) => (
             <>
-                <rect x={-9} y={5} width={18} height={3} fill={colour} />
-                <rect x={5} y={8} width={3} height={6} fill={colour} />
+                <rect x={-9} y={0} width={18} height={3} fill={colour} />
+                <rect x={5} y={3} width={3} height={6} fill={colour} />
             </>
         ),
     },
@@ -111,11 +145,17 @@ export const SPRITE_ITEMS: Record<string, SpriteItemSpec> = {
     glasses: {
         anchor: 'face',
         colourKey: 'ink',
+        // The eyes sit at columns 24–28 and 36–40 on every form; `face.x`
+        // is −1, so this layer's own column 0 is column 31. The right lens
+        // has to start at x=5 (column 36), not x=2 — the earlier value
+        // covered the bridge and two columns of eye while three columns of
+        // bare eye showed beside it. The bridge widens to span the full
+        // gap between the two lenses now that they sit further apart.
         render: (colour) => (
             <>
                 <rect x={-7} y={-2} width={5} height={4} fill={colour} />
-                <rect x={2} y={-2} width={5} height={4} fill={colour} />
-                <rect x={-2} y={-1} width={4} height={1} fill={colour} />
+                <rect x={5} y={-2} width={5} height={4} fill={colour} />
+                <rect x={-2} y={-1} width={7} height={1} fill={colour} />
             </>
         ),
     },

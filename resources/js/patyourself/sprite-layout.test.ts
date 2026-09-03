@@ -115,6 +115,49 @@ describe('sprite layout', () => {
     });
 
     /**
+     * `neck`'s base position, not just its offsets — `face + 9` puts a
+     * collar three rows below the mouth (itself `face + 6`, sprites/
+     * README.md) on every form, in place of "the widest opaque row", which
+     * lands anywhere from the shoulders to the arms depending on the form.
+     */
+    it('bases the neck anchor 9 rows below the face anchor on every form', () => {
+        for (const form of FORMS) {
+            expect(form.anchors.neck[1]).toBe(form.anchors.face[1] + 9);
+        }
+    });
+
+    /**
+     * `neck` = `face + 9` since review round 2. It was previously "the
+     * widest opaque row", blessed as unchanged because its numbers hadn't
+     * moved — but on a creature with no neck the widest row is the
+     * shoulders, the top of the head, or the raised arm mid-`wave`
+     * depending on the form and the frame, none of which a scarf should
+     * track. `neck` now simply rides `face`, so every animation's `neck`
+     * delta must equal that animation's `face` delta, for every frame of
+     * the form with the richest table.
+     */
+    it('moves the neck anchor exactly as the face anchor moves, not independently', () => {
+        const arms = FORMS[FORMS.length - 1];
+
+        for (const animation of arms.animations) {
+            for (
+                let frame = 0;
+                frame < ANIMATIONS[animation].frames;
+                frame += 1
+            ) {
+                const faceDelta =
+                    anchorFor(arms, 'face', animation, frame)[1] -
+                    arms.anchors.face[1];
+                const neckDelta =
+                    anchorFor(arms, 'neck', animation, frame)[1] -
+                    arms.anchors.neck[1];
+
+                expect(neckDelta).toBe(faceDelta);
+            }
+        }
+    });
+
+    /**
      * The anchors and foot rows are measured off the art in Task 1 and
      * hand-copied here, which is exactly the kind of step that ships with
      * its placeholder zeros still in it. Nothing sits at the top-left
