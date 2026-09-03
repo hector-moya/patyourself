@@ -282,8 +282,9 @@ describe('BlobRenderer', () => {
     });
 
     /**
-     * The seam is real rather than hypothetical: the flag already picks a
-     * different implementation, and that one is deliberately empty.
+     * The seam is real rather than hypothetical: the flag picks a genuinely
+     * different implementation, not a fallback that quietly draws the same
+     * thing twice.
      */
     it('switches implementation on the config flag', () => {
         const container = render(
@@ -300,18 +301,97 @@ describe('BlobRenderer', () => {
         ).container;
 
         expect(container.querySelector('.blob-body')).toBeNull();
+        expect(container.querySelector('.blob-sprite')).not.toBeNull();
+    });
+});
+
+function drawSprite(overrides: Partial<BlobRendererProps> = {}) {
+    const props: BlobRendererProps = {
+        animation: 'idle',
+        frame: 0,
+        features: ['blob', 'legs', 'arms'],
+        items: [],
+        abilities: [],
+        ...overrides,
+    };
+
+    return render(
+        <svg>
+            <SpriteBlobRenderer {...props} />
+        </svg>,
+    ).container;
+}
+
+describe('SpriteBlobRenderer', () => {
+    it('draws one image cropped to the cell for this animation and frame', () => {
+        const cell = drawSprite({ animation: 'play', frame: 3 }).querySelector(
+            '.blob-sprite',
+        ) as SVGSVGElement;
+
+        // play is row 6, frame 3 is column 3, on a 64px grid.
+        expect(cell.getAttribute('viewBox')).toBe('192 384 64 64');
     });
 
-    it('has a sprite renderer that is a stub and says so', () => {
+    it('moves to a different cell when the frame advances', () => {
+        const first = drawSprite({ animation: 'walk', frame: 0 })
+            .querySelector('.blob-sprite')!
+            .getAttribute('viewBox');
+        const second = drawSprite({ animation: 'walk', frame: 1 })
+            .querySelector('.blob-sprite')!
+            .getAttribute('viewBox');
+
+        expect(first).not.toBe(second);
+    });
+
+    /**
+     * The one rule the renderer docblock singles out. A sprite sheet swaps
+     * whole frames, and tweening between them is what makes pixel art look
+     * wrong.
+     */
+    it('applies no transition to anything it draws', () => {
+        const container = drawSprite({ animation: 'jump', frame: 2 });
+
+        for (const node of container.querySelectorAll('*')) {
+            const style = (node as HTMLElement).getAttribute('style') ?? '';
+
+            expect(style).not.toContain('transition');
+        }
+    });
+
+    it('holds the first idle frame for an animation this form has no art for', () => {
+        const container = drawSprite({
+            features: ['blob'],
+            animation: 'play',
+            frame: 4,
+        });
+        const cell = container.querySelector('.blob-sprite') as SVGSVGElement;
+
+        expect(cell.getAttribute('viewBox')).toBe('0 0 64 64');
         expect(
-            SpriteBlobRenderer({
-                animation: 'idle',
-                frame: 0,
-                features: ['blob'],
-                items: [],
-                abilities: [],
-            }),
-        ).toBeNull();
+            container.querySelector('.blob-anim')!.getAttribute('data-fallback'),
+        ).toBe('idle');
+    });
+
+    it('draws the form the record has earned', () => {
+        expect(
+            drawSprite({ features: ['blob'] })
+                .querySelector('.blob-anim')!
+                .getAttribute('data-form'),
+        ).toBe('blob');
+        expect(
+            drawSprite({ features: ['blob', 'legs'] })
+                .querySelector('.blob-anim')!
+                .getAttribute('data-form'),
+        ).toBe('legs');
+    });
+
+    it('keeps the animation and frame readable from the DOM', () => {
+        const anim = drawSprite({ animation: 'wave', frame: 2 }).querySelector(
+            '.blob-anim',
+        )!;
+
+        expect(anim.getAttribute('data-animation')).toBe('wave');
+        expect(anim.getAttribute('data-frame')).toBe('2');
     });
 });
 

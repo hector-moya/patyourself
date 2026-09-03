@@ -13,6 +13,7 @@
 import type { CSSProperties, ReactNode } from 'react';
 
 import type { AnimationName } from '@/patyourself/companion-animations';
+import { CELL, columnsOf, formFor, rowFor } from '@/patyourself/sprite-layout';
 
 /** The body box, in viewBox units. x is measured from Blob's centre line. */
 export const BODY = { w: 44, h: 40, rx: 13 };
@@ -355,22 +356,66 @@ export function SvgBlobRenderer({
 }
 
 /**
- * Blob as pixel art. Not implemented — this exists so the seam is real rather
- * than hypothetical, and so the day sprites arrive nothing outside this file
- * has to change.
+ * Blob as pixel art.
  *
- * TODO: draw from a sprite sheet, one cell per (animation, frame), nearest
- * neighbour, no interpolation between cells. The easing that makes the SVG
- * renderer's 2fps idle read as a breath must NOT be carried over — a sprite
- * sheet swaps whole frames, and tweening between them is what makes pixel art
- * look wrong.
+ * One cell of a sheet per (animation, frame), drawn nearest-neighbour with no
+ * interpolation between cells. The easing that makes the SVG renderer's 2fps
+ * idle read as a breath is deliberately absent here: a sprite sheet swaps
+ * whole frames, and tweening between them is what makes pixel art look wrong.
+ * No element this renderer produces may carry a transition.
+ *
+ * An animation this form has no row for holds the first idle frame rather
+ * than drawing an empty cell — the same rule as an item type no renderer
+ * draws yet, and for the same reason.
  */
-export function SpriteBlobRenderer(props: BlobRendererProps) {
-    // The signature is the contract and is deliberately the real one; only the
-    // drawing is missing.
-    void props;
+export function SpriteBlobRenderer({
+    animation,
+    frame,
+    features,
+    items,
+    abilities,
+    arriving = null,
+}: BlobRendererProps) {
+    // Items and the arriving fade-in are Task 4's job. Abilities hang off the
+    // hand anchor, which is out of scope for this branch entirely.
+    void items;
+    void abilities;
+    void arriving;
 
-    return null;
+    const form = formFor(features);
+    const row = rowFor(form, animation);
+    const fallback = row === null;
+    const drawnRow = fallback ? (rowFor(form, 'idle') ?? 0) : row;
+    const drawnFrame = fallback ? 0 : frame;
+    const columns = columnsOf(form);
+
+    return (
+        <g
+            className="blob-anim"
+            data-animation={animation}
+            data-frame={frame}
+            data-form={form.feature}
+            data-fallback={fallback ? 'idle' : undefined}
+        >
+            <g transform={translate([-CELL / 2, FLOOR - form.foot])}>
+                <svg
+                    className="blob-sprite"
+                    x={0}
+                    y={0}
+                    width={CELL}
+                    height={CELL}
+                    viewBox={`${drawnFrame * CELL} ${drawnRow * CELL} ${CELL} ${CELL}`}
+                >
+                    <image
+                        href={form.sheet}
+                        width={columns * CELL}
+                        height={form.animations.length * CELL}
+                        style={{ imageRendering: 'pixelated' }}
+                    />
+                </svg>
+            </g>
+        </g>
+    );
 }
 
 /**
