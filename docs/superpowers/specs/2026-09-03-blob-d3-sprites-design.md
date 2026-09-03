@@ -82,7 +82,14 @@ its own unchanged.
 ### Blob changes shape, and that is a body feature
 
 The long arc is that Blob does not only accumulate hats — it **changes shape**, a few times, over a
-long record. Three forms are planned. This branch builds one.
+long record. Three forms, all built here.
+
+The creature is called **Humus** in this repository — the soil word, and the root that "human" and
+"humble" both grow from. It names the sprite directory and the form identifiers and nothing else:
+**in the app it is still Blob**, because that name is woven through the ladder copy, the config
+messages, the aria labels and `CompanionVocabularyTest`, and renaming it is a different piece of work
+entirely. Pixel Lab exposes no rename, so the character there keeps whatever it was born with and
+carries a `humus` tag instead.
 
 The theme is Camus. Blob keeps a record of an inquiry that may not conclude, logs the outcome
 whichever way it went, and is fine. That is not a costume added on top: it is a description of the
@@ -97,9 +104,9 @@ arrives, and the word "level" appears nowhere — `CompanionVocabularyTest` alre
 and that ban is load-bearing here rather than incidental.
 
 Structurally a form is a `body` feature, which the ladder has carried since Phase A: `kind: 'body'`
-already flows resolver → state → props → renderer as `features: string[]`. Forms two and three are
-therefore config entries and art, not architecture — and **this branch adds none of them.** Form one
-*is* the existing `blob` feature. No ladder entry changes, no message is written, no trigger moves.
+already flows resolver → state → props → renderer as `features: string[]`. Two of the three forms
+therefore need no ladder work at all — they *are* the existing `blob` and `legs` features. Only the
+third introduces a rung, and no trigger moves for any of them.
 
 One renderer rule is new: `features` is additive today (`hasLegs = features.includes('legs')`), but
 a form replaces the body rather than adding to it, so sprite mode draws exactly one. Which one is
@@ -107,23 +114,31 @@ decided by an **ordered list of form names in the sprite layout**, walked to fin
 present in `features` — not by the order `features` happens to arrive in, which is the resolver's
 business and not a promise the renderer should lean on.
 
-### The `legs` rung is left unresolved, and recorded as such
+### The three forms, and how they rescue the `legs` rung
 
-The ladder's second rung says *"Blob has legs now. Standing up took most of the day and Blob
-considers it a fine use of one."* The chosen art has legs from the start, so in sprite mode that
-rung would announce something and change nothing on screen — precisely the failure D1 was written to
-correct.
+The forms are subtractions from one creature rather than three separate characters:
 
-A legless form-one sheet was attempted and could not be obtained: two separate generations produced
-feet against an explicit "no legs and no feet at all" instruction, because the humanoid skeleton
-supplies them and the description does not override it. The remaining routes are erasing foot pixels
-across every animation frame, or reworking what the rung says — the first is disproportionate for
-this branch and the second changes the ladder, which is out of scope.
+| Form | Feature | Body |
+| --- | --- | --- |
+| 1 | `blob` | no arms, no legs — one rounded mass resting on the ground |
+| 2 | `legs` | legs, still no arms |
+| 3 | `arms` | arms and legs — the full creature |
 
-So sprite mode ships one body sheet per form, feet included, and this is **an open item rather than a
-solved one.** It is not user-visible yet: `COMPANION_RENDERER` still defaults to `svg`, so nothing on
-screen makes a false claim today. It must be settled before the flag is flipped, and this paragraph
-exists so that flip cannot happen without someone reading it.
+This ordering does real work beyond looking nice. The ladder's second rung says *"Blob has legs now.
+Standing up took most of the day and Blob considers it a fine use of one."* Had form one arrived
+with legs already attached, that rung would announce something and change nothing on screen —
+precisely the failure D1 was written to correct. Subtracting instead of adding means `legs` at
+`logs: 3` visibly grows legs, and the rung is honest for the first time.
+
+**Two `create_character` attempts failed to produce a legless body** — the humanoid skeleton supplies
+feet and the description does not override it. `create_character_state` succeeds where they failed
+because it edits an existing image rather than generating from a skeleton. That is the technique to
+reach for whenever a form is defined by what it lacks.
+
+Form three needs a rung that does not exist: the ladder has exactly two body entries. **An `arms`
+unlock is therefore one new config entry and one new line of copy** — the only ladder change in this
+branch, and the only place its voice has to be written. It says what Blob can now do and never how
+well anyone is performing, like every line beside it.
 
 ### The renderer flag is not flipped
 
@@ -169,9 +184,10 @@ is live today. Two dictionaries, one per renderer, keeps "the SVG renderer is un
 than aspirational. They share the `PALETTE` and the `BlobItem` shape, so a recolour still lands in
 both.
 
-Beyond that: `CompanionState`, `CompanionResolver`, `config/companion.php` and every migration are
-untouched. **No PHP changes at all**, beyond adding each new sprite source file to
-`CompanionVocabularyTest`'s `sourceFiles()` list.
+The PHP surface is two edits and no more: **one `arms` rung in `config/companion.php`**, and each new
+sprite source file added to `CompanionVocabularyTest`'s `sourceFiles()` list. `CompanionState`,
+`CompanionResolver` and every migration are untouched — a form is an ordinary `body` unlock and every
+consumer already handles those.
 
 ### How a cell becomes a drawing
 
@@ -214,8 +230,14 @@ Three findings paid for by generations already spent, recorded so nobody repeats
   what made it read as a pear rather than a blob.
 
 The room is drawn flat and side-on while the body is seen slightly from above. That mismatch is
-accepted deliberately: at this scale it reads as a character standing in a room rather than as an
-error, and the alternative costs the silhouette that made this art worth choosing.
+accepted **temporarily**, not permanently: the room is to be rebuilt in pixel art at the character's
+own angle, and at that point the two agree and the compromise disappears. Until then it reads as a
+character standing in a room rather than as an error, and the alternative — an eye-level character —
+costs the silhouette that made this art worth choosing in the first place.
+
+That rebuild is out of scope here and is the reason `ROOM_OBJECTS` stays vector for now: redrawing
+furniture twice, once against a side-on wall and again against an angled one, is work this branch
+would only have to throw away.
 
 Animations come from `animate_character` with `directions: ['south']`, `mode: "v3"`,
 `keep_first_frame: false` so the stored frame count matches `frame_count` exactly. `frame_count`
@@ -265,7 +287,9 @@ clock reads them, and every form must supply every animation at exactly those co
 
 ## Out of scope
 
-- **Forms two and three.** The axis is established; the art and the config entries are not.
+- **A fourth form.** Three is the arc; a fourth is a later spec.
+- **Rebuilding the room in pixel art** at the character's angle. Planned, and the reason the room
+  and its objects stay vector here.
 - **Any change to what earns a rung.** `logs` and `insights` stay exactly as they are. Experience is
   the act of recording — more experiments recorded, more outcomes recorded — and succeeding or
   failing at a loop does not change what Blob gains. That is already the shipped mechanic.
