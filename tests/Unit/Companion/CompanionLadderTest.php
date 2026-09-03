@@ -133,16 +133,55 @@ class CompanionLadderTest extends TestCase
     }
 
     /**
-     * The first three stages come from logging so the first week is alive
+     * The first four stages come from logging so the first week is alive
      * without waiting on an experiment to conclude.
      */
-    public function test_the_first_three_stages_come_from_logging(): void
+    public function test_the_first_four_stages_come_from_logging(): void
     {
         $ladder = $this->ladder();
 
         $this->assertSame(['logs', 1, 'body', 'blob'], [$ladder[0]['trigger'], $ladder[0]['at'], $ladder[0]['kind'], $ladder[0]['name']]);
         $this->assertSame(['logs', 3, 'body', 'legs'], [$ladder[1]['trigger'], $ladder[1]['at'], $ladder[1]['kind'], $ladder[1]['name']]);
-        $this->assertSame(['logs', 5, 'item', 'shoes'], [$ladder[2]['trigger'], $ladder[2]['at'], $ladder[2]['kind'], $ladder[2]['name']]);
+        $this->assertSame(['logs', 4, 'body', 'arms'], [$ladder[2]['trigger'], $ladder[2]['at'], $ladder[2]['kind'], $ladder[2]['name']]);
+        $this->assertSame(['logs', 5, 'item', 'shoes'], [$ladder[3]['trigger'], $ladder[3]['at'], $ladder[3]['kind'], $ladder[3]['name']]);
+    }
+
+    public function test_the_arms_rung_sits_between_legs_and_shoes(): void
+    {
+        $names = array_column($this->ladder(), 'name');
+
+        $this->assertSame(
+            ['blob', 'legs', 'arms', 'shoes'],
+            array_slice($names, 0, 4),
+        );
+    }
+
+    /**
+     * The resolver stops at the first unsatisfied entry, so an entry whose
+     * count sits below its predecessor's would gate everything after it
+     * behind a number the record has already passed.
+     */
+    public function test_each_trigger_counts_upward_through_the_ladder(): void
+    {
+        $seen = [];
+
+        foreach ($this->ladder() as $rung) {
+            $trigger = $rung['trigger'];
+            $previous = $seen[$trigger] ?? 0;
+
+            $this->assertGreaterThan(
+                $previous,
+                $rung['at'],
+                "{$trigger} goes backwards at {$rung['name']}",
+            );
+
+            $seen[$trigger] = $rung['at'];
+        }
+    }
+
+    public function test_sprites_are_what_ships(): void
+    {
+        $this->assertSame('sprite', $this->config()['renderer']);
     }
 
     /**
@@ -151,12 +190,12 @@ class CompanionLadderTest extends TestCase
      */
     public function test_stages_after_the_opening_alternate_ability_and_item(): void
     {
-        $rest = array_slice($this->ladder(), 3);
+        $rest = array_slice($this->ladder(), 4);
 
         $this->assertNotEmpty($rest, 'the ladder should carry insight-driven stages');
 
         foreach ($rest as $offset => $entry) {
-            $this->assertSame('insights', $entry['trigger'], 'stage '.($offset + 4).' should be earned by an insight event');
+            $this->assertSame('insights', $entry['trigger'], 'stage '.($offset + 5).' should be earned by an insight event');
             $this->assertSame(
                 $offset % 2 === 0 ? 'ability' : 'item',
                 $entry['kind'],

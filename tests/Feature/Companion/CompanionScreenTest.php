@@ -51,14 +51,14 @@ class CompanionScreenTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('companion')
-                ->where('companion.stage_index', 3)
-                ->where('companion.features', ['blob', 'legs'])
+                ->where('companion.stage_index', 4)
+                ->where('companion.features', ['blob', 'legs', 'arms'])
                 ->where('companion.items', [['type' => 'shoes', 'variant' => null]])
-                ->has('companion.unlocks', 3)
+                ->has('companion.unlocks', 4)
                 // The room starts empty, and an empty room is empty — not a
                 // set of outlines waiting to be filled in.
                 ->where('companion.room_objects', [])
-                ->where('companion.renderer', 'svg')
+                ->where('companion.renderer', 'sprite')
                 ->has('companion.room.day')
                 ->has('companion.room.night'),
             );

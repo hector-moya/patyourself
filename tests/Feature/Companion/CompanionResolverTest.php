@@ -84,15 +84,15 @@ class CompanionResolverTest extends TestCase
         $this->assertStringContainsString('Blob is here.', $state->latestUnlock()['message']);
     }
 
-    public function test_logging_walks_the_first_three_stages(): void
+    public function test_logging_walks_the_first_four_stages(): void
     {
         $user = User::factory()->create();
         $this->logOutcomes($user, 5);
 
         $state = $this->resolver()->forUser($user);
 
-        $this->assertSame(3, $state->stageIndex());
-        $this->assertSame(['blob', 'legs'], $state->features());
+        $this->assertSame(4, $state->stageIndex());
+        $this->assertSame(['blob', 'legs', 'arms'], $state->features());
         $this->assertSame([['type' => 'shoes', 'variant' => null]], $state->items());
         $this->assertSame([], $state->abilities());
     }
@@ -223,7 +223,7 @@ class CompanionResolverTest extends TestCase
         $state = $this->resolver()->forUser($user);
 
         $this->assertSame(3, $state->insightCount);
-        $this->assertSame(6, $state->stageIndex());
+        $this->assertSame(7, $state->stageIndex());
         $this->assertSame(['walk', 'read'], $state->abilities());
         $this->assertSame([
             ['type' => 'shoes', 'variant' => null],
