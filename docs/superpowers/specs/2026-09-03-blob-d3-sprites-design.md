@@ -31,11 +31,18 @@ says Blob "waves with the whole of itself" because there is nothing to raise —
 actually chosen has both arms and legs, so the weaker claim is the true one and it is enough.
 
 Of the four item types, `hat` and `glasses` sit on the head and `scarf` on the neck. On a creature
-whose head is simply the top of one round mass, those ride the body and do not move relative to it
-within an animation. Only `shoes` follow a limb, and only while walking. So alignment is per-form
-for almost everything, plus a small per-frame delta table for the few anchors that genuinely move.
-The anchor model the SVG renderer already uses survives; it gains an optional override rather than
-being replaced.
+whose head is simply the top of one round mass, those ride the body rather than a limb — so their
+anchor moves *with* the body, never independently of it, and one number per frame describes the
+whole of that movement. Only `shoes` follow an actual limb, and only while walking.
+
+So alignment is per-form, plus a per-frame delta table. **The table is not the exception it was
+first drafted as.** The generated art breathes by changing the body's height, which moves the head
+with it, so `head` and `neck` carry offsets on any animation that swells or settles — `idle` and
+`play` both do. A first draft of this document claimed only `shoes` would ever need entries; the
+frames disproved it. The mechanism was right and the estimate of its size was wrong.
+
+The anchor model the SVG renderer already uses survives; it gains an optional per-frame override
+rather than being replaced.
 
 The hand anchor is the expensive one, because arms swing freely and a held prop has to swing with
 them. It is the only anchor requiring a full per-frame table, it belongs to the two ability props
