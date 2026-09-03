@@ -134,25 +134,26 @@ describe('sprite layout', () => {
      * depending on the form and the frame, none of which a scarf should
      * track. `neck` now simply rides `face`, so every animation's `neck`
      * delta must equal that animation's `face` delta, for every frame of
-     * the form with the richest table.
+     * every form — not just the form with the richest table, which left
+     * `blob`'s and `legs`' own tables unguarded (review round 3).
      */
     it('moves the neck anchor exactly as the face anchor moves, not independently', () => {
-        const arms = FORMS[FORMS.length - 1];
+        for (const form of FORMS) {
+            for (const animation of form.animations) {
+                for (
+                    let frame = 0;
+                    frame < ANIMATIONS[animation].frames;
+                    frame += 1
+                ) {
+                    const faceDelta =
+                        anchorFor(form, 'face', animation, frame)[1] -
+                        form.anchors.face[1];
+                    const neckDelta =
+                        anchorFor(form, 'neck', animation, frame)[1] -
+                        form.anchors.neck[1];
 
-        for (const animation of arms.animations) {
-            for (
-                let frame = 0;
-                frame < ANIMATIONS[animation].frames;
-                frame += 1
-            ) {
-                const faceDelta =
-                    anchorFor(arms, 'face', animation, frame)[1] -
-                    arms.anchors.face[1];
-                const neckDelta =
-                    anchorFor(arms, 'neck', animation, frame)[1] -
-                    arms.anchors.neck[1];
-
-                expect(neckDelta).toBe(faceDelta);
+                    expect(neckDelta).toBe(faceDelta);
+                }
             }
         }
     });

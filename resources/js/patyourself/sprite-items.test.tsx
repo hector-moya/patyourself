@@ -1,9 +1,13 @@
 import { render } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
+import { ANIMATIONS } from './companion-animations';
 import { SPRITE_ITEMS } from './sprite-items';
-import { CELL, FORMS } from './sprite-layout';
+import { CELL, FORMS, anchorFor } from './sprite-layout';
 import type { SpriteForm } from './sprite-layout';
+
+/** Where each form's feet touch the ground — the lowest opaque row. */
+const SOLE: Record<string, number> = { blob: 51, legs: 53, arms: 53 };
 
 const BLOB_FORM = FORMS[0];
 const LEGS_FORM = FORMS[1];
@@ -65,9 +69,18 @@ describe('sprite items', () => {
      * lens to the actual measured columns instead. Converts the rect's own
      * anchor-relative `x` back to an absolute column the same way the real
      * renderer composites it: `CELL / 2 + face.x + rect.x`.
+     *
+     * `face.x` is a literal here, not `ARMS_FORM.anchors.face[0]` — reading
+     * it live would let this test's own expected value drift along with a
+     * regression in the anchor table itself, since the same (wrong) number
+     * would feed both sides of the comparison (review round 3). Asserting
+     * it separately below covers the anchor's own x, not just the lens's
+     * offset relative to it.
      */
     it('pins each lens to the eyes it is meant to sit on, not beside them', () => {
-        const [faceX] = ARMS_FORM.anchors.face;
+        expect(ARMS_FORM.anchors.face[0]).toBe(-1);
+
+        const faceX = -1;
         const container = drawItem('glasses', '#000', ARMS_FORM);
         const columnsOf = (rect: Element) => {
             const x = Number(rect.getAttribute('x'));
@@ -123,11 +136,20 @@ describe('sprite items', () => {
      * (measured from the cell's centre line) was applied without correcting
      * for the `feet` anchor's own `x` (−1, not 0). Pins the rendered
      * columns to the measured foot segments themselves (sprites/README.md).
+     *
+     * `feet.x` is a literal here, not read from `form.anchors.feet[0]` — the
+     * renderer itself subtracts that live value (`sprite-items.tsx`'s
+     * `shoes.render`), so a test that read the same live value would agree
+     * with a wrong one instead of catching it (review round 3, the same gap
+     * as the glasses test above).
      */
     it('lands each shoe on the measured foot columns, not 1px beside them', () => {
-        const columnsOf = (form: SpriteForm) => {
-            const [anchorX] = form.anchors.feet;
+        for (const form of [BLOB_FORM, LEGS_FORM, ARMS_FORM]) {
+            expect(form.anchors.feet[0]).toBe(-1);
+        }
 
+        const anchorX = -1;
+        const columnsOf = (form: SpriteForm) => {
             return Array.from(
                 drawItem('shoes', '#000', form).querySelectorAll('rect'),
             ).map((rect) => {
@@ -153,5 +175,59 @@ describe('sprite items', () => {
             [21, 29],
             [35, 43],
         ]);
+    });
+
+    /**
+     * The two `sprite-layout.test.ts` guards pin the `neck` *anchor*
+     * (`neck === face + 9`, and its delta tracking `face`'s) — nothing
+     * pinned the scarf's *own* rect offsets the way lenses are pinned to
+     * eye columns and shoes to foot segments above. Reverting
+     * `scarf.render`'s `y` values to their pre-round-2 numbers (`y={5}` /
+     * `y={8}`, tuned against the old, wrong `neck` anchor) left the whole
+     * suite green while drawing the band on the feet and running the tail
+     * past the sole — exactly the regression round 2 was dispatched to fix
+     * (review round 3).
+     *
+     * Checked across every animation and frame each form has, not just the
+     * resting anchor: `neck` moves during several animations, so a check
+     * that only looked at the base position could pass while a mid-
+     * animation frame pushed the scarf onto the feet.
+     *
+     * The tail's worst-case row (`blob`'s own idle frame 0, and `arms`'s
+     * `jump` frame 0) lands *exactly* on the sole row for both forms — the
+     * tail is drawn long enough to reach the foot without dangling past it,
+     * by design. So "clear of the sole" is bounded with `<=`, not `<`: the
+     * regression this guards against overshoots by several rows (see the
+     * sabotage in the report), not by one.
+     */
+    it('keeps the scarf below the mouth and clear of the sole, on every frame', () => {
+        for (const form of FORMS) {
+            const [band, tail] = drawItem(
+                'scarf',
+                '#000',
+                form,
+            ).querySelectorAll('rect');
+            const bandY = Number(band.getAttribute('y'));
+            const tailY = Number(tail.getAttribute('y'));
+            const tailHeight = Number(tail.getAttribute('height'));
+            const sole = SOLE[form.feature];
+
+            for (const animation of form.animations) {
+                for (
+                    let frame = 0;
+                    frame < ANIMATIONS[animation].frames;
+                    frame += 1
+                ) {
+                    const [, neckY] = anchorFor(form, 'neck', animation, frame);
+                    const [, faceY] = anchorFor(form, 'face', animation, frame);
+                    const mouth = faceY + 6;
+
+                    expect(neckY + bandY).toBeGreaterThan(mouth);
+                    expect(neckY + tailY + tailHeight - 1).toBeLessThanOrEqual(
+                        sole,
+                    );
+                }
+            }
+        }
     });
 });

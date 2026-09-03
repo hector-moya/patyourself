@@ -79,8 +79,10 @@ outline, sprout and eye highlight are now separated by **colour** rather than by
   blessed as unchanged because its numbers hadn't moved — but the method was wrong from the start on
   a creature with no neck that isn't the throat. The widest row is the shoulders on `blob` (right by
   luck), *above the eye line* on `legs`, and the raised arm itself on `arms` — so a scarf crossed the
-  mouth on `legs` and sat at the hips, tail through the floor, on `arms`. The mouth measures at
-  exactly `face + 6` on every form; a collar belongs a few rows below that, hence `face + 9`.
+  mouth on `legs` and sat at the hips, tail through the floor, on `arms`. The mouth's bottom lip
+  measures at `face + 6` on every form — a single-row mouth on `blob` and `legs`, an open one spanning
+  `face + 4` to `face + 6` on `arms` — so `face + 6` is the lowest row of it on every form even where
+  it isn't the only row; a collar belongs a few rows below that, hence `face + 9`.
 - `feet` — the lowest opaque row. Unchanged.
 - `hand` — the body's right edge, at the midpoint between skull and feet, on every form including
   `arms`: the ability props anchored here are simple shapes rather than something held in a drawn
