@@ -249,7 +249,7 @@ export interface BlobItem {
 export interface BlobRendererProps {
     animation: AnimationName;
     frame: number;
-    /** Body parts earned: `blob`, then `legs`. */
+    /** Body parts earned: `blob`, then `legs`, then `arms`. */
     features: string[];
     items: BlobItem[];
     abilities: string[];

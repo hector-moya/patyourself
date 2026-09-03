@@ -7,6 +7,7 @@ import {
     FORMS,
     anchorFor,
     columnsOf,
+    derivedHandDelta,
     formFor,
     rowFor,
 } from './sprite-layout';
@@ -154,6 +155,42 @@ describe('sprite layout', () => {
                         form.anchors.neck[1];
 
                     expect(neckDelta).toBe(faceDelta);
+                }
+            }
+        }
+    });
+
+    /**
+     * `hand` sits on the body mass, so it rises and settles with it — a prop
+     * that stayed put while the body hopped hung in the air beside Blob, the
+     * same class of defect as the hat that drifted off the skull.
+     *
+     * Its rows are derived rather than measured: the average of the skull's
+     * delta and the feet's, since the hand sits between them. That is checked
+     * against the art in sprites/README.md, and held to the arithmetic here,
+     * so a later measurement of `head` or `feet` that leaves `hand` behind is
+     * a failure rather than a silent drift.
+     *
+     * Every form, every animation, every frame — including the rows with no
+     * `hand` entry at all, where the derivation must come out at zero for the
+     * omission to be honest.
+     */
+    it('derives the hand row from the two ends of the body, on every frame', () => {
+        for (const form of FORMS) {
+            for (const animation of form.animations) {
+                for (
+                    let frame = 0;
+                    frame < ANIMATIONS[animation].frames;
+                    frame += 1
+                ) {
+                    const deltaOf = (anchor: 'head' | 'feet' | 'hand') =>
+                        anchorFor(form, anchor, animation, frame)[1] -
+                        form.anchors[anchor][1];
+
+                    expect(
+                        deltaOf('hand'),
+                        `${form.feature} ${animation} ${frame}`,
+                    ).toBe(derivedHandDelta(deltaOf('head'), deltaOf('feet')));
                 }
             }
         }

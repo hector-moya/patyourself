@@ -14,9 +14,16 @@
  *
  * Alignment lives here rather than in the art. That is affordable only
  * because none of the four item types hangs off a hand: heads and necks
- * ride the body mass, and shoes are the single exception. `hand` carries the
- * two ability props, which are simple shapes at the body's side rather than
- * something gripped, so it is measured once per form and needs no table.
+ * ride the body mass, and shoes are the single exception.
+ *
+ * `hand` carries the two ability props. Because they are simple shapes at
+ * the body's side rather than something gripped, it needs no reading of the
+ * swinging arm — but it does sit on the body mass, so it rises and settles
+ * with it exactly as the skull does. Its per-frame rows are **derived, not
+ * measured**: `round((head delta + feet delta) / 2)`, since the hand sits
+ * mid-body between the two. See sprites/README.md for the check against the
+ * art, and `derivedHandDelta` at the bottom of this file for the arithmetic
+ * the guards hold the table to.
  *
  * Every number below is measured off the art in `sprites/README.md`, not
  * guessed — see that file for how, and for the reasoning behind which
@@ -77,6 +84,8 @@ export const FORMS: readonly SpriteForm[] = [
         // form's measured blink shows no body movement worth a table entry.
         // `neck` rides the skull now (it is `face`'s own row, `face + 9`),
         // so its offset here is `face`'s delta, not a separate measurement.
+        // `hand` gets no row on this form at all: derived from a head that
+        // moves 1 row and feet that do not, it rounds to zero on both frames.
         offsets: {
             idle: {
                 head: [
@@ -122,6 +131,12 @@ export const FORMS: readonly SpriteForm[] = [
                     [0, 0],
                     [0, 2],
                 ],
+                // `hand` sits mid-body, so its row is the average of the two
+                // ends: `round((head + feet) / 2)`, with `feet` unmoved here.
+                hand: [
+                    [0, 0],
+                    [0, 1],
+                ],
             },
             // The closed frame of blink is where the eye line cannot be
             // measured, so `face` takes `head`'s own delta rather than a
@@ -137,6 +152,10 @@ export const FORMS: readonly SpriteForm[] = [
                     [0, 0],
                 ],
                 neck: [
+                    [0, 1],
+                    [0, 0],
+                ],
+                hand: [
                     [0, 1],
                     [0, 0],
                 ],
@@ -164,16 +183,20 @@ export const FORMS: readonly SpriteForm[] = [
             feet: [-1, 53],
             hand: [18, 37],
         },
-        // Measured, not guessed. `shoes` follow the legs through the
-        // animations that step; `head`, `face` and `neck` all follow the
-        // skull through any animation that swells or settles — `neck`'s own
-        // delta is `face`'s, since `neck` is `face + 9` rather than an
-        // independent reading (see sprites/README.md for why "the widest
-        // row" was the wrong thing to measure here). An anchor absent from a
-        // row does not move during it; an animation absent entirely needs no
-        // offsets at all — this form's blink is one of those: nothing here
-        // has a measured delta for it, the skull holding still the same way
-        // `blob`'s own blink does.
+        // Measured, not guessed, apart from `hand`. `shoes` follow the legs
+        // through the animations that step; `head`, `face` and `neck` all
+        // follow the skull through any animation that swells or settles —
+        // `neck`'s own delta is `face`'s, since `neck` is `face + 9` rather
+        // than an independent reading (see sprites/README.md for why "the
+        // widest row" was the wrong thing to measure here). An anchor absent
+        // from a row does not move during it; an animation absent entirely
+        // needs no offsets at all — this form's blink is one of those:
+        // nothing here has a measured delta for it, the skull holding still
+        // the same way `blob`'s own blink does.
+        //
+        // `hand` is the derived one: `round((head + feet) / 2)` per frame,
+        // since it sits mid-body between those two. `pet` gets no `hand` row
+        // because that derivation is zero on all four of its frames.
         offsets: {
             idle: {
                 head: [
@@ -187,6 +210,10 @@ export const FORMS: readonly SpriteForm[] = [
                 neck: [
                     [0, 0],
                     [0, -3],
+                ],
+                hand: [
+                    [0, 0],
+                    [0, -1],
                 ],
             },
             walk: {
@@ -214,6 +241,12 @@ export const FORMS: readonly SpriteForm[] = [
                     [0, -1],
                     [0, 0],
                 ],
+                hand: [
+                    [0, -1],
+                    [0, -1],
+                    [0, -2],
+                    [0, -1],
+                ],
             },
             wave: {
                 head: [
@@ -233,6 +266,12 @@ export const FORMS: readonly SpriteForm[] = [
                     [0, -3],
                     [0, -3],
                     [0, -2],
+                ],
+                hand: [
+                    [0, 0],
+                    [0, -1],
+                    [0, -1],
+                    [0, -1],
                 ],
             },
             jump: {
@@ -260,7 +299,16 @@ export const FORMS: readonly SpriteForm[] = [
                     [0, -4],
                     [0, -1],
                 ],
+                hand: [
+                    [0, 0],
+                    [0, -2],
+                    [0, -5],
+                    [0, -2],
+                ],
             },
+            // No `hand` row: the derivation is zero on all four frames, the
+            // lean being a rotation of the skull rather than a lift of the
+            // body mass.
             pet: {
                 head: [
                     [0, 0],
@@ -314,6 +362,14 @@ export const FORMS: readonly SpriteForm[] = [
                     [0, -2],
                     [0, 0],
                 ],
+                hand: [
+                    [0, 0],
+                    [0, -1],
+                    [0, -3],
+                    [0, -5],
+                    [0, -3],
+                    [0, -1],
+                ],
             },
             notice: {
                 head: [
@@ -340,10 +396,34 @@ export const FORMS: readonly SpriteForm[] = [
                     [0, -4],
                     [0, -1],
                 ],
+                hand: [
+                    [0, -1],
+                    [0, -4],
+                    [0, -4],
+                    [0, -1],
+                ],
             },
         },
     },
 ];
+
+/**
+ * What `hand`'s row should be on a frame, given the two ends of the body.
+ *
+ * The hand sits mid-body, so the average of how far the skull moved and how
+ * far the feet moved is the principled estimate — not a fudge, and checked
+ * against the art frame by frame (sprites/README.md). Ties round toward the
+ * lower number, which is what `Math.round` already does and what the art
+ * agrees with: `blob`'s idle averages −0.5 and measures 0, `legs`' averages
+ * +0.5 and measures +1.
+ *
+ * Exported so the table above can be held to it rather than merely annotated
+ * with it. `+ 0` because `Math.round(-0.5)` is negative zero, which `Object.is`
+ * — and so every equality assertion — keeps apart from zero.
+ */
+export function derivedHandDelta(headDelta: number, feetDelta: number): number {
+    return Math.round((headDelta + feetDelta) / 2) + 0;
+}
 
 /** How wide a form's sheet is, in cells. Derived, so it cannot drift. */
 export function columnsOf(form: SpriteForm): number {

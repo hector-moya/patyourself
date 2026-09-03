@@ -51,11 +51,20 @@ The anchor model the SVG renderer already uses survives; it gains an optional pe
 rather than being replaced.
 
 The hand anchor was drafted as the expensive one, on the reasoning that arms swing freely and a held
-prop has to swing with them — the one anchor needing a full per-frame table. The art dissolved that
-too. Two of the three forms have no arms at all, so a gripped prop was never available to all three;
-what the props became instead is simple shapes kept at the body's side, which the measured art
-carries on every form. So `hand` is one measurement per form, like every other anchor, and the
-per-frame table it was going to need is not owed.
+prop has to swing with them. Half of that dissolved: two of the three forms have no arms at all, so
+a gripped prop was never available to all three, and what the props became instead is simple shapes
+kept at the body's side. `hand` therefore needs no reading of the swinging arm, and its base is one
+measurement per form like every other anchor.
+
+**The per-frame table is still owed — only its derivation turned out to be free.** The hand sits on
+the body mass, so it rises and settles with it exactly as the skull does, and a prop pinned to the
+resting row hangs in the air while Blob hops. But the hand sits *between* the two ends whose motion
+the table already records, so its row is `round((head delta + feet delta) / 2)` rather than a fresh
+reading of the art. That derivation is what makes it free, and it is strictly better than a direct
+measurement here: the rightmost pixel at the mid-body row is the raised arm during `wave`, `jump`
+and `play`, so reading it would make the prop swing with a limb it is explicitly not held in.
+sprites/README.md marks those rows as derived, because a derived number that reads as a measured one
+is what misleads the next form.
 
 ## Decisions
 
@@ -309,6 +318,9 @@ first idle frame.
 - An unknown animation renders the idle fallback rather than an empty cell.
 - Each ability prop lands inside the cell, clear of the face and the sprout, on every form and every
   frame — and the two never claim the same pixel, since a Blob that reads and carries holds both.
+- A prop rises and settles with the body through an animation that swells, and every `hand` row in
+  the table equals its own derivation from `head` and `feet`, so a re-measurement of either cannot
+  leave `hand` behind.
 - The body sits at `FLOOR - form.foot`, per form. That constant is the whole of the promise that the
   room needs no changes.
 - Each sheet's own PNG dimensions match the rows and columns the layout draws it at, so adding a row

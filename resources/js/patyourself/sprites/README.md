@@ -86,7 +86,9 @@ outline, sprout and eye highlight are now separated by **colour** rather than by
 - `feet` — the lowest opaque row. Unchanged.
 - `hand` — the body's right edge, at the midpoint between skull and feet, on every form including
   `arms`: the ability props anchored here are simple shapes rather than something held in a drawn
-  hand, so a consistent measurement matters more than tracking the arm itself.
+  hand, so a consistent measurement matters more than tracking the arm itself. It still has to
+  follow the body *vertically*, though — see the note under Offsets on how those rows are derived
+  rather than measured.
 
 | Form | `foot` | `head` | `face` | `neck` | `feet` | `hand` |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -132,23 +134,45 @@ Where the eyes are **closed** — every frame of `pet` after the first, and the 
 ride the same skull, so this is a derivation rather than a second guess, and it shows up below as
 `head` and `face` simply carrying identical numbers on those rows.
 
+**`hand`'s rows are derived, not measured. Every other row in this file was read off the art; these
+were not, and the distinction matters when the next form is built.** The hand sits mid-body, so its
+row is `round((head delta + feet delta) / 2)` — the average of how far the two ends of the body
+travelled. Ties round toward the lower number, which is `Math.round`'s own behaviour and what the
+art agrees with (`blob`'s idle averages −0.5 and measures 0; `legs`' averages +0.5 and measures +1).
+`derivedHandDelta` in `sprite-layout.ts` is that arithmetic, and a guard holds every row of the
+table to it, so a later re-measurement of `head` or `feet` cannot leave `hand` behind.
+
+Derived rather than measured because a direct reading conflates the body with the arm: on `arms` the
+rightmost pixel at the mid-body row *is* the raised arm during `wave`, `jump` and `play`, so
+measuring it would make a prop swing with a limb the prop is explicitly not held in. Every derived
+row was checked against the art anyway, by compositing the props over the real cells and looking:
+the derivation agrees with a direct reading everywhere within one row, and the frames where it
+differs by one (`walk` 2, `jump` 0–1, `pet` 0–2, `notice` 2) are all frames where the direct reading
+is the arm rather than the body.
+
+A prop needs this. Without it the book stayed level while Blob hopped — roughly 17 CSS px of daylight
+at room scale on `play` frame 3.
+
 ```
 blob   idle    head [0,-1]   face [0,-2]   neck [0,-2]
+               hand: derives to [0,0] on both frames, so no row
 
-legs   idle    head [0,1]    face [0,2]    neck [0,2]
-       blink   head [1,0]    face [1,0]    neck [1,0]
+legs   idle    head [0,1]    face [0,2]    neck [0,2]    hand [0,1]
+       blink   head [1,0]    face [1,0]    neck [1,0]    hand [1,0]
 
-arms   idle    head [0,-2]   face [0,-3]   neck [0,-3]
+arms   idle    head [0,-2]   face [0,-3]   neck [0,-3]   hand [0,-1]
        walk    head [-2,-3,-3,-2]      face [-2,-3,-3,-2]      neck [-2,-3,-3,-2]
-               feet [0,0,-1,0]
+               feet [0,0,-1,0]         hand [-1,-1,-2,-1]
        wave    head [-1,-2,-3,-2]      face [-1,-3,-3,-2]      neck [-1,-3,-3,-2]
+               hand [0,-1,-1,-1]
        jump    head [0,-3,-6,-4]       face [2,-1,-6,-4]       neck [2,-1,-6,-4]
-               feet [0,-1,-4,-1]
+               feet [0,-1,-4,-1]       hand [0,-2,-5,-2]
        pet     head [0,0,0,-1]         face [0,0,0,-1]         neck [0,0,0,-1]
+               hand: derives to [0,0,0,0], so no row
        play    head [-1,-3,-5,-6,-4,-2]   face [-1,-3,-5,-7,-5,-3]   neck [-1,-3,-5,-7,-5,-3]
-               feet [0,0,-2,-5,-2,0]
+               feet [0,0,-2,-5,-2,0]      hand [0,-1,-3,-5,-3,-1]
        notice  head [-2,-6,-4,-2]      face [-3,-8,-6,-4]      neck [-3,-8,-6,-4]
-               feet [0,-3,-4,-1]
+               feet [0,-3,-4,-1]       hand [-1,-4,-4,-1]
 ```
 
 Each bracketed list is that anchor's y-delta per frame, in order — `[0,-1]` on a 2-frame animation
@@ -156,6 +180,10 @@ means frame 0 is unmoved and frame 1 is 1px higher, not a single `(x, y)` pair. 
 carry no `blink` entry at all: holding the skull still is what makes a blink read as a blink rather
 than a flinch, the same reading the SVG renderer gives its own blink — and now that `neck` follows
 `face`, it holds still along with the rest of the skull rather than carrying a delta of its own.
+
+An anchor whose derivation or reading is zero on every frame gets no row, which is why `hand` is
+absent from `blob` entirely and from `arms`'s `pet`. That is the same convention as an animation
+absent from a form's table: nothing to correct, so nothing written down.
 
 ## Adding a form
 

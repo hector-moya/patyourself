@@ -632,6 +632,31 @@ describe('SpriteBlobRenderer', () => {
     });
 
     /**
+     * `play` is the strongest case: the body leaves the ground and comes
+     * back, and a prop pinned to the resting anchor hangs in the air beside
+     * it for three of the six frames — about 17 CSS px at room scale on
+     * frame 3, which is the whole reason `hand` earned a per-frame table.
+     *
+     * Rows are literals rather than `anchorFor` read back: an expectation
+     * derived from the table under test moves with a regression in it. These
+     * are `arms`'s base hand row, 37, plus its own derived deltas
+     * `[0, -1, -3, -5, -3, -1]`.
+     */
+    it('moves an ability prop with the body through an animation that swells', () => {
+        const rows = [0, 1, 2, 3, 4, 5].map((frame) => {
+            const layer = drawSprite({
+                animation: 'play',
+                frame,
+                abilities: ['read'],
+            }).querySelector('.blob-ability--read')!;
+
+            return parseTranslate(layer.getAttribute('transform'))[1];
+        });
+
+        expect(rows).toEqual([37, 36, 34, 32, 34, 36]);
+    });
+
+    /**
      * A prop hangs off `hand` and nothing else, the same rule every worn
      * layer follows — including the `+ CELL / 2` correction, without which it
      * would draw 32px to the left of the body.
