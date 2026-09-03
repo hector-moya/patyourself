@@ -1,14 +1,22 @@
 /**
  * Where the pixels are, and where things hang off them.
  *
- * The body sprite is one cell of a sheet. Everything worn on it is placed
- * by an anchor measured from that cell's top-left corner — per form,
- * because a form changes the body, and per frame only where a limb
- * actually carries the accessory.
+ * The body sprite is one cell of a sheet. Everything drawn on it is placed
+ * by an anchor — per form, because a form changes the body, and per frame
+ * only where a limb actually carries the accessory.
+ *
+ * **An anchor's two components are measured from different edges.** `y` is
+ * rows down from the cell's top edge; `x` is columns from the cell's *centre*
+ * column, signed, which is why every consumer adds `CELL / 2` before drawing.
+ * Reading `x` as an offset from the left edge is what put an accessory 32px
+ * off the body earlier in this branch, so the difference is stated here
+ * rather than left to be rediscovered.
  *
  * Alignment lives here rather than in the art. That is affordable only
  * because none of the four item types hangs off a hand: heads and necks
- * ride the body mass, and shoes are the single exception.
+ * ride the body mass, and shoes are the single exception. `hand` carries the
+ * two ability props, which are simple shapes at the body's side rather than
+ * something gripped, so it is measured once per form and needs no table.
  *
  * Every number below is measured off the art in `sprites/README.md`, not
  * guessed — see that file for how, and for the reasoning behind which

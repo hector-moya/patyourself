@@ -20,11 +20,17 @@ five-plus colours times eight animations, before ability props — which is absu
 
 Two observations dissolve most of it.
 
-**Colour is not a generation axis.** An accessory generated once in a neutral and tinted at render —
-an SVG `mask` filled with the palette colour, or a `feColorMatrix` over an `<image>` — costs one
-piece of art per type regardless of how many colours the tail eventually names. Alpha-only masking
-stays crisp under `image-rendering: pixelated`. This removes the multiplier entirely, and it means
-`config('companion.tail.variants')` can grow forever without new art.
+**Colour is not a generation axis.** An accessory costs one piece of geometry per type regardless of
+how many colours the tail eventually names, because the colour is applied at render rather than
+baked in. This removes the multiplier entirely, and it means `config('companion.tail.variants')` can
+grow forever without new art.
+
+A first draft of this document reached for generated art in a neutral, tinted through an SVG `mask`
+or a `feColorMatrix` over an `<image>`. What shipped is simpler and needs no accessory art at all:
+each accessory is a handful of hard-edged `<rect>`s on the pixel grid, taking its `fill` from the
+palette — see the Architecture section below, which was right about this where these paragraphs were
+not. Four items and two props are small enough shapes that drawing them beats generating them, and a
+rect has no edge for a browser to soften.
 
 **Most anchors do not move.** This was very nearly stated as "a blob has no arms" — the SVG renderer
 says Blob "waves with the whole of itself" because there is nothing to raise — but the art that was
@@ -44,10 +50,12 @@ frames disproved it. The mechanism was right and the estimate of its size was wr
 The anchor model the SVG renderer already uses survives; it gains an optional per-frame override
 rather than being replaced.
 
-The hand anchor is the expensive one, because arms swing freely and a held prop has to swing with
-them. It is the only anchor requiring a full per-frame table, it belongs to the two ability props
-rather than to any item type, and it is out of scope here. When it arrives it is paid for in the
-same delta table rather than in a new mechanism.
+The hand anchor was drafted as the expensive one, on the reasoning that arms swing freely and a held
+prop has to swing with them — the one anchor needing a full per-frame table. The art dissolved that
+too. Two of the three forms have no arms at all, so a gripped prop was never available to all three;
+what the props became instead is simple shapes kept at the body's side, which the measured art
+carries on every form. So `hand` is one measurement per form, like every other anchor, and the
+per-frame table it was going to need is not owed.
 
 ## Decisions
 
@@ -192,7 +200,7 @@ answer; if it does not, the fix is a stouter sprout on a later form rather than 
 | Sprite implementation | `resources/js/patyourself/blob-renderer.tsx` | fill in `SpriteBlobRenderer`; the signature already exists and does not change |
 | Sheets and layout | `resources/js/patyourself/sprites/` | committed PNGs, imported as modules so Vite hashes and cache-busts them |
 | Layout and anchors | `resources/js/patyourself/sprite-layout.ts` | animation → row, cell size, foot row, per-form anchors |
-| Accessory geometry | `resources/js/patyourself/sprite-items.tsx` | sprite mode's own hard-edged, pixel-grid item shapes |
+| Accessory and prop geometry | `resources/js/patyourself/sprite-items.tsx` | sprite mode's own hard-edged, pixel-grid shapes: `SPRITE_ITEMS` for the four worn types, `SPRITE_ABILITIES` for the two props |
 
 Sprite mode gets **its own item geometry rather than re-cutting `ITEMS`**. The existing shapes have
 rounded corners and a stroke, which is right for the vector Blob and wrong on a pixel grid — but
@@ -201,10 +209,11 @@ is live today. Two dictionaries, one per renderer, keeps "the SVG renderer is un
 than aspirational. They share the `PALETTE` and the `BlobItem` shape, so a recolour still lands in
 both.
 
-The PHP surface is two edits and no more: **one `arms` rung in `config/companion.php`**, and each new
-sprite source file added to `CompanionVocabularyTest`'s `sourceFiles()` list. `CompanionState`,
-`CompanionResolver` and every migration are untouched — a form is an ordinary `body` unlock and every
-consumer already handles those.
+The PHP surface is three edits and no more: **one `arms` rung in `config/companion.php`**, the
+`renderer` default in that same file flipping to `sprite`, and each new sprite source file added to
+`CompanionVocabularyTest`'s `sourceFiles()` list. `CompanionState`, `CompanionResolver` and every
+migration are untouched — a form is an ordinary `body` unlock and every consumer already handles
+those.
 
 ### How a cell becomes a drawing
 
@@ -269,7 +278,10 @@ must be even and at least four, which does not match every entry in the contract
 | `blink` | 2f @ 8fps | two frames, eyes open and shut, authored by hand |
 
 Frame counts and rates in `companion-animations.ts` are the contract and **do not change** — the
-clock reads them, and every form must supply every animation at exactly those counts.
+clock reads them, and any animation a form supplies must arrive at exactly that count. Which
+animations a form supplies is the separate question the coverage paragraph above answers: `arms`
+carries all eight and the other two carry `idle` and `blink`, with anything ungenerated holding the
+first idle frame.
 
 ## Error handling
 
@@ -277,6 +289,8 @@ clock reads them, and every form must supply every animation at exactly those co
   empty cell. This mirrors the existing rule that an item type the ladder names but no renderer
   draws is skipped rather than rendered as a gap: naming a thing must never break the screen.
 - An item type with no sprite-mode geometry is skipped, exactly as it is in SVG mode today.
+- An ability with no sprite-mode prop draws nothing rather than a gap, which is what lets the ladder
+  name `wave` — a pose, not a thing to hold — without breaking the screen.
 - A variant the palette does not know falls back to the item's own colour, unchanged from today.
 - A `features` array containing no known form draws the earliest form. Blob is never nothing.
 - The SVG renderer ignores feature names it does not recognise, so it keeps drawing today's Blob
@@ -293,6 +307,12 @@ clock reads them, and every form must supply every animation at exactly those co
 - `shoes` pick up their per-frame walk offset, and an anchor with no delta entry falls back to the
   form's base anchor rather than to zero.
 - An unknown animation renders the idle fallback rather than an empty cell.
+- Each ability prop lands inside the cell, clear of the face and the sprout, on every form and every
+  frame — and the two never claim the same pixel, since a Blob that reads and carries holds both.
+- The body sits at `FLOOR - form.foot`, per form. That constant is the whole of the promise that the
+  room needs no changes.
+- Each sheet's own PNG dimensions match the rows and columns the layout draws it at, so adding a row
+  without regenerating the art cannot silently rescale every cell.
 - `CompanionVocabularyTest::sourceFiles()` covers every new sprite source file, comments included.
   The list is proven live by watching it fail on a banned word before the file is cleaned.
 - Every guard is sabotaged before it is trusted. A test whose failing mutation cannot be named is

@@ -199,7 +199,7 @@ class CompanionLadderTest extends TestCase
             $this->assertSame(
                 $offset % 2 === 0 ? 'ability' : 'item',
                 $entry['kind'],
-                'stage '.($offset + 4).' breaks the ability -> item alternation',
+                'stage '.($offset + 5).' breaks the ability -> item alternation',
             );
         }
     }
