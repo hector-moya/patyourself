@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
 import { render } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
@@ -368,7 +371,9 @@ describe('SpriteBlobRenderer', () => {
 
         expect(cell.getAttribute('viewBox')).toBe('0 0 64 64');
         expect(
-            container.querySelector('.blob-anim')!.getAttribute('data-fallback'),
+            container
+                .querySelector('.blob-anim')!
+                .getAttribute('data-fallback'),
         ).toBe('idle');
     });
 
@@ -392,6 +397,46 @@ describe('SpriteBlobRenderer', () => {
 
         expect(anim.getAttribute('data-animation')).toBe('wave');
         expect(anim.getAttribute('data-frame')).toBe('2');
+    });
+
+    /**
+     * `blob-anim` alone is what the SVG renderer's transition rule in
+     * patyourself.css keys off. This second class is what lets that rule
+     * exclude the sprite root instead of relying on every duration downstream
+     * staying at 0ms — see the CSS guard below, which checks the stylesheet
+     * side of the same contract.
+     */
+    it("marks its root so the stylesheet can exempt it from the SVG renderer's easing", () => {
+        const anim = drawSprite().querySelector('.blob-anim')!;
+
+        expect(anim.classList.contains('blob-anim--sprite')).toBe(true);
+    });
+});
+
+/**
+ * The class alone is inert without the stylesheet honouring it. This reads
+ * the real file rather than the DOM, because the class-name test above
+ * cannot see whether patyourself.css actually excludes `blob-anim--sprite`
+ * from the rule that eases the SVG renderer's transform — jsdom does not
+ * apply an external stylesheet to a rendered component at all.
+ */
+describe("the stylesheet leaves sprite mode unaffected by the SVG renderer's easing", () => {
+    it('excludes .blob-anim--sprite from the transition rule that eases .blob-anim', () => {
+        const css = readFileSync(
+            resolve(process.cwd(), 'resources/css/patyourself.css'),
+            'utf8',
+        );
+
+        const transitionRule = css
+            .split('}')
+            .find(
+                (rule) =>
+                    rule.includes('.blob-anim') &&
+                    rule.includes('transition-property:transform'),
+            );
+
+        expect(transitionRule).toBeDefined();
+        expect(transitionRule).toContain('.blob-anim:not(.blob-anim--sprite)');
     });
 });
 

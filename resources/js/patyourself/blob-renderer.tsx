@@ -362,7 +362,10 @@ export function SvgBlobRenderer({
  * interpolation between cells. The easing that makes the SVG renderer's 2fps
  * idle read as a breath is deliberately absent here: a sprite sheet swaps
  * whole frames, and tweening between them is what makes pixel art look wrong.
- * No element this renderer produces may carry a transition.
+ * No element this renderer produces may carry a transition — and the root
+ * carries `blob-anim--sprite` alongside `blob-anim` so patyourself.css can
+ * exempt it from the SVG renderer's transition rule at the stylesheet level,
+ * not just here.
  *
  * An animation this form has no row for holds the first idle frame rather
  * than drawing an empty cell — the same rule as an item type no renderer
@@ -391,7 +394,7 @@ export function SpriteBlobRenderer({
 
     return (
         <g
-            className="blob-anim"
+            className="blob-anim blob-anim--sprite"
             data-animation={animation}
             data-frame={frame}
             data-form={form.feature}

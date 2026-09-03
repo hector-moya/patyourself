@@ -572,9 +572,12 @@
    it is the frame rate that decides how much easing helps: two frames a second
    want plenty, eight frames a second want almost none.
 
-   Easing belongs to the SVG renderer alone — a sprite renderer swaps whole
-   frames and must not interpolate between them. */
-.blob-anim,.blob-legs rect{transition-property:transform;transition-timing-function:ease-in-out;transition-duration:0ms;}
+   Easing belongs to the SVG renderer alone. `.blob-anim--sprite` marks the
+   sprite renderer's root, and `:not()` excludes it here rather than trusting
+   every duration downstream to stay at 0ms — a sprite sheet swaps whole
+   frames, and inheriting any real easing from this rule would interpolate
+   between them. */
+.blob-anim:not(.blob-anim--sprite),.blob-legs rect{transition-property:transform;transition-timing-function:ease-in-out;transition-duration:0ms;}
 
 /* The one transition in the feature: the layer earned most recently arrives. */
 .blob-layer--arriving{animation:blob-arrive 400ms ease-out both;}
