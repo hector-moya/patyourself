@@ -88,6 +88,33 @@ describe('sprite layout', () => {
     });
 
     /**
+     * `head` and `face` ride the same skull but do not travel by the same
+     * amount on every frame — the body squashes and settles at a different
+     * rate than the eye line does. `face` exists as its own anchor exactly
+     * because of this: an item hung off `head` instead (as glasses briefly
+     * were, in review round 1) drifts onto the forehead during `jump` and
+     * onto the mouth during `notice`, both reproduced here.
+     *
+     * Compares how far each anchor has moved from its own base position,
+     * not the two anchors' absolute positions — those differ by design
+     * (the eye line sits below the skull's top row on every frame), so
+     * comparing them directly would pass even if the two moved in lockstep.
+     */
+    it('moves the face anchor by a different amount than the head anchor', () => {
+        const arms = FORMS[FORMS.length - 1];
+        const deltaOf = (anchor: 'head' | 'face', frame: number) =>
+            anchorFor(arms, anchor, 'jump', frame)[1] - arms.anchors[anchor][1];
+
+        expect(deltaOf('face', 1)).not.toBe(deltaOf('head', 1));
+
+        const noticeDeltaOf = (anchor: 'head' | 'face', frame: number) =>
+            anchorFor(arms, anchor, 'notice', frame)[1] -
+            arms.anchors[anchor][1];
+
+        expect(noticeDeltaOf('face', 1)).not.toBe(noticeDeltaOf('head', 1));
+    });
+
+    /**
      * The anchors and foot rows are measured off the art in Task 1 and
      * hand-copied here, which is exactly the kind of step that ships with
      * its placeholder zeros still in it. Nothing sits at the top-left

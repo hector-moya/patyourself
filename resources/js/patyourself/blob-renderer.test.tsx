@@ -7,11 +7,23 @@ import { describe, expect, it } from 'vitest';
 import type { AnimationName } from '@/patyourself/companion-animations';
 import {
     BlobRenderer,
+    PALETTE,
     SpriteBlobRenderer,
     SvgBlobRenderer,
 } from './blob-renderer';
 import type { BlobRendererProps } from './blob-renderer';
-import { FORMS, anchorFor } from './sprite-layout';
+import { CELL, FORMS, anchorFor } from './sprite-layout';
+
+/** Parses a `transform="translate(x y)"` attribute back into numbers. */
+function parseTranslate(value: string | null): [number, number] {
+    const match = /translate\(([-\d.]+) ([-\d.]+)\)/.exec(value ?? '');
+
+    if (match === null) {
+        throw new Error(`not a translate(): ${value}`);
+    }
+
+    return [Number(match[1]), Number(match[2])];
+}
 
 function draw(overrides: Partial<BlobRendererProps> = {}) {
     const props: BlobRendererProps = {
@@ -413,6 +425,16 @@ describe('SpriteBlobRenderer', () => {
         expect(anim.classList.contains('blob-anim--sprite')).toBe(true);
     });
 
+    /**
+     * The enclosing group is `translate(-CELL / 2, …)` so the sprite's own
+     * centre column sits at x=0 — but every anchor's `x` is measured from
+     * that same centre line (sprites/README.md), not from the cell's left
+     * edge. This layer has to undo the enclosing shift for the anchor's x
+     * to land where the anchor table says, hence `x + CELL / 2` rather than
+     * `x` alone. (Review round 1, finding 1: this test previously asserted
+     * the un-corrected value and stayed green on an item drawn 32px off the
+     * body.)
+     */
     it('draws a layer per worn item, at that form-and-frame anchor', () => {
         const container = drawSprite({
             items: [{ type: 'hat', variant: null }],
@@ -421,7 +443,37 @@ describe('SpriteBlobRenderer', () => {
         const form = FORMS[FORMS.length - 1];
         const [x, y] = anchorFor(form, 'head', 'idle', 0);
 
-        expect(layer.getAttribute('transform')).toBe(`translate(${x} ${y})`);
+        expect(layer.getAttribute('transform')).toBe(
+            `translate(${x + CELL / 2} ${y})`,
+        );
+    });
+
+    /**
+     * Verifies the placement through the actual rendered SVG output, by
+     * composing every transform between an item's rect and the sprite
+     * root the way a browser would — rather than overlaying the art in an
+     * external tool, which checks the art but never exercises this
+     * component's transform math at all. The sprite image itself spans
+     * exactly `[-CELL / 2, CELL / 2]` in this composited space (that is
+     * what its own `-CELL / 2` shift means), so an item whose composed
+     * position falls outside that span is drawn off the character's own
+     * canvas — which is exactly what finding 1 above was.
+     */
+    it("keeps every worn item within the sprite image's own span, not shifted off it", () => {
+        for (const type of ['hat', 'glasses', 'scarf', 'shoes']) {
+            const container = drawSprite({ items: [{ type, variant: null }] });
+            const layer = container.querySelector('.blob-layer') as SVGGElement;
+            const [layerX] = parseTranslate(layer.getAttribute('transform'));
+
+            for (const rect of layer.querySelectorAll('rect')) {
+                const left =
+                    -CELL / 2 + layerX + Number(rect.getAttribute('x'));
+                const right = left + Number(rect.getAttribute('width'));
+
+                expect(left).toBeGreaterThanOrEqual(-CELL / 2);
+                expect(right).toBeLessThanOrEqual(CELL / 2);
+            }
+        }
     });
 
     /**
@@ -440,6 +492,28 @@ describe('SpriteBlobRenderer', () => {
                 .getAttribute('transform');
 
         expect(at(1)).not.toBe(at(2));
+    });
+
+    /**
+     * `SPRITE_ITEMS` names its default colour by PALETTE key rather than by
+     * value (review round 1, finding 4) — a plain string, resolved back
+     * into a colour only here, where PALETTE lives. This exercises both
+     * kinds of default a key can name: an accessory shade in PALETTE
+     * (hat's `slate`) and blob-renderer.tsx's own ink constant, which is
+     * not a tail-recolourable PALETTE entry at all (glasses' `ink`).
+     */
+    it("resolves an item's default colour by key", () => {
+        const hat = drawSprite({ items: [{ type: 'hat', variant: null }] });
+        const glasses = drawSprite({
+            items: [{ type: 'glasses', variant: null }],
+        });
+
+        expect(
+            hat.querySelector('.blob-layer rect')!.getAttribute('fill'),
+        ).toBe(PALETTE.slate);
+        expect(
+            glasses.querySelector('.blob-layer rect')!.getAttribute('fill'),
+        ).toBe('#2A2622');
     });
 
     it('recolours an item the tail has renamed', () => {

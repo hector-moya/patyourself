@@ -363,6 +363,18 @@ export function SvgBlobRenderer({
 }
 
 /**
+ * `SPRITE_ITEMS` names its default colour by PALETTE *key* (a plain string)
+ * rather than by value, so that module never has to import `PALETTE` to
+ * read it — see its own docblock for why that import would be a cycle.
+ * This is where the key is resolved back into a colour, alongside `INK` for
+ * glasses, whose default isn't a tail-recolourable accessory shade at all.
+ */
+const SPRITE_ITEM_DEFAULT_COLOURS: Record<string, string> = {
+    ...PALETTE,
+    ink: INK,
+};
+
+/**
  * Blob as pixel art.
  *
  * One cell of a sheet per (animation, frame), drawn nearest-neighbour with no
@@ -432,16 +444,28 @@ export function SpriteBlobRenderer({
                         return null;
                     }
 
+                    const defaultColour =
+                        SPRITE_ITEM_DEFAULT_COLOURS[spec.colourKey] ??
+                        spec.colourKey;
                     const colour =
                         item.variant === null
-                            ? spec.colour
-                            : (PALETTE[item.variant] ?? spec.colour);
-                    const [x, y] = anchorFor(
+                            ? defaultColour
+                            : (PALETTE[item.variant] ?? defaultColour);
+                    const [anchorX, anchorY] = anchorFor(
                         form,
                         spec.anchor,
                         fallback ? 'idle' : animation,
                         drawnFrame,
                     );
+                    // The enclosing `<g>` is translated by `-CELL / 2` so the
+                    // sprite's own centre column sits at x=0 (see the sheet's
+                    // own transform above) — but every anchor's `x` is
+                    // measured from that same centre line, in the same units
+                    // the anchor table already uses. Undoing the enclosing
+                    // shift here is what puts x=0 back at the cell's left
+                    // edge for this nested group, so the anchor's own
+                    // centre-relative x lands where the anchor table says it
+                    // should, not 32px off to the left of it.
                     const isArriving =
                         arriving !== null &&
                         arriving.type === item.type &&
@@ -450,14 +474,14 @@ export function SpriteBlobRenderer({
                     return (
                         <g
                             key={`${item.type}-${item.variant ?? 'plain'}-${index}`}
-                            transform={translate([x, y])}
+                            transform={translate([anchorX + CELL / 2, anchorY])}
                             className={
                                 isArriving
                                     ? 'blob-layer blob-layer--arriving'
                                     : 'blob-layer'
                             }
                         >
-                            {spec.render(colour)}
+                            {spec.render(colour, form)}
                         </g>
                     );
                 })}

@@ -24,7 +24,7 @@ import legsSheet from './sprites/humus-legs.png';
 /** Every cell is this square, on every sheet. */
 export const CELL = 64;
 
-export type AnchorName = 'head' | 'neck' | 'feet' | 'hand';
+export type AnchorName = 'head' | 'face' | 'neck' | 'feet' | 'hand';
 
 type Offsets = Partial<
     Record<
@@ -57,33 +57,29 @@ export const FORMS: readonly SpriteForm[] = [
         animations: ['idle', 'blink'],
         foot: 51,
         anchors: {
-            head: [-1, 11],
+            head: [-1, 21],
+            face: [-1, 34],
             neck: [-1, 37],
             feet: [-1, 51],
-            hand: [16, 31],
+            hand: [16, 36],
         },
         // The body breathes by changing height, which carries the head with
         // it even at rest. `feet` stays put throughout — nothing here has
-        // legs yet — so it needs no table.
+        // legs yet — so it needs no table. `blink` needs none either: this
+        // form's measured blink shows no body movement worth a table entry.
         offsets: {
             idle: {
                 head: [
                     [0, 0],
                     [0, -1],
                 ],
-                neck: [
+                face: [
                     [0, 0],
-                    [0, -1],
-                ],
-            },
-            blink: {
-                head: [
-                    [0, 1],
-                    [0, 0],
+                    [0, -2],
                 ],
                 neck: [
-                    [0, 1],
                     [0, 0],
+                    [0, 1],
                 ],
             },
         },
@@ -94,30 +90,38 @@ export const FORMS: readonly SpriteForm[] = [
         animations: ['idle', 'blink'],
         foot: 53,
         anchors: {
-            head: [-1, 9],
+            head: [-1, 19],
+            face: [-1, 32],
             neck: [-1, 31],
             feet: [-1, 53],
-            hand: [14, 31],
+            hand: [14, 36],
         },
         offsets: {
             idle: {
                 head: [
                     [0, 0],
-                    [0, 2],
+                    [0, 1],
                 ],
-                neck: [
+                face: [
                     [0, 0],
                     [0, 2],
                 ],
             },
+            // The closed frame of blink is where the eye line cannot be
+            // measured, so `face` takes `head`'s own delta rather than a
+            // separate one — a derivation, not a second guess.
             blink: {
                 head: [
                     [0, 1],
+                    [0, 0],
+                ],
+                face: [
                     [0, 1],
+                    [0, 0],
                 ],
                 neck: [
                     [0, 1],
-                    [0, 1],
+                    [0, 0],
                 ],
             },
         },
@@ -137,26 +141,36 @@ export const FORMS: readonly SpriteForm[] = [
         ],
         foot: 53,
         anchors: {
-            head: [-1, 11],
+            head: [-1, 21],
+            face: [-1, 34],
             neck: [-1, 41],
             feet: [-1, 53],
-            hand: [18, 32],
+            hand: [18, 37],
         },
-        // Measured, not guessed. `shoes` follow the legs through `walk`;
-        // `head` and `neck` follow the body's height through any animation
-        // that swells or settles, which every animation but `blink` does at
-        // this form's frame rate. An animation absent here needs no offsets
-        // at all — `blink` holds the body still on purpose, the same reason
-        // the SVG renderer does.
+        // Measured, not guessed. `shoes` follow the legs through the
+        // animations that step; `head` and `face` follow the skull through
+        // any animation that swells or settles; `neck` — the widest row —
+        // travels further still on `wave` and `notice`, because the body
+        // squashes rather than simply rising. An anchor absent from a row
+        // does not move during it; an animation absent entirely needs no
+        // offsets at all.
         offsets: {
             idle: {
                 head: [
                     [0, 0],
                     [0, -2],
                 ],
-                neck: [
+                face: [
                     [0, 0],
-                    [0, -2],
+                    [0, -3],
+                ],
+            },
+            // Only `neck` moves on this form's blink — the skull holds
+            // still, the same reading `blob` gave for its own blink.
+            blink: {
+                neck: [
+                    [0, 1],
+                    [0, 0],
                 ],
             },
             walk: {
@@ -166,11 +180,17 @@ export const FORMS: readonly SpriteForm[] = [
                     [0, -3],
                     [0, -2],
                 ],
+                face: [
+                    [0, -2],
+                    [0, -3],
+                    [0, -3],
+                    [0, -2],
+                ],
                 neck: [
-                    [0, -2],
-                    [0, -3],
-                    [0, -3],
-                    [0, -2],
+                    [0, -1],
+                    [0, -4],
+                    [0, -6],
+                    [0, -5],
                 ],
                 feet: [
                     [0, 0],
@@ -183,28 +203,40 @@ export const FORMS: readonly SpriteForm[] = [
                 head: [
                     [0, -1],
                     [0, -2],
+                    [0, -3],
                     [0, -2],
+                ],
+                face: [
                     [0, -1],
+                    [0, -3],
+                    [0, -3],
+                    [0, -2],
                 ],
                 neck: [
-                    [0, -1],
                     [0, -2],
-                    [0, -2],
-                    [0, -1],
+                    [0, -10],
+                    [0, -15],
+                    [0, -8],
                 ],
             },
             jump: {
                 head: [
-                    [0, 1],
                     [0, 0],
                     [0, -3],
+                    [0, -6],
+                    [0, -4],
+                ],
+                face: [
+                    [0, 2],
                     [0, -1],
+                    [0, -6],
+                    [0, -4],
                 ],
                 neck: [
-                    [0, 1],
-                    [0, 0],
-                    [0, -3],
                     [0, -1],
+                    [0, -5],
+                    [0, -9],
+                    [0, -5],
                 ],
                 feet: [
                     [0, 0],
@@ -216,32 +248,46 @@ export const FORMS: readonly SpriteForm[] = [
             pet: {
                 head: [
                     [0, 0],
-                    [0, 1],
-                    [0, 1],
                     [0, 0],
+                    [0, 0],
+                    [0, -1],
+                ],
+                face: [
+                    [0, 0],
+                    [0, 0],
+                    [0, 0],
+                    [0, -1],
                 ],
                 neck: [
                     [0, 0],
                     [0, 1],
-                    [0, 1],
-                    [0, 0],
+                    [0, -3],
+                    [0, -3],
                 ],
             },
             play: {
                 head: [
-                    [0, 0],
                     [0, -1],
                     [0, -3],
                     [0, -5],
+                    [0, -6],
                     [0, -4],
                     [0, -2],
                 ],
-                neck: [
-                    [0, 0],
+                face: [
                     [0, -1],
                     [0, -3],
                     [0, -5],
-                    [0, -4],
+                    [0, -7],
+                    [0, -5],
+                    [0, -3],
+                ],
+                neck: [
+                    [0, -1],
+                    [0, -2],
+                    [0, -6],
+                    [0, -10],
+                    [0, -6],
                     [0, -2],
                 ],
                 feet: [
@@ -255,16 +301,22 @@ export const FORMS: readonly SpriteForm[] = [
             },
             notice: {
                 head: [
-                    [0, 0],
                     [0, -2],
+                    [0, -6],
                     [0, -4],
                     [0, -2],
                 ],
-                neck: [
-                    [0, 0],
-                    [0, -2],
+                face: [
+                    [0, -3],
+                    [0, -8],
+                    [0, -6],
                     [0, -4],
-                    [0, -2],
+                ],
+                neck: [
+                    [0, -5],
+                    [0, -9],
+                    [0, -9],
+                    [0, -5],
                 ],
                 feet: [
                     [0, 0],

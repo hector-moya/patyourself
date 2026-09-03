@@ -61,50 +61,93 @@ Everything else keeps all of its generated frames in order.
 
 ## Measured constants
 
-All measured from each form's `idle` frame 0. `head` is the top of the skull, found as the first row
-holding a non-green pixel so the sprout above it is not mistaken for the head. `neck` is the widest
-body row. `x` is measured from the cell's centre line, `y` from its top edge.
+All measured from each form's `idle` frame 0. `x` is measured from the cell's centre line, `y` from
+its top edge.
 
-| Form | `foot` | `head` | `neck` | `feet` | `hand` |
-| --- | --- | --- | --- | --- | --- |
-| `blob` | 51 | `[-1, 11]` | `[-1, 37]` | `[-1, 51]` | `[16, 31]` |
-| `legs` | 53 | `[-1, 9]` | `[-1, 31]` | `[-1, 53]` | `[14, 31]` |
-| `arms` | 53 | `[-1, 11]` | `[-1, 41]` | `[-1, 53]` | `[18, 32]` |
+**Corrected in review round 1 of the sprite-items task.** The original method for `head` — "the
+first row holding a non-green pixel, so the sprout above it is not mistaken for the head" — sounds
+right but isn't: the sprout's own outline is drawn in black, which is itself a non-green pixel, so
+every `head` value below landed on the leaf tip, 8–12px above the skull it was meant to find. The
+gap was not a constant, so nothing downstream could compensate for it with a fixed offset. Skin,
+outline, sprout and eye highlight are now separated by **colour** rather than by position:
 
-`hand` on `blob` and `legs` is the body's own side edge — neither form has arms, and an ability prop
-still has to land somewhere sensible rather than at the origin.
+- `head` — the first row carrying six or more skin-toned pixels. The actual top of the skull.
+- `face` — the row with the most white eye-highlight pixels (the specks in the eyes). Glasses hang
+  off this, not `head`: the two do not move together on every frame (see Offsets below), and hanging
+  glasses off `head` put them on the mouth during `notice` and on the forehead during `jump`.
+- `neck` — the widest body row. Unchanged in method and in value; this one was already right.
+- `feet` — the lowest opaque row. Unchanged.
+- `hand` — the body's right edge, at the midpoint between skull and feet, on every form including
+  `arms`: the ability props anchored here are simple shapes rather than something held in a drawn
+  hand, so a consistent measurement matters more than tracking the arm itself.
+
+| Form | `foot` | `head` | `face` | `neck` | `feet` | `hand` |
+| --- | --- | --- | --- | --- | --- | --- |
+| `blob` | 51 | `[-1, 21]` | `[-1, 34]` | `[-1, 37]` | `[-1, 51]` | `[16, 36]` |
+| `legs` | 53 | `[-1, 19]` | `[-1, 32]` | `[-1, 31]` | `[-1, 53]` | `[14, 36]` |
+| `arms` | 53 | `[-1, 21]` | `[-1, 34]` | `[-1, 41]` | `[-1, 53]` | `[18, 37]` |
+
+### Foot centres, for the shoes
+
+`blob` has no legs, so its foot nubs are wider and set further apart than the narrower feet `legs`
+and `arms` grow. Measured two rows above the sole — where a nub is at its widest, rather than
+tapering into the floor it stands on — `x` from the centre line:
+
+| Form | left foot centre | right foot centre | each foot's width |
+| --- | --- | --- | --- |
+| `blob` | −10 | +8 | 12 and 11 px |
+| `legs` | −7 | +7 | 9 px |
+| `arms` | −7 | +7 | 9 px |
+
+One shared shoe rect cannot fit both a 12px-wide nub at −10 and a 9px-wide one at −7, which is why
+`SPRITE_ITEMS.shoes` in `sprite-items.tsx` reads the form rather than drawing the same rect for all
+three.
 
 ### Offsets
 
 How far an anchor has moved from that form's base anchor, per frame. **A zero here is a measurement,
-not a gap left to fill.** Any animation absent from a form's table needs no offsets at all.
+not a gap left to fill.** Any animation absent from a form's table needs no offsets at all. **All
+horizontal components are zero** — nothing in these animations translates sideways.
 
-These are not a garnish. The body breathes by changing height, which carries the head with it, so a
-hat pinned to one fixed row drifts off during anything that swells. `play` moves the head 5px and the
-feet 5px; `notice` lifts the feet 4px clear of the ground. `head` and `neck` share the same numbers,
-because both ride the same body mass.
+These are not a garnish. The body breathes by changing height, which carries the skull with it, so a
+hat pinned to one fixed row drifts off during anything that swells. `wave`'s neck moves −15px and
+`notice`'s −9px while their heads move only −3px and −6px: the body squashes rather than simply
+rising, so the widest row travels further than the skull does. A scarf that tracked `head` would ride
+up the face on those frames — this is why `neck` is measured separately rather than derived from
+`head`.
+
+Where the eyes are **closed** — every frame of `pet` after the first, and the closed frame of
+`blink` — the eye line cannot be measured, so `face` takes `head`'s own delta for that frame. The two
+ride the same skull, so this is a derivation rather than a second guess, and it shows up below as
+`head` and `face` simply carrying identical numbers on those rows.
 
 ```
-blob   idle   head/neck  [0,0] [0,-1]              feet  [0,0] [0,0]
-       blink  head/neck  [0,1] [0,0]               feet  [0,0] [0,0]
+blob   idle    head [0,-1]   face [0,-2]   neck [0,1]
 
-legs   idle   head/neck  [0,0] [0,2]               feet  [0,0] [0,0]
-       blink  head/neck  [0,1] [0,1]               feet  [0,0] [0,0]
+legs   idle    head [0,1]    face [0,2]
+       blink   head [1,0]    face [1,0]    neck [1,0]
 
-arms   idle   head/neck  [0,0] [0,-2]              feet  [0,0] [0,0]
-       walk   head/neck  [0,-2] [0,-3] [0,-3] [0,-2]
-              feet       [0,0] [0,0] [0,-1] [0,0]
-       wave   head/neck  [0,-1] [0,-2] [0,-2] [0,-1]
-              feet       [0,0] [0,0] [0,0] [0,0]
-       jump   head/neck  [0,1] [0,0] [0,-3] [0,-1]
-              feet       [0,0] [0,-1] [0,-4] [0,-1]
-       pet    head/neck  [0,0] [0,1] [0,1] [0,0]
-              feet       [0,0] [0,0] [0,0] [0,0]
-       play   head/neck  [0,0] [0,-1] [0,-3] [0,-5] [0,-4] [0,-2]
-              feet       [0,0] [0,0] [0,-2] [0,-5] [0,-2] [0,0]
-       notice head/neck  [0,0] [0,-2] [0,-4] [0,-2]
-              feet       [0,0] [0,-3] [0,-4] [0,-1]
+arms   idle    head [0,-2]   face [0,-3]
+       blink   neck [1,0]
+       walk    head [-2,-3,-3,-2]      face [-2,-3,-3,-2]
+               neck [-1,-4,-6,-5]      feet [0,0,-1,0]
+       wave    head [-1,-2,-3,-2]      face [-1,-3,-3,-2]
+               neck [-2,-10,-15,-8]
+       jump    head [0,-3,-6,-4]       face [2,-1,-6,-4]
+               neck [-1,-5,-9,-5]      feet [0,-1,-4,-1]
+       pet     head [0,0,0,-1]         face [0,0,0,-1]
+               neck [0,1,-3,-3]
+       play    head [-1,-3,-5,-6,-4,-2]   face [-1,-3,-5,-7,-5,-3]
+               neck [-1,-2,-6,-10,-6,-2]  feet [0,0,-2,-5,-2,0]
+       notice  head [-2,-6,-4,-2]      face [-3,-8,-6,-4]
+               neck [-5,-9,-9,-5]      feet [0,-3,-4,-1]
 ```
+
+Each bracketed list is that anchor's y-delta per frame, in order — `[0,-1]` on a 2-frame animation
+means frame 0 is unmoved and frame 1 is 1px higher, not a single `(x, y)` pair. `blob` and `arms`
+carry no `blink` entry for `head`/`face` (only `arms`'s `neck` moves, 1px, during its own blink):
+holding the skull still is what makes a blink read as a blink rather than a flinch, the same reading
+the SVG renderer gives its own blink.
 
 ## Adding a form
 
