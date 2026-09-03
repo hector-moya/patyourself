@@ -39,6 +39,7 @@ class CompanionVocabularyTest extends TestCase
             $root.'/resources/js/hooks/use-sprite-clock.ts',
             $root.'/resources/js/patyourself/companion-animations.ts',
             $root.'/resources/js/patyourself/sprite-layout.ts',
+            $root.'/resources/js/patyourself/sprite-items.tsx',
             $root.'/resources/js/patyourself/companion.tsx',
             $root.'/resources/js/patyourself/blob-renderer.tsx',
             $root.'/resources/js/patyourself/companion-room.tsx',

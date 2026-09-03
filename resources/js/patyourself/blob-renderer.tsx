@@ -13,7 +13,14 @@
 import type { CSSProperties, ReactNode } from 'react';
 
 import type { AnimationName } from '@/patyourself/companion-animations';
-import { CELL, columnsOf, formFor, rowFor } from '@/patyourself/sprite-layout';
+import { SPRITE_ITEMS } from '@/patyourself/sprite-items';
+import {
+    anchorFor,
+    CELL,
+    columnsOf,
+    formFor,
+    rowFor,
+} from '@/patyourself/sprite-layout';
 
 /** The body box, in viewBox units. x is measured from Blob's centre line. */
 export const BODY = { w: 44, h: 40, rx: 13 };
@@ -57,7 +64,7 @@ const INK = '#2A2622';
  * item's own default colour instead of applying the recolour the ladder's
  * message just announced.
  */
-const PALETTE: Record<string, string> = {
+export const PALETTE: Record<string, string> = {
     slate: '#3E4A55',
     rust: '#C25B4A',
     coral: '#E8836B',
@@ -379,11 +386,9 @@ export function SpriteBlobRenderer({
     abilities,
     arriving = null,
 }: BlobRendererProps) {
-    // Items and the arriving fade-in are Task 4's job. Abilities hang off the
-    // hand anchor, which is out of scope for this branch entirely.
-    void items;
+    // Abilities hang off the hand anchor, which is out of scope for this
+    // branch entirely.
     void abilities;
-    void arriving;
 
     const form = formFor(features);
     const row = rowFor(form, animation);
@@ -416,6 +421,46 @@ export function SpriteBlobRenderer({
                         style={{ imageRendering: 'pixelated' }}
                     />
                 </svg>
+
+                {items.map((item, index) => {
+                    const spec = SPRITE_ITEMS[item.type];
+
+                    // An item type the ladder names but this renderer has no
+                    // geometry for is skipped rather than drawn as a gap —
+                    // the SVG renderer's existing contract, kept.
+                    if (spec === undefined) {
+                        return null;
+                    }
+
+                    const colour =
+                        item.variant === null
+                            ? spec.colour
+                            : (PALETTE[item.variant] ?? spec.colour);
+                    const [x, y] = anchorFor(
+                        form,
+                        spec.anchor,
+                        fallback ? 'idle' : animation,
+                        drawnFrame,
+                    );
+                    const isArriving =
+                        arriving !== null &&
+                        arriving.type === item.type &&
+                        arriving.variant === item.variant;
+
+                    return (
+                        <g
+                            key={`${item.type}-${item.variant ?? 'plain'}-${index}`}
+                            transform={translate([x, y])}
+                            className={
+                                isArriving
+                                    ? 'blob-layer blob-layer--arriving'
+                                    : 'blob-layer'
+                            }
+                        >
+                            {spec.render(colour)}
+                        </g>
+                    );
+                })}
             </g>
         </g>
     );

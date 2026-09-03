@@ -11,6 +11,7 @@ import {
     SvgBlobRenderer,
 } from './blob-renderer';
 import type { BlobRendererProps } from './blob-renderer';
+import { FORMS, anchorFor } from './sprite-layout';
 
 function draw(overrides: Partial<BlobRendererProps> = {}) {
     const props: BlobRendererProps = {
@@ -410,6 +411,53 @@ describe('SpriteBlobRenderer', () => {
         const anim = drawSprite().querySelector('.blob-anim')!;
 
         expect(anim.classList.contains('blob-anim--sprite')).toBe(true);
+    });
+
+    it('draws a layer per worn item, at that form-and-frame anchor', () => {
+        const container = drawSprite({
+            items: [{ type: 'hat', variant: null }],
+        });
+        const layer = container.querySelector('.blob-layer') as SVGGElement;
+        const form = FORMS[FORMS.length - 1];
+        const [x, y] = anchorFor(form, 'head', 'idle', 0);
+
+        expect(layer.getAttribute('transform')).toBe(`translate(${x} ${y})`);
+    });
+
+    /**
+     * `arms`'s own walk table (sprite-layout.ts) only lifts the foot on
+     * frame 2 — frames 0, 1 and 3 all sit at the base anchor, mid-stride —
+     * so frames 1 and 2 are the pair guaranteed to differ, not 0 and 1.
+     */
+    it('moves the shoes as the walk cycle steps', () => {
+        const at = (frame: number) =>
+            drawSprite({
+                animation: 'walk',
+                frame,
+                items: [{ type: 'shoes', variant: null }],
+            })
+                .querySelector('.blob-layer')!
+                .getAttribute('transform');
+
+        expect(at(1)).not.toBe(at(2));
+    });
+
+    it('recolours an item the tail has renamed', () => {
+        const container = drawSprite({
+            items: [{ type: 'hat', variant: 'amber' }],
+        });
+
+        expect(
+            container.querySelector('.blob-layer rect')!.getAttribute('fill'),
+        ).toBe('#D4942E');
+    });
+
+    it('skips an item type it has no sprite geometry for', () => {
+        const container = drawSprite({
+            items: [{ type: 'umbrella', variant: null }],
+        });
+
+        expect(container.querySelectorAll('.blob-layer')).toHaveLength(0);
     });
 });
 
