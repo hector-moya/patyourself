@@ -145,17 +145,33 @@ export const SPRITE_ITEMS: Record<string, SpriteItemSpec> = {
     glasses: {
         anchor: 'face',
         colourKey: 'ink',
-        // The eyes sit at columns 24–28 and 36–40 on every form; `face.x`
-        // is −1, so this layer's own column 0 is column 31. The right lens
-        // has to start at x=5 (column 36), not x=2 — the earlier value
-        // covered the bridge and two columns of eye while three columns of
-        // bare eye showed beside it. The bridge widens to span the full
-        // gap between the two lenses now that they sit further apart.
+        // A frame around each eye, not a fill over it — a solid lens sat
+        // directly on the dark eye pixels and merged into one black bar,
+        // putting Blob in a blindfold on every frame (blink, pet's squint,
+        // notice's stare all vanished). The SVG renderer draws glasses as
+        // `fill="none"` circles with a stroke for exactly this reason; a
+        // sprite can't stroke without anti-aliasing, so each lens is four
+        // 1px rects instead.
+        //
+        // The eye box is columns 24–28 / 36–40, rows face−1..face+3 on
+        // every form (measured against the sheets); `face.x` is −1, so this
+        // layer's column 0 is column 31. Each 7×7 frame sits with a 1px
+        // border around that 5×5 box, leaving all 25 eye pixels open. The
+        // bridge fills the gap between the two frames' inner borders.
         render: (colour) => (
             <>
-                <rect x={-7} y={-2} width={5} height={4} fill={colour} />
-                <rect x={5} y={-2} width={5} height={4} fill={colour} />
-                <rect x={-2} y={-1} width={7} height={1} fill={colour} />
+                {/* left lens */}
+                <rect x={-8} y={-2} width={7} height={1} fill={colour} />
+                <rect x={-8} y={4} width={7} height={1} fill={colour} />
+                <rect x={-8} y={-1} width={1} height={5} fill={colour} />
+                <rect x={-2} y={-1} width={1} height={5} fill={colour} />
+                {/* right lens */}
+                <rect x={4} y={-2} width={7} height={1} fill={colour} />
+                <rect x={4} y={4} width={7} height={1} fill={colour} />
+                <rect x={4} y={-1} width={1} height={5} fill={colour} />
+                <rect x={10} y={-1} width={1} height={5} fill={colour} />
+                {/* bridge */}
+                <rect x={-1} y={1} width={5} height={1} fill={colour} />
             </>
         ),
     },

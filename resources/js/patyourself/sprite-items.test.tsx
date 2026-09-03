@@ -63,35 +63,82 @@ describe('sprite items', () => {
     });
 
     /**
-     * The eyes sit at columns 24–28 and 36–40 on every form (sprites/
-     * README.md). Bounding an item to the 64px cell (see blob-renderer.test
-     * .tsx) cannot tell "on the eye" from "3px beside it" — this pins each
-     * lens to the actual measured columns instead. Converts the rect's own
-     * anchor-relative `x` back to an absolute column the same way the real
-     * renderer composites it: `CELL / 2 + face.x + rect.x`.
+     * Round 4: a filled lens sat directly on the dark eye pixels and merged
+     * into one solid bar across the face — a blindfold, on every frame the
+     * eyes would otherwise show through (`blink`, `pet`'s squint, `notice`'s
+     * stare). Glasses are a frame around each eye now, not a fill over it.
      *
-     * `face.x` is a literal here, not `ARMS_FORM.anchors.face[0]` — reading
-     * it live would let this test's own expected value drift along with a
-     * regression in the anchor table itself, since the same (wrong) number
-     * would feed both sides of the comparison (review round 3). Asserting
-     * it separately below covers the anchor's own x, not just the lens's
-     * offset relative to it.
+     * This checks both halves of that, and the second is the one that
+     * actually catches a regression to solid fills: the frame must enclose
+     * the eye box on all four sides, *and* nothing may cover a single pixel
+     * of the box's interior. A test that only checked enclosure would stay
+     * green for a solid disc big enough to reach every edge.
+     *
+     * The eye box is columns 24–28 / 36–40, rows face−1..face+3 on every
+     * form (sprites/README.md). `face`'s own anchor is pinned to a literal
+     * rather than read live, for the same reason as the lens/shoe column
+     * tests elsewhere in this file (review round 3): reading it live would
+     * let this test's own expected box drift along with a regression in the
+     * anchor table itself.
      */
-    it('pins each lens to the eyes it is meant to sit on, not beside them', () => {
-        expect(ARMS_FORM.anchors.face[0]).toBe(-1);
+    it('frames each eye rather than covering it', () => {
+        expect(ARMS_FORM.anchors.face).toEqual([-1, 34]);
 
         const faceX = -1;
-        const container = drawItem('glasses', '#000', ARMS_FORM);
-        const columnsOf = (rect: Element) => {
+        const faceY = 34;
+        const boxes = Array.from(
+            drawItem('glasses', '#000', ARMS_FORM).querySelectorAll('rect'),
+        ).map((rect) => {
             const x = Number(rect.getAttribute('x'));
+            const y = Number(rect.getAttribute('y'));
             const width = Number(rect.getAttribute('width'));
+            const height = Number(rect.getAttribute('height'));
 
-            return [CELL / 2 + faceX + x, CELL / 2 + faceX + x + width - 1];
-        };
-        const [leftLens, rightLens] = container.querySelectorAll('rect');
+            return {
+                left: CELL / 2 + faceX + x,
+                right: CELL / 2 + faceX + x + width - 1,
+                top: faceY + y,
+                bottom: faceY + y + height - 1,
+            };
+        });
 
-        expect(columnsOf(leftLens)).toEqual([24, 28]);
-        expect(columnsOf(rightLens)).toEqual([36, 40]);
+        const covered = new Set<string>();
+
+        for (const box of boxes) {
+            for (let row = box.top; row <= box.bottom; row += 1) {
+                for (let col = box.left; col <= box.right; col += 1) {
+                    covered.add(`${row},${col}`);
+                }
+            }
+        }
+
+        const eyeRows: [number, number] = [faceY - 1, faceY + 3];
+        const eyeColumns: [number, number][] = [
+            [24, 28],
+            [36, 40],
+        ];
+
+        for (const [left, right] of eyeColumns) {
+            // Interior: not one eye pixel may be covered.
+            for (let row = eyeRows[0]; row <= eyeRows[1]; row += 1) {
+                for (let col = left; col <= right; col += 1) {
+                    expect(covered.has(`${row},${col}`)).toBe(false);
+                }
+            }
+
+            // Frame: the 1px border immediately outside the box, on all
+            // four sides, must be fully covered — an absent side would
+            // leave the eye open on that edge instead of framed.
+            for (let col = left - 1; col <= right + 1; col += 1) {
+                expect(covered.has(`${eyeRows[0] - 1},${col}`)).toBe(true);
+                expect(covered.has(`${eyeRows[1] + 1},${col}`)).toBe(true);
+            }
+
+            for (let row = eyeRows[0] - 1; row <= eyeRows[1] + 1; row += 1) {
+                expect(covered.has(`${row},${left - 1}`)).toBe(true);
+                expect(covered.has(`${row},${right + 1}`)).toBe(true);
+            }
+        }
     });
 
     it('hangs each type off the anchor that suits it', () => {
