@@ -13,7 +13,7 @@
 import type { CSSProperties, ReactNode } from 'react';
 
 import type { AnimationName } from '@/patyourself/companion-animations';
-import { SPRITE_ITEMS } from '@/patyourself/sprite-items';
+import { SPRITE_ABILITIES, SPRITE_ITEMS } from '@/patyourself/sprite-items';
 import type { PaletteKey } from '@/patyourself/sprite-items';
 import {
     anchorFor,
@@ -22,6 +22,7 @@ import {
     formFor,
     rowFor,
 } from '@/patyourself/sprite-layout';
+import type { AnchorName as SpriteAnchorName } from '@/patyourself/sprite-layout';
 
 /** The body box, in viewBox units. x is measured from Blob's centre line. */
 export const BODY = { w: 44, h: 40, rx: 13 };
@@ -403,6 +404,12 @@ const SPRITE_ITEM_DEFAULT_COLOURS: Record<PaletteKey | 'ink', string> = {
  * An animation this form has no row for holds the first idle frame rather
  * than drawing an empty cell — the same rule as an item type no renderer
  * draws yet, and for the same reason.
+ *
+ * Worn items and ability props are separate layers above the body, each one
+ * placed by an anchor and nothing else. They differ only in where the shape
+ * comes from and whether a variant can recolour it: `SPRITE_ITEMS` entries
+ * are recolourable and hang off `head`, `face`, `neck` or `feet`;
+ * `SPRITE_ABILITIES` entries are not, and hang off `hand`.
  */
 export function SpriteBlobRenderer({
     animation,
@@ -412,16 +419,35 @@ export function SpriteBlobRenderer({
     abilities,
     arriving = null,
 }: BlobRendererProps) {
-    // Abilities hang off the hand anchor, which is out of scope for this
-    // branch entirely.
-    void abilities;
-
     const form = formFor(features);
     const row = rowFor(form, animation);
     const fallback = row === null;
     const drawnRow = fallback ? (rowFor(form, 'idle') ?? 0) : row;
     const drawnFrame = fallback ? 0 : frame;
     const columns = columnsOf(form);
+
+    /**
+     * Where a layer hangs on the cell that is actually being drawn — which is
+     * the idle cell whenever this form has no art for the animation asked
+     * for, so a fallback body cannot be worn with another animation's
+     * offsets.
+     *
+     * `+ CELL / 2` undoes the enclosing group's own `-CELL / 2` shift. That
+     * shift puts the sprite's centre column at x=0; every anchor's `x` is
+     * measured from that same centre line, so a layer has to put x=0 back at
+     * the cell's left edge before adding one, or it lands 32px to the left of
+     * where the anchor table says.
+     */
+    const layerTransform = (anchor: SpriteAnchorName) => {
+        const [anchorX, anchorY] = anchorFor(
+            form,
+            anchor,
+            fallback ? 'idle' : animation,
+            drawnFrame,
+        );
+
+        return translate([anchorX + CELL / 2, anchorY]);
+    };
 
     return (
         <g
@@ -468,12 +494,6 @@ export function SpriteBlobRenderer({
                         item.variant === null
                             ? defaultColour
                             : (PALETTE[item.variant] ?? defaultColour);
-                    const [anchorX, anchorY] = anchorFor(
-                        form,
-                        spec.anchor,
-                        fallback ? 'idle' : animation,
-                        drawnFrame,
-                    );
                     const isArriving =
                         arriving !== null &&
                         arriving.type === item.type &&
@@ -482,18 +502,7 @@ export function SpriteBlobRenderer({
                     return (
                         <g
                             key={`${item.type}-${item.variant ?? 'plain'}-${index}`}
-                            // The enclosing `<g>` is translated by
-                            // `-CELL / 2` so the sprite's own centre column
-                            // sits at x=0 (see the sheet's own transform
-                            // above) — but every anchor's `x` is measured
-                            // from that same centre line, in the same units
-                            // the anchor table already uses. Undoing the
-                            // enclosing shift here is what puts x=0 back at
-                            // the cell's left edge for this nested group, so
-                            // the anchor's own centre-relative x lands where
-                            // the anchor table says it should, not 32px off
-                            // to the left of it.
-                            transform={translate([anchorX + CELL / 2, anchorY])}
+                            transform={layerTransform(spec.anchor)}
                             className={
                                 isArriving
                                     ? 'blob-layer blob-layer--arriving'
@@ -501,6 +510,28 @@ export function SpriteBlobRenderer({
                             }
                         >
                             {spec.render(colour, form)}
+                        </g>
+                    );
+                })}
+
+                {abilities.map((ability, index) => {
+                    const spec = SPRITE_ABILITIES[ability];
+
+                    // An ability with no prop draws nothing rather than a
+                    // gap, the same contract an undrawn item type gets. That
+                    // is what lets the ladder name `wave` — a pose, not a
+                    // thing — without breaking the screen.
+                    if (spec === undefined) {
+                        return null;
+                    }
+
+                    return (
+                        <g
+                            key={`${ability}-${index}`}
+                            transform={layerTransform(spec.anchor)}
+                            className={`blob-layer blob-ability blob-ability--${ability}`}
+                        >
+                            {spec.render()}
                         </g>
                     );
                 })}

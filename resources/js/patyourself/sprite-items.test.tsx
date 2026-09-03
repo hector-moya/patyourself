@@ -2,11 +2,16 @@ import { render } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import { ANIMATIONS } from './companion-animations';
-import { SPRITE_ITEMS } from './sprite-items';
+import { SPRITE_ABILITIES, SPRITE_ITEMS } from './sprite-items';
 import { CELL, FORMS, anchorFor } from './sprite-layout';
 import type { SpriteForm } from './sprite-layout';
 
-/** Where each form's feet touch the ground — the lowest opaque row. */
+/**
+ * Where each form's feet touch the ground — the lowest opaque row, which is
+ * also `form.foot`. Held as literals so a regression in the layout table
+ * cannot drift this file's expectations along with it, and tied back to the
+ * table below so the copy cannot rot instead.
+ */
 const SOLE: Record<string, number> = { blob: 51, legs: 53, arms: 53 };
 
 const BLOB_FORM = FORMS[0];
@@ -22,7 +27,80 @@ function drawItem(
         .container;
 }
 
+function drawAbility(name: string) {
+    return render(<svg>{SPRITE_ABILITIES[name].render()}</svg>).container;
+}
+
+/**
+ * Every cell pixel a layer's rects cover, given where that layer hangs.
+ *
+ * `x` is anchor-relative and the anchor's own `x` is measured from the cell's
+ * centre column, so a rect's column is `CELL / 2 + anchorX + x` — the same
+ * arithmetic the renderer does with its `+ CELL / 2` correction, and the same
+ * the lens and shoe guards above do.
+ */
+function coveredBy(
+    container: Element,
+    [anchorX, anchorY]: readonly [number, number],
+): Set<string> {
+    const covered = new Set<string>();
+
+    for (const rect of container.querySelectorAll('rect')) {
+        const left = CELL / 2 + anchorX + Number(rect.getAttribute('x'));
+        const top = anchorY + Number(rect.getAttribute('y'));
+
+        for (
+            let row = top;
+            row < top + Number(rect.getAttribute('height'));
+            row += 1
+        ) {
+            for (
+                let col = left;
+                col < left + Number(rect.getAttribute('width'));
+                col += 1
+            ) {
+                covered.add(`${row},${col}`);
+            }
+        }
+    }
+
+    return covered;
+}
+
+/** Every (form, animation, frame) there is, which is what a prop must survive. */
+function everyFrame(): { form: SpriteForm; hand: readonly [number, number] }[] {
+    const all: { form: SpriteForm; hand: readonly [number, number] }[] = [];
+
+    for (const form of FORMS) {
+        for (const animation of form.animations) {
+            for (
+                let frame = 0;
+                frame < ANIMATIONS[animation].frames;
+                frame += 1
+            ) {
+                all.push({
+                    form,
+                    hand: anchorFor(form, 'hand', animation, frame),
+                });
+            }
+        }
+    }
+
+    return all;
+}
+
 describe('sprite items', () => {
+    /**
+     * The sole this file measures against is the same row the renderer stands
+     * the body on. Two copies of one measurement that nothing compared is how
+     * a wrong `form.foot` stayed green through a whole review.
+     */
+    it('measures the same sole the layout stands the body on', () => {
+        for (const form of FORMS) {
+            expect(SOLE[form.feature], form.feature).toBe(form.foot);
+        }
+    });
+
     it('covers every item type the ladder can name', () => {
         for (const type of ['shoes', 'scarf', 'hat', 'glasses']) {
             expect(SPRITE_ITEMS[type]).toBeDefined();
@@ -33,11 +111,17 @@ describe('sprite items', () => {
      * Rounded corners and strokes are anti-aliased by the browser, which
      * is exactly the soft edge pixel art must not have. Hard rectangles at
      * integer coordinates are indistinguishable from pixels.
+     *
+     * Both dictionaries: an ability prop is drawn on the same grid a hat is,
+     * so the same rule binds it.
      */
     it('draws only hard-edged rectangles on integer coordinates', () => {
-        for (const type of Object.keys(SPRITE_ITEMS)) {
-            const container = drawItem(type);
+        const drawings = [
+            ...Object.keys(SPRITE_ITEMS).map((type) => drawItem(type)),
+            ...Object.keys(SPRITE_ABILITIES).map((name) => drawAbility(name)),
+        ];
 
+        for (const container of drawings) {
             expect(container.querySelectorAll('circle')).toHaveLength(0);
             expect(container.querySelectorAll('path')).toHaveLength(0);
 
@@ -274,6 +358,129 @@ describe('sprite items', () => {
                         sole,
                     );
                 }
+            }
+        }
+    });
+});
+
+describe('sprite ability props', () => {
+    it('covers every ability the ladder gives Blob something to hold for', () => {
+        for (const name of ['read', 'carry']) {
+            expect(SPRITE_ABILITIES[name]).toBeDefined();
+        }
+    });
+
+    /**
+     * `hand` is the only anchor no worn item uses, and the only one measured
+     * for a prop. Hanging a prop off `head` or `feet` instead would put it
+     * over the face or through the floor.
+     */
+    it('hangs both props off the hand anchor', () => {
+        for (const name of Object.keys(SPRITE_ABILITIES)) {
+            expect(SPRITE_ABILITIES[name].anchor).toBe('hand');
+        }
+    });
+
+    /**
+     * A prop drawn past the cell edge is clipped by the nested `<svg>` the
+     * renderer crops each cell with, so it silently loses a slice rather than
+     * looking wrong — which is why this is checked by arithmetic rather than
+     * by eye. Every form and every frame, because `hand` differs per form.
+     */
+    it('keeps every prop inside the cell, on every form and frame', () => {
+        for (const name of Object.keys(SPRITE_ABILITIES)) {
+            const container = drawAbility(name);
+
+            for (const { form, hand } of everyFrame()) {
+                for (const key of coveredBy(container, hand)) {
+                    const [row, col] = key.split(',').map(Number);
+
+                    expect(
+                        row >= 0 && row < CELL && col >= 0 && col < CELL,
+                        `${name} leaves the cell at ${key} on ${form.feature}`,
+                    ).toBe(true);
+                }
+            }
+        }
+    });
+
+    /**
+     * The face and the sprout are the whole of Blob's identity, and a prop
+     * that covers either is worse than no prop at all.
+     *
+     * The face's own columns are 24–40 on every form — the two eye boxes and
+     * the mouth between them (sprites/README.md) — and the sprout is
+     * everything above the `head` anchor, which is the top of the skull. Both
+     * bounds are read per frame, since `face` and `head` both move.
+     */
+    it('covers neither the face nor the sprout, on any form or frame', () => {
+        for (const name of Object.keys(SPRITE_ABILITIES)) {
+            const container = drawAbility(name);
+
+            for (const form of FORMS) {
+                for (const animation of form.animations) {
+                    for (
+                        let frame = 0;
+                        frame < ANIMATIONS[animation].frames;
+                        frame += 1
+                    ) {
+                        const hand = anchorFor(form, 'hand', animation, frame);
+                        const [, faceY] = anchorFor(
+                            form,
+                            'face',
+                            animation,
+                            frame,
+                        );
+                        const [, headY] = anchorFor(
+                            form,
+                            'head',
+                            animation,
+                            frame,
+                        );
+
+                        for (const key of coveredBy(container, hand)) {
+                            const [row, col] = key.split(',').map(Number);
+                            const onTheFace =
+                                col >= 24 &&
+                                col <= 40 &&
+                                row >= faceY - 1 &&
+                                row <= faceY + 6;
+
+                            expect(
+                                onTheFace,
+                                `${name} covers the face at ${key} on ${form.feature} ${animation} ${frame}`,
+                            ).toBe(false);
+                            expect(
+                                row > headY,
+                                `${name} reaches the sprout at ${key} on ${form.feature} ${animation} ${frame}`,
+                            ).toBe(true);
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    /**
+     * A Blob that has earned both draws both, and they must not land on top
+     * of one another — the vector renderer stacks them for the same reason.
+     * One shape hidden under another is a rung that announced something and
+     * changed nothing, which is the failure this whole phase corrects.
+     */
+    it('never lets the two props occupy the same pixel', () => {
+        const book = drawAbility('read');
+        const block = drawAbility('carry');
+
+        for (const { form, hand } of everyFrame()) {
+            const bookPixels = coveredBy(book, hand);
+
+            expect(bookPixels.size).toBeGreaterThan(0);
+
+            for (const key of coveredBy(block, hand)) {
+                expect(
+                    bookPixels.has(key),
+                    `both props claim ${key} on ${form.feature}`,
+                ).toBe(false);
             }
         }
     });

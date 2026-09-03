@@ -7,12 +7,13 @@ import { describe, expect, it } from 'vitest';
 import type { AnimationName } from '@/patyourself/companion-animations';
 import {
     BlobRenderer,
+    FLOOR,
     PALETTE,
     SpriteBlobRenderer,
     SvgBlobRenderer,
 } from './blob-renderer';
 import type { BlobRendererProps } from './blob-renderer';
-import { CELL, FORMS, anchorFor } from './sprite-layout';
+import { CELL, FORMS, anchorFor, columnsOf } from './sprite-layout';
 
 /** Parses a `transform="translate(x y)"` attribute back into numbers. */
 function parseTranslate(value: string | null): [number, number] {
@@ -363,14 +364,76 @@ describe('SpriteBlobRenderer', () => {
      * The one rule the renderer docblock singles out. A sprite sheet swaps
      * whole frames, and tweening between them is what makes pixel art look
      * wrong.
+     *
+     * Drawn wearing and holding everything, which is the whole point of the
+     * guard: with `items: []` it walked only the root, the translate group,
+     * the nested `<svg>` and the `<image>` — never a `.blob-layer`. Those are
+     * the layers whose transform changes every frame, so a transition on one
+     * is exactly the interpolation this rule bans, and adding one to the item
+     * group left all 277 tests green.
      */
     it('applies no transition to anything it draws', () => {
-        const container = drawSprite({ animation: 'jump', frame: 2 });
+        const container = drawSprite({
+            animation: 'jump',
+            frame: 2,
+            items: [
+                { type: 'shoes', variant: null },
+                { type: 'scarf', variant: 'coral' },
+                { type: 'hat', variant: null },
+                { type: 'glasses', variant: null },
+            ],
+            abilities: ['read', 'carry'],
+            arriving: { type: 'hat', variant: null },
+        });
+
+        // The layers the guard was blind to have to actually be there, or it
+        // is walking four elements again.
+        expect(
+            container.querySelectorAll('.blob-layer').length,
+        ).toBeGreaterThanOrEqual(6);
+        expect(
+            container.querySelectorAll('.blob-layer--arriving'),
+        ).toHaveLength(1);
 
         for (const node of container.querySelectorAll('*')) {
             const style = (node as HTMLElement).getAttribute('style') ?? '';
 
             expect(style).not.toContain('transition');
+        }
+    });
+
+    /**
+     * `form.foot` is the entirety of the spec's promise that "the body lands
+     * with its feet on FLOOR and the room needs no changes whatsoever" —
+     * every other placement number hangs off the anchor tables, but this one
+     * decides where the whole body sits. Changing `arms.foot` from 53 to 40
+     * left all 277 tests green while Blob floated 13 units above the floor.
+     *
+     * The expected row is a literal per form, not `form.foot` read live: an
+     * expectation derived from the table under test moves with a regression
+     * in it instead of catching one. Both halves are pinned here — the
+     * constant, and the renderer subtracting it from `FLOOR` at all.
+     */
+    it('stands each form on the floor by its own measured foot row', () => {
+        /** The lowest opaque row of each form's art (sprites/README.md). */
+        const footRow: Record<string, number> = {
+            blob: 51,
+            legs: 53,
+            arms: 53,
+        };
+
+        for (const form of FORMS) {
+            expect(form.foot, form.feature).toBe(footRow[form.feature]);
+
+            const container = drawSprite({ features: [form.feature] });
+            const placed = container.querySelector(
+                '.blob-anim > g',
+            ) as SVGGElement;
+
+            expect(parseTranslate(placed.getAttribute('transform'))).toEqual([
+                -CELL / 2,
+                FLOOR - footRow[form.feature],
+            ]);
         }
     });
 
@@ -532,6 +595,86 @@ describe('SpriteBlobRenderer', () => {
         });
 
         expect(container.querySelectorAll('.blob-layer')).toHaveLength(0);
+    });
+
+    /**
+     * The live record already carries `read`, so a renderer that drew no prop
+     * would make the book vanish the moment sprites became the default —
+     * while the rung still said Blob holds the page the right way up. A rung
+     * that announces something and changes nothing is the exact failure this
+     * phase exists to correct.
+     */
+    it('draws a prop for each ability that has one', () => {
+        const container = drawSprite({ abilities: ['read', 'carry'] });
+
+        expect(container.querySelector('.blob-ability--read')).not.toBeNull();
+        expect(container.querySelector('.blob-ability--carry')).not.toBeNull();
+    });
+
+    it('draws no prop before the ability is unlocked', () => {
+        expect(
+            drawSprite().querySelector('[class*="blob-ability--"]'),
+        ).toBeNull();
+    });
+
+    /**
+     * `wave` is a pose, not a prop: it has frames rather than a
+     * `SPRITE_ABILITIES` entry. Naming a thing must never break the screen,
+     * so this draws the body and no gap — the same contract an item type with
+     * no geometry gets.
+     */
+    it('renders the body and no prop for an ability nothing draws', () => {
+        const container = drawSprite({ abilities: ['wave'] });
+
+        expect(container.querySelector('.blob-sprite')).not.toBeNull();
+        expect(container.querySelector('[class*="blob-ability--"]')).toBeNull();
+        expect(container.querySelectorAll('.blob-layer')).toHaveLength(0);
+    });
+
+    /**
+     * A prop hangs off `hand` and nothing else, the same rule every worn
+     * layer follows — including the `+ CELL / 2` correction, without which it
+     * would draw 32px to the left of the body.
+     */
+    it('hangs an ability prop off the hand anchor for this form and frame', () => {
+        const container = drawSprite({
+            animation: 'notice',
+            frame: 1,
+            abilities: ['read'],
+        });
+        const form = FORMS[FORMS.length - 1];
+        const [x, y] = anchorFor(form, 'hand', 'notice', 1);
+
+        expect(
+            container
+                .querySelector('.blob-ability--read')!
+                .getAttribute('transform'),
+        ).toBe(`translate(${x + CELL / 2} ${y})`);
+    });
+});
+
+/**
+ * The `<image>` is drawn at `columnsOf(form) * CELL` by
+ * `form.animations.length * CELL` whatever the PNG actually measures, and the
+ * browser scales the file to fit. So a row added to `FORMS` without
+ * regenerating the sheet — the next planned work is animations for the `blob`
+ * and `legs` forms — rescales every cell on that sheet by a fraction, moving
+ * the body and every anchor with it, with nothing else in the suite able to
+ * see it.
+ *
+ * Read straight out of the PNG header rather than from a table: bytes 16–24
+ * of any PNG are the IHDR width and height, big-endian.
+ */
+describe('the sheets are the size the layout draws them at', () => {
+    it('matches each PNG to its own row and column count', () => {
+        for (const form of FORMS) {
+            const png = readFileSync(resolve(process.cwd(), `.${form.sheet}`));
+
+            expect(
+                [png.readUInt32BE(16), png.readUInt32BE(20)],
+                form.feature,
+            ).toEqual([columnsOf(form) * CELL, form.animations.length * CELL]);
+        }
     });
 });
 
