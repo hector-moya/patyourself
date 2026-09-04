@@ -7,21 +7,41 @@ describe('scenes', () => {
         expect(Object.keys(SCENES).sort()).toEqual(['cabin', 'forest']);
     });
 
-    it('gives every scene a backdrop for every part of the day', () => {
+    /**
+     * `scene.backdrops[part] ?? scene.base` (how `companion-room.tsx` reads
+     * this) can't tell "this scene has no photographed backdrop, by design"
+     * (the cabin) from "this scene lost one" — both look like a missing key
+     * falling back to `base`. So the registry's own shape is checked
+     * directly instead: a scene with any backdrop at all must have all four,
+     * never a partial set that would show three lit skies and a dropped
+     * frame at night. See `companion-room.test.tsx` for the guard that
+     * actually exercises the compositor across the day rather than just the
+     * registry's shape.
+     */
+    it('declares all four parts of day once it declares any backdrop', () => {
+        const PARTS = ['sunrise', 'day', 'dusk', 'night'];
+
         for (const scene of Object.values(SCENES)) {
-            for (const part of ['sunrise', 'day', 'dusk', 'night']) {
-                expect(scene.backdrops[part] ?? scene.base).toBeTruthy();
+            const parts = Object.keys(scene.backdrops);
+
+            if (parts.length > 0) {
+                expect(parts.sort()).toEqual([...PARTS].sort());
             }
         }
     });
 
     /**
      * Naming a scene must never be able to break the screen — the same rule
-     * item types, room objects and animations already follow.
+     * item types, room objects and animations already follow. Includes a
+     * plain-object prototype name: `SCENES['constructor']` resolves up the
+     * prototype chain to a truthy value that `??` would never treat as
+     * missing, which is exactly the failure `sceneFor` guards against by
+     * checking the key is the record's own.
      */
     it('falls back rather than throwing on a scene it does not know', () => {
         expect(sceneFor('swamp')).toBe(SCENES.forest);
         expect(sceneFor('')).toBe(SCENES.forest);
+        expect(sceneFor('constructor')).toBe(SCENES.forest);
     });
 
     /**

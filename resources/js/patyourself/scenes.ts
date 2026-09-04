@@ -77,7 +77,17 @@ export const SCENES: Record<string, SceneSpec> = {
  * Naming a scene must never be able to break the screen — the same rule item
  * types, room objects and animations already follow. An unrecognised name
  * falls back to the first scene rather than throwing.
+ *
+ * `Object.hasOwn` rather than `SCENES[name] ?? …`: a plain object's lookup
+ * walks the prototype chain, so `name` values like `'constructor'` or
+ * `'toString'` resolve to an inherited `Object` value that is truthy and
+ * therefore never triggers the `??` fallback — the lookup then fails further
+ * down where the caller reads `.backdrops` off what it thinks is a
+ * `SceneSpec`. Checking the key is the record's own, not inherited, closes
+ * that off.
  */
 export function sceneFor(name: string): SceneSpec {
-    return SCENES[name] ?? Object.values(SCENES)[0];
+    return Object.hasOwn(SCENES, name)
+        ? SCENES[name]
+        : Object.values(SCENES)[0];
 }

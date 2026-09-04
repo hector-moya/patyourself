@@ -132,6 +132,66 @@ describe('scenes', () => {
             container.querySelector('.room-object--bookshelf'),
         ).not.toBeNull();
     });
+
+    /**
+     * Every other test in this file renders the forest (if at all) at noon,
+     * so a renamed part, a dropped one, or two parts silently pointed at the
+     * same PNG would all ship unnoticed — the reader would just see flat
+     * green at night. This walks the whole day and checks both that a
+     * backdrop actually loads at each part and that no two parts show the
+     * same art.
+     *
+     * A full four-part day is passed explicitly, in the same shape as
+     * `config('companion.room')`, rather than relying on the shared
+     * fixture's default `room` — that default only has three parts (see the
+     * `partOfDay` tests above, which depend on hour 6 wrapping to `night`
+     * without a `sunrise` entry) and changing it here would break those.
+     */
+    it('draws a distinct backdrop for every part of the day, not just noon', () => {
+        const fullDay = {
+            sunrise: {
+                from: 5,
+                wall: '#F2E0D0',
+                window: '#F0B98A',
+                light: '#F4A15C',
+                dim: 0.18,
+            },
+            day: {
+                from: 8,
+                wall: '#EFE6D6',
+                window: '#B9D5E4',
+                light: '#FFFFFF',
+                dim: 0,
+            },
+            dusk: {
+                from: 18,
+                wall: '#E7D2BE',
+                window: '#E9A468',
+                light: '#E2762F',
+                dim: 0.22,
+            },
+            night: {
+                from: 21,
+                wall: '#2F3A40',
+                window: '#1A2530',
+                light: '#2B3F6B',
+                dim: 0.42,
+            },
+        };
+
+        const hrefs = [6, 12, 19, 23].map((hour) => {
+            const backdrop = room(
+                { scene: 'forest', room: fullDay },
+                hour,
+            ).querySelector('.scene-backdrop');
+
+            expect(backdrop).not.toBeNull();
+
+            return backdrop?.getAttribute('href');
+        });
+
+        expect(new Set(hrefs).size).toBe(4);
+    });
 });
 
 describe('room objects', () => {
