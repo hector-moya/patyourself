@@ -40,6 +40,10 @@ export function companion(
         unlocks: [unlock()],
         latest_unlock: unlock(),
         renderer: 'svg',
+        // Indoors by default: most of this suite predates scenes and asserts
+        // on the room's own wall, floor and objects without naming one.
+        // Tests about the forest override this explicitly.
+        scene: 'cabin',
         room: {
             day: {
                 from: 7,

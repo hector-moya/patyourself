@@ -107,6 +107,33 @@ describe('CompanionRoom', () => {
     });
 });
 
+describe('scenes', () => {
+    it('draws the forest backdrop for a record that is still outside', () => {
+        // room_objects is set here (rather than left at the fixture's
+        // default empty list) so this is a real test of the guard: without
+        // it, the bookshelf assertion below would pass whether or not the
+        // forest actually excludes ROOM_OBJECTS.
+        const container = room({
+            scene: 'forest',
+            room_objects: ['bookshelf'],
+        });
+
+        expect(container.querySelector('.scene-backdrop')).not.toBeNull();
+        expect(container.querySelector('.room-object--bookshelf')).toBeNull();
+    });
+
+    it('draws the room, with everything in it, for a record that is indoors', () => {
+        const container = room({
+            scene: 'cabin',
+            room_objects: ['bookshelf'],
+        });
+
+        expect(
+            container.querySelector('.room-object--bookshelf'),
+        ).not.toBeNull();
+    });
+});
+
 describe('room objects', () => {
     it('draws an object the record has earned', () => {
         expect(

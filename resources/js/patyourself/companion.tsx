@@ -58,6 +58,13 @@ export interface CompanionData {
     renderer: string;
     /** Wall and window colours for each part of the day, from config. */
     room: Record<string, RoomPalette>;
+    /**
+     * Which of Blob's two places the record puts it in — `'forest'` or
+     * `'cabin'`, derived server-side from the same counts that walk the
+     * ladder. See `sceneFor` in `scenes.ts` for what an unrecognised value
+     * falls back to.
+     */
+    scene: string;
 }
 
 /** The height of the standalone drawing, relative to its width. */

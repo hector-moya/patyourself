@@ -1,15 +1,18 @@
 /**
- * Blob's room.
+ * Where Blob is drawn: a single-screen scene, one of the two `scenes.ts`
+ * knows about.
  *
- * A single-screen interior: back wall, floor line, one window. Flat geometry in
- * the same style as Blob, and drawn in Blob's own coordinate system so the body
- * needs no transform to stand on the floor — the floor is simply the line
- * Blob's feet were always at.
+ * `cabin` is the original room — back wall, floor line, one window, flat
+ * geometry in the same style as Blob — drawn in Blob's own coordinate system
+ * so the body needs no transform to stand on the floor. That drawing is
+ * unchanged from before scenes existed; it is reached here by name rather
+ * than rewritten. `forest` is a photographed backdrop swapped per part of
+ * day, with nothing else drawn over it yet.
  *
- * The room is a record of what happened. It draws what has been earned and
- * nothing else: no greyed-out object, no silhouette, no empty slot. A room with
- * two things in it reads as a room; a room with two things and six grey
- * outlines reads as a task list.
+ * Both are a record of what happened. Indoors, only earned objects appear —
+ * no greyed-out object, no silhouette, no empty slot. A room with two things
+ * in it reads as a room; a room with two things and six grey outlines reads
+ * as a task list.
  */
 import type { ReactNode } from 'react';
 
@@ -17,6 +20,7 @@ import { BlobRenderer, FLOOR } from '@/patyourself/blob-renderer';
 import { arrivingItem, describe } from '@/patyourself/companion';
 import type { CompanionData, RoomPalette } from '@/patyourself/companion';
 import type { AnimationName } from '@/patyourself/companion-animations';
+import { sceneFor } from '@/patyourself/scenes';
 
 /**
  * Wider and shorter than Blob's own box, and sharing its origin: x is measured
@@ -220,11 +224,16 @@ export function CompanionRoom({
         return null;
     }
 
+    const scene = sceneFor(companion.scene);
+    const indoors = scene.name === 'cabin';
+
     const part = partOfDay(hour, companion.room);
     const palette = companion.room[part] ?? {
         from: 0,
         wall: '#EFE6D6',
         window: '#B9D5E4',
+        light: '#FFFFFF',
+        dim: 0,
     };
 
     const objects = companion.room_objects
@@ -235,76 +244,109 @@ export function CompanionRoom({
         <svg
             viewBox={ROOM_VIEWBOX}
             role="img"
-            aria-label={`${describe(companion)}, at home`}
+            aria-label={`${describe(companion)}, ${indoors ? 'at home' : 'outside'}`}
             data-part-of-day={part}
+            data-scene={scene.name}
             className={['blob-room', className].filter(Boolean).join(' ')}
         >
-            <rect
-                x={ROOM.x}
-                y={ROOM.y}
-                width={ROOM.w}
-                height={FLOOR - ROOM.y}
-                fill={palette.wall}
-            />
+            {!indoors && (
+                <>
+                    {/* The colour behind the backdrop: a PNG that fails to
+                        load leaves this in its place, so Blob never stands
+                        on nothing. */}
+                    <rect
+                        x={ROOM.x}
+                        y={ROOM.y}
+                        width={ROOM.w}
+                        height={ROOM.h}
+                        fill={scene.base}
+                    />
+                    {scene.backdrops[part] && (
+                        <image
+                            className="scene-backdrop"
+                            href={scene.backdrops[part]}
+                            x={ROOM.x}
+                            y={ROOM.y}
+                            width={ROOM.w}
+                            height={ROOM.h}
+                            style={{ imageRendering: 'pixelated' }}
+                        />
+                    )}
+                    {/* Foliage arrives in a later task — the list is empty
+                        until then. */}
+                </>
+            )}
 
-            {/* The floor is the wall colour under a flat shadow rather than its
-                own value, so a new time of day is still two colours in config
-                and not four. */}
-            <rect
-                x={ROOM.x}
-                y={FLOOR}
-                width={ROOM.w}
-                height={ROOM.y + ROOM.h - FLOOR}
-                fill={palette.wall}
-            />
-            <rect
-                x={ROOM.x}
-                y={FLOOR}
-                width={ROOM.w}
-                height={ROOM.y + ROOM.h - FLOOR}
-                fill={INK}
-                opacity={0.12}
-            />
-            <path
-                d={`M ${ROOM.x} ${FLOOR} H ${ROOM.x + ROOM.w}`}
-                stroke={INK}
-                strokeOpacity={0.35}
-                strokeWidth={1}
-            />
+            {indoors && (
+                <>
+                    <rect
+                        x={ROOM.x}
+                        y={ROOM.y}
+                        width={ROOM.w}
+                        height={FLOOR - ROOM.y}
+                        fill={palette.wall}
+                    />
 
-            <g>
-                <rect
-                    x={16}
-                    y={-22}
-                    width={42}
-                    height={30}
-                    rx={2}
-                    fill={palette.window}
-                />
-                <path
-                    d={`M 37 -22 V 8 M 16 -7 H 58`}
-                    stroke={INK}
-                    strokeOpacity={0.45}
-                    strokeWidth={1.5}
-                />
-                <rect
-                    x={16}
-                    y={-22}
-                    width={42}
-                    height={30}
-                    rx={2}
-                    fill="none"
-                    stroke={INK}
-                    strokeOpacity={0.45}
-                    strokeWidth={2}
-                />
-            </g>
+                    {/* The floor is the wall colour under a flat shadow rather
+                        than its own value, so a new time of day is still two
+                        colours in config and not four. */}
+                    <rect
+                        x={ROOM.x}
+                        y={FLOOR}
+                        width={ROOM.w}
+                        height={ROOM.y + ROOM.h - FLOOR}
+                        fill={palette.wall}
+                    />
+                    <rect
+                        x={ROOM.x}
+                        y={FLOOR}
+                        width={ROOM.w}
+                        height={ROOM.y + ROOM.h - FLOOR}
+                        fill={INK}
+                        opacity={0.12}
+                    />
+                    <path
+                        d={`M ${ROOM.x} ${FLOOR} H ${ROOM.x + ROOM.w}`}
+                        stroke={INK}
+                        strokeOpacity={0.35}
+                        strokeWidth={1}
+                    />
 
-            {objects.map(([name, spec]) => (
-                <g key={name} data-room-object={name}>
-                    {spec.render(palette)}
-                </g>
-            ))}
+                    <g>
+                        <rect
+                            x={16}
+                            y={-22}
+                            width={42}
+                            height={30}
+                            rx={2}
+                            fill={palette.window}
+                        />
+                        <path
+                            d={`M 37 -22 V 8 M 16 -7 H 58`}
+                            stroke={INK}
+                            strokeOpacity={0.45}
+                            strokeWidth={1.5}
+                        />
+                        <rect
+                            x={16}
+                            y={-22}
+                            width={42}
+                            height={30}
+                            rx={2}
+                            fill="none"
+                            stroke={INK}
+                            strokeOpacity={0.45}
+                            strokeWidth={2}
+                        />
+                    </g>
+
+                    {objects.map(([name, spec]) => (
+                        <g key={name} data-room-object={name}>
+                            {spec.render(palette)}
+                        </g>
+                    ))}
+                </>
+            )}
 
             <BlobRenderer
                 renderer={companion.renderer}
