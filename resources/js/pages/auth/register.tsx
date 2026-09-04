@@ -1,5 +1,5 @@
 import { Form, Head } from '@inertiajs/react';
-import { useEffect, useState } from 'react';
+import { useSyncExternalStore } from 'react';
 
 import InputError from '@/components/input-error';
 import PasswordInput from '@/components/password-input';
@@ -15,16 +15,36 @@ type Props = {
     passwordRules: string;
 };
 
-export default function Register({ passwordRules }: Props) {
-    // Read after mount rather than at module scope: under SSR this file runs on
-    // the server, and `Intl` would then report the SERVER's zone — which is
-    // worse than reporting none, because it looks like a real answer. Empty
-    // until hydration, and the server drops anything it does not recognise.
-    const [timezone, setTimezone] = useState('');
+/**
+ * The browser's own time zone, read without an effect.
+ *
+ * This used to be `useState('')` filled in by a `useEffect` on mount. The
+ * reason for the deferral was never the effect itself — it is that under SSR
+ * this file also runs on the server, where `Intl` reports the SERVER's zone,
+ * which is worse than reporting none because it looks like a real answer.
+ *
+ * `useSyncExternalStore` says exactly that and nothing more: a server snapshot
+ * of nothing, a client snapshot read at render. It also drops the extra render
+ * the old pair caused, which is what `react-hooks/set-state-in-effect` objects
+ * to — the lint rule and the SSR requirement turn out to want the same shape.
+ */
+const NO_SUBSCRIBERS = () => () => {};
 
-    useEffect(() => {
-        setTimezone(Intl.DateTimeFormat().resolvedOptions().timeZone);
-    }, []);
+function readTimezone(): string {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone;
+}
+
+/** The server has no browser zone, and the backend drops what it cannot read. */
+function noTimezone(): string {
+    return '';
+}
+
+export default function Register({ passwordRules }: Props) {
+    const timezone = useSyncExternalStore(
+        NO_SUBSCRIBERS,
+        readTimezone,
+        noTimezone,
+    );
 
     return (
         <>
