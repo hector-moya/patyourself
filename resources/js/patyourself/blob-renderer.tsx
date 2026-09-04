@@ -13,6 +13,16 @@
 import type { CSSProperties, ReactNode } from 'react';
 
 import type { AnimationName } from '@/patyourself/companion-animations';
+import { SPRITE_ABILITIES, SPRITE_ITEMS } from '@/patyourself/sprite-items';
+import type { PaletteKey } from '@/patyourself/sprite-items';
+import {
+    anchorFor,
+    CELL,
+    columnsOf,
+    formFor,
+    rowFor,
+} from '@/patyourself/sprite-layout';
+import type { AnchorName as SpriteAnchorName } from '@/patyourself/sprite-layout';
 
 /** The body box, in viewBox units. x is measured from Blob's centre line. */
 export const BODY = { w: 44, h: 40, rx: 13 };
@@ -56,7 +66,7 @@ const INK = '#2A2622';
  * item's own default colour instead of applying the recolour the ladder's
  * message just announced.
  */
-const PALETTE: Record<string, string> = {
+export const PALETTE: Record<string, string> = {
     slate: '#3E4A55',
     rust: '#C25B4A',
     coral: '#E8836B',
@@ -239,7 +249,7 @@ export interface BlobItem {
 export interface BlobRendererProps {
     animation: AnimationName;
     frame: number;
-    /** Body parts earned: `blob`, then `legs`. */
+    /** Body parts earned: `blob`, then `legs`, then `arms`. */
     features: string[];
     items: BlobItem[];
     abilities: string[];
@@ -355,22 +365,179 @@ export function SvgBlobRenderer({
 }
 
 /**
- * Blob as pixel art. Not implemented — this exists so the seam is real rather
- * than hypothetical, and so the day sprites arrive nothing outside this file
- * has to change.
+ * `SPRITE_ITEMS` names its default colour by PALETTE *key* (`PaletteKey`, a
+ * literal union, not a plain string) rather than by value, so that module
+ * never has to import `PALETTE` to read it — see its own docblock for why
+ * that import would be a cycle. This is where the key is resolved back into
+ * a colour, alongside `INK` for glasses, whose default isn't a
+ * tail-recolourable accessory shade at all.
  *
- * TODO: draw from a sprite sheet, one cell per (animation, frame), nearest
- * neighbour, no interpolation between cells. The easing that makes the SVG
- * renderer's 2fps idle read as a breath must NOT be carried over — a sprite
- * sheet swaps whole frames, and tweening between them is what makes pixel art
- * look wrong.
+ * Typed as `Record<PaletteKey | 'ink', string>` rather than `Record<string,
+ * string>` on purpose: every branch `spec.colourKey` can take is listed
+ * explicitly below, so a key added to `PaletteKey` without an entry here (or
+ * vice versa) is a compile error, not a raw key string silently reaching the
+ * DOM as an unresolved CSS `fill`.
  */
-export function SpriteBlobRenderer(props: BlobRendererProps) {
-    // The signature is the contract and is deliberately the real one; only the
-    // drawing is missing.
-    void props;
+const SPRITE_ITEM_DEFAULT_COLOURS: Record<PaletteKey | 'ink', string> = {
+    slate: PALETTE.slate,
+    rust: PALETTE.rust,
+    coral: PALETTE.coral,
+    moss: PALETTE.moss,
+    amber: PALETTE.amber,
+    plum: PALETTE.plum,
+    sand: PALETTE.sand,
+    ink: INK,
+};
 
-    return null;
+/**
+ * Blob as pixel art.
+ *
+ * One cell of a sheet per (animation, frame), drawn nearest-neighbour with no
+ * interpolation between cells. The easing that makes the SVG renderer's 2fps
+ * idle read as a breath is deliberately absent here: a sprite sheet swaps
+ * whole frames, and tweening between them is what makes pixel art look wrong.
+ * No element this renderer produces may carry a transition — and the root
+ * carries `blob-anim--sprite` alongside `blob-anim` so patyourself.css can
+ * exempt it from the SVG renderer's transition rule at the stylesheet level,
+ * not just here.
+ *
+ * An animation this form has no row for holds the first idle frame rather
+ * than drawing an empty cell — the same rule as an item type no renderer
+ * draws yet, and for the same reason.
+ *
+ * Worn items and ability props are separate layers above the body, each one
+ * placed by an anchor and nothing else. They differ only in where the shape
+ * comes from and whether a variant can recolour it: `SPRITE_ITEMS` entries
+ * are recolourable and hang off `head`, `face`, `neck` or `feet`;
+ * `SPRITE_ABILITIES` entries are not, and hang off `hand`.
+ */
+export function SpriteBlobRenderer({
+    animation,
+    frame,
+    features,
+    items,
+    abilities,
+    arriving = null,
+}: BlobRendererProps) {
+    const form = formFor(features);
+    const row = rowFor(form, animation);
+    const fallback = row === null;
+    const drawnRow = fallback ? (rowFor(form, 'idle') ?? 0) : row;
+    const drawnFrame = fallback ? 0 : frame;
+    const columns = columnsOf(form);
+
+    /**
+     * Where a layer hangs on the cell that is actually being drawn — which is
+     * the idle cell whenever this form has no art for the animation asked
+     * for, so a fallback body cannot be worn with another animation's
+     * offsets.
+     *
+     * `+ CELL / 2` undoes the enclosing group's own `-CELL / 2` shift. That
+     * shift puts the sprite's centre column at x=0; every anchor's `x` is
+     * measured from that same centre line, so a layer has to put x=0 back at
+     * the cell's left edge before adding one, or it lands 32px to the left of
+     * where the anchor table says.
+     */
+    const layerTransform = (anchor: SpriteAnchorName) => {
+        const [anchorX, anchorY] = anchorFor(
+            form,
+            anchor,
+            fallback ? 'idle' : animation,
+            drawnFrame,
+        );
+
+        return translate([anchorX + CELL / 2, anchorY]);
+    };
+
+    return (
+        <g
+            className="blob-anim blob-anim--sprite"
+            data-animation={animation}
+            data-frame={frame}
+            data-form={form.feature}
+            data-fallback={fallback ? 'idle' : undefined}
+        >
+            <g transform={translate([-CELL / 2, FLOOR - form.foot])}>
+                <svg
+                    className="blob-sprite"
+                    x={0}
+                    y={0}
+                    width={CELL}
+                    height={CELL}
+                    viewBox={`${drawnFrame * CELL} ${drawnRow * CELL} ${CELL} ${CELL}`}
+                >
+                    <image
+                        href={form.sheet}
+                        width={columns * CELL}
+                        height={form.animations.length * CELL}
+                        style={{ imageRendering: 'pixelated' }}
+                    />
+                </svg>
+
+                {items.map((item, index) => {
+                    const spec = SPRITE_ITEMS[item.type];
+
+                    // An item type the ladder names but this renderer has no
+                    // geometry for is skipped rather than drawn as a gap —
+                    // the SVG renderer's existing contract, kept.
+                    if (spec === undefined) {
+                        return null;
+                    }
+
+                    // `SPRITE_ITEM_DEFAULT_COLOURS` is total over
+                    // `PaletteKey | 'ink'`, the same type `colourKey` is
+                    // declared as, so this lookup can never miss — no `??`
+                    // fallback to a raw key string needed.
+                    const defaultColour =
+                        SPRITE_ITEM_DEFAULT_COLOURS[spec.colourKey];
+                    const colour =
+                        item.variant === null
+                            ? defaultColour
+                            : (PALETTE[item.variant] ?? defaultColour);
+                    const isArriving =
+                        arriving !== null &&
+                        arriving.type === item.type &&
+                        arriving.variant === item.variant;
+
+                    return (
+                        <g
+                            key={`${item.type}-${item.variant ?? 'plain'}-${index}`}
+                            transform={layerTransform(spec.anchor)}
+                            className={
+                                isArriving
+                                    ? 'blob-layer blob-layer--arriving'
+                                    : 'blob-layer'
+                            }
+                        >
+                            {spec.render(colour, form)}
+                        </g>
+                    );
+                })}
+
+                {abilities.map((ability, index) => {
+                    const spec = SPRITE_ABILITIES[ability];
+
+                    // An ability with no prop draws nothing rather than a
+                    // gap, the same contract an undrawn item type gets. That
+                    // is what lets the ladder name `wave` — a pose, not a
+                    // thing — without breaking the screen.
+                    if (spec === undefined) {
+                        return null;
+                    }
+
+                    return (
+                        <g
+                            key={`${ability}-${index}`}
+                            transform={layerTransform(spec.anchor)}
+                            className={`blob-layer blob-ability blob-ability--${ability}`}
+                        >
+                            {spec.render()}
+                        </g>
+                    );
+                })}
+            </g>
+        </g>
+    );
 }
 
 /**

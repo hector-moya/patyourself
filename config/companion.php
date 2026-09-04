@@ -55,13 +55,13 @@ return [
     | Renderer
     |--------------------------------------------------------------------------
     |
-    | Which implementation draws Blob: `svg` (flat geometry, what ships) or
-    | `sprite` (pixel art, not written yet). A flag rather than a rewrite, so
-    | the day sprites exist, switching over is a deploy.
+    | Which implementation draws Blob: `sprite` (pixel art, what ships) or
+    | `svg` (flat geometry, the fallback). A flag rather than a rewrite, so
+    | reverting to the old drawing is a deploy, not a rollback of code.
     |
     */
 
-    'renderer' => env('COMPANION_RENDERER', 'svg'),
+    'renderer' => env('COMPANION_RENDERER', 'sprite'),
 
     /*
     |--------------------------------------------------------------------------
@@ -105,7 +105,7 @@ return [
     | concluded (any verdict), a new strategy version started, a loop's
     | cue/craving/response/reward corrected, or a reflection written.
     |
-    | The first three stages come from logging so the first week is alive.
+    | The first four stages come from logging so the first week is alive.
     | Everything after alternates ability -> item, because the abilities are the
     | more interesting track and the items run out.
     |
@@ -129,6 +129,13 @@ return [
             'kind' => 'body',
             'name' => 'legs',
             'message' => 'Blob has legs now. Standing up took most of the day and Blob considers it a fine use of one.',
+        ],
+        [
+            'trigger' => 'logs',
+            'at' => 4,
+            'kind' => 'body',
+            'name' => 'arms',
+            'message' => 'Blob has arms now. It has not decided what they are for.',
         ],
         [
             'trigger' => 'logs',
