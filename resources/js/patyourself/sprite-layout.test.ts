@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 
 import { ANIMATIONS } from './companion-animations';
 import type { AnimationName } from './companion-animations';
-import { SCENES } from './scenes';
 import {
     CELL,
     FORMS,
@@ -17,21 +16,18 @@ describe('sprite layout', () => {
     /**
      * The registry also holds the scene's own animations — the tree, the grass
      * — which are drawn from their own sheets over a backdrop and have no row
-     * on a character sheet. They are read out of the scene registry rather
-     * than listed here, so a new layer exempts itself and a new animation of
-     * Blob's still has to be drawn.
+     * on a character sheet. The exemption is the entry's own `channel`, not a
+     * list read out of the scene registry: a tree sways because there is no
+     * body to draw it on, and that must not become "because nothing currently
+     * names it", which would let a foliage layer naming one of Blob's
+     * animations switch this assertion off from another module.
      */
     it('gives the fullest form a row for every animation the clock can play', () => {
         const fullest = FORMS[FORMS.length - 1];
-        const scenery = new Set<AnimationName>(
-            Object.values(SCENES).flatMap((scene) =>
-                scene.foliage.map((layer) => layer.animation),
-            ),
-        );
         let checked = 0;
 
         for (const name of Object.keys(ANIMATIONS) as AnimationName[]) {
-            if (scenery.has(name)) {
+            if (ANIMATIONS[name].channel === 'scene') {
                 continue;
             }
 

@@ -3,9 +3,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { __resetSpriteClock, useSpriteClock } from '@/hooks/use-sprite-clock';
 
+import { ANIMATIONS } from './companion-animations';
 import { CompanionRoom, partOfDay } from './companion-room';
 import { companion } from './companion.fixture';
-import { SCENES } from './scenes';
+import { SCENES, sceneFor } from './scenes';
 
 const ROOM = companion().room;
 
@@ -242,27 +243,74 @@ describe('scenes', () => {
 });
 
 describe('foliage', () => {
+    /**
+     * The placements are derived from the room's own grid and written up in
+     * `scenes/README.md`, and until here they were pinned only at the data
+     * end: `scenes.test.ts` checks the registry's numbers are in bounds and
+     * never that any of them reaches the DOM. A layer drawn at the origin, off
+     * a sheet that does not exist, or with its cell squared off is a picture
+     * problem that no arithmetic notices.
+     *
+     * Every expected value is read back out of the registry entry, so this
+     * cannot drift from `scenes.ts` — it says the drawing agrees with the
+     * declaration, not that either equals some number copied here. `width` and
+     * `height` are asserted separately and in that order because the failure
+     * worth catching is the two swapped, which a pair compared as a set would
+     * miss. The sheet spans every frame it has, because a sheet drawn one cell
+     * wide leaves the window sitting on a stretched frame 0 forever.
+     */
     it('draws every layer the scene declares', () => {
         const container = room({ scene: 'forest' });
+        const drawn = [...container.querySelectorAll('.scene-foliage')];
 
         // A count against an empty list is `expect(0).toBe(0)`. The list has
         // to have something in it for the comparison below to mean anything.
         expect(SCENES.forest.foliage.length).toBeGreaterThan(0);
-        expect(container.querySelectorAll('.scene-foliage')).toHaveLength(
-            SCENES.forest.foliage.length,
-        );
+        expect(drawn).toHaveLength(SCENES.forest.foliage.length);
+
+        SCENES.forest.foliage.forEach((layer, index) => {
+            const node = drawn[index];
+            const image = node.querySelector('image');
+            const [cellWidth, cellHeight] = layer.cell;
+
+            expect(node.getAttribute('x')).toBe(String(layer.at[0]));
+            expect(node.getAttribute('y')).toBe(String(layer.at[1]));
+            expect(node.getAttribute('width')).toBe(String(cellWidth));
+            expect(node.getAttribute('height')).toBe(String(cellHeight));
+
+            expect(image?.getAttribute('href')).toBe(layer.sheet);
+            expect(image?.getAttribute('width')).toBe(
+                String(ANIMATIONS[layer.animation].frames * cellWidth),
+            );
+            expect(image?.getAttribute('height')).toBe(String(cellHeight));
+        });
     });
 
-    it('draws none indoors', () => {
-        expect(
-            room({ scene: 'cabin' }).querySelectorAll('.scene-foliage'),
-        ).toHaveLength(0);
+    /**
+     * Replaces a `draws none indoors` that could not be made red: the cabin's
+     * foliage list is empty, so drawing nothing indoors is what the data does
+     * on its own and the `!indoors` gate could be deleted with the whole suite
+     * still green.
+     *
+     * What is worth asserting is the mechanism rather than the cabin's current
+     * emptiness — the component draws the list belonging to the scene the
+     * record names, whichever scene that is. Both counts are read from
+     * `sceneFor`, so this keeps its meaning on the day E3 hands the cabin a
+     * lamp flame to flicker, where "none indoors" would have to be deleted.
+     */
+    it("draws the foliage its own scene declares, and no other scene's", () => {
+        for (const name of ['forest', 'cabin']) {
+            expect(
+                room({ scene: name }).querySelectorAll('.scene-foliage'),
+            ).toHaveLength(sceneFor(name).foliage.length);
+        }
 
-        // Without this the same result would come back from a selector that
-        // matches nothing anywhere, indoors or out.
-        expect(
-            room({ scene: 'forest' }).querySelectorAll('.scene-foliage').length,
-        ).toBeGreaterThan(0);
+        // Two scenes that declared the same number of layers would let a
+        // component drawing one scene's list everywhere pass the loop above.
+        expect(sceneFor('forest').foliage.length).toBeGreaterThan(0);
+        expect(sceneFor('forest').foliage.length).not.toBe(
+            sceneFor('cabin').foliage.length,
+        );
     });
 
     /**
@@ -320,18 +368,29 @@ describe('foliage', () => {
      * bright at midnight. Blob is in front of the trees for the same reason
      * he is in front of the backdrop — he is standing in the clearing, not
      * behind it.
+     *
+     * The backdrop end matters at least as much and was the clause going
+     * unchecked: it is an opaque 144×114 PNG over the whole room, so foliage
+     * drawn before it is not dimmed or clipped, it is gone, and the screen
+     * looks exactly like a scene that has no foliage at all.
      */
-    it('draws under the light and under Blob', () => {
+    it('draws over the backdrop, under Blob and under the light', () => {
         const container = room({ scene: 'forest' }, 23);
+        const backdrop = container.querySelector('.scene-backdrop');
         const light = container.querySelector('.scene-light');
         const blob = container.querySelector('.blob-anim');
         const drawn = container.querySelectorAll('.scene-foliage');
 
+        expect(backdrop).not.toBeNull();
         expect(light).not.toBeNull();
         expect(blob).not.toBeNull();
         expect(drawn.length).toBeGreaterThan(0);
 
         for (const node of drawn) {
+            expect(
+                node.compareDocumentPosition(backdrop as Node) &
+                    Node.DOCUMENT_POSITION_PRECEDING,
+            ).toBeTruthy();
             expect(
                 node.compareDocumentPosition(blob as Node) &
                     Node.DOCUMENT_POSITION_FOLLOWING,
