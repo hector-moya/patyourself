@@ -78,6 +78,7 @@ final readonly class CompanionResolver
             $unlocks,
             (string) config('companion.renderer', 'svg'),
             (array) config('companion.room', []),
+            (array) config('companion.scenes', []),
         );
     }
 

@@ -92,6 +92,27 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Scenes
+    |--------------------------------------------------------------------------
+    |
+    | Where Blob is. Ordered, walked like the ladder: the last entry whose
+    | threshold the record has passed wins, and the first entry is where a
+    | record with nothing behind it starts.
+    |
+    | A THRESHOLD HERE NEVER MOVES ONCE SET. Later phases add scenes BELOW the
+    | ones above them; raising one would walk an established record backwards
+    | out of a building it has already earned, and nothing in this feature has
+    | ever regressed.
+    |
+    */
+
+    'scenes' => [
+        ['name' => 'forest', 'trigger' => 'logs', 'at' => 0],
+        ['name' => 'cabin', 'trigger' => 'insights', 'at' => 5],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | The unlock ladder
     |--------------------------------------------------------------------------
     |

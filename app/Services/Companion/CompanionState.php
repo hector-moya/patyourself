@@ -19,6 +19,7 @@ final readonly class CompanionState
      *                                                                                                                                           Every ladder entry satisfied, in ladder order. The list is the history.
      * @param  string  $renderer  Which implementation draws Blob, from config.
      * @param  array<string, array{wall: string, window: string}>  $room  Wall and window colours per part of the day, from config.
+     * @param  list<array{name: string, trigger: string, at: int}>  $scenes  Ordered scene thresholds, from config.
      */
     public function __construct(
         public int $logCount,
@@ -26,6 +27,7 @@ final readonly class CompanionState
         public array $unlocks,
         public string $renderer = 'svg',
         public array $room = [],
+        public array $scenes = [],
     ) {}
 
     /**
@@ -117,6 +119,37 @@ final readonly class CompanionState
     }
 
     /**
+     * Where Blob is, from the same counts the ladder walk already has.
+     *
+     * Walked in full rather than stopped at the first unsatisfied entry: a
+     * scene threshold is independent of the others, so the record can clear
+     * `cabin` without ever passing through an intermediate scene that does
+     * not exist yet. The last entry the record has passed wins; a record
+     * with nothing behind it gets the first entry.
+     */
+    public function scene(): string
+    {
+        /** @var list<array{name: string, trigger: string, at: int}> $scenes */
+        $scenes = $this->scenes;
+
+        if ($scenes === []) {
+            return 'forest';
+        }
+
+        $current = (string) $scenes[0]['name'];
+
+        foreach ($scenes as $entry) {
+            $count = ($entry['trigger'] ?? 'logs') === 'insights' ? $this->insightCount : $this->logCount;
+
+            if ($count >= (int) ($entry['at'] ?? 0)) {
+                $current = (string) $entry['name'];
+            }
+        }
+
+        return $current;
+    }
+
+    /**
      * @return array<string, mixed>
      */
     public function toArray(): array
@@ -136,6 +169,7 @@ final readonly class CompanionState
             // missing would mean a screen that renders nothing.
             'renderer' => $this->renderer,
             'room' => $this->room,
+            'scene' => $this->scene(),
         ];
     }
 
