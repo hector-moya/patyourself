@@ -71,14 +71,35 @@ Rejected: a `Programme` entity with weeks, deloads and periodisation. Faithful t
 work, and duplicative of strategy versioning. Revisit only if strategy revisions prove too coarse in
 practice.
 
-### Having a template is what makes a loop a training loop
+### Tags are how a loop reaches a module
 
-There is **no `kind` column and no flag**. If the action being logged has exercises attached, the log
-screen offers the tracker; otherwise it offers done/missed/skipped as it does today.
+Loops gain free-form **tags**. A loop tagged `gym` is offered the exercise setup on its actions, and
+once exercises exist the log screen shows the tracker.
 
-One fact, one source. A flag would be a second fact that can contradict the first — a loop marked
-`training` with no routine, or a routine on a loop marked `habit` — and that is the class of bug this
-codebase keeps finding in its own reviews.
+An earlier draft said "having a template is what makes it a training loop — no flag, one source of
+truth". That was wrong, and the hole is worth recording because it is the kind that survives review:
+**if the tracker only appears once exercises exist, nothing ever offers you the chance to add them.**
+The rule was self-consistent and unimplementable.
+
+Tags fix it without reintroducing a flag that can contradict its data. A tag is a statement of intent
+— *this loop is about the gym* — and intent is allowed to exist before the data does. What a tag never
+does is describe state: it does not claim a routine exists, so it cannot disagree with one.
+
+They also pay for themselves more than once. The hub direction needs a way to route a loop to a
+module, and this is it:
+
+| Tag | Offers |
+| --- | --- |
+| `gym` | exercise templates, the set tracker |
+| `running` | (later) Strava import |
+| `weight` | (later) Withings readings |
+
+One mechanism, and every future module plugs into it rather than adding a column. Tags are also the
+obvious grouping for analytics, which is a separate project that would otherwise have had to invent
+its own.
+
+Rejected again, for the same reason as before: a `kind` column on the loop. Tags are many and additive;
+a kind is one and exclusive, and a loop that is both training and something else is ordinary.
 
 ### Record, never prescribe
 
@@ -107,31 +128,67 @@ The cost, stated plainly: a hard training session and a trivial habit are worth 
 is correct under this app's own premise — *recording is the teaching* — but it will feel wrong on a day
 when you deadlift and it is worth what flossing is worth.
 
-### Sets hang off the log, not the occurrence
+### Sets hang off the occurrence, not the log
 
-A session logged as **failed** can still carry the two exercises you actually managed before your back
-went. That is a record, and records are the point. Attaching sets to the occurrence instead would make
-"what happened" independent of "how it went", which is precisely the pair this app keeps together
-everywhere else.
+**The occurrence is the session. The log is the verdict on it.**
+
+This reverses an earlier draft, and the interaction is what forced it. Sets are ticked off *during* a
+session — weight in, set done, rest, next — which means they are written long before anyone presses
+Done or Missed. At that moment there is no `ActionLog` to attach them to.
+
+Creating the log early to hold them is the tempting fix and the wrong one: `logCount` is Blob's fuel,
+so a log that exists from the first set would pay you for walking into the gym and putting the bar
+down. The economy decision above is only worth making if nothing quietly undoes it.
+
+The occurrence already exists the moment the session falls due, so it is the natural home. Nothing is
+lost by moving them: `Occurrence` and `ActionLog` are one-to-one, so a session logged as **failed**
+still carries the two exercises you managed before your back went — which was the property the earlier
+draft was protecting.
+
+One consequence to handle rather than discover: an **unscheduled** session — walking into the gym on a
+rest day — has no occurrence. It needs one created on the spot, which is the same thing the app already
+does for a log against an unplanned occasion.
 
 ## Architecture
 
 | Thing | Where |
 | --- | --- |
-| Exercise catalogue | `exercises` — seeded list plus user-added |
+| Tags | `tags` + `intention_tag` — free-form, user-scoped |
+| Exercise catalogue | `exercises` — imported public-domain set plus user-added |
 | The routine | `action_exercises` — action, exercise, position, target sets, target reps |
-| What happened | `performed_sets` — action log, exercise, set number, reps, weight |
+| What happened | `performed_sets` — **occurrence**, exercise, set number, reps, weight |
 | Reads | `App\Services\Training\` — last performance, exercise history |
-| Screens | the log screen gains a tracker; one progression screen |
+| Screens | a session screen, an exercise screen, one progression screen |
 
-`Intention`, `Strategy`, `Action`, `Occurrence` and `ActionLog` gain **no columns**.
+`Intention`, `Strategy`, `Action`, `Occurrence` and `ActionLog` gain **no columns**. Tags attach by
+pivot rather than by a column on `intentions`, so a loop can carry several and the set is open.
 
 ### Notes on the tables
 
-- **`exercises`** has a nullable `user_id`. Rows with `user_id` null are the shared seeded catalogue,
-  visible to everyone; a row with a `user_id` is that person's own addition. **Nothing is copied per
-  user** — seeding once at migration time is what makes "start lifting immediately" and "add the machine
-  my gym has" both work without a per-user duplicate of a hundred barbell movements.
+- **`exercises`** has a nullable `user_id`. Rows with `user_id` null are the shared catalogue, visible
+  to everyone; a row with a `user_id` is that person's own addition. **Nothing is copied per user** —
+  seeding once is what makes "start lifting immediately" and "add the machine my gym has" both work
+  without a per-user duplicate of eight hundred barbell movements.
+
+### Where the catalogue comes from
+
+Imported once from [free-exercise-db](https://github.com/yuhonas/free-exercise-db) — roughly 800
+exercises with instructions, primary muscle and equipment, released into the **public domain**. Public
+domain rather than one of the larger sets specifically because it carries no obligations if this app
+ever stops being personal.
+
+The import is a **seeder, not a runtime call.** A third-party fitness API in the path of the gym screen
+would rate-limit, change its pricing, or simply be unreachable from a basement gym with no signal —
+and this codebase already holds the opposite principle for its art: *sheets live in this repository, so
+a Pixel Lab outage can never affect the running app.*
+
+**Images are fetched on demand, not bulk-imported.** Metadata for 800 exercises is about a megabyte;
+their images are hundreds. A routine uses perhaps twenty. So an image is fetched and stored locally the
+first time an exercise is added to a template, and never fetched again — `exercises.image_path` is null
+until then, and a null image is simply an exercise without a picture, never a broken one.
+
+Committing the full image set was rejected on deploy cost: it would dwarf the codebase, and Forge
+deploys on this project already fail at `npm ci` with the OOM killer on a marginal box.
 - **`performed_sets.weight`** is stored in kilograms as a decimal. One unit in the database, converted
   at the edge if pounds are ever wanted. Storing whatever the user typed alongside a unit column is how
   a progression read ends up comparing 60 to 132.
@@ -143,21 +200,43 @@ everywhere else.
   two columns and a display rule, and it can be added without touching anything already written. Chosen
   deliberately rather than overlooked.
 
-## The log screen
+## The screens
+
+Two levels, because that is how a session is actually used: one exercise at a time, with rest between
+sets. A single scrolling page of every field at once is a form; this is a checklist you work down.
+
+**The session** — the exercises in order, with how far through each one you are.
 
 ```
 Upper A · Wednesday 10 September
 
-Bench press                     last: 60kg · 10 / 10 / 8 · 2 Sep
-  target 3 x 10
-  [    ] kg    [   ] [   ] [   ]
+  Bench press          3 x 10     ✓ ✓ ·
+  Barbell row          3 x 10     · · ·
+  Lat pulldown         3 x 12     · · ·
+  Face pull            3 x 15     · · ·
 
-Barbell row                     last: 50kg · 10 / 10 / 10 · 2 Sep
-  target 3 x 10
-  [    ] kg    [   ] [   ] [   ]
-
-                                        [ Done ]  [ Missed ]
+                          [ Done ]   [ Missed ]
 ```
+
+**The exercise** — tapped from that list.
+
+```
+Bench press                              target 3 x 10
+                              last  60kg · 10 / 10 / 8 · 2 Sep
+
+   weight     reps      done
+   [ 60 ]kg   [ 10 ]     ☑
+   [ 60 ]kg   [ 10 ]     ☑
+   [ 60 ]kg   [    ]     ☐
+
+Lower to the chest under control, press to lockout.
+```
+
+The last line is the imported instruction, and the picture sits beside it once one has been fetched.
+
+Weight carries down from the set above, because the common case is three sets at the same weight and
+retyping it twice is the friction that stops people logging. It is a default, not a target — every
+field stays editable, and nothing anywhere suggests the number should go up.
 
 The outcome buttons are the ones that already exist. Recording sets is optional — a session logged with
 no sets at all is still a logged session, because the habit is the thing being tracked and the detail is
@@ -191,11 +270,17 @@ decoration.
   the regression that matters, since the claim is that nothing was special-cased.
 - One session produces exactly one `ActionLog`, no matter how many sets it carries. Pinned hardest:
   this is the economy decision, and it is the one a future module would be tempted to break.
+- **Recording sets creates no log.** Tick every set of every exercise, press nothing, and `logCount` is
+  unchanged — this is the guard that stops the tracker quietly minting Blob's fuel, and the reason sets
+  moved off the log in the first place.
 - Blob's `logCount` and `insightCount` move identically for a training log and a plain one.
 - Sets survive a strategy revision that changes the routine.
 - A failed session can still carry performed sets.
-- An action with no template shows no tracker; one with a template shows it. Both proven by mutation,
-  not by rendering once and reading the class names.
+- An untagged loop offers no exercise setup; a `gym`-tagged one does. An action with no template shows
+  no tracker; one with a template shows it. Both proven by mutation, not by rendering once and reading
+  the class names.
+- A logged session with no occurrence creates one rather than failing.
+- An exercise whose image was never fetched renders without one and does not error.
 - The new source files go into `CompanionVocabularyTest::sourceFiles()`, and the list is proven to bite.
 
 ## Out of scope
