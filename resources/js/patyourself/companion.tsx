@@ -56,7 +56,11 @@ export interface CompanionData {
     latest_unlock: CompanionUnlockData | null;
     /** Which renderer draws Blob, from config/companion.php. */
     renderer: string;
-    /** Wall and window colours for each part of the day, from config. */
+    /**
+     * What each part of the day is drawn in, from config — the cabin's wall
+     * and window, and the light the whole scene is washed with. See
+     * `RoomPalette` above for what a part carries.
+     */
     room: Record<string, RoomPalette>;
     /**
      * Which of Blob's two places the record puts it in — `'forest'` or

@@ -18,7 +18,8 @@ final readonly class CompanionState
      * @param  list<array{kind: string, name: string, variant: ?string, room_object: ?string, message: string, unlocked_at: ?string}>  $unlocks
      *                                                                                                                                           Every ladder entry satisfied, in ladder order. The list is the history.
      * @param  string  $renderer  Which implementation draws Blob, from config.
-     * @param  array<string, array{wall: string, window: string}>  $room  Wall and window colours per part of the day, from config.
+     * @param  array<string, array{from: int, wall: string, window: string, light: string, dim: float|int}>  $room
+     *                                                                                                              What each part of the day is drawn in, from config: the hour it starts at, the cabin's wall and window, and the light the whole scene is washed with — Blob included — at the strength `dim` names.
      * @param  list<array{name: string, trigger: string, at: int}>  $scenes  Ordered scene thresholds, from config.
      * @param  ?string  $sceneOverride  A scene to draw instead of the derived one, from the environment. Empty or null means the record decides.
      */
@@ -146,11 +147,11 @@ final readonly class CompanionState
         /** @var list<array{name: string, trigger: string, at: int}> $scenes */
         $scenes = $this->scenes;
 
-        if ($scenes === []) {
-            return 'forest';
-        }
-
-        $current = (string) $scenes[0]['name'];
+        // No entries is no first entry, so no name to hand over. Writing one
+        // down here would be a third copy of whichever scene config lists
+        // first today; the empty string is what `sceneFor()` already falls
+        // back from, and the registry is where that name belongs.
+        $current = $scenes === [] ? '' : (string) $scenes[0]['name'];
 
         foreach ($scenes as $entry) {
             $count = ($entry['trigger'] ?? 'logs') === 'insights' ? $this->insightCount : $this->logCount;

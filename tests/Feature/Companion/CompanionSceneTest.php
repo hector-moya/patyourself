@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Services\Companion\CompanionResolver;
 use App\Services\Companion\CompanionState;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 /**
@@ -82,13 +83,51 @@ class CompanionSceneTest extends TestCase
         $this->assertContains('bookshelf', $state['room_objects']);
     }
 
-    public function test_the_scene_is_read_from_the_record_and_never_stored(): void
+    /**
+     * Half of "never stored": there is nowhere to store it.
+     *
+     * The schema rather than a row, because a `where` on a column the table
+     * does not have is a predicate SQLite can never make true — it degrades
+     * the unresolvable identifier to a string literal — so the row-shaped
+     * version of this assertion could not have failed for anything the app
+     * did, and on MySQL it would have errored instead of passing.
+     */
+    public function test_the_record_has_no_column_to_keep_a_scene_in(): void
+    {
+        $this->assertFalse(Schema::hasColumn('users', 'scene'));
+    }
+
+    /**
+     * The other half: reading the scene is a read.
+     *
+     * Every attribute of the row is compared before and after with the clock
+     * moved on in between, so a resolver that saved anything — a cache, a
+     * high-water mark, a bare touch — shows up in `updated_at` even where it
+     * wrote the same values back.
+     */
+    public function test_resolving_the_scene_writes_nothing_back_to_the_record(): void
     {
         $user = $this->userWithInsights(5);
+        $before = User::findOrFail($user->id)->getRawOriginal();
 
-        $this->resolve($user);
+        $this->travel(1)->minutes();
 
-        $this->assertDatabaseMissing('users', ['id' => $user->id, 'scene' => 'cabin']);
+        $this->assertSame('cabin', $this->resolve($user)->toArray()['scene']);
+        $this->assertSame($before, User::findOrFail($user->id)->getRawOriginal());
+    }
+
+    /**
+     * The contract is that the first entry wins, and an empty config has no
+     * first entry to name. The empty string is handed over rather than a
+     * fourth copy of whichever scene is listed first today: `sceneFor('')`
+     * already falls back to the registry's own first scene, and the registry
+     * is the one place that knows what that is.
+     */
+    public function test_a_config_with_no_scenes_names_none_rather_than_guessing(): void
+    {
+        $state = new CompanionState(logCount: 0, insightCount: 0, unlocks: [], scenes: []);
+
+        $this->assertSame('', $state->scene());
     }
 
     /**

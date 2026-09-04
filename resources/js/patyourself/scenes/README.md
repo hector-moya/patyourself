@@ -110,8 +110,12 @@ right then left, returning to where it started:
 shift by frame: 0, 1, 2, 3, 2, 1, 0, -1, -2, -3, -2, -1
 ```
 
-It introduces no new colours, drops no pixels (all twelve frames carry the same 1259 opaque pixels,
-asserted at build time), and loops exactly. The art is still a committed PNG on a uniform cell grid
+It introduces no new colours, drops no pixels (all twelve frames carry the same 1259 opaque pixels)
+and loops exactly. **The pixel count was measured when the sheet was generated and nothing in the
+suite enforces it** — checking it again means decoding the image. What the suite does hold is the
+sheet's length: `scenes.test.ts` reads each PNG's header and asserts its width is a whole number of
+cells and equals `frames × cell` for the animation naming it, which is what a re-roll at a different
+length would break. The art is still a committed PNG on a uniform cell grid
 read by the one shared clock, which is what the architecture actually requires — the spec's
 requirement is the sheet and the single clock, not that Pixel Lab authored every frame.
 

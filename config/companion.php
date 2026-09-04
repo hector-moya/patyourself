@@ -213,8 +213,8 @@ return [
             'at' => 3,
             'kind' => 'ability',
             'name' => 'read',
-            // Reading gives Blob somewhere to keep what it reads. An object
-            // arrives with the thing that earned it and never leaves.
+            // Reading gives Blob somewhere to keep what it reads. An object is
+            // earned once and stays earned; the cabin is where it is drawn.
             'roomObject' => 'bookshelf',
             'message' => 'Blob can read. What it reads is unclear, but it holds the page the right way up.',
         ],
@@ -230,8 +230,8 @@ return [
             'at' => 5,
             'kind' => 'ability',
             'name' => 'wave',
-            // A rug to wave from. An object arrives with the thing that earned
-            // it and never leaves.
+            // A rug to wave from. An object is earned once and stays earned;
+            // the cabin is where it is drawn.
             'roomObject' => 'rug',
             'message' => 'Blob can wave. It mostly waves at things that have not arrived yet.',
         ],
@@ -247,8 +247,8 @@ return [
             'at' => 7,
             'kind' => 'ability',
             'name' => 'jump',
-            // Somewhere to land the jump under. An object arrives with the
-            // thing that earned it and never leaves.
+            // Somewhere to land the jump under. An object is earned once and
+            // stays earned; the cabin is where it is drawn.
             'roomObject' => 'lamp',
             'message' => 'Blob can jump. Both feet leave the ground, briefly, and it lands where it started.',
         ],
@@ -267,8 +267,8 @@ return [
             'at' => 9,
             'kind' => 'ability',
             'name' => 'carry',
-            // Something to carry toward. An object arrives with the thing
-            // that earned it and never leaves.
+            // Something to carry toward. An object is earned once and stays
+            // earned; the cabin is where it is drawn.
             'roomObject' => 'plant',
             'message' => 'Blob can carry something. It has not settled on what.',
         ],

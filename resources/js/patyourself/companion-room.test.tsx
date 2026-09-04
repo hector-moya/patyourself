@@ -120,6 +120,17 @@ describe('partOfDay', () => {
         expect(partOfDay(3, ROOM)).toBe('night');
         expect(partOfDay(6, ROOM)).toBe('night');
     });
+
+    /**
+     * A part of day the config does not name falls back to `day` — one of the
+     * spec's error-handling requirements, and the only way to reach it is a
+     * room that names no parts at all, since every other value `partOfDay`
+     * can return is a key it just read out of that same object.
+     */
+    it('falls back to day when the config names no parts at all', () => {
+        expect(partOfDay(9, {})).toBe('day');
+        expect(partOfDay(23, {})).toBe('day');
+    });
 });
 
 describe('CompanionRoom', () => {
@@ -190,6 +201,37 @@ describe('CompanionRoom', () => {
         expect(container.querySelector('[data-room-object]')).toBeNull();
         expect(container.querySelector('.blob-body')).not.toBeNull();
     });
+
+    /**
+     * The other half of the same requirement: a room with no parts at all
+     * must not throw. Every colour the compositor reads comes off the palette
+     * for the current part, so without a fallback palette this is not a room
+     * drawn in the wrong colours — it is a screen that renders nothing at
+     * all, at 3am on the day someone empties the config block.
+     *
+     * Drawn indoors on purpose: the cabin is the scene that reads `wall` and
+     * `window` off the palette, so it is where a missing one is fatal.
+     */
+    it('still draws the room when the config names no parts at all', () => {
+        const container = room(
+            { scene: 'cabin', room: {}, room_objects: ['bookshelf'] },
+            23,
+        );
+
+        expect(
+            container
+                .querySelector('.blob-room')
+                ?.getAttribute('data-part-of-day'),
+        ).toBe('day');
+        expect(container.querySelector('.blob-body')).not.toBeNull();
+        expect(
+            container.querySelector('.room-object--bookshelf'),
+        ).not.toBeNull();
+        // The fallback palette is a daylit one, so nothing is washed and the
+        // wall is the colour `day` would have given it.
+        expect(container.innerHTML).toContain('#EFE6D6');
+        expect(container.querySelector('.scene-light')).toBeNull();
+    });
 });
 
 describe('scenes', () => {
@@ -216,6 +258,60 @@ describe('scenes', () => {
         expect(
             container.querySelector('.room-object--bookshelf'),
         ).not.toBeNull();
+    });
+
+    /**
+     * The `!indoors` gate, pinned on purpose rather than by coincidence.
+     *
+     * Removing it did already redden `tints the wall and window by the time
+     * of day`, but only because `SCENES.cabin.base` happens to be the same
+     * hex as the day wall and that test asserts night contains no `#EFE6D6`.
+     * Give the cabin any other base colour and the gate goes unguarded.
+     *
+     * So the shape is asserted instead of the colour: outdoors the scene lays
+     * a rect over the room's whole viewBox, and indoors the wall stops at the
+     * floor. Nothing that fills the full 144×114 belongs in the cabin except
+     * the light, which is excluded by name and is not drawn at noon anyway.
+     */
+    it('lays no backdrop and no scene base over the cabin, whatever colour the cabin is', () => {
+        const container = room(
+            { scene: 'cabin', room_objects: ['bookshelf'] },
+            12,
+        );
+
+        expect(container.querySelector('.scene-backdrop')).toBeNull();
+
+        const fullBleed = [...container.querySelectorAll('rect')].filter(
+            (rect) =>
+                rect.getAttribute('x') === '-72' &&
+                rect.getAttribute('y') === '-38' &&
+                rect.getAttribute('width') === '144' &&
+                rect.getAttribute('height') === '114' &&
+                !rect.classList.contains('scene-light'),
+        );
+
+        expect(fullBleed).toHaveLength(0);
+        // The room is still drawn, so this is not passing on an empty render.
+        expect(
+            container.querySelector('.room-object--bookshelf'),
+        ).not.toBeNull();
+    });
+
+    /**
+     * The only accessibility copy this branch adds, and it shipped green
+     * against a label that said `at home` in the clearing.
+     */
+    it('says which of the two places Blob is in, in the label', () => {
+        const outside = room({ scene: 'forest' })
+            .querySelector('.blob-room')
+            ?.getAttribute('aria-label');
+        const inside = room({ scene: 'cabin' })
+            .querySelector('.blob-room')
+            ?.getAttribute('aria-label');
+
+        expect(outside).toMatch(/, outside$/);
+        expect(inside).toMatch(/, at home$/);
+        expect(outside).not.toBe(inside);
     });
 
     /**

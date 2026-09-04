@@ -18,6 +18,13 @@ class CompanionRoomConfigTest extends TestCase
         return (require dirname(__DIR__, 3).'/config/companion.php')['room'];
     }
 
+    /**
+     * `config('companion.room')` is the source of truth for the parts of the
+     * day, and this list is written out a second time in `scenes.test.ts`,
+     * which checks the forest declares a backdrop for each of them. A fifth
+     * part added to config reddens here first — exact equality, not a subset —
+     * and that failure is the reminder to go and add the backdrop.
+     */
     public function test_the_day_has_four_parts(): void
     {
         $this->assertSame(
