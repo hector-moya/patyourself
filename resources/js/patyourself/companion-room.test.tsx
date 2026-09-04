@@ -200,10 +200,28 @@ describe('scene light', () => {
     it('washes the whole scene, Blob included, after dark', () => {
         const container = room({ scene: 'forest' }, 23);
         const light = container.querySelector('.scene-light') as SVGRectElement;
-        const blob = container.querySelector('.blob-body') as SVGElement;
+        const blob = container.querySelector('.blob-anim') as SVGElement;
 
         expect(light).not.toBeNull();
         // Drawn last, so it covers Blob rather than sitting behind it.
+        expect(
+            blob.compareDocumentPosition(light) &
+                Node.DOCUMENT_POSITION_FOLLOWING,
+        ).toBeTruthy();
+    });
+
+    /**
+     * The fixture draws Blob with the SVG renderer; config ships `sprite`. The
+     * reversal this light exists to make — the creature lit with the world
+     * rather than exempt from it — is worth nothing if it is only ever checked
+     * against the Blob the reader never sees.
+     */
+    it('washes Blob the sprite renderer draws, not only the SVG one', () => {
+        const container = room({ scene: 'forest', renderer: 'sprite' }, 23);
+        const light = container.querySelector('.scene-light') as SVGRectElement;
+        const blob = container.querySelector('.blob-anim') as SVGElement;
+
+        expect(container.querySelector('.blob-sprite')).not.toBeNull();
         expect(
             blob.compareDocumentPosition(light) &
                 Node.DOCUMENT_POSITION_FOLLOWING,
@@ -235,6 +253,45 @@ describe('scene light', () => {
                 ?.getAttribute('fill');
 
         expect(new Set([fillAt(6), fillAt(19), fillAt(23)]).size).toBe(3);
+        // Distinctness alone cannot tell `light` from `wall` or `window`:
+        // every field of the palette differs across parts, so the wash reads
+        // as varying no matter which of them it was wired to.
+        expect(fillAt(23)).toBe(FULL_DAY.night.light);
+    });
+
+    /**
+     * Nothing else holds this value in place, and the failure is not a scene
+     * a little too dim — at full strength a multiply leaves night unreadable.
+     */
+    it('dims by the amount the part of the day carries, not some other amount', () => {
+        const opacityAt = (hour: number) =>
+            room({ scene: 'forest', room: FULL_DAY }, hour)
+                .querySelector('.scene-light')
+                ?.getAttribute('opacity');
+
+        expect(opacityAt(23)).toBe(String(FULL_DAY.night.dim));
+        expect(opacityAt(6)).toBe(String(FULL_DAY.sunrise.dim));
+    });
+
+    /**
+     * Order says the wash is on top of Blob; it says nothing about the wash
+     * reaching him. A rect one pixel wide is still drawn last.
+     */
+    it('covers the whole room, not just the corner it starts in', () => {
+        const container = room({ scene: 'forest' }, 23);
+        const light = container.querySelector('.scene-light');
+
+        // The room's viewBox, written out because `ROOM` is private to
+        // companion-room.tsx — and the `blob-room` svg's own `viewBox` is what
+        // these have to agree with, so that agreement is asserted here too
+        // rather than left to drift.
+        expect(light?.getAttribute('x')).toBe('-72');
+        expect(light?.getAttribute('y')).toBe('-38');
+        expect(light?.getAttribute('width')).toBe('144');
+        expect(light?.getAttribute('height')).toBe('114');
+        expect(
+            container.querySelector('.blob-room')?.getAttribute('viewBox'),
+        ).toBe('-72 -38 144 114');
     });
 });
 
