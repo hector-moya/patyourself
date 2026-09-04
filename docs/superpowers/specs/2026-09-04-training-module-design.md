@@ -71,35 +71,29 @@ Rejected: a `Programme` entity with weeks, deloads and periodisation. Faithful t
 work, and duplicative of strategy versioning. Revisit only if strategy revisions prove too coarse in
 practice.
 
-### Tags are how a loop reaches a module
+### `workflow: 'gym'` is how a loop reaches this module
 
-Loops gain free-form **tags**. A loop tagged `gym` is offered the exercise setup on its actions, and
-once exercises exist the log screen shows the tracker.
+**Governed by `2026-09-05-workflow-architecture-design.md`, which this module is the first instance
+of.** Read that first; only what is specific to lifting is repeated here.
 
-An earlier draft said "having a template is what makes it a training loop — no flag, one source of
-truth". That was wrong, and the hole is worth recording because it is the kind that survives review:
-**if the tracker only appears once exercises exist, nothing ever offers you the chance to add them.**
-The rule was self-consistent and unimplementable.
+A loop carries `workflow: 'gym'`, persisted, chosen from the registry. That is what offers the exercise
+setup on its actions and the tracker when logging. This module's two extension points:
 
-Tags fix it without reintroducing a flag that can contradict its data. A tag is a statement of intent
-— *this loop is about the gym* — and intent is allowed to exist before the data does. What a tag never
-does is describe state: it does not claim a routine exists, so it cannot disagree with one.
-
-They also pay for themselves more than once. The hub direction needs a way to route a loop to a
-module, and this is it:
-
-| Tag | Offers |
+| Point | Holds |
 | --- | --- |
-| `gym` | exercise templates, the set tracker |
-| `running` | (later) Strava import |
-| `weight` | (later) Withings readings |
+| Config on an `Action` | the exercise template — 3 × 10 bench, 3 × 10 row |
+| Record on an `Occurrence` | the sets performed, with weights |
 
-One mechanism, and every future module plugs into it rather than adding a column. Tags are also the
-obvious grouping for analytics, which is a separate project that would otherwise have had to invent
-its own.
+Two earlier drafts of this section were wrong, and both are worth keeping because they are the kind of
+wrong that survives review.
 
-Rejected again, for the same reason as before: a `kind` column on the loop. Tags are many and additive;
-a kind is one and exclusive, and a loop that is both training and something else is ordinary.
+**"Having a template is what makes it a training loop"** was self-consistent and unimplementable: if
+the tracker only appears once exercises exist, nothing ever offers you the chance to add them.
+
+**Free-form tags** fixed that and introduced a weaker problem. A tag is typed — `Gym`, `gimnasio`, a
+trailing space — and the routing then fails silently with nothing on screen to say why. A registry name
+is chosen, spelled by the code, and testable, which is the pattern `SCENES`, `ROOM_OBJECTS` and
+`ANIMATIONS` already use here.
 
 ### Record, never prescribe
 
@@ -153,15 +147,16 @@ does for a log against an unplanned occasion.
 
 | Thing | Where |
 | --- | --- |
-| Tags | `tags` + `intention_tag` — free-form, user-scoped |
+| Routing | `intentions.workflow` — nullable, registry-backed (architecture spec) |
 | Exercise catalogue | `exercises` — imported public-domain set plus user-added |
 | The routine | `action_exercises` — action, exercise, position, target sets, target reps |
 | What happened | `performed_sets` — **occurrence**, exercise, set number, reps, weight |
 | Reads | `App\Services\Training\` — last performance, exercise history |
 | Screens | a session screen, an exercise screen, one progression screen |
 
-`Intention`, `Strategy`, `Action`, `Occurrence` and `ActionLog` gain **no columns**. Tags attach by
-pivot rather than by a column on `intentions`, so a loop can carry several and the set is open.
+`Strategy`, `Action`, `Occurrence` and `ActionLog` gain **no columns**. `Intention` gains exactly one —
+`workflow` — and that belongs to the architecture rather than to this module: it is added once, by the
+workflow spec, and every later module reuses it rather than adding its own.
 
 ### Notes on the tables
 
@@ -276,9 +271,9 @@ decoration.
 - Blob's `logCount` and `insightCount` move identically for a training log and a plain one.
 - Sets survive a strategy revision that changes the routine.
 - A failed session can still carry performed sets.
-- An untagged loop offers no exercise setup; a `gym`-tagged one does. An action with no template shows
-  no tracker; one with a template shows it. Both proven by mutation, not by rendering once and reading
-  the class names.
+- A loop with `workflow: null` offers no exercise setup; one with `workflow: 'gym'` does. An action with
+  no template shows no tracker; one with a template shows it. Both proven by mutation, not by rendering
+  once and reading the class names.
 - A logged session with no occurrence creates one rather than failing.
 - An exercise whose image was never fetched renders without one and does not error.
 - The new source files go into `CompanionVocabularyTest::sourceFiles()`, and the list is proven to bite.
