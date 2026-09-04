@@ -1,10 +1,55 @@
-import { render } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { act, render, renderHook } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { __resetSpriteClock, useSpriteClock } from '@/hooks/use-sprite-clock';
 
 import { CompanionRoom, partOfDay } from './companion-room';
 import { companion } from './companion.fixture';
+import { SCENES } from './scenes';
 
 const ROOM = companion().room;
+
+/**
+ * The foliage reads the shared clock, which is a module-level singleton, so
+ * these tests drive requestAnimationFrame by hand rather than waiting on real
+ * frames — the same harness `use-sprite-clock.test.ts` uses. Stubbed for the
+ * whole file, not just the foliage block: every forest render subscribes, and
+ * a subscription left running would outlive the test that made it.
+ */
+let pending: FrameRequestCallback[] = [];
+let handle = 0;
+
+function tick(now: number): void {
+    const due = pending;
+    pending = [];
+
+    act(() => {
+        for (const callback of due) {
+            callback(now);
+        }
+    });
+}
+
+beforeEach(() => {
+    pending = [];
+    handle = 0;
+
+    vi.stubGlobal(
+        'requestAnimationFrame',
+        (callback: FrameRequestCallback): number => {
+            pending.push(callback);
+
+            return ++handle;
+        },
+    );
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+});
+
+afterEach(() => {
+    __resetSpriteClock();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+});
 
 /**
  * A whole day, in the same shape as `config('companion.room')`, for the tests
@@ -193,6 +238,148 @@ describe('scenes', () => {
         });
 
         expect(new Set(hrefs).size).toBe(4);
+    });
+});
+
+describe('foliage', () => {
+    it('draws every layer the scene declares', () => {
+        const container = room({ scene: 'forest' });
+
+        // A count against an empty list is `expect(0).toBe(0)`. The list has
+        // to have something in it for the comparison below to mean anything.
+        expect(SCENES.forest.foliage.length).toBeGreaterThan(0);
+        expect(container.querySelectorAll('.scene-foliage')).toHaveLength(
+            SCENES.forest.foliage.length,
+        );
+    });
+
+    it('draws none indoors', () => {
+        expect(
+            room({ scene: 'cabin' }).querySelectorAll('.scene-foliage'),
+        ).toHaveLength(0);
+
+        // Without this the same result would come back from a selector that
+        // matches nothing anywhere, indoors or out.
+        expect(
+            room({ scene: 'forest' }).querySelectorAll('.scene-foliage').length,
+        ).toBeGreaterThan(0);
+    });
+
+    /**
+     * The wind comes from the shared clock, not from the `frame` prop this
+     * component is handed — that one drives Blob and stops there. So the clock
+     * is what this drives, and a version of this test that re-rendered with a
+     * different `frame` would pass against a tree nailed to frame 0.
+     */
+    it('advances on the shared clock rather than on the frame prop', () => {
+        const container = room({ scene: 'forest' });
+        const tree = container.querySelector('.scene-foliage');
+
+        expect(tree).not.toBeNull();
+
+        tick(0);
+        const held = tree?.getAttribute('viewBox');
+
+        expect(held).not.toBeNull();
+
+        // sway is 12 frames at 3fps: a third of a second to the next one.
+        tick(400);
+
+        expect(tree?.getAttribute('viewBox')).not.toBe(held);
+    });
+
+    /**
+     * The clock derives its frame from the absolute timestamp so two Blobs
+     * cannot drift apart, which means three tufts on one sheet and one
+     * animation would move as one — the metronome this layer exists to avoid.
+     */
+    it('offsets tufts that share a sheet so they do not move as one', () => {
+        const container = room({ scene: 'forest' });
+        const drawn = [...container.querySelectorAll('.scene-foliage')];
+
+        const tufts = SCENES.forest.foliage
+            .map((layer, index) => ({ layer, node: drawn[index] }))
+            .filter(({ layer }) => layer.animation === 'rustle');
+
+        expect(tufts.length).toBeGreaterThan(1);
+        expect(new Set(tufts.map(({ layer }) => layer.phase ?? 0)).size).toBe(
+            tufts.length,
+        );
+
+        tick(0);
+
+        const shown = new Set(
+            tufts.map(({ node }) => node?.getAttribute('viewBox')),
+        );
+
+        expect(shown.size).toBe(tufts.length);
+    });
+
+    /**
+     * The wash is the last child of the room, so anything drawn after it stays
+     * bright at midnight. Blob is in front of the trees for the same reason
+     * he is in front of the backdrop — he is standing in the clearing, not
+     * behind it.
+     */
+    it('draws under the light and under Blob', () => {
+        const container = room({ scene: 'forest' }, 23);
+        const light = container.querySelector('.scene-light');
+        const blob = container.querySelector('.blob-anim');
+        const drawn = container.querySelectorAll('.scene-foliage');
+
+        expect(light).not.toBeNull();
+        expect(blob).not.toBeNull();
+        expect(drawn.length).toBeGreaterThan(0);
+
+        for (const node of drawn) {
+            expect(
+                node.compareDocumentPosition(blob as Node) &
+                    Node.DOCUMENT_POSITION_FOLLOWING,
+            ).toBeTruthy();
+            expect(
+                node.compareDocumentPosition(light as Node) &
+                    Node.DOCUMENT_POSITION_FOLLOWING,
+            ).toBeTruthy();
+        }
+    });
+
+    /**
+     * A sheet swaps whole frames, and easing between two of them is what makes
+     * pixel art look wrong — the rule the sprite renderer already holds itself
+     * to. Drawn with the sprite renderer because the SVG one eases its own
+     * body on purpose, which would swamp the assertion.
+     */
+    it('applies no transition to anything in the scene', () => {
+        const container = room({ scene: 'forest', renderer: 'sprite' }, 23);
+
+        expect(
+            container.querySelectorAll('.scene-foliage').length,
+        ).toBeGreaterThan(0);
+
+        for (const node of container.querySelectorAll('*')) {
+            expect(node.getAttribute('style') ?? '').not.toContain(
+                'transition',
+            );
+        }
+    });
+
+    /**
+     * The whole reason the foliage reads an existing clock instead of starting
+     * one. Four layers and a Blob share the frame budget one loop costs.
+     */
+    it('adds no second rAF loop, whatever is on screen', () => {
+        renderHook(() => useSpriteClock('idle'));
+
+        const container = room({ scene: 'forest' });
+
+        expect(
+            container.querySelectorAll('.scene-foliage').length,
+        ).toBeGreaterThan(0);
+        expect(pending).toHaveLength(1);
+
+        tick(0);
+
+        expect(pending).toHaveLength(1);
     });
 });
 

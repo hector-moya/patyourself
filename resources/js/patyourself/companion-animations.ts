@@ -1,5 +1,5 @@
 /**
- * Blob's animation registry. Data only — no logic lives here, and nothing here
+ * The animation registry. Data only — no logic lives here, and nothing here
  * imports anything.
  *
  * Adding an animation is an entry in this file plus one case in a renderer.
@@ -10,6 +10,10 @@
  * Two channels. `ambient` loops forever and is what Blob does at rest.
  * `reaction` plays once, overrides the ambient for its duration, and hands back.
  * A reaction always wins, and a second reaction restarts rather than queues.
+ *
+ * Most of these are Blob's; the last two belong to the scene around it. They
+ * are in the same table because a tree swaying at 3fps beside a Blob breathing
+ * at 2fps is two rows here, not two frame loops.
  */
 export type AnimationChannel = 'ambient' | 'reaction';
 
@@ -63,6 +67,17 @@ export const ANIMATIONS = {
      * interrupt the one interaction this app protects most.
      */
     notice: { frames: 4, fps: 8, loop: false, channel: 'reaction' },
+    /**
+     * The scene's own, drawn by `companion-room.tsx` over a backdrop rather
+     * than by a Blob renderer. Neither carries `autoEvery`: they are not
+     * things Blob does, so the auto-timer has nothing to schedule here.
+     *
+     * Rates chosen by eye and written up in `scenes/README.md` — a four-second
+     * cycle for a canopy and a two-second one for grass, so the two layers
+     * disagree and read as air moving rather than as one shutter.
+     */
+    sway: { frames: 12, fps: 3, loop: true, channel: 'ambient' },
+    rustle: { frames: 8, fps: 4, loop: true, channel: 'ambient' },
 } as const satisfies Record<string, AnimationSpec>;
 
 export type AnimationName = keyof typeof ANIMATIONS;

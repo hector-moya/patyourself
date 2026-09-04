@@ -13,22 +13,42 @@
  */
 import type { AnimationName } from '@/patyourself/companion-animations';
 
+import foliageGrass from './scenes/foliage-grass.png';
+import foliageTree from './scenes/foliage-tree.png';
 import forestDay from './scenes/forest-day.png';
 import forestDusk from './scenes/forest-dusk.png';
 import forestNight from './scenes/forest-night.png';
 import forestSunrise from './scenes/forest-sunrise.png';
 
 /**
- * A layer of moving foliage over a backdrop. Declared here because
- * `SceneSpec` holds a list of them, but nothing draws one yet: the tree is
- * still being chosen, and inventing a sheet reference before the art exists
- * is the placeholder this project keeps having to undo.
+ * A layer of moving foliage over a backdrop: one sheet, one row, uniform
+ * cells, read by the clock that already draws Blob.
+ *
+ * Where every number below came from — measured off the art or derived from
+ * the room's own grid — is written up in `scenes/README.md`.
  */
 export interface FoliageSpec {
     sheet: string;
-    cell: number;
+    /**
+     * Width then height. Neither sheet is square, and squaring them to carry
+     * one number would push the tree's cell four units past the room's left
+     * edge to leave the art where it was placed — an offset every later reader
+     * would have to work out again.
+     */
+    cell: readonly [number, number];
+    /** The cell's top-left corner, in the room's own coordinates. */
     at: readonly [number, number];
     animation: AnimationName;
+    /**
+     * Frames to add before reading the sheet, defaulting to none.
+     *
+     * The clock derives its frame from the absolute timestamp precisely so
+     * that two Blobs cannot drift apart, which leaves every subscriber to one
+     * animation in step by design. Three tufts off one sheet moving together
+     * is the metronome this whole layer exists to avoid, and an offset is how
+     * they differ without a second loop or a second sheet.
+     */
+    phase?: number;
 }
 
 export interface SceneSpec {
@@ -58,7 +78,38 @@ export const SCENES: Record<string, SceneSpec> = {
             night: forestNight,
         },
         base: '#548043',
-        foliage: [],
+        // One tree at the clearing's edge, not a row of them: the backdrops
+        // were generated four times over to get a clearing rather than a
+        // corridor, and foreground trees would close it again. The grass is
+        // what carries the near motion instead.
+        foliage: [
+            {
+                sheet: foliageTree,
+                cell: [48, 64],
+                at: [-68, -32],
+                animation: 'sway',
+            },
+            {
+                sheet: foliageGrass,
+                cell: [32, 24],
+                at: [-70, 52],
+                animation: 'rustle',
+            },
+            {
+                sheet: foliageGrass,
+                cell: [32, 24],
+                at: [-26, 52],
+                animation: 'rustle',
+                phase: 3,
+            },
+            {
+                sheet: foliageGrass,
+                cell: [32, 24],
+                at: [36, 52],
+                animation: 'rustle',
+                phase: 5,
+            },
+        ],
     },
 
     cabin: {

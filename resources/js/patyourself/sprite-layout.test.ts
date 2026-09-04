@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { ANIMATIONS } from './companion-animations';
 import type { AnimationName } from './companion-animations';
+import { SCENES } from './scenes';
 import {
     CELL,
     FORMS,
@@ -13,12 +14,34 @@ import {
 } from './sprite-layout';
 
 describe('sprite layout', () => {
+    /**
+     * The registry also holds the scene's own animations — the tree, the grass
+     * — which are drawn from their own sheets over a backdrop and have no row
+     * on a character sheet. They are read out of the scene registry rather
+     * than listed here, so a new layer exempts itself and a new animation of
+     * Blob's still has to be drawn.
+     */
     it('gives the fullest form a row for every animation the clock can play', () => {
         const fullest = FORMS[FORMS.length - 1];
+        const scenery = new Set<AnimationName>(
+            Object.values(SCENES).flatMap((scene) =>
+                scene.foliage.map((layer) => layer.animation),
+            ),
+        );
+        let checked = 0;
 
         for (const name of Object.keys(ANIMATIONS) as AnimationName[]) {
+            if (scenery.has(name)) {
+                continue;
+            }
+
             expect(fullest.animations).toContain(name);
+            checked += 1;
         }
+
+        // An exemption that grew to cover the registry would leave the loop
+        // above asserting nothing at all.
+        expect(checked).toBeGreaterThan(0);
     });
 
     it('sizes each sheet by the widest animation it carries', () => {

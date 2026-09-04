@@ -7,7 +7,7 @@
  * so the body needs no transform to stand on the floor. That drawing is
  * unchanged from before scenes existed; it is reached here by name rather
  * than rewritten. `forest` is a photographed backdrop swapped per part of
- * day, with nothing else drawn over it yet.
+ * day, with the layers that move drawn over it.
  *
  * Both are a record of what happened. Indoors, only earned objects appear —
  * no greyed-out object, no silhouette, no empty slot. A room with two things
@@ -16,11 +16,14 @@
  */
 import type { ReactNode } from 'react';
 
+import { useSpriteClock } from '@/hooks/use-sprite-clock';
 import { BlobRenderer, FLOOR } from '@/patyourself/blob-renderer';
 import { arrivingItem, describe } from '@/patyourself/companion';
 import type { CompanionData, RoomPalette } from '@/patyourself/companion';
 import type { AnimationName } from '@/patyourself/companion-animations';
+import { ANIMATIONS } from '@/patyourself/companion-animations';
 import { sceneFor } from '@/patyourself/scenes';
+import type { FoliageSpec } from '@/patyourself/scenes';
 
 /**
  * Wider and shorter than Blob's own box, and sharing its origin: x is measured
@@ -206,6 +209,46 @@ export function partOfDay(
         : started[started.length - 1][0];
 }
 
+/**
+ * One layer of moving foliage: a window cut over its sheet, moved along a row
+ * of frames.
+ *
+ * A component of its own rather than a branch of the map that draws them,
+ * because `useSpriteClock` is a hook and cannot be called from inside a loop.
+ * Each layer therefore reads the clock once, and it is the same clock Blob
+ * reads — one requestAnimationFrame for everything on the screen, which is the
+ * whole reason a tree does not get to own a loop.
+ *
+ * Nothing self-starts here: the auto-timer fires what a Blob has unlocked, and
+ * a tree has unlocked nothing.
+ */
+function FoliageLayer({ layer }: { layer: FoliageSpec }) {
+    const { frame } = useSpriteClock(layer.animation, []);
+
+    const [cellWidth, cellHeight] = layer.cell;
+    const { frames } = ANIMATIONS[layer.animation];
+    const index = (frame + (layer.phase ?? 0)) % frames;
+
+    return (
+        <svg
+            className="scene-foliage"
+            x={layer.at[0]}
+            y={layer.at[1]}
+            width={cellWidth}
+            height={cellHeight}
+            // One row, so the window only ever travels sideways.
+            viewBox={`${index * cellWidth} 0 ${cellWidth} ${cellHeight}`}
+        >
+            <image
+                href={layer.sheet}
+                width={frames * cellWidth}
+                height={cellHeight}
+                style={{ imageRendering: 'pixelated' }}
+            />
+        </svg>
+    );
+}
+
 export function CompanionRoom({
     companion,
     animation,
@@ -272,8 +315,15 @@ export function CompanionRoom({
                             style={{ imageRendering: 'pixelated' }}
                         />
                     )}
-                    {/* Foliage arrives in a later task — the list is empty
-                        until then. */}
+                    {/* Over the backdrop, under Blob and under the wash: the
+                        sheets are drawn in neutral light, so a layer that
+                        escaped the overlay would stay at noon all night. */}
+                    {scene.foliage.map((layer) => (
+                        <FoliageLayer
+                            key={`${layer.animation}-${layer.at[0]}-${layer.at[1]}`}
+                            layer={layer}
+                        />
+                    ))}
                 </>
             )}
 
