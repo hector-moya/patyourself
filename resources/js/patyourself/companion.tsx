@@ -38,6 +38,10 @@ export interface RoomPalette {
     from: number;
     wall: string;
     window: string;
+    /** The colour the whole scene is washed with, Blob included. */
+    light: string;
+    /** How strongly. Zero at midday, when the light needs no help. */
+    dim: number;
 }
 
 export interface CompanionData {

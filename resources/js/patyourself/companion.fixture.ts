@@ -41,9 +41,27 @@ export function companion(
         latest_unlock: unlock(),
         renderer: 'svg',
         room: {
-            day: { from: 7, wall: '#EFE6D6', window: '#B9D5E4' },
-            dusk: { from: 18, wall: '#E7D2BE', window: '#E9A468' },
-            night: { from: 21, wall: '#2F3A40', window: '#1A2530' },
+            day: {
+                from: 7,
+                wall: '#EFE6D6',
+                window: '#B9D5E4',
+                light: '#FFFFFF',
+                dim: 0,
+            },
+            dusk: {
+                from: 18,
+                wall: '#E7D2BE',
+                window: '#E9A468',
+                light: '#E2762F',
+                dim: 0.22,
+            },
+            night: {
+                from: 21,
+                wall: '#2F3A40',
+                window: '#1A2530',
+                light: '#2B3F6B',
+                dim: 0.42,
+            },
         },
         ...overrides,
     };
