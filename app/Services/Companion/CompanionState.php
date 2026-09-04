@@ -20,6 +20,7 @@ final readonly class CompanionState
      * @param  string  $renderer  Which implementation draws Blob, from config.
      * @param  array<string, array{wall: string, window: string}>  $room  Wall and window colours per part of the day, from config.
      * @param  list<array{name: string, trigger: string, at: int}>  $scenes  Ordered scene thresholds, from config.
+     * @param  ?string  $sceneOverride  A scene to draw instead of the derived one, from the environment. Empty or null means the record decides.
      */
     public function __construct(
         public int $logCount,
@@ -28,6 +29,7 @@ final readonly class CompanionState
         public string $renderer = 'svg',
         public array $room = [],
         public array $scenes = [],
+        public ?string $sceneOverride = null,
     ) {}
 
     /**
@@ -126,9 +128,21 @@ final readonly class CompanionState
      * `cabin` without ever passing through an intermediate scene that does
      * not exist yet. The last entry the record has passed wins; a record
      * with nothing behind it gets the first entry.
+     *
+     * The override short-circuits all of that so the scene a record has not
+     * reached can still be looked at. It is passed on as it stands rather
+     * than checked against the thresholds below: those are when a scene
+     * arrives, not the list of what can be drawn, and the client's `sceneFor`
+     * is already the one place that answers the second question.
      */
     public function scene(): string
     {
+        $override = $this->sceneOverride ?? '';
+
+        if ($override !== '') {
+            return $override;
+        }
+
         /** @var list<array{name: string, trigger: string, at: int}> $scenes */
         $scenes = $this->scenes;
 

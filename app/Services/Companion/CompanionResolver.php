@@ -79,6 +79,10 @@ final readonly class CompanionResolver
             (string) config('companion.renderer', 'svg'),
             (array) config('companion.room', []),
             (array) config('companion.scenes', []),
+            // Read, never written: the override says which scene to draw and
+            // nothing about what the record has earned, so this stays as much
+            // of a pure read as the line above it.
+            (string) config('companion.scene_override', ''),
         );
     }
 

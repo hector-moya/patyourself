@@ -113,6 +113,30 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | The scene override
+    |--------------------------------------------------------------------------
+    |
+    | Draws the scene named here instead of the one the record derives, on the
+    | same env-flag precedent as `renderer` above.
+    |
+    | A DEVELOPMENT AFFORDANCE, NEVER A SETTING. A scene the reader can choose
+    | is a setting rather than a consequence of the record, and every other
+    | part of this feature refuses to be that — so this is read from the
+    | environment and has no surface anywhere in the app. It exists because the
+    | cabin's threshold sits below an established record, which leaves the
+    | forest unreachable on a deep record without it.
+    |
+    | Empty is absent: `COMPANION_SCENE=` reads back as '' and the record
+    | decides, exactly as when the variable is unset. A name no scene knows is
+    | handed to the client as it stands and falls back there — see `sceneFor`
+    | in `scenes.ts`, which is the registry of what can actually be drawn.
+    |
+    */
+
+    'scene_override' => env('COMPANION_SCENE'),
+
+    /*
+    |--------------------------------------------------------------------------
     | The unlock ladder
     |--------------------------------------------------------------------------
     |
