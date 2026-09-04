@@ -412,10 +412,11 @@ export const FORMS: readonly SpriteForm[] = [
  *
  * The hand sits mid-body, so the average of how far the skull moved and how
  * far the feet moved is the principled estimate — not a fudge, and checked
- * against the art frame by frame (sprites/README.md). Ties round toward the
- * lower number, which is what `Math.round` already does and what the art
- * agrees with: `blob`'s idle averages −0.5 and measures 0, `legs`' averages
- * +0.5 and measures +1.
+ * against the art frame by frame (sprites/README.md). Ties round upward —
+ * toward positive infinity, which is what `Math.round` already does, and
+ * further down the cell, since `y` grows downward. The art agrees: `blob`'s
+ * idle averages −0.5 and measures 0, `legs`' averages +0.5 and measures +1,
+ * and both are the higher of the two candidates.
  *
  * Exported so the table above can be held to it rather than merely annotated
  * with it. `+ 0` because `Math.round(-0.5)` is negative zero, which `Object.is`

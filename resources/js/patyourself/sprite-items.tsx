@@ -200,10 +200,11 @@ export const SPRITE_ITEMS: Record<string, SpriteItemSpec> = {
  * The two book blues, and the two shades of the thing Blob carries.
  *
  * Literals rather than PALETTE keys because no ability is recolourable (see
- * `SpriteAbilitySpec`), and the same values the vector renderer's own props
- * already use, so the two drawings agree on what a book is. Each prop is a
- * darker outer rect with a lighter inner one, which is how a flat shape gets
- * an edge on a grid that cannot stroke.
+ * `SpriteAbilitySpec`). Three of the four are the values the vector renderer's
+ * own props already use, so the two drawings agree on what a book is;
+ * CARRIED_EDGE is new, because a flat shape on a grid that cannot stroke needs
+ * a darker outer rect under a lighter inner one to have an edge at all, and
+ * the vector renderer draws its block as one flat colour instead.
  */
 const BOOK_BOARD = '#5B8398';
 const BOOK_PAGE = '#7FA3B5';

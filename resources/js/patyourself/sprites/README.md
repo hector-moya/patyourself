@@ -137,8 +137,10 @@ ride the same skull, so this is a derivation rather than a second guess, and it 
 **`hand`'s rows are derived, not measured. Every other row in this file was read off the art; these
 were not, and the distinction matters when the next form is built.** The hand sits mid-body, so its
 row is `round((head delta + feet delta) / 2)` — the average of how far the two ends of the body
-travelled. Ties round toward the lower number, which is `Math.round`'s own behaviour and what the
-art agrees with (`blob`'s idle averages −0.5 and measures 0; `legs`' averages +0.5 and measures +1).
+travelled. Ties round **upward** — toward positive infinity, which is `Math.round`'s own behaviour,
+and further down the cell, since `y` grows downward here. The art agrees: `blob`'s idle averages
+−0.5 and measures 0, `legs`' averages +0.5 and measures +1, and both of those are the higher of the
+two candidates.
 `derivedHandDelta` in `sprite-layout.ts` is that arithmetic, and a guard holds every row of the
 table to it, so a later re-measurement of `head` or `feet` cannot leave `hand` behind.
 
