@@ -417,6 +417,55 @@ const SPRITE_ITEM_DEFAULT_COLOURS: Record<PaletteKey | 'ink', string> = {
  * are recolourable and hang off `head`, `face`, `neck` or `feet`;
  * `SPRITE_ABILITIES` entries are not, and hang off `hand`.
  */
+/**
+ * One worn item, drawn from a sheet rather than from rects.
+ *
+ * The sheet is a row of 64px cells, one per recolour variant, and the whole cell
+ * is drawn at the cell's own origin — no anchor, no measuring. That is the point
+ * of lifting the art out of a character state: it arrives already registered to
+ * the body it came off.
+ *
+ * An unknown variant falls back to the first cell, which is the colour the art
+ * was generated in. Naming a colour must never be able to blank an item, the
+ * same contract an unknown item type and an unknown scene already follow.
+ */
+function SheetItem({
+    sheet,
+    variants,
+    variant,
+}: {
+    sheet: string;
+    variants: readonly string[];
+    variant: string | null;
+}) {
+    const index = variant === null ? 0 : variants.indexOf(variant);
+    const cell = index < 0 ? 0 : index;
+
+    return (
+        <svg
+            className="blob-item-sheet"
+            // The cell's own origin, exactly as `.blob-sprite` above uses:
+            // the enclosing group has already been translated to the cell's
+            // top-left, so anything further here draws the item twice-shifted.
+            // It put the boots in the bottom-left corner of the viewBox until a
+            // render showed it, which is what `blob-item-sheet` at 0,0 is
+            // guarded for in blob-renderer.test.tsx.
+            x={0}
+            y={0}
+            width={CELL}
+            height={CELL}
+            viewBox={`${cell * CELL} 0 ${CELL} ${CELL}`}
+        >
+            <image
+                href={sheet}
+                width={variants.length * CELL}
+                height={CELL}
+                style={{ imageRendering: 'pixelated' }}
+            />
+        </svg>
+    );
+}
+
 export function SpriteBlobRenderer({
     animation,
     frame,
@@ -453,6 +502,30 @@ export function SpriteBlobRenderer({
         );
 
         return translate([anchorX + CELL / 2, anchorY]);
+    };
+
+    /**
+     * How far this anchor has moved from its resting place on the frame being
+     * drawn — the animation's own offset, with the anchor's base position taken
+     * back out.
+     *
+     * This is what a sheet layer needs. Its pixels were lifted from a frame
+     * registered to the same 64x64 canvas, so at rest they already land exactly
+     * where they belong and want no translation at all; all they have to follow
+     * is the body moving underneath them.
+     */
+    const anchorDrift = (
+        anchor: SpriteAnchorName,
+    ): readonly [number, number] => {
+        const [anchorX, anchorY] = anchorFor(
+            form,
+            anchor,
+            fallback ? 'idle' : animation,
+            drawnFrame,
+        );
+        const [restX, restY] = form.anchors[anchor];
+
+        return [anchorX - restX, anchorY - restY];
     };
 
     return (
@@ -493,29 +566,56 @@ export function SpriteBlobRenderer({
                     // `SPRITE_ITEM_DEFAULT_COLOURS` is total over
                     // `PaletteKey | 'ink'`, the same type `colourKey` is
                     // declared as, so this lookup can never miss — no `??`
-                    // fallback to a raw key string needed.
-                    const defaultColour =
-                        SPRITE_ITEM_DEFAULT_COLOURS[spec.colourKey];
+                    // fallback to a raw key string needed. Sheet-drawn items
+                    // carry no `colourKey`: their recolour is a cell, not a
+                    // fill, so there is nothing here to resolve.
                     const colour =
-                        item.variant === null
-                            ? defaultColour
-                            : (PALETTE[item.variant] ?? defaultColour);
+                        spec.sheets === undefined
+                            ? item.variant === null
+                                ? SPRITE_ITEM_DEFAULT_COLOURS[spec.colourKey]
+                                : (PALETTE[item.variant] ??
+                                  SPRITE_ITEM_DEFAULT_COLOURS[spec.colourKey])
+                            : '';
                     const isArriving =
                         arriving !== null &&
                         arriving.type === item.type &&
                         arriving.variant === item.variant;
 
-                    return (
+                    const className = isArriving
+                        ? 'blob-layer blob-layer--arriving'
+                        : 'blob-layer';
+                    const key = `${item.type}-${item.variant ?? 'plain'}-${index}`;
+
+                    // A sheet layer is already drawn in the cell's own
+                    // coordinates — it was lifted out of a frame registered to
+                    // the same canvas — so it wants the anchor's per-frame
+                    // MOVEMENT and not its position. Handing it
+                    // `layerTransform` would translate it a second time, by the
+                    // anchor it is already sitting on.
+                    return spec.sheets === undefined ? (
                         <g
-                            key={`${item.type}-${item.variant ?? 'plain'}-${index}`}
+                            key={key}
                             transform={layerTransform(spec.anchor)}
-                            className={
-                                isArriving
-                                    ? 'blob-layer blob-layer--arriving'
-                                    : 'blob-layer'
-                            }
+                            className={className}
                         >
                             {spec.render(colour, form)}
+                        </g>
+                    ) : (
+                        <g
+                            key={key}
+                            transform={translate(anchorDrift(spec.anchor))}
+                            className={className}
+                        >
+                            <SheetItem
+                                // Same fallback the rect shoes used: a form
+                                // with no sheet of its own borrows `legs`.
+                                sheet={
+                                    spec.sheets[form.feature] ??
+                                    spec.sheets.legs
+                                }
+                                variants={spec.variants}
+                                variant={item.variant}
+                            />
                         </g>
                     );
                 })}

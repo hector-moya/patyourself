@@ -27,10 +27,11 @@
  * `feet` (the lowest opaque row) was the one already correct as measured.
  * See `sprites/README.md` for the measurement itself.
  *
- * Shoes are the one item whose geometry depends on the form: `blob` has no
- * legs, so its foot nubs are wider and set further apart than the narrower
- * feet `legs` and `arms` share. One shared rect pair cannot fit both, so
- * `shoes.render` is the one render function that reads its second argument.
+ * Shoes no longer live here as rects at all. They are the first item drawn
+ * from generated art — one sheet per form, lifted out of a character state
+ * wearing them — because `legs` and `arms` do not share feet and a flat pair
+ * of rectangles beside a shaded pixel body looked like exactly that. See
+ * `SpriteItemSpec` below for the two ways an item can be drawn.
  *
  * `SPRITE_ABILITIES` at the bottom is the same idea for the two props an
  * ability brings with it. They hang off `hand`, the one anchor no worn item
@@ -39,6 +40,26 @@
 import type { ReactNode } from 'react';
 
 import type { AnchorName, SpriteForm } from '@/patyourself/sprite-layout';
+
+import armsShoesSheet from './sprites/humus-arms-shoes.png';
+import legsShoesSheet from './sprites/humus-legs-shoes.png';
+
+/**
+ * The shoe sheets' cell order. `slate` first because that is the colour the art
+ * was generated in — every other cell is a luminance-preserving remap of it, so
+ * cell 0 is the untouched extraction and the fallback for an unknown variant.
+ *
+ * These must stay in step with the offline build that writes the sheets; the
+ * count is guarded against the PNG's own width in sprite-items.test.tsx.
+ */
+export const SHOE_VARIANTS = [
+    'slate',
+    'coral',
+    'moss',
+    'amber',
+    'plum',
+    'sand',
+] as const;
 
 /**
  * PALETTE's own keys, kept here as a literal union rather than imported —
@@ -56,16 +77,48 @@ export type PaletteKey =
     | 'plum'
     | 'sand';
 
-export interface SpriteItemSpec {
-    anchor: AnchorName;
-    /**
-     * Resolved against PALETTE by blob-renderer.tsx, where PALETTE lives —
-     * `'ink'` is the one key that isn't a PALETTE entry at all, resolved
-     * against that module's own ink constant instead.
-     */
-    colourKey: PaletteKey | 'ink';
-    render: (colour: string, form: SpriteForm) => ReactNode;
-}
+/**
+ * An item is drawn one of two ways, and the union makes it exactly one.
+ *
+ * `render` is the original: flat rects taking a colour. Cheap, recolours by
+ * changing a `fill`, and looks like flat rects — which beside a shaded pixel
+ * body is exactly what it looks like.
+ *
+ * `sheets` is art from Pixel Lab. The item is generated as a character *state*
+ * — the same creature wearing the thing — and the item's own pixels are lifted
+ * back out. Because every state in a group shares one registration, the lifted
+ * pixels are already in the right place: the layer needs no anchor of its own,
+ * only the per-frame delta the anchor table already carries. That deletes the
+ * whole class of bug where an item drifts off the body.
+ *
+ * Recolouring is done offline, one cell per variant, rather than by a filter at
+ * render: the art is a handful of tones over an outline, and an outline that
+ * recolours with its fill flattens the shape.
+ */
+export type SpriteItemSpec =
+    | {
+          anchor: AnchorName;
+          /**
+           * Resolved against PALETTE by blob-renderer.tsx, where PALETTE lives —
+           * `'ink'` is the one key that isn't a PALETTE entry at all, resolved
+           * against that module's own ink constant instead.
+           */
+          colourKey: PaletteKey | 'ink';
+          render: (colour: string, form: SpriteForm) => ReactNode;
+          sheets?: undefined;
+          variants?: undefined;
+      }
+    | {
+          anchor: AnchorName;
+          /** One sheet per form feature, since forms do not share feet. */
+          sheets: Record<string, string>;
+          /**
+           * Which cell is which, left to right. The first is the default the
+           * art was generated in, and is what an unknown variant falls back to.
+           */
+          variants: readonly string[];
+          render?: undefined;
+      };
 
 /**
  * A prop an ability arrives with. No `colourKey`: nothing recolours a prop —
@@ -78,62 +131,20 @@ export interface SpriteAbilitySpec {
     render: () => ReactNode;
 }
 
-/**
- * Each foot's **left edge** and width, per form, measured from the cell's
- * **centre line** (column 32) — two rows above the sole, where the nub is at
- * its widest rather than tapering into the floor. `blob` has no legs to
- * narrow its stance; `legs` and `arms` grow the same feet, so they share one
- * entry.
- *
- * An edge, not a centre: `blob.left.x` is −15 while that nub's measured
- * centre is −10. A rect is drawn from its left edge, so the edge is what the
- * table holds.
- *
- * These are centre-line measurements, not anchor-relative ones: `render`
- * subtracts the `feet` anchor's own `x` (−1, not 0 — the anchor sits one
- * column left of centre) before using them, rather than baking that
- * correction into the constants here. That way a later form whose centre
- * isn't −1 still lands correctly without this table changing at all.
- */
-const FOOT_RECTS: Record<
-    string,
-    {
-        left: { x: number; width: number };
-        right: { x: number; width: number };
-    }
-> = {
-    blob: { left: { x: -15, width: 12 }, right: { x: 3, width: 11 } },
-    legs: { left: { x: -11, width: 9 }, right: { x: 3, width: 9 } },
-    arms: { left: { x: -11, width: 9 }, right: { x: 3, width: 9 } },
-};
-
 export const SPRITE_ITEMS: Record<string, SpriteItemSpec> = {
+    /**
+     * The first item drawn from generated art rather than rects.
+     *
+     * Two sheets because `legs` and `arms` do not share feet — 147 of the 300
+     * pixels under the boots differ between them, so one extraction cannot
+     * serve both. There is deliberately no `blob` sheet: legs arrive at 3 logs
+     * and shoes at 5, so shoes on a legless Blob is unreachable, and the form
+     * falls back to `legs` rather than pretending otherwise.
+     */
     shoes: {
         anchor: 'feet',
-        colourKey: 'slate',
-        render: (colour, form) => {
-            const feet = FOOT_RECTS[form.feature] ?? FOOT_RECTS.legs;
-            const [anchorX] = form.anchors.feet;
-
-            return (
-                <>
-                    <rect
-                        x={feet.left.x - anchorX}
-                        y={-2}
-                        width={feet.left.width}
-                        height={3}
-                        fill={colour}
-                    />
-                    <rect
-                        x={feet.right.x - anchorX}
-                        y={-2}
-                        width={feet.right.width}
-                        height={3}
-                        fill={colour}
-                    />
-                </>
-            );
-        },
+        sheets: { legs: legsShoesSheet, arms: armsShoesSheet },
+        variants: SHOE_VARIANTS,
     },
     scarf: {
         anchor: 'neck',

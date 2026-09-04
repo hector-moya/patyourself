@@ -199,3 +199,68 @@ absent from a form's table: nothing to correct, so nothing written down.
 4. Compose the sheet, measure everything above, and add an entry to `FORMS` in `sprite-layout.ts`.
 
 Sheets live in this repository, so a Pixel Lab outage can never affect the running app.
+
+---
+
+# Worn items, drawn from art rather than rects
+
+| File | Size | Cells | Source state |
+| --- | --- | --- | --- |
+| `humus-legs-shoes.png` | 384×64 | 6 | `6542139b-28ce-4a87-9fd8-69a1e5b8e1d8` (Boots legs form) |
+| `humus-arms-shoes.png` | 384×64 | 6 | `b05731d8-c634-4d99-bc0e-a7cad7cb5a97` (Boots spike) |
+
+Shoes are the first item drawn this way. The other three are still rects.
+
+## Why a state, and not an object
+
+An item generated as a standalone *object* arrives on its own canvas with its own framing, and would
+then have to be anchored to a foot that moves every frame — more alignment work, not less, and shaded
+against nothing. Generated as a character **state** — the same creature wearing the thing — it is
+drawn against the real body, in the real palette, by a model that already knows what the creature
+looks like.
+
+Then the item's own pixels are lifted back out. Every state in a group shares one registration, so
+the lifted pixels are already where they belong: **the layer needs no anchor of its own.** All it
+follows is the anchor's per-frame movement, which the table above already records.
+
+## The measurements this rests on
+
+| Fact | Value | Why it matters |
+| --- | --- | --- |
+| Rotation → cell offset | `dx 8, dy 8` | searched, not assumed; agrees with idle frame 0 on 97.9% of the cell |
+| Body drift from the edit | median **4/255**, max 38 | small enough to threshold away; the silhouette is untouched |
+| Pixels removed by the edit | **0** | an overlay can only add, so an occluding item could not work this way |
+| Anchor movement, all five anchors | x is **always 0**, y −8..+2 | one sprite per item, not one per frame |
+| `legs` vs `arms` under the boots | 147 of 300 px differ | one extraction cannot serve both forms |
+
+The last row is why there are two sheets. The x-always-0 row is why there is only one cell per
+colour rather than one per frame.
+
+## Extraction, and the two traps in it
+
+Lift only pixels inside the item's own band that differ from the base by more than 16. Both halves
+matter:
+
+- **The threshold alone is not enough.** The edit re-quantises the whole body, and a few dozen of
+  those pixels clear 16 — up on the skull and in the sprout. Recoloured, they showed as confetti in
+  the leaves. Restrict to the band the item occupies.
+- **A whole-image difference does not work at all.** 62.6% of body pixels come back changed.
+
+## Recolouring
+
+The tail recolours every item type in turn, and `item_types` lists `shoes` first — so the very first
+tail rung recolours them, and a single fixed-colour PNG would have made the ladder's own message
+("Blob swapped to the coral shoes") a lie.
+
+So each sheet carries one cell per variant, remapped offline: the boot's four fill tones are mapped
+onto the target colour keeping their relative luminance, and **the outline is left alone**. An
+outline that recolours with its fill flattens the shape. Cell 0 is `slate`, the colour the art was
+generated in, and is what an unknown variant falls back to.
+
+## What a render caught that the tests did not
+
+The cell draws at `x=0, y=0`, because the enclosing group is *already* translated to the cell's
+top-left. Shifting it by another half-cell — which looked right, since that is what every
+anchor-relative layer does — put the boots in the bottom-left corner with the feet left bare, while
+every assertion stayed green. The transform tests were checking the layer; nothing was checking the
+cell. There is a guard for it now, added after the picture showed the bug.

@@ -2,7 +2,7 @@ import { render } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import { ANIMATIONS } from './companion-animations';
-import { SPRITE_ABILITIES, SPRITE_ITEMS } from './sprite-items';
+import { SHOE_VARIANTS, SPRITE_ABILITIES, SPRITE_ITEMS } from './sprite-items';
 import { CELL, FORMS, anchorFor } from './sprite-layout';
 import type { SpriteForm } from './sprite-layout';
 
@@ -14,8 +14,10 @@ import type { SpriteForm } from './sprite-layout';
  */
 const SOLE: Record<string, number> = { blob: 51, legs: 53, arms: 53 };
 
-const BLOB_FORM = FORMS[0];
-const LEGS_FORM = FORMS[1];
+// `BLOB_FORM` and `LEGS_FORM` used to be needed here to compare the three
+// forms' shoe rects. Shoes are drawn from per-form sheets now, so what used to
+// be a geometry comparison is a sheet-identity one, and the per-form tests that
+// remain walk `FORMS` directly.
 const ARMS_FORM = FORMS[FORMS.length - 1];
 
 function drawItem(
@@ -23,8 +25,15 @@ function drawItem(
     colour = '#123456',
     form: SpriteForm = ARMS_FORM,
 ) {
-    return render(<svg>{SPRITE_ITEMS[type].render(colour, form)}</svg>)
-        .container;
+    const spec = SPRITE_ITEMS[type];
+
+    // Sheet-drawn items have no rects to inspect, and silently rendering
+    // nothing would make every geometry assertion below vacuously true.
+    if (spec.render === undefined) {
+        throw new Error(`${type} is drawn from a sheet, not from rects`);
+    }
+
+    return render(<svg>{spec.render(colour, form)}</svg>).container;
 }
 
 function drawAbility(name: string) {
@@ -116,8 +125,17 @@ describe('sprite items', () => {
      * so the same rule binds it.
      */
     it('draws only hard-edged rectangles on integer coordinates', () => {
+        const rectDrawn = Object.keys(SPRITE_ITEMS).filter(
+            (type) => SPRITE_ITEMS[type].render !== undefined,
+        );
+
+        // Sheet-drawn items keep the same rule by a different means — see
+        // the pixelated guard below — but they have no rects to inspect, and
+        // an empty list here would make this whole test vacuous.
+        expect(rectDrawn.length).toBeGreaterThan(0);
+
         const drawings = [
-            ...Object.keys(SPRITE_ITEMS).map((type) => drawItem(type)),
+            ...rectDrawn.map((type) => drawItem(type)),
             ...Object.keys(SPRITE_ABILITIES).map((name) => drawAbility(name)),
         ];
 
@@ -237,75 +255,41 @@ describe('sprite items', () => {
     });
 
     /**
-     * `blob` has no legs, so its foot nubs are wider and set further apart
-     * than the narrower feet `legs` and `arms` share (see `FOOT_RECTS` in
-     * sprite-items.tsx). One shared rect pair cannot fit both without
-     * either sitting inboard on the walking forms or spilling past the
-     * nub on `blob`.
+     * Shoes are the first item drawn from generated art rather than rects.
+     *
+     * `legs` and `arms` do not share feet — 147 of the 300 pixels under the
+     * boots differ between them — so each form carries its own extraction, and
+     * borrowing one for the other would put a boot half off the foot.
      */
-    it("fits each form's own feet rather than one shared shoe", () => {
-        const blobX = Array.from(
-            drawItem('shoes', '#000', BLOB_FORM).querySelectorAll('rect'),
-        ).map((rect) => rect.getAttribute('x'));
-        const legsX = Array.from(
-            drawItem('shoes', '#000', LEGS_FORM).querySelectorAll('rect'),
-        ).map((rect) => rect.getAttribute('x'));
+    it('gives each form its own shoe art rather than one shared sheet', () => {
+        const { sheets } = SPRITE_ITEMS.shoes;
 
-        expect(blobX).not.toEqual(legsX);
-        // legs and arms grow the same feet, so they share geometry.
-        const armsX = Array.from(
-            drawItem('shoes', '#000', ARMS_FORM).querySelectorAll('rect'),
-        ).map((rect) => rect.getAttribute('x'));
-
-        expect(legsX).toEqual(armsX);
+        expect(sheets).toBeDefined();
+        expect(sheets?.legs).toBeTruthy();
+        expect(sheets?.arms).toBeTruthy();
+        expect(sheets?.legs).not.toBe(sheets?.arms);
     });
 
     /**
-     * The per-form guard above only proves `blob` differs from `legs` — it
-     * would not catch every shoe landing a fixed 1px off the mark in the
-     * same direction, which is exactly what happened when `FOOT_RECTS`
-     * (measured from the cell's centre line) was applied without correcting
-     * for the `feet` anchor's own `x` (−1, not 0). Pins the rendered
-     * columns to the measured foot segments themselves (sprites/README.md).
-     *
-     * `feet.x` is a literal here, not read from `form.anchors.feet[0]` — the
-     * renderer itself subtracts that live value (`sprite-items.tsx`'s
-     * `shoes.render`), so a test that read the same live value would agree
-     * with a wrong one instead of catching it (review round 3, the same gap
-     * as the glasses test above).
+     * There is deliberately no `blob` sheet. Legs arrive at 3 logs and shoes at
+     * 5, so shoes on a legless Blob cannot happen; the renderer falls back to
+     * `legs` rather than the dictionary pretending to cover a case the ladder
+     * makes unreachable.
      */
-    it('lands each shoe on the measured foot columns, not 1px beside them', () => {
-        for (const form of [BLOB_FORM, LEGS_FORM, ARMS_FORM]) {
-            expect(form.anchors.feet[0]).toBe(-1);
-        }
+    it('ships no sheet for the form that can never wear them', () => {
+        expect(SPRITE_ITEMS.shoes.sheets?.blob).toBeUndefined();
+    });
 
-        const anchorX = -1;
-        const columnsOf = (form: SpriteForm) => {
-            return Array.from(
-                drawItem('shoes', '#000', form).querySelectorAll('rect'),
-            ).map((rect) => {
-                const x = Number(rect.getAttribute('x'));
-                const width = Number(rect.getAttribute('width'));
-
-                return [
-                    CELL / 2 + anchorX + x,
-                    CELL / 2 + anchorX + x + width - 1,
-                ];
-            });
-        };
-
-        expect(columnsOf(BLOB_FORM)).toEqual([
-            [17, 28],
-            [35, 45],
-        ]);
-        expect(columnsOf(LEGS_FORM)).toEqual([
-            [21, 29],
-            [35, 43],
-        ]);
-        expect(columnsOf(ARMS_FORM)).toEqual([
-            [21, 29],
-            [35, 43],
-        ]);
+    /**
+     * The cell list is what the renderer indexes into, and the offline build
+     * writes one cell per entry. If the two disagree the renderer crops past
+     * the end of the sheet and the shoes vanish, so the first cell must be the
+     * colour the art was actually generated in.
+     */
+    it('names its variants in the order the sheet stores them', () => {
+        expect(SPRITE_ITEMS.shoes.variants?.[0]).toBe('slate');
+        expect(SPRITE_ITEMS.shoes.variants).toEqual(SHOE_VARIANTS);
+        expect(new Set(SHOE_VARIANTS).size).toBe(SHOE_VARIANTS.length);
     });
 
     /**

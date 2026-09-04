@@ -772,3 +772,111 @@ describe('ability props', () => {
         expect(container.querySelector('[class*="blob-ability--"]')).toBeNull();
     });
 });
+
+/**
+ * Shoes are the first item drawn from generated art instead of rects, and the
+ * mechanism is what these guard: a cell lifted out of a character state, drawn
+ * at the cell's own origin, following only the anchor's per-frame movement.
+ */
+describe('SpriteBlobRenderer worn sheets', () => {
+    const shoes = (overrides: Partial<BlobRendererProps> = {}) =>
+        drawSprite({
+            items: [{ type: 'shoes', variant: null }],
+            ...overrides,
+        }).querySelector('.blob-item-sheet');
+
+    it('draws shoes from a sheet rather than from rects', () => {
+        const sheet = shoes();
+
+        expect(sheet).not.toBeNull();
+        expect(sheet?.querySelector('image')).not.toBeNull();
+        expect(sheet?.querySelectorAll('rect')).toHaveLength(0);
+    });
+
+    it('crops the cell the variant names', () => {
+        // slate is cell 0, coral cell 1 — see SHOE_VARIANTS.
+        expect(shoes()?.getAttribute('viewBox')).toBe('0 0 64 64');
+        expect(
+            shoes({
+                items: [{ type: 'shoes', variant: 'coral' }],
+            })?.getAttribute('viewBox'),
+        ).toBe('64 0 64 64');
+    });
+
+    /**
+     * Naming a colour must never be able to blank an item — the same contract
+     * an unknown item type and an unknown scene already follow.
+     */
+    it('falls back to the first cell for a colour it has no art for', () => {
+        expect(
+            shoes({
+                items: [{ type: 'shoes', variant: 'chartreuse' }],
+            })?.getAttribute('viewBox'),
+        ).toBe('0 0 64 64');
+    });
+
+    /**
+     * The whole reason the art is lifted out of a character state: at rest the
+     * cell already sits exactly where it belongs, so the layer is translated by
+     * nothing at all. A layer that arrived pre-offset would be double-placed.
+     */
+    it('translates a resting frame by nothing', () => {
+        const layer = drawSprite({
+            items: [{ type: 'shoes', variant: null }],
+        }).querySelector('.blob-layer');
+
+        expect(layer?.getAttribute('transform')).toBe('translate(0 0)');
+    });
+
+    /**
+     * ...and on a frame where the feet lift, it follows them. `jump` frame 2
+     * carries the largest foot movement any animation has.
+     */
+    it('follows the feet on a frame where they leave the ground', () => {
+        const layer = drawSprite({
+            animation: 'jump',
+            frame: 2,
+            items: [{ type: 'shoes', variant: null }],
+        }).querySelector('.blob-layer');
+
+        expect(layer?.getAttribute('transform')).toBe('translate(0 -4)');
+    });
+
+    it('picks a different sheet for a form with different feet', () => {
+        const href = (features: string[]) =>
+            drawSprite({
+                features,
+                items: [{ type: 'shoes', variant: null }],
+            })
+                .querySelector('.blob-item-sheet image')
+                ?.getAttribute('href');
+
+        expect(href(['blob', 'legs'])).toBeTruthy();
+        expect(href(['blob', 'legs'])).not.toBe(href(['blob', 'legs', 'arms']));
+    });
+
+    /**
+     * The one the transform tests could not catch, and a render did.
+     *
+     * The enclosing group is already translated to the cell's top-left, so the
+     * cell draws at 0,0 exactly as the body's own `.blob-sprite` does. Shifting
+     * it again by half a cell — which looked right, since that is what every
+     * anchor-relative layer does — put the boots in the bottom-left corner of
+     * the viewBox with the feet left bare, and every assertion still green.
+     */
+    it('draws the cell at the cell origin, not shifted again', () => {
+        const sheet = shoes();
+
+        expect(sheet?.getAttribute('x')).toBe('0');
+        expect(sheet?.getAttribute('y')).toBe('0');
+        expect(sheet?.getAttribute('width')).toBe(String(CELL));
+        expect(sheet?.getAttribute('height')).toBe(String(CELL));
+    });
+
+    /** A sheet keeps the same hard-edged rule the rects do, by this instead. */
+    it('draws the sheet without smoothing it', () => {
+        expect(
+            shoes()?.querySelector('image')?.getAttribute('style') ?? '',
+        ).toContain('pixelated');
+    });
+});
