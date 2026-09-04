@@ -174,4 +174,62 @@ describe('Companion screen', () => {
             );
         });
     });
+
+    describe('asking Blob to use an ability', () => {
+        /**
+         * The rule the row turns on: an ability Blob has not learned is not
+         * drawn at all. Not disabled, not greyed, not a placeholder — a slot
+         * standing empty is a preview of what is coming, and this screen only
+         * ever shows what has happened.
+         */
+        it('draws no button for an ability Blob has not learned', () => {
+            render(<CompanionPage companion={companion({ abilities: [] })} />);
+
+            expect(screen.queryByRole('button', { name: /wave/i })).toBeNull();
+            expect(screen.queryByRole('button', { name: /jump/i })).toBeNull();
+        });
+
+        it('draws one once the ladder has announced it', () => {
+            render(
+                <CompanionPage
+                    companion={companion({ abilities: ['wave'] })}
+                />,
+            );
+
+            expect(
+                screen.getByRole('button', { name: /wave/i }),
+            ).toBeInTheDocument();
+            // Only the one that was earned.
+            expect(screen.queryByRole('button', { name: /jump/i })).toBeNull();
+        });
+
+        it('plays the ability it names, not some other one', () => {
+            const { container } = render(
+                <CompanionPage
+                    companion={companion({ abilities: ['wave'] })}
+                />,
+            );
+
+            fireEvent.click(screen.getByRole('button', { name: /wave/i }));
+
+            expect(
+                container
+                    .querySelector('.blob-anim')
+                    ?.getAttribute('data-animation'),
+            ).toBe('wave');
+        });
+
+        /** Earning an ability adds a button; it never takes one away. */
+        it('keeps the two ungated ones alongside it', () => {
+            render(
+                <CompanionPage
+                    companion={companion({ abilities: ['wave', 'jump'] })}
+                />,
+            );
+
+            for (const name of [/pet/i, /play/i, /wave/i, /jump/i]) {
+                expect(screen.getByRole('button', { name })).toBeEnabled();
+            }
+        });
+    });
 });

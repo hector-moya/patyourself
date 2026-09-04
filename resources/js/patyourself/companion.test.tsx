@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { __resetSpriteClock } from '@/hooks/use-sprite-clock';
 import {
     Companion,
+    actionsFor,
     ambientFor,
     arrivingItem,
     describe as label,
@@ -304,5 +305,52 @@ describe('selfStartedFor', () => {
         expect(selfStartedFor(companion({ abilities: ['walk'] }))).toEqual([
             'blink',
         ]);
+    });
+});
+
+describe('actionsFor', () => {
+    const names = (data: Parameters<typeof actionsFor>[0]) =>
+        actionsFor(data).map((action) => action.animation);
+
+    it('always offers the two things done to Blob rather than by it', () => {
+        expect(names(companion({ abilities: [] }))).toEqual(['pet', 'play']);
+    });
+
+    it('offers an ability once Blob has learned it', () => {
+        expect(names(companion({ abilities: ['wave'] }))).toContain('wave');
+        expect(names(companion({ abilities: ['jump'] }))).toContain('jump');
+    });
+
+    /**
+     * The rule the whole row turns on. An ability Blob has not learned is
+     * absent, not disabled — a greyed button is an empty slot, and an empty
+     * slot is a to-do list.
+     */
+    it('never offers an ability Blob has not learned', () => {
+        expect(names(companion({ abilities: [] }))).not.toContain('wave');
+        expect(names(companion({ abilities: ['wave'] }))).not.toContain('jump');
+    });
+
+    it('ignores an ability with nothing to press', () => {
+        // `carry` is a prop, not a pose: it draws, but it never plays.
+        expect(names(companion({ abilities: ['carry'] }))).toEqual([
+            'pet',
+            'play',
+        ]);
+    });
+
+    it('ignores `walk`, which is the ambient rather than a one-shot', () => {
+        expect(names(companion({ abilities: ['walk'] }))).toEqual([
+            'pet',
+            'play',
+        ]);
+    });
+
+    it('gives every action a label to put on its button', () => {
+        for (const action of actionsFor(
+            companion({ abilities: ['wave', 'jump'] }),
+        )) {
+            expect(action.label).toMatch(/^[A-Z][a-z]+$/);
+        }
     });
 });

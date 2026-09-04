@@ -46,6 +46,7 @@ class CompanionVocabularyTest extends TestCase
             $root.'/resources/js/patyourself/companion-room.tsx',
             $root.'/resources/js/patyourself/scenes.ts',
             $root.'/resources/js/patyourself/scenes/README.md',
+            $root.'/resources/js/patyourself/ui/README.md',
             $root.'/resources/js/pages/companion.tsx',
         ];
     }

@@ -1,13 +1,16 @@
 import { useSpriteClock } from '@/hooks/use-sprite-clock';
 import CoachLayout from '@/layouts/coach-layout';
 import { BottomNav } from '@/patyourself/bottom-nav';
-import { ambientFor, selfStartedFor } from '@/patyourself/companion';
+import {
+    actionsFor,
+    ambientFor,
+    selfStartedFor,
+} from '@/patyourself/companion';
 import type {
     CompanionData,
     CompanionUnlockData,
 } from '@/patyourself/companion';
 import { CompanionRoom } from '@/patyourself/companion-room';
-import { Button } from '@/patyourself/primitives';
 import { SectionHeading } from '@/patyourself/strategy-timeline';
 
 interface CompanionPageProps {
@@ -72,12 +75,13 @@ export default function CompanionPage({
                 {showRoomCluster && (
                     <div className="flex flex-col items-center gap-4">
                         {!nothingYet && (
-                            <CompanionRoom
-                                companion={companion}
-                                animation={animation}
-                                frame={frame}
-                                className="w-full max-w-md rounded-xl border border-border"
-                            />
+                            <div className="pixel-frame w-full max-w-md">
+                                <CompanionRoom
+                                    companion={companion}
+                                    animation={animation}
+                                    frame={frame}
+                                />
+                            </div>
                         )}
 
                         {remark !== null && (
@@ -89,26 +93,29 @@ export default function CompanionPage({
                             </p>
                         )}
 
-                        {/* Always enabled. Nothing makes them wait, nothing
-                            limits them by the day, and nothing counts them:
-                            these are not progress, they touch nothing the
-                            resolver reads, and Blob never asks to be pressed. */}
+                        {/* Never disabled, never on a timer, never counted:
+                            pressing one is not progress, none of them touch
+                            anything the resolver reads, and Blob never asks to
+                            be pressed.
+
+                            Which ones are here is a different question from
+                            whether they work, and it is `actionsFor`'s — the
+                            two done to Blob are always present, and one that
+                            asks Blob to use an ability appears only once the
+                            ladder has announced it, absent until then rather
+                            than greyed. */}
                         {!nothingYet && (
-                            <div className="flex gap-2">
-                                <Button
-                                    variant="secondary"
-                                    size="sm"
-                                    onClick={() => react('pet')}
-                                >
-                                    Pet
-                                </Button>
-                                <Button
-                                    variant="secondary"
-                                    size="sm"
-                                    onClick={() => react('play')}
-                                >
-                                    Play
-                                </Button>
+                            <div className="flex flex-wrap justify-center gap-2">
+                                {actionsFor(companion).map((action) => (
+                                    <button
+                                        key={action.animation}
+                                        type="button"
+                                        className="pixel-button"
+                                        onClick={() => react(action.animation)}
+                                    >
+                                        {action.label}
+                                    </button>
+                                ))}
                             </div>
                         )}
                     </div>

@@ -100,6 +100,42 @@ export function selfStartedFor(companion: CompanionData): AnimationName[] {
     return ['blink', ...earned];
 }
 
+/** One button in the row under the scene: an animation and the word on it. */
+export interface CompanionAction {
+    animation: AnimationName;
+    label: string;
+}
+
+/**
+ * What can be asked of Blob, and when.
+ *
+ * Two kinds, and the difference is who is acting. `pet` and `play` are things
+ * done *to* Blob and have always been there, so they need nothing earned.
+ * Everything else asks Blob to use an ability it had to learn, and appears
+ * only once the ladder has announced it.
+ *
+ * An ability Blob has not learned is ABSENT rather than disabled. A greyed
+ * button is an empty slot, an empty slot is a preview of what is coming, and
+ * this screen only ever shows what has happened.
+ *
+ * `walk` is deliberately not here: it is the ambient rather than a one-shot
+ * (see `ambientFor`), and a button that starts an endless loop has nothing to
+ * hand back to.
+ */
+const ACTIONS: readonly (CompanionAction & { earned: boolean })[] = [
+    { animation: 'pet', label: 'Pet', earned: false },
+    { animation: 'play', label: 'Play', earned: false },
+    { animation: 'wave', label: 'Wave', earned: true },
+    { animation: 'jump', label: 'Jump', earned: true },
+];
+
+export function actionsFor(companion: CompanionData): CompanionAction[] {
+    return ACTIONS.filter(
+        (action) =>
+            !action.earned || companion.abilities.includes(action.animation),
+    ).map(({ animation, label }) => ({ animation, label }));
+}
+
 /**
  * Renders nothing until Blob exists. Before the first outcome there is no
  * placeholder, no outline and no "unlocks soon" — an empty slot is a to-do, and

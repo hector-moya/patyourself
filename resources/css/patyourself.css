@@ -586,3 +586,64 @@
 /* walk used to run from its own keyframes here. It is frame-driven now, like
    everything else Blob does — see legTransform() in blob-renderer.tsx. Two
    motion systems on one transform is one too many. */
+
+/* ============================================================
+   Pixel chrome — the Blob card, and nothing else
+   ------------------------------------------------------------
+   Blob's card is the one place in this app that is a world rather
+   than a notebook, so the pixel art stops at its edges. The record
+   below it, the bottom nav and every other screen are untouched.
+
+   The frame is one generated panel used as a nine-slice. Its corners
+   carry ornaments, so the slice is measured per side from where the
+   art's own hollow middle begins — 27/24/22/25, read off the PNG
+   rather than guessed — and `round` repeats the rails rather than
+   stretching them, which is what stops the wood grain smearing as
+   the card changes width.
+
+   `line-height:0` because the frame wraps an svg: without it the
+   inline formatting context leaves a strip of descender space under
+   the scene and the bottom rail sits away from the art.
+   ============================================================ */
+.pixel-frame{
+  border-style:solid;
+  border-width:27px 24px 22px 25px;
+  border-image-source:url('../js/patyourself/ui/panel.png');
+  border-image-slice:27 24 22 25;
+  border-image-repeat:round;
+  image-rendering:pixelated;
+  line-height:0;
+}
+
+/* The buttons under the scene.
+   The plaque's own outline and bevel measure 10px, so that is the slice;
+   `fill` keeps the wood face rather than discarding it, which is the whole
+   difference between a frame and a button. The label stays real DOM text on
+   top, so it can be read by a screen reader, translated, and resized by the
+   reader's own settings — none of which a word baked into the art can do. */
+.pixel-button{
+  border-style:solid;
+  border-width:10px;
+  border-image-source:url('../js/patyourself/ui/button.png');
+  border-image-slice:10 fill;
+  border-image-repeat:round;
+  image-rendering:pixelated;
+  /* 44px is the smallest comfortable touch target, and this row is pressed on
+     a phone. The 10px slice eats into it from both sides, so it is set rather
+     than left to whatever the label's line box happens to produce. */
+  box-sizing:border-box;
+  min-height:44px;
+  padding:2px 12px;
+  min-width:76px;
+  color:#F3E3C8;
+  font-weight:700;
+  font-size:0.8125rem;
+  letter-spacing:0.04em;
+  text-shadow:0 1px 0 rgb(0 0 0 / 0.55);
+  cursor:pointer;
+}
+
+/* Pressed reads as pressed. No transition: this row sits under a sprite
+   renderer, and easing next to frame-swapped pixel art reads as lag. */
+.pixel-button:active{filter:brightness(0.88) saturate(1.05);}
+.pixel-button:focus-visible{outline:2px solid #F3E3C8;outline-offset:2px;}
