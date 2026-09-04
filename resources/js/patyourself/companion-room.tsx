@@ -357,6 +357,26 @@ export function CompanionRoom({
                 abilities={companion.abilities}
                 arriving={arrivingItem(companion)}
             />
+
+            {/* The part of day, laid over everything already drawn — the
+                backdrop, whatever stands in front of it, and Blob. Blob is
+                inside it rather than exempt from it because a creature lit
+                differently from the world it is standing in reads as pasted
+                on. Which parts need a wash is config's to say, not this
+                file's: a part that carries no `dim` gets no rect, so midday
+                tints nothing. */}
+            {palette.dim ? (
+                <rect
+                    className="scene-light"
+                    x={ROOM.x}
+                    y={ROOM.y}
+                    width={ROOM.w}
+                    height={ROOM.h}
+                    fill={palette.light}
+                    opacity={palette.dim}
+                    style={{ mixBlendMode: 'multiply' }}
+                />
+            ) : null}
         </svg>
     );
 }

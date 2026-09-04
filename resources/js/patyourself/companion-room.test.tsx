@@ -6,6 +6,45 @@ import { companion } from './companion.fixture';
 
 const ROOM = companion().room;
 
+/**
+ * A whole day, in the same shape as `config('companion.room')`, for the tests
+ * that need four parts to tell apart.
+ *
+ * Passed explicitly rather than folded into the shared fixture: that default
+ * has only three parts, and the `partOfDay` tests below depend on hour 6
+ * wrapping to `night` because no `sunrise` entry exists to claim it.
+ */
+const FULL_DAY = {
+    sunrise: {
+        from: 5,
+        wall: '#F2E0D0',
+        window: '#F0B98A',
+        light: '#F4A15C',
+        dim: 0.18,
+    },
+    day: {
+        from: 8,
+        wall: '#EFE6D6',
+        window: '#B9D5E4',
+        light: '#FFFFFF',
+        dim: 0,
+    },
+    dusk: {
+        from: 18,
+        wall: '#E7D2BE',
+        window: '#E9A468',
+        light: '#E2762F',
+        dim: 0.22,
+    },
+    night: {
+        from: 21,
+        wall: '#2F3A40',
+        window: '#1A2530',
+        light: '#2B3F6B',
+        dim: 0.42,
+    },
+};
+
 function room(overrides = {}, hour = 12) {
     return render(
         <CompanionRoom
@@ -140,48 +179,11 @@ describe('scenes', () => {
      * green at night. This walks the whole day and checks both that a
      * backdrop actually loads at each part and that no two parts show the
      * same art.
-     *
-     * A full four-part day is passed explicitly, in the same shape as
-     * `config('companion.room')`, rather than relying on the shared
-     * fixture's default `room` — that default only has three parts (see the
-     * `partOfDay` tests above, which depend on hour 6 wrapping to `night`
-     * without a `sunrise` entry) and changing it here would break those.
      */
     it('draws a distinct backdrop for every part of the day, not just noon', () => {
-        const fullDay = {
-            sunrise: {
-                from: 5,
-                wall: '#F2E0D0',
-                window: '#F0B98A',
-                light: '#F4A15C',
-                dim: 0.18,
-            },
-            day: {
-                from: 8,
-                wall: '#EFE6D6',
-                window: '#B9D5E4',
-                light: '#FFFFFF',
-                dim: 0,
-            },
-            dusk: {
-                from: 18,
-                wall: '#E7D2BE',
-                window: '#E9A468',
-                light: '#E2762F',
-                dim: 0.22,
-            },
-            night: {
-                from: 21,
-                wall: '#2F3A40',
-                window: '#1A2530',
-                light: '#2B3F6B',
-                dim: 0.42,
-            },
-        };
-
         const hrefs = [6, 12, 19, 23].map((hour) => {
             const backdrop = room(
-                { scene: 'forest', room: fullDay },
+                { scene: 'forest', room: FULL_DAY },
                 hour,
             ).querySelector('.scene-backdrop');
 
@@ -191,6 +193,48 @@ describe('scenes', () => {
         });
 
         expect(new Set(hrefs).size).toBe(4);
+    });
+});
+
+describe('scene light', () => {
+    it('washes the whole scene, Blob included, after dark', () => {
+        const container = room({ scene: 'forest' }, 23);
+        const light = container.querySelector('.scene-light') as SVGRectElement;
+        const blob = container.querySelector('.blob-body') as SVGElement;
+
+        expect(light).not.toBeNull();
+        // Drawn last, so it covers Blob rather than sitting behind it.
+        expect(
+            blob.compareDocumentPosition(light) &
+                Node.DOCUMENT_POSITION_FOLLOWING,
+        ).toBeTruthy();
+    });
+
+    it('washes the cabin too, so Blob is lit the same indoors', () => {
+        const container = room(
+            { scene: 'cabin', room_objects: ['bookshelf'] },
+            23,
+        );
+
+        expect(container.querySelector('.scene-light')).not.toBeNull();
+    });
+
+    /**
+     * Midday needs no help. An overlay at noon would tint Blob for nothing.
+     */
+    it('draws no light at midday', () => {
+        expect(
+            room({ scene: 'forest' }, 12).querySelector('.scene-light'),
+        ).toBeNull();
+    });
+
+    it('uses a different light at each part of the day', () => {
+        const fillAt = (hour: number) =>
+            room({ scene: 'forest', room: FULL_DAY }, hour)
+                .querySelector('.scene-light')
+                ?.getAttribute('fill');
+
+        expect(new Set([fillAt(6), fillAt(19), fillAt(23)]).size).toBe(3);
     });
 });
 

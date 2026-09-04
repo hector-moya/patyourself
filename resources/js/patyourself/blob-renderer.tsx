@@ -51,9 +51,15 @@ export const BLOB_VIEWBOX = '-32 -22 64 84';
 
 /**
  * Blob's own colour, as a literal rather than a theme token: Blob looks like
- * itself in light mode and in dark mode, and against a day wall or a night one.
- * Accessories are free to vary; the body is not, because a Blob that changes
- * colour with its surroundings is a different Blob.
+ * itself in light mode and in dark mode. Accessories are free to vary; the body
+ * is not, because a Blob that changes colour with the application chrome around
+ * it is a different Blob.
+ *
+ * The scene it stands in is a separate question, and this value does not settle
+ * it. `CompanionRoom` lays the part of day over the whole scene, Blob included,
+ * so at dusk this green is what the light falls on rather than what reaches the
+ * screen — a creature lit differently from the world around it reads as pasted
+ * on.
  */
 const BODY_COLOUR = '#7A9E7E';
 const INK = '#2A2622';
