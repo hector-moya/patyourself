@@ -52,7 +52,7 @@ class TodaysOccasions
                 $localNow->copy()->endOfDay()->utc(),
             ])
             ->whereHas('action', fn (Builder $query) => $this->restrictToUsersActiveLoops($query, $user))
-            ->with('action.intention:id,title')
+            ->with('action.intention:id,title,workflow')
             ->orderBy('scheduled_for')
             ->get()
             ->map(fn (Occurrence $occurrence): TodaysOccasion => new TodaysOccasion(
@@ -68,7 +68,7 @@ class TodaysOccasions
         $this->restrictToUsersActiveLoops($anchoredQuery, $user);
 
         $anchored = $anchoredQuery
-            ->with('intention:id,title')
+            ->with('intention:id,title,workflow')
             ->orderBy('id')
             ->get()
             ->map(fn (Action $action): TodaysOccasion => new TodaysOccasion(

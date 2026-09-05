@@ -177,6 +177,44 @@ class WorkflowColumnTest extends TestCase
                 ->where('occurrences.0.workflow', null));
     }
 
+    public function test_the_dashboard_payload_carries_the_workflow(): void
+    {
+        $this->travelTo('2026-08-24 12:00:00');
+
+        $user = User::factory()->create(['timezone' => 'UTC']);
+        $loop = $this->loopFor($user, self::SPEC_FAKE);
+        // A clock-scheduled action whose slot already passed today: exactly
+        // one occurrence materialises, and it is the only thing due today.
+        Action::factory()->for($loop, 'intention')->create([
+            'series_started_at' => now()->setTime(9, 0),
+            'recurrence' => null,
+        ]);
+
+        $this->withoutVite()->actingAs($user)->get('/dashboard')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('occasions', 1)
+                ->where('occasions.0.workflow', self::SPEC_FAKE));
+    }
+
+    public function test_the_dashboard_payload_carries_null_for_a_plain_loop(): void
+    {
+        $this->travelTo('2026-08-24 12:00:00');
+
+        $user = User::factory()->create(['timezone' => 'UTC']);
+        $loop = $this->loopFor($user);
+        Action::factory()->for($loop, 'intention')->create([
+            'series_started_at' => now()->setTime(9, 0),
+            'recurrence' => null,
+        ]);
+
+        $this->withoutVite()->actingAs($user)->get('/dashboard')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('occasions', 1)
+                ->where('occasions.0.workflow', null));
+    }
+
     private function loopFor(User $user, ?string $workflow = null): Intention
     {
         return Intention::factory()->for($user)->withWorkflow($workflow)->create();
