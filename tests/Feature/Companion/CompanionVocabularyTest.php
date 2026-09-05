@@ -28,10 +28,13 @@ class CompanionVocabularyTest extends TestCase
 
         return [
             $root.'/config/companion.php',
+            $root.'/config/workflows.php',
             $root.'/app/Services/Companion/CompanionResolver.php',
             $root.'/app/Services/Companion/CompanionState.php',
             $root.'/app/Services/Companion/CompanionAnnouncement.php',
             $root.'/app/Services/Companion/CompanionRemarks.php',
+            $root.'/app/Services/Workflows/WorkflowRegistry.php',
+            $root.'/app/Services/Workflows/WorkflowDefinition.php',
             $root.'/app/Models/CompanionRemark.php',
             $root.'/app/Actions/WriteBlobRemark.php',
             $root.'/app/Mcp/Tools/WriteBlobRemarkTool.php',
@@ -47,6 +50,8 @@ class CompanionVocabularyTest extends TestCase
             $root.'/resources/js/patyourself/scenes.ts',
             $root.'/resources/js/patyourself/scenes/README.md',
             $root.'/resources/js/patyourself/ui/README.md',
+            $root.'/resources/js/patyourself/workflows.ts',
+            $root.'/resources/js/patyourself/workflow-record.tsx',
             $root.'/resources/js/pages/companion.tsx',
         ];
     }
