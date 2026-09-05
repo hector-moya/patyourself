@@ -127,6 +127,37 @@ describe('WorkflowRecord', () => {
 
             expect(container).toBeEmptyDOMElement();
         });
+
+        /**
+         * The boundary is a class instance React can reuse across re-renders at
+         * the same tree position. Without a key tied to `workflow`, a throw
+         * caught once latches that instance forever: a later re-render at the
+         * same position with a different, working workflow would still show
+         * nothing, indistinguishable from the deliberate "plain loop" fallback.
+         * Re-rendering the same element with a new `workflow` prop is what a
+         * caller reusing this component across occasions actually does.
+         */
+        it('recovers when a later render at the same position names a different, working workflow', () => {
+            const { rerender } = render(
+                <WorkflowRecord
+                    workflow="broken"
+                    occurrenceId={7}
+                    actionId={3}
+                    registry={FAKE}
+                />,
+            );
+
+            rerender(
+                <WorkflowRecord
+                    workflow="spec-fake"
+                    occurrenceId={7}
+                    actionId={3}
+                    registry={FAKE}
+                />,
+            );
+
+            expect(screen.getByTestId('surface')).toHaveTextContent('7/3');
+        });
     });
 
     it('leaves a normally-rendering surface unaffected by the boundary wrapped around it', () => {
