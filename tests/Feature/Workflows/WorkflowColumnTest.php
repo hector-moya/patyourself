@@ -215,6 +215,29 @@ class WorkflowColumnTest extends TestCase
                 ->where('occasions.0.workflow', null));
     }
 
+    /**
+     * The cue-anchored branch of TodaysOccasions is a separate query from the
+     * scheduled one above, with its own eager load. A clock-scheduled action
+     * cannot exercise it: only an action with no series_started_at reaches
+     * TodaysOccasions::for()'s $anchored branch, which is where the dashboard's
+     * workflow column would silently go null again if that eager load were
+     * ever narrowed back to :id,title.
+     */
+    public function test_the_dashboard_payload_carries_the_workflow_for_a_cue_anchored_action(): void
+    {
+        $this->travelTo('2026-08-24 12:00:00');
+
+        $user = User::factory()->create(['timezone' => 'UTC']);
+        $loop = $this->loopFor($user, self::SPEC_FAKE);
+        Action::factory()->for($loop, 'intention')->anchored()->create();
+
+        $this->withoutVite()->actingAs($user)->get('/dashboard')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('occasions', 1)
+                ->where('occasions.0.workflow', self::SPEC_FAKE));
+    }
+
     private function loopFor(User $user, ?string $workflow = null): Intention
     {
         return Intention::factory()->for($user)->withWorkflow($workflow)->create();
