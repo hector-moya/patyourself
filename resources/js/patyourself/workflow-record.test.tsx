@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { WorkflowRecordProps, WorkflowRegistry } from './workflows';
 import { WorkflowRecord } from './workflow-record';
@@ -12,9 +12,14 @@ function Surface({ occurrenceId, actionId }: WorkflowRecordProps) {
     );
 }
 
+function ThrowingSurface(): never {
+    throw new Error('a broken recording surface');
+}
+
 const FAKE: WorkflowRegistry = {
     'spec-fake': { name: 'spec-fake', label: 'Spec fake', record: Surface },
     bare: { name: 'bare', label: 'Bare', record: null },
+    broken: { name: 'broken', label: 'Broken', record: ThrowingSurface },
 };
 
 describe('WorkflowRecord', () => {
@@ -94,5 +99,46 @@ describe('WorkflowRecord', () => {
         );
 
         expect(screen.getByTestId('surface')).toHaveTextContent('null/3');
+    });
+
+    describe('when the registered surface throws', () => {
+        let consoleError: ReturnType<typeof vi.spyOn>;
+
+        beforeEach(() => {
+            // React logs a caught render error to console.error even though the
+            // boundary handles it. Silenced here only, so this is the one test
+            // whose output is expected to be noisy rather than pristine.
+            consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+        });
+
+        afterEach(() => {
+            consoleError.mockRestore();
+        });
+
+        it('degrades to nothing rather than propagating past this component', () => {
+            const { container } = render(
+                <WorkflowRecord
+                    workflow="broken"
+                    occurrenceId={7}
+                    actionId={3}
+                    registry={FAKE}
+                />,
+            );
+
+            expect(container).toBeEmptyDOMElement();
+        });
+    });
+
+    it('leaves a normally-rendering surface unaffected by the boundary wrapped around it', () => {
+        render(
+            <WorkflowRecord
+                workflow="spec-fake"
+                occurrenceId={7}
+                actionId={3}
+                registry={FAKE}
+            />,
+        );
+
+        expect(screen.getByTestId('surface')).toHaveTextContent('7/3');
     });
 });
