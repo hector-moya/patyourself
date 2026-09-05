@@ -190,6 +190,17 @@ rather than discovered when running is built.
 - A workflow whose config is absent records fine — config is optional at both points.
 - Deleting a workflow's config leaves its records intact. Nothing in this app rewrites history.
 - An imported record with no matching occurrence creates one, rather than being dropped.
+- **Open question, must settle before gym is built.** The rule above answers this for an
+  *imported* record. It has no answer yet for an *entered* one, and gym is plausibly
+  cue-anchored ("after work"), so it hits the gap on day one: a record keys to an
+  `Occurrence`, a cue-anchored action has none until the verdict creates one, and a
+  recording surface handed `occurrenceId: null` has nowhere to write — nor can it write
+  *before* the verdict, which is the whole premise of "recording does not log." Two
+  candidate answers, neither chosen here: **(a)** the seam materialises an occurrence on
+  demand when recording begins, mirroring the import rule above, or **(b)** workflows are
+  documented as scheduled-only, so a cue-anchored loop simply carries no workflow. Either
+  way, materialising-on-record must not create an `ActionLog` — the one-occasion-one-log
+  invariant holds under both answers, so it is not what decides between them.
 
 ## Testing
 
