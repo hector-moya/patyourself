@@ -59,7 +59,9 @@ class PlainLoopIsUnchangedTest extends TestCase
         $this->assertSame(1, app(CompanionResolver::class)->forUser($user)->logCount);
 
         // The column is still what it was. Nothing on the logging path writes
-        // to it, and nothing defaults it.
+        // to it — that a bare INSERT default would not survive this fixture's
+        // explicit `withWorkflow(null)` is a separate claim, pinned instead by
+        // WorkflowColumnTest::test_a_loop_created_without_a_workflow_stores_null.
         $this->assertDatabaseHas('intentions', ['id' => $loop->id, 'workflow' => null]);
     }
 
@@ -100,6 +102,14 @@ class PlainLoopIsUnchangedTest extends TestCase
         $this->actingAs($user)
             ->post('/loops/'.$loop->id.'/experiments', $this->experimentPayload())
             ->assertSessionHasNoErrors();
+
+        // The revision actually happened — no session errors is not enough on
+        // its own, since a deleted StartExperiment call would leave the
+        // response looking identical. Mirrors StartExperimentWebTest's own
+        // proof that a POST here moved the strategy forward.
+        $loop->refresh();
+        $this->assertSame(2, $loop->activeStrategy->version);
+        $this->assertSame(Strategy::POINT_CRAVING, $loop->activeStrategy->intervention_point);
 
         // The plan changed; the routing did not.
         $this->assertSame(self::SPEC_FAKE, $loop->fresh()->workflow);
