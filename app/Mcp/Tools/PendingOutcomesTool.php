@@ -51,7 +51,7 @@ class PendingOutcomesTool extends Tool
 
         $occurrences = Occurrence::query()
             ->unlogged()
-            ->with('action.intention:id,title')
+            ->with('action.intention:id,title,workflow')
             ->where('scheduled_for', '<=', Date::now())
             ->where('scheduled_for', '>=', $since)
             ->whereHas('action.intention', fn (Builder $query) => $query
