@@ -258,14 +258,27 @@ describe('Dashboard', () => {
     });
 
     /**
-     * An explicit workflow name the registry does not know still leaves the
-     * verdict controls behind — the same fallback the registry itself proves.
-     * Relying on the helper's `null` default here would assert nothing about
-     * that fallback.
+     * The dashboard passes no `registry` prop, so this exercises the fallback
+     * against the real shipped WORKFLOWS object rather than a test double.
+     * `'constructor'` is the prototype-chain trap: a plain `registry[name]`
+     * lookup (instead of `Object.hasOwn`) resolves it to `Object`'s own
+     * constructor rather than `undefined`, which is truthy and would slip
+     * past a `??` fallback — an ordinary absent key like `'gimnasio'` cannot
+     * tell that mutation apart from the correct behaviour.
+     *
+     * Two independent guards now stand between that mutation and a blank
+     * screen: `workflowFor`'s own fallback (pinned on its own, against this
+     * same shipped registry, in workflows.test.ts) and the error boundary
+     * `WorkflowRecord` wraps its surface in. Reverting either guard alone
+     * still leaves this test green; only reverting both at once turns it red,
+     * because reverting the registry guard alone hands the boundary nothing
+     * to catch, and removing the boundary alone leaves a registry that never
+     * mis-resolves in the first place. That is the point of layering them —
+     * this test is the outermost proof that the pair holds together.
      */
-    it('renders the plain verdict controls for a loop whose workflow is unknown', () => {
+    it('renders the plain verdict controls for a loop whose workflow is an inherited property name', () => {
         renderDashboard({
-            occasions: [occasion({ workflow: 'gimnasio' })],
+            occasions: [occasion({ workflow: 'constructor' })],
         });
 
         expect(screen.getByLabelText('Did it')).toBeInTheDocument();
