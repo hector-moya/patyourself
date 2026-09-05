@@ -35,6 +35,7 @@ final readonly class UpdateIntention
             'description',
             'type',
             'status',
+            'workflow',
             ...self::CHAIN_FIELDS,
         ]));
 

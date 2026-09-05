@@ -26,6 +26,10 @@ class IntentionResource extends JsonResource
             'description' => $this->description,
             'type' => $this->type,
             'status' => $this->status,
+            // Which recording surface this loop uses, or null for the plain
+            // screen. Always present, because the client registry has to be
+            // able to route on it rather than infer from an absent key.
+            'workflow' => $this->workflow,
             'cue' => $this->cue,
             'craving' => $this->craving,
             'response' => $this->response,

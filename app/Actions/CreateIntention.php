@@ -26,6 +26,7 @@ final readonly class CreateIntention
             'craving' => $data['craving'],
             'response' => $data['response'],
             'reward' => $data['reward'],
+            'workflow' => $data['workflow'] ?? null,
             'metadata' => ['authored_by' => 'user'],
         ]);
     }

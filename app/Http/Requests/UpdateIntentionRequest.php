@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Models\Intention;
+use App\Services\Workflows\WorkflowRegistry;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -31,6 +32,10 @@ class UpdateIntentionRequest extends FormRequest
             'craving' => ['sometimes', 'required', 'string', 'max:2000'],
             'response' => ['sometimes', 'required', 'string', 'max:2000'],
             'reward' => ['sometimes', 'required', 'string', 'max:2000'],
+            // Chosen from the registry, never typed. A tag was the earlier
+            // answer and it fails silently on `Gym`, `gimnasio` or a trailing
+            // space, with nothing on screen to say why.
+            'workflow' => ['sometimes', 'nullable', 'string', Rule::in(app(WorkflowRegistry::class)->names())],
         ];
     }
 }
