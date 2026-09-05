@@ -30,10 +30,14 @@ class WorkflowRegistryTest extends TestCase
 
     public function test_the_shipped_registry_is_empty(): void
     {
-        // Nothing is plugged in yet, and a registry that quietly grew an entry
-        // would make every fallback assertion below stop meaning anything.
-        $this->assertSame([], config('workflows.registry.gym', []));
-        $this->assertNull((new WorkflowRegistry)->for('gym'));
+        // Nothing is plugged in yet. Asserted by subtracting only the fake
+        // this test registered and requiring the remainder to be empty —
+        // checking a single absent name instead would stay green for any
+        // entry that happened to be spelled differently.
+        $shipped = config('workflows.registry', []);
+        unset($shipped[self::SPEC_FAKE]);
+
+        $this->assertSame([], $shipped);
     }
 
     public function test_a_registered_name_resolves_to_what_it_attaches(): void
