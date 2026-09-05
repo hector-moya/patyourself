@@ -70,16 +70,18 @@ class WorkflowColumnTest extends TestCase
     public function test_a_workflow_the_registry_does_not_know_is_rejected(): void
     {
         $user = User::factory()->create();
-        $loop = $this->loopFor($user);
+        $loop = $this->loopFor($user, self::SPEC_FAKE);
 
         $this->actingAs($user)->patch('/loops/'.$loop->id, [
             'workflow' => 'gimnasio',
         ])->assertSessionHasErrors('workflow');
 
-        // The rejection has to leave the column alone, not blank it.
+        // The rejection has to leave the column alone, not blank it — started
+        // from a known value so this proves preservation rather than a null
+        // that a no-op would have left untouched either way.
         $this->assertDatabaseHas('intentions', [
             'id' => $loop->id,
-            'workflow' => null,
+            'workflow' => self::SPEC_FAKE,
         ]);
     }
 
@@ -96,6 +98,32 @@ class WorkflowColumnTest extends TestCase
             'id' => $loop->id,
             'workflow' => null,
         ]);
+    }
+
+    public function test_a_registered_workflow_is_accepted_on_creation(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)->post('/loops', $this->creationPayload([
+            'workflow' => self::SPEC_FAKE,
+        ]))->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('intentions', [
+            'user_id' => $user->id,
+            'workflow' => self::SPEC_FAKE,
+        ]);
+    }
+
+    public function test_a_workflow_the_registry_does_not_know_is_rejected_on_creation(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)->post('/loops', $this->creationPayload([
+            'workflow' => 'gimnasio',
+        ]))->assertSessionHasErrors('workflow');
+
+        // The rejection has to block the whole creation, not just the field.
+        $this->assertDatabaseCount('intentions', 0);
     }
 
     public function test_the_loop_payload_carries_the_workflow(): void
@@ -123,5 +151,25 @@ class WorkflowColumnTest extends TestCase
     private function loopFor(User $user, ?string $workflow = null): Intention
     {
         return Intention::factory()->for($user)->withWorkflow($workflow)->create();
+    }
+
+    /**
+     * The manual-creation payload shape, matching
+     * `IntentionWebCrudTest::payload()` so the two tests don't drift.
+     *
+     * @param  array<string, mixed>  $overrides
+     * @return array<string, mixed>
+     */
+    private function creationPayload(array $overrides = []): array
+    {
+        return array_merge([
+            'title' => 'Morning pages',
+            'description' => 'Write three pages by hand after coffee.',
+            'type' => Intention::TYPE_BUILD,
+            'cue' => 'Coffee finishes brewing',
+            'craving' => 'A clear head before the day starts',
+            'response' => 'Write three longhand pages',
+            'reward' => 'Feeling unblocked and calm',
+        ], $overrides);
     }
 }
