@@ -34,7 +34,10 @@ class PlainLoopIsUnchangedTest extends TestCase
         parent::setUp();
 
         $this->withoutVite();
-        $this->registerSpecFakeWorkflow();
+        // Only the registry entry: nothing in this test writes a config or
+        // record row, it just needs `self::SPEC_FAKE` to be a name the
+        // registry accepts.
+        $this->registerSpecFakeWorkflowConfig();
     }
 
     public function test_a_plain_loop_falls_due_catches_up_and_logs_as_it_always_has(): void

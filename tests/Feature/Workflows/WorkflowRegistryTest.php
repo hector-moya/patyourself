@@ -3,7 +3,6 @@
 namespace Tests\Feature\Workflows;
 
 use App\Services\Workflows\WorkflowRegistry;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Fixtures\Workflows\RegistersSpecFakeWorkflow;
 use Tests\Fixtures\Workflows\SpecFakeConfig;
 use Tests\Fixtures\Workflows\SpecFakeRecord;
@@ -12,10 +11,12 @@ use Tests\TestCase;
 /**
  * Naming a workflow the registry does not know must never break anything, and
  * the two ways a lookup can accidentally succeed are both closed here.
+ *
+ * No test here writes a config or record row — only the registry entry itself
+ * is under test — so this needs no database, and carries none.
  */
 class WorkflowRegistryTest extends TestCase
 {
-    use RefreshDatabase;
     use RegistersSpecFakeWorkflow;
 
     private WorkflowRegistry $registry;
@@ -24,7 +25,7 @@ class WorkflowRegistryTest extends TestCase
     {
         parent::setUp();
 
-        $this->registerSpecFakeWorkflow();
+        $this->registerSpecFakeWorkflowConfig();
         $this->registry = new WorkflowRegistry;
     }
 

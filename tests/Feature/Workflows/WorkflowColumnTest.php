@@ -24,7 +24,7 @@ class WorkflowColumnTest extends TestCase
     {
         parent::setUp();
 
-        $this->registerSpecFakeWorkflow();
+        $this->registerSpecFakeWorkflowConfig();
     }
 
     public function test_a_loop_created_without_a_workflow_stores_null(): void
