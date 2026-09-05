@@ -43,7 +43,7 @@ class CatchUpController extends Controller
 
         $occurrences = Occurrence::query()
             ->unlogged()
-            ->with('action.intention:id,title')
+            ->with('action.intention:id,title,workflow')
             ->where('scheduled_for', '<=', Date::now())
             ->when($since !== null, fn (Builder $query) => $query->where('scheduled_for', '>=', $since))
             ->whereHas('action.intention', fn (Builder $query) => $query
@@ -58,6 +58,7 @@ class CatchUpController extends Controller
                 'id' => $occurrence->id,
                 'loop_id' => $occurrence->action->intention_id,
                 'loop_title' => $occurrence->action->intention->title,
+                'workflow' => $occurrence->action->intention->workflow,
                 'action_id' => $occurrence->action_id,
                 'action_title' => $occurrence->action->title,
                 'scheduled_for' => $occurrence->scheduled_for->timezone($timezone)->toIso8601String(),

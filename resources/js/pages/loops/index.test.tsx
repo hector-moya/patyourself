@@ -41,6 +41,7 @@ function intention(overrides: Partial<IntentionData> = {}): IntentionData {
         title: 'Evening snacking',
         type: 'break',
         status: 'active',
+        workflow: null,
         cue: 'Walking past the kitchen',
         craving: 'Something to chew on',
         response: 'Open the cupboard',

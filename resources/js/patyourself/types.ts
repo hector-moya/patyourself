@@ -138,6 +138,8 @@ export interface IntentionData {
     description: string | null;
     type: string;
     status: string;
+    /** Which recording surface this loop uses. Null for the plain screen. */
+    workflow: string | null;
     cue: string;
     craving: string;
     response: string;
@@ -186,6 +188,8 @@ export interface PendingOccurrenceData {
     id: number;
     loop_id: number;
     loop_title: string;
+    /** The loop's recording surface. Null for the plain screen. */
+    workflow: string | null;
     action_id: number;
     action_title: string;
     scheduled_for: string;

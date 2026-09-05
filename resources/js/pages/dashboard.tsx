@@ -8,6 +8,7 @@ import type { CompanionData } from '@/patyourself/companion';
 import { Button } from '@/patyourself/primitives';
 import { SectionHeading } from '@/patyourself/strategy-timeline';
 import type { LogOutcome } from '@/patyourself/types';
+import { WorkflowRecord } from '@/patyourself/workflow-record';
 import { show } from '@/routes/loops';
 
 export interface TodaysOccasionData {
@@ -17,6 +18,8 @@ export interface TodaysOccasionData {
     action_id: number;
     loop_id: number;
     loop_title: string;
+    /** The loop's recording surface. Null for the plain screen. */
+    workflow: string | null;
     title: string;
     description: string | null;
     due: 'due_now' | 'upcoming' | 'anchored';
@@ -210,6 +213,12 @@ function OccasionRow({ occasion }: { occasion: TodaysOccasionData }) {
                         : formatTime(occasion.scheduled_for)}
                 </span>
             </div>
+
+            <WorkflowRecord
+                workflow={occasion.workflow}
+                occurrenceId={occasion.occurrence_id}
+                actionId={occasion.action_id}
+            />
 
             <Form
                 action={logEndpoint(occasion)}

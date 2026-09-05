@@ -21,6 +21,7 @@ function occurrence(
         id: 1,
         loop_id: 1,
         loop_title: 'Eating to 80%',
+        workflow: null,
         action_id: 1,
         action_title: 'Dinner',
         scheduled_for: '2026-08-24T19:00:00+00:00',

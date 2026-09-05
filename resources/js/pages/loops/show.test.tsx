@@ -28,6 +28,7 @@ function intention(overrides: Partial<IntentionData> = {}): IntentionData {
         title: 'Read before bed',
         type: 'build',
         status: 'active',
+        workflow: null,
         cue: 'Phone on the charger',
         craving: 'Wind down',
         response: 'Read ten pages',

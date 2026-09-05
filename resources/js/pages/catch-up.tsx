@@ -7,6 +7,7 @@ import { formatOccasionDay } from '@/patyourself/occasion-date';
 import { Button } from '@/patyourself/primitives';
 import { SectionHeading } from '@/patyourself/strategy-timeline';
 import type { LogOutcome, PendingOccurrenceData } from '@/patyourself/types';
+import { WorkflowRecord } from '@/patyourself/workflow-record';
 
 interface CatchUpProps {
     occurrences: PendingOccurrenceData[];
@@ -76,6 +77,12 @@ function CatchUpRow({ occurrence }: { occurrence: PendingOccurrenceData }) {
                     {formatOccasionDay(occurrence.scheduled_for)}
                 </span>
             </div>
+
+            <WorkflowRecord
+                workflow={occurrence.workflow}
+                occurrenceId={occurrence.id}
+                actionId={occurrence.action_id}
+            />
 
             <Form
                 action={`/occurrences/${occurrence.id}/logs`}

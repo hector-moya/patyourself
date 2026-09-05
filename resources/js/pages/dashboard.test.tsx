@@ -22,6 +22,7 @@ function occasion(
         action_id: 7,
         loop_id: 3,
         loop_title: 'Evening snacking',
+        workflow: null,
         title: 'Lunch without bread',
         description: null,
         due: 'due_now',
@@ -254,5 +255,19 @@ describe('Dashboard', () => {
         expect(
             container.querySelector('.blob-anim')?.getAttribute('data-animation'),
         ).toBe('idle');
+    });
+
+    /**
+     * An explicit workflow name the registry does not know still leaves the
+     * verdict controls behind — the same fallback the registry itself proves.
+     * Relying on the helper's `null` default here would assert nothing about
+     * that fallback.
+     */
+    it('renders the plain verdict controls for a loop whose workflow is unknown', () => {
+        renderDashboard({
+            occasions: [occasion({ workflow: 'gimnasio' })],
+        });
+
+        expect(screen.getByLabelText('Did it')).toBeInTheDocument();
     });
 });

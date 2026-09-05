@@ -44,6 +44,10 @@ class NotebookController extends Controller
                     'action_id' => $occasion->action->id,
                     'loop_id' => $occasion->action->intention_id,
                     'loop_title' => $occasion->action->intention->title,
+                    // Which recording surface this loop uses, or null for the
+                    // plain screen. Always sent, so the client routes on a
+                    // value rather than inferring from an absent key.
+                    'workflow' => $occasion->action->intention->workflow,
                     'title' => $occasion->action->title,
                     'description' => $occasion->action->description,
                     'due' => $occasion->due,

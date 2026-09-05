@@ -2,7 +2,9 @@
 
 namespace Tests\Feature\Workflows;
 
+use App\Models\Action;
 use App\Models\Intention;
+use App\Models\Occurrence;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -146,6 +148,33 @@ class WorkflowColumnTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('intention.workflow', null));
+    }
+
+    public function test_the_catch_up_payload_carries_the_workflow(): void
+    {
+        $user = User::factory()->create();
+        $loop = $this->loopFor($user, self::SPEC_FAKE);
+        $action = Action::factory()->for($loop, 'intention')->anchored()->create();
+        $occurrence = Occurrence::factory()->for($action)->unlogged()->create();
+
+        $this->withoutVite()->actingAs($user)->get('/catch-up')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('occurrences.0.id', $occurrence->id)
+                ->where('occurrences.0.workflow', self::SPEC_FAKE));
+    }
+
+    public function test_the_catch_up_payload_carries_null_for_a_plain_loop(): void
+    {
+        $user = User::factory()->create();
+        $loop = $this->loopFor($user);
+        $action = Action::factory()->for($loop, 'intention')->anchored()->create();
+        Occurrence::factory()->for($action)->unlogged()->create();
+
+        $this->withoutVite()->actingAs($user)->get('/catch-up')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('occurrences.0.workflow', null));
     }
 
     private function loopFor(User $user, ?string $workflow = null): Intention
