@@ -97,4 +97,14 @@ class IntentionFactory extends Factory
     {
         return $this->state(['status' => Intention::STATUS_COMPLETED]);
     }
+
+    /**
+     * Which recording surface this loop uses. The default is deliberately
+     * absent from `definition()` — every existing test builds a plain loop, and
+     * that is what pins "nothing was special-cased".
+     */
+    public function withWorkflow(?string $workflow): static
+    {
+        return $this->state(['workflow' => $workflow]);
+    }
 }

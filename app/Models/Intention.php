@@ -24,6 +24,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
     'description',
     'type',
     'status',
+    'workflow',
     'cue',
     'craving',
     'response',
