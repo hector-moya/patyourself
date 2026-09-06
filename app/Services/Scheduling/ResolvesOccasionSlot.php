@@ -38,17 +38,50 @@ final readonly class ResolvesOccasionSlot
     public function liveSlotFor(Action $action): Occurrence
     {
         $now = Date::now();
+
+        return $this->latestUnloggedSlotToday($action, $now) ?? $this->freeSlotAt($action, $now);
+    }
+
+    /**
+     * The occasion a session that is *starting* belongs to: today's, due or not
+     * yet due. Latest first, on the same rule as liveSlotFor().
+     *
+     * The difference is the ceiling, and it is the whole reason this method
+     * exists. A verdict is resolved at the moment it is pressed and logs the slot
+     * it just resolved, so bounding it to slots already due is correct: you do
+     * not log a session you have not had. A recording session resolves at the
+     * start and is logged at the end, and warming up at 18:00 for a 19:00 slot is
+     * ordinary — under liveSlotFor()'s ceiling tonight's slot is invisible, so a
+     * phantom 18:00 occasion gets minted beside it, the sets hang off the
+     * phantom, and the real slot is stranded unlogged on /catch-up.
+     *
+     * Falls through to a slot stamped now on the same terms: a cue-anchored
+     * action has no grid, and a day whose slots are all logged has none left.
+     */
+    public function todaysSlotFor(Action $action): Occurrence
+    {
+        return $this->latestUnloggedSlotToday($action) ?? $this->freeSlotAt($action, Date::now());
+    }
+
+    /**
+     * The action's latest unlogged occasion inside its owner's local day, or
+     * null when the day holds none.
+     *
+     * `$notAfter` narrows that day to the part of it that has already happened.
+     * Absent, the window is the whole local day — the difference between the two
+     * public methods above, and the only difference between them.
+     */
+    private function latestUnloggedSlotToday(Action $action, ?DateTimeInterface $notAfter = null): ?Occurrence
+    {
         $timezone = $action->intention?->user?->timezone ?? (string) config('app.timezone');
         $localNow = Date::now($timezone);
 
-        $slot = $action->occurrences()
+        return $action->occurrences()
             ->unlogged()
-            ->where('scheduled_for', '<=', $now)
             ->where('scheduled_for', '>=', $localNow->copy()->startOfDay()->utc())
+            ->where('scheduled_for', '<=', $notAfter ?? $localNow->copy()->endOfDay()->utc())
             ->orderByDesc('scheduled_for')
             ->first();
-
-        return $slot ?? $this->freeSlotAt($action, $now);
     }
 
     /**

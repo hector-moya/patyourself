@@ -90,6 +90,93 @@ class MaterialisesOccasionTest extends TestCase
         $this->assertSame(1, Occurrence::count());
     }
 
+    public function test_it_returns_todays_slot_before_that_slot_is_due(): void
+    {
+        $this->travelTo('2026-08-26 18:00:00');
+
+        $user = $this->user();
+        $action = $this->scheduledAction($user);
+        $tonight = Occurrence::factory()->for($action)->create([
+            'scheduled_for' => now()->setTime(19, 0),
+        ]);
+
+        $occurrence = app(MaterialisesOccasion::class)->forAction($action);
+
+        // Warming up at 18:00 for a session the grid puts at 19:00. Resolution
+        // for a *verdict* is bounded to slots whose moment has passed — you do
+        // not log a session you have not had — and a materialiser borrowing that
+        // bound cannot see tonight's slot at all, so it mints a phantom 18:00
+        // occasion beside it. Sets then hang off the phantom, and the real
+        // 19:00 slot sits unlogged on /catch-up forever.
+        //
+        // Every other case in this file uses a cue-anchored action, which has no
+        // grid and therefore no slot ahead of the clock to get this wrong about.
+        $this->assertTrue($occurrence->is($tonight));
+        $this->assertSame(1, Occurrence::count());
+    }
+
+    public function test_it_does_not_reach_into_tomorrow_for_a_slot(): void
+    {
+        $this->travelTo('2026-08-26 18:00:00');
+
+        $user = $this->user();
+        $action = $this->scheduledAction($user);
+        $tomorrow = Occurrence::factory()->for($action)->create([
+            'scheduled_for' => now()->addDay()->setTime(19, 0),
+        ]);
+
+        $occurrence = app(MaterialisesOccasion::class)->forAction($action);
+
+        // "Due or not yet due" is bounded by the local day, not by the whole
+        // future. A session started tonight belongs to tonight: filed against
+        // tomorrow's slot it would be dated a day out, and tomorrow's slot would
+        // arrive already answered.
+        $this->assertFalse($occurrence->is($tomorrow));
+        $this->assertSame('2026-08-26 18:00:00', $occurrence->scheduled_for->utc()->toDateTimeString());
+        $this->assertSame(2, Occurrence::count());
+    }
+
+    public function test_the_verdict_lands_on_the_session_only_when_the_caller_names_it(): void
+    {
+        $this->travelTo('2026-08-26 18:00:00');
+
+        $user = $this->user();
+
+        $named = $this->scheduledAction($user);
+        $namedSlot = Occurrence::factory()->for($named)->create([
+            'scheduled_for' => now()->setTime(19, 0),
+        ]);
+
+        $unnamed = $this->scheduledAction($user);
+        Occurrence::factory()->for($unnamed)->create([
+            'scheduled_for' => now()->setTime(19, 0),
+        ]);
+
+        $namedSession = app(MaterialisesOccasion::class)->forAction($named);
+        $unnamedSession = app(MaterialisesOccasion::class)->forAction($unnamed);
+
+        // Both sessions begin on the 19:00 slot, an hour before it is due.
+        $this->assertTrue($namedSession->is($namedSlot));
+
+        // The contract a recording surface must honour: hand the occasion back
+        // to LogAction. Its fourth parameter exists for precisely this.
+        $namedLog = app(LogAction::class)->handle($user, $named, [
+            'outcome' => ActionLog::OUTCOME_COMPLETED,
+        ], $namedSession);
+
+        // Omit it and the verdict resolves itself from scratch — against a slot
+        // that is due, which at 18:00 the 19:00 one is not. This is not a bug in
+        // LogAction; it is why passing the occasion is the contract rather than
+        // a nicety, and it is pinned here so batch 2 finds out from a red test
+        // rather than from a split record.
+        $unnamedLog = app(LogAction::class)->handle($user, $unnamed, [
+            'outcome' => ActionLog::OUTCOME_COMPLETED,
+        ]);
+
+        $this->assertSame($namedSession->id, $namedLog->occurrence_id);
+        $this->assertNotSame($unnamedSession->id, $unnamedLog->occurrence_id);
+    }
+
     public function test_it_creates_one_for_a_cue_anchored_action(): void
     {
         $user = $this->user();

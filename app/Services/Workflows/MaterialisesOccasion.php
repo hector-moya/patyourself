@@ -37,16 +37,32 @@ final readonly class MaterialisesOccasion
     public function __construct(private ResolvesOccasionSlot $slots) {}
 
     /**
-     * Today's live slot for this action, or a new occasion stamped now when the
-     * action has none.
+     * Today's slot for this action — due or still ahead of the clock — or a new
+     * occasion stamped now when today holds none.
      *
-     * Resolved through the collaborator {@see LogAction} uses, not a second
-     * implementation: that is what makes two taps in the same second unable to
-     * mint two occasions, and what guarantees the occasion a set is recorded
-     * against is the one the verdict later lands on.
+     * Resolved through the collaborator the logging flow uses, not a second
+     * implementation: that shared `firstOrCreate` is what makes two taps in the
+     * same second unable to mint two occasions. It is a *sibling* method there,
+     * though, not the same one. Logging resolves and writes in one breath, so it
+     * only ever wants a slot already due; a session resolves at the start and is
+     * logged at the end, and someone warming up at 18:00 for a 19:00 slot must
+     * attach to that slot rather than mint a phantom beside it.
+     *
+     * **What this does not guarantee, and the contract that follows.** The sets
+     * land on the occasion returned here. The verdict lands on the same one only
+     * if the caller passes this occurrence to
+     * `App\Actions\LogAction::handle(User, Action, array, ?Occurrence)` — its
+     * fourth parameter. Left null, the verdict resolves itself afresh at the
+     * moment it is pressed, which is a different question asked at a different
+     * time and may well be a different answer.
+     *
+     * So: **a recording surface must hold the occurrence it opened with and hand
+     * it back to `LogAction` when the verdict is pressed.** That is the contract,
+     * and it is pinned by
+     * `Tests\Feature\Workflows\MaterialisesOccasionTest::test_the_verdict_lands_on_the_session_only_when_the_caller_names_it`.
      */
     public function forAction(Action $action): Occurrence
     {
-        return $this->slots->liveSlotFor($action);
+        return $this->slots->todaysSlotFor($action);
     }
 }

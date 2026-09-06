@@ -206,9 +206,30 @@ rather than discovered when running is built.
 
   Two consequences to handle rather than discover. A session begun and abandoned leaves an
   unlogged occasion, which is indistinguishable from any other occasion nobody got to and
-  correctly ends up on `/catch-up`. And the materialising path must be the one that already
-  exists (`LogAction::freeSlotAt`'s `firstOrCreate` on `action_id` + `scheduled_for`), so
-  tapping twice in the same second cannot mint two.
+  correctly ends up on `/catch-up`. And the materialising path must share the collision guard
+  that already exists (`ResolvesOccasionSlot::freeSlotAt`'s `firstOrCreate` on `action_id` +
+  `scheduled_for`), so tapping twice in the same second cannot mint two.
+
+  It must not share the *resolution* rule, though — corrected 2026-09-07. A verdict resolves
+  and writes in one breath, so it only ever wants a slot already due; a session resolves at
+  the start and is logged at the end, so someone warming up at 18:00 for a 19:00 slot must
+  attach to that slot rather than mint a phantom beside it. `ResolvesOccasionSlot` therefore
+  answers two questions: `liveSlotFor()` (already due — `LogAction`) and `todaysSlotFor()`
+  (the local day, due or not — `MaterialisesOccasion`).
+- **A recording surface must hand its occurrence back to the verdict.** `MaterialisesOccasion`
+  returns the occasion the record hangs on, and the entries land there. The verdict lands on
+  the same one *only* if the surface passes that occurrence to `LogAction::handle()`'s fourth
+  parameter. Left null, `LogAction` resolves afresh at the moment the verdict is pressed — a
+  different question at a different time — and the session splits from its own outcome. The
+  recording screens must hold the occurrence they opened with.
+- **Known duplicate, recorded and deliberately not solved.** `TodaysOccasions` builds its
+  cue-anchored branch from every action with a null `series_started_at`, without asking
+  whether an occurrence now exists. So once a cue-anchored action has been materialised it
+  appears twice on today's list: once through the scheduled branch, as the new unlogged
+  occurrence, and once through the anchored branch. Left alone because `MaterialisesOccasion`
+  has no caller yet and the right answer depends on how the recording screen behaves —
+  changing shared dashboard code ahead of that would be guessing. Settle it when the screen
+  exists.
 
 ## Testing
 
