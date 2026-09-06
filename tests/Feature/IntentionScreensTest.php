@@ -13,6 +13,7 @@ use App\Models\Summary;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
@@ -435,6 +436,98 @@ class IntentionScreensTest extends TestCase
     }
 
     /**
+     * The lab record consumes two read models — `strategies` from
+     * StrategyResource and `experiments` from LoopProgress — and they described
+     * the same instant in two different ISO-8601 encodings: Laravel's default
+     * `...T12:00:00.000000Z` against `toIso8601String()`'s `...T12:00:00+00:00`.
+     *
+     * Asserted as an equality between the two payloads rather than against a
+     * literal format, so this stays true if the house encoding is ever changed
+     * deliberately, and goes red the moment the two drift apart again.
+     */
+    public function test_loop_detail_dates_every_version_in_one_encoding(): void
+    {
+        $user = User::factory()->create();
+        $intention = Intention::factory()->for($user)->create();
+
+        $version = Strategy::factory()->for($intention)->create([
+            'version' => 1,
+            'status' => Strategy::STATUS_ACTIVE,
+            'created_at' => CarbonImmutable::parse('2026-08-01 09:30:00'),
+        ]);
+
+        $response = $this->actingAs($user)->get("/loops/{$intention->id}")->assertOk();
+
+        // Encoded the way the browser receives it. `viewData` hands back the
+        // props before serialization, where a date is still a Carbon and the
+        // two read models look identical — the divergence only appears once
+        // they are turned into JSON, which is the whole defect.
+        $props = json_decode((string) json_encode($response->viewData('page')['props']), true);
+
+        $fromResource = $props['strategies'][0]['created_at'];
+        $fromProgress = $props['experiments'][0]['started_at'];
+
+        $this->assertSame(
+            $fromProgress,
+            $fromResource,
+            'The two read models on this screen encode the same instant differently.'
+        );
+        $this->assertSame($version->created_at->toIso8601String(), $fromResource);
+    }
+
+    /**
+     * `dayOfExperiment()` reads each version's successor to cap a superseded
+     * run, which is one lazy load per rung unless the relation is eager-loaded.
+     *
+     * Asserted as "the same number of queries whichever size the ladder is"
+     * rather than against an absolute count, so it survives an unrelated query
+     * being added to this screen and still goes red the moment the cost starts
+     * scaling with the number of versions.
+     */
+    public function test_the_experiment_ladder_costs_the_same_however_many_versions_it_has(): void
+    {
+        $user = User::factory()->create();
+
+        $this->assertSame(
+            $this->queriesRenderingLoopWith($user, 2),
+            $this->queriesRenderingLoopWith($user, 6),
+            'Rendering the lab record costs more per extra version — a relation is being lazy-loaded per rung.'
+        );
+    }
+
+    /** Queries issued rendering one loop's lab record with `$versions` rungs. */
+    private function queriesRenderingLoopWith(User $user, int $versions): int
+    {
+        $intention = Intention::factory()->for($user)->create();
+
+        $parentId = null;
+
+        for ($version = 1; $version <= $versions; $version++) {
+            $strategy = Strategy::factory()->for($intention)->create([
+                'version' => $version,
+                'status' => $version === $versions ? Strategy::STATUS_ACTIVE : Strategy::STATUS_SUPERSEDED,
+                'parent_strategy_id' => $parentId,
+            ]);
+
+            $parentId = $strategy->id;
+        }
+
+        // The query log rather than DB::listen: a listener registered per call
+        // would still be attached on the next one and double-count it.
+        DB::enableQueryLog();
+        DB::flushQueryLog();
+
+        $this->actingAs($user)->get("/loops/{$intention->id}")->assertOk();
+
+        $count = count(DB::getQueryLog());
+
+        DB::flushQueryLog();
+        DB::disableQueryLog();
+
+        return $count;
+    }
+
+    /**
      * write-reflection records the window and the occasion count from the record
      * rather than from Claude. Dropping them leaves a claim with no provenance.
      */
@@ -597,7 +690,10 @@ class IntentionScreensTest extends TestCase
                 ->where('strategies.0.day_of_experiment', 12)
                 ->where('strategies.0.is_under_review', false)
                 ->where('strategies.0.verdict', null)
-                ->where('strategies.0.review_at', '2026-09-22T12:00:00.000000Z')
+                // Offset form, matching LoopProgress. This pinned Laravel's
+                // default `...000000Z` until the two read models on this screen
+                // were normalised onto one encoding.
+                ->where('strategies.0.review_at', '2026-09-22T12:00:00+00:00')
                 ->where('strategies.0.verdict_note', 'the cue moved but craving still spikes around 3pm'));
     }
 

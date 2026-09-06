@@ -92,4 +92,77 @@ class StrategyTest extends TestCase
         $this->assertSame(12, $strategy->dayOfExperiment());
         $this->assertSame(21, $strategy->plannedDays());
     }
+
+    /**
+     * A version that has been superseded stopped running the moment its
+     * successor began. The experiment ladder renders every version, so without
+     * a cap a version replaced in July reports a day count that is still
+     * climbing today — history that keeps moving, which is the one thing this
+     * notebook says it does not do.
+     */
+    public function test_a_superseded_version_stops_counting_when_its_successor_began(): void
+    {
+        CarbonImmutable::setTestNow('2026-09-13 12:00:00');
+
+        $superseded = Strategy::factory()->create([
+            'status' => Strategy::STATUS_SUPERSEDED,
+            'created_at' => CarbonImmutable::parse('2026-09-01 12:00:00'),
+        ]);
+
+        Strategy::factory()->create([
+            'intention_id' => $superseded->intention_id,
+            'version' => $superseded->version + 1,
+            'parent_strategy_id' => $superseded->id,
+            'created_at' => CarbonImmutable::parse('2026-09-05 12:00:00'),
+        ]);
+
+        // Four days, not the twelve it would report counting to now.
+        $this->assertSame(4, $superseded->fresh()->dayOfExperiment());
+    }
+
+    /**
+     * The version still running keeps counting, verdict or not. Concluding does
+     * not supersede — a strategy concluded as `worked` stays active and keeps
+     * running — so freezing its day count would stop the clock on the
+     * experiment the loop screen is currently showing.
+     */
+    public function test_the_running_version_keeps_counting_even_once_concluded(): void
+    {
+        CarbonImmutable::setTestNow('2026-09-13 12:00:00');
+
+        $running = Strategy::factory()->create([
+            'status' => Strategy::STATUS_ACTIVE,
+            'verdict' => Strategy::VERDICT_WORKED,
+            'created_at' => CarbonImmutable::parse('2026-09-01 12:00:00'),
+        ]);
+
+        $this->assertSame(12, $running->dayOfExperiment());
+    }
+
+    /**
+     * The cap is the successor's own start, so it does not drift. `updated_at`
+     * would have been the cheaper proxy and is the wrong one: any later write
+     * to a superseded row would move it, which is the same defect already
+     * recorded against dating concluded experiments by `updated_at`.
+     */
+    public function test_the_cap_does_not_move_when_the_superseded_row_is_written_again(): void
+    {
+        CarbonImmutable::setTestNow('2026-09-13 12:00:00');
+
+        $superseded = Strategy::factory()->create([
+            'status' => Strategy::STATUS_SUPERSEDED,
+            'created_at' => CarbonImmutable::parse('2026-09-01 12:00:00'),
+        ]);
+
+        Strategy::factory()->create([
+            'intention_id' => $superseded->intention_id,
+            'version' => $superseded->version + 1,
+            'parent_strategy_id' => $superseded->id,
+            'created_at' => CarbonImmutable::parse('2026-09-05 12:00:00'),
+        ]);
+
+        $superseded->update(['superseded_reason' => 'edited long after the fact']);
+
+        $this->assertSame(4, $superseded->fresh()->dayOfExperiment());
+    }
 }

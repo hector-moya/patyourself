@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
  * A versioned intervention on an intention. History is never rewritten in
@@ -129,10 +130,33 @@ class Strategy extends Model
             && $this->review_at->isPast();
     }
 
-    /** Whole days elapsed since this version became active, counting from 0. */
+    /**
+     * Whole days this version ran, counting from 0.
+     *
+     * Counts to now while the version is still the running one, and stops at
+     * the moment its successor began once it has been superseded. The ladder on
+     * the loop record renders every version, so an uncapped count made a
+     * version replaced months ago report a day number that was still climbing —
+     * history that keeps moving, which is the one thing this notebook does not
+     * do.
+     *
+     * The end is taken from the successor's own `created_at` rather than from
+     * this row's `updated_at`. `StartExperiment` supersedes and creates the next
+     * version in one transaction, so the successor's start *is* the moment this
+     * one stopped, and it cannot drift — whereas any later edit to a superseded
+     * row would move `updated_at`. That is the same defect already recorded
+     * against dating concluded experiments, and it is not worth importing here.
+     *
+     * A concluded version is deliberately not capped. Concluding does not
+     * supersede — see {@see ConcludeExperiment} — so a version concluded as
+     * `worked` is still running, and freezing its count would stop the clock on
+     * the experiment the loop screen is currently showing.
+     */
     public function dayOfExperiment(): int
     {
-        return (int) $this->created_at->startOfDay()->diffInDays(now()->startOfDay());
+        $ranUntil = $this->successor?->created_at ?? now();
+
+        return (int) $this->created_at->startOfDay()->diffInDays($ranUntil->startOfDay());
     }
 
     /** The planned run length in whole days, or null when open-ended. */
@@ -219,5 +243,22 @@ class Strategy extends Model
     public function children(): HasMany
     {
         return $this->hasMany(Strategy::class, 'parent_strategy_id');
+    }
+
+    /**
+     * The version that replaced this one, if any.
+     *
+     * Its `created_at` is when this version stopped running: `StartExperiment`
+     * supersedes the current version and creates its successor inside one
+     * transaction. Only ever one in practice — superseding requires an active
+     * version and there is only one of those at a time — but it is ordered by
+     * version so the relation stays single-valued by construction rather than
+     * by assumption.
+     *
+     * @return HasOne<Strategy, $this>
+     */
+    public function successor(): HasOne
+    {
+        return $this->hasOne(Strategy::class, 'parent_strategy_id')->oldestOfMany('version');
     }
 }

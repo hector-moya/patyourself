@@ -147,7 +147,9 @@ final class LoopProgress
      */
     public function experimentsFor(Intention $loop): array
     {
-        $strategies = $loop->strategies()->orderedByVersion()->get();
+        // See IntentionController::show — dayOfExperiment() reads `successor`,
+        // so loading it up front keeps this one query rather than one per version.
+        $strategies = $loop->strategies()->with('successor')->orderedByVersion()->get();
 
         $logsByStrategy = ActionLog::query()
             ->join('actions', 'actions.id', '=', 'action_logs.action_id')

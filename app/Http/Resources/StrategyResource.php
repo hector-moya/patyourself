@@ -31,7 +31,7 @@ class StrategyResource extends JsonResource
             'rationale' => $this->rationale,
             'change_reason' => $this->change_reason,
             'superseded_reason' => $this->superseded_reason,
-            'review_at' => $this->review_at,
+            'review_at' => $this->review_at?->toIso8601String(),
             'verdict' => $this->verdict,
             'verdict_note' => $this->verdict_note,
             'day_of_experiment' => $this->resource->dayOfExperiment(),
@@ -43,8 +43,14 @@ class StrategyResource extends JsonResource
             'outcomes_recorded' => $this->whenCounted('actionLogs', fn (): int => (int) $this->action_logs_count),
             'parent_strategy_id' => $this->parent_strategy_id,
             'metadata' => $this->metadata,
-            'created_at' => $this->created_at,
-            'updated_at' => $this->updated_at,
+            // ISO-8601 with an offset, matching LoopProgress. The lab record
+            // consumes both read models on one screen, and passing a Carbon
+            // through untouched serialises it as Laravel's default
+            // `...T09:30:00.000000Z` — the same instant in a second encoding.
+            // Normalised here deliberately rather than left to whichever read
+            // model the caller happened to reach for.
+            'created_at' => $this->created_at?->toIso8601String(),
+            'updated_at' => $this->updated_at?->toIso8601String(),
         ];
     }
 }

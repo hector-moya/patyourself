@@ -105,7 +105,14 @@ class IntentionController extends Controller
         Gate::authorize('view', $intention);
 
         $intention->load(['activeStrategy', 'activeAction', 'latestSummary', 'actionLogs']);
-        $strategies = $intention->strategies()->withCount('actionLogs')->orderedByVersion()->get();
+        // `successor` is eager-loaded because dayOfExperiment() reads it to cap
+        // a superseded version's run — without this the ladder costs one extra
+        // query per version rendered.
+        $strategies = $intention->strategies()
+            ->with('successor')
+            ->withCount('actionLogs')
+            ->orderedByVersion()
+            ->get();
         $showingAll = $request->query('history') === 'all';
         // Dates are localised here so the day an occasion belongs to is the
         // user's day, not the browser's.
