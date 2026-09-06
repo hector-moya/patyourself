@@ -6,6 +6,7 @@ use App\Models\Exercise;
 use App\Models\User;
 use Database\Seeders\ExerciseCatalogueSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use JsonException;
 use Tests\TestCase;
 
 /**
@@ -136,6 +137,38 @@ class ExerciseCatalogueSeederTest extends TestCase
                 .'If this file was re-fetched from upstream, that count may have legitimately changed — '
                 .'re-verify against database/data/exercises.json before assuming the seeder is broken.'
         );
+    }
+
+    /**
+     * A truncated or half-written catalogue file must stop the deploy, not seed
+     * an empty table and report success.
+     *
+     * Killing mutation: drop `JSON_THROW_ON_ERROR` from the `File::json()` call.
+     * `json_decode` then returns null, `collect(null)` is an empty collection,
+     * the import completes silently, and no exception is thrown.
+     */
+    public function test_a_malformed_catalogue_file_stops_the_import(): void
+    {
+        $broken = tempnam(sys_get_temp_dir(), 'catalogue').'.json';
+        file_put_contents($broken, '[{"id":"3_4_Sit-Up","name":"3/4 Si');
+
+        $seeder = new class($broken) extends ExerciseCatalogueSeeder
+        {
+            public function __construct(private readonly string $file) {}
+
+            protected function catalogueFile(): string
+            {
+                return $this->file;
+            }
+        };
+
+        try {
+            $this->expectException(JsonException::class);
+
+            $seeder->run();
+        } finally {
+            unlink($broken);
+        }
     }
 
     public function test_the_import_carries_instructions_and_no_image(): void

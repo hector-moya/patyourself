@@ -4,10 +4,22 @@ namespace Database\Seeders;
 
 use App\Models\Exercise;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\File;
 
 /**
  * Imports the shared exercise catalogue from `database/data/exercises.json`.
+ *
+ * **Run this explicitly on deploy:**
+ *
+ *     php artisan db:seed --class=ExerciseCatalogueSeeder
+ *
+ * It is not wired into the deploy script and it cannot be reached through
+ * `DatabaseSeeder`, which creates a `Test User` and so must never run in
+ * production. Without this command the `exercises` table is empty and there is
+ * nothing to build a routine from — the gym module has no catalogue of its own
+ * to fall back on. Repeating it is safe by design (see the idempotency note
+ * below), so "run it on every deploy" is a perfectly good rule.
  *
  * The data is a one-time, committed export of the free-exercise-db project
  * (https://github.com/yuhonas/free-exercise-db), licensed under The
@@ -29,12 +41,18 @@ class ExerciseCatalogueSeeder extends Seeder
 {
     /**
      * Run the database seeds.
+     *
+     * `JSON_THROW_ON_ERROR` is the difference between a truncated or malformed
+     * catalogue file stopping the deploy and it seeding nothing at all: without
+     * it `json_decode` returns null, `collect(null)` is an empty collection, and
+     * the import reports success over an empty table.
      */
     public function run(): void
     {
-        $records = File::json(database_path('data/exercises.json'));
+        /** @var list<array<string, mixed>> $records */
+        $records = File::json($this->catalogueFile(), JSON_THROW_ON_ERROR);
 
-        collect($records)->chunk(100)->each(function ($chunk): void {
+        collect($records)->chunk(100)->each(function (Collection $chunk): void {
             $chunk->each(function (array $record): void {
                 Exercise::query()->updateOrCreate(
                     ['external_id' => $record['id']],
@@ -54,5 +72,15 @@ class ExerciseCatalogueSeeder extends Seeder
                 );
             });
         });
+    }
+
+    /**
+     * The committed export this seeder imports. A method rather than an inline
+     * `database_path()` call so a test can point the import at a deliberately
+     * broken file without going anywhere near the real one.
+     */
+    protected function catalogueFile(): string
+    {
+        return database_path('data/exercises.json');
     }
 }
