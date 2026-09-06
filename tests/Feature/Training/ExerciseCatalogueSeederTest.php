@@ -4,6 +4,7 @@ namespace Tests\Feature\Training;
 
 use App\Models\Exercise;
 use App\Models\User;
+use Database\Seeders\ExerciseCatalogueSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -78,5 +79,74 @@ class ExerciseCatalogueSeederTest extends TestCase
             ->exists();
 
         $this->assertFalse($found);
+    }
+
+    public function test_the_seeder_imports_the_whole_catalogue(): void
+    {
+        $this->seed(ExerciseCatalogueSeeder::class);
+
+        $this->assertSame(876, Exercise::query()->whereNull('user_id')->count());
+    }
+
+    /**
+     * Re-running must update, not duplicate — a deploy runs seeders more than
+     * once over a project's life, and `external_id` is what makes that safe.
+     */
+    public function test_the_seeder_is_idempotent(): void
+    {
+        $this->seed(ExerciseCatalogueSeeder::class);
+        $this->seed(ExerciseCatalogueSeeder::class);
+
+        $this->assertSame(876, Exercise::query()->count());
+    }
+
+    public function test_the_seeder_keeps_a_users_own_additions(): void
+    {
+        $mine = Exercise::factory()->for(User::factory())->create(['name' => 'The machine my gym has']);
+
+        $this->seed(ExerciseCatalogueSeeder::class);
+
+        $this->assertDatabaseHas('exercises', ['id' => $mine->id, 'name' => 'The machine my gym has']);
+    }
+
+    /**
+     * These counts (30, 87) are re-counted directly against the committed
+     * `database/data/exercises.json`, not derived from this test. If the
+     * catalogue file is ever re-fetched from upstream, these numbers can
+     * legitimately move — a failure here most likely means the source file
+     * changed, not that the seeder itself is broken.
+     */
+    public function test_nullable_source_fields_survive_the_import(): void
+    {
+        $this->seed(ExerciseCatalogueSeeder::class);
+
+        // 30 of 876 records have a null `force`, 87 a null `mechanic`. Asserted
+        // as counts because a single row could pass by accident.
+        $this->assertSame(
+            30,
+            Exercise::query()->whereNull('force')->count(),
+            'Expected 30 rows with a null `force`, re-counted against the committed exercises.json. '
+                .'If this file was re-fetched from upstream, that count may have legitimately changed — '
+                .'re-verify against database/data/exercises.json before assuming the seeder is broken.'
+        );
+        $this->assertSame(
+            87,
+            Exercise::query()->whereNull('mechanic')->count(),
+            'Expected 87 rows with a null `mechanic`, re-counted against the committed exercises.json. '
+                .'If this file was re-fetched from upstream, that count may have legitimately changed — '
+                .'re-verify against database/data/exercises.json before assuming the seeder is broken.'
+        );
+    }
+
+    public function test_the_import_carries_instructions_and_no_image(): void
+    {
+        $this->seed(ExerciseCatalogueSeeder::class);
+
+        $exercise = Exercise::query()->where('external_id', '3_4_Sit-Up')->firstOrFail();
+
+        $this->assertSame('3/4 Sit-Up', $exercise->name);
+        $this->assertSame(['abdominals'], $exercise->primary_muscles);
+        $this->assertNotEmpty($exercise->instructions);
+        $this->assertNull($exercise->image_path);
     }
 }

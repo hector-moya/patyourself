@@ -15,6 +15,10 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        // The shared exercise catalogue: global and user-independent, so it
+        // runs before any user-scoped data exists.
+        $this->call(ExerciseCatalogueSeeder::class);
+
         $user = User::factory()->create([
             'name' => 'Test User',
             'email' => 'test@example.com',
