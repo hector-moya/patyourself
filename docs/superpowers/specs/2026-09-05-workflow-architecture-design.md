@@ -190,17 +190,25 @@ rather than discovered when running is built.
 - A workflow whose config is absent records fine — config is optional at both points.
 - Deleting a workflow's config leaves its records intact. Nothing in this app rewrites history.
 - An imported record with no matching occurrence creates one, rather than being dropped.
-- **Open question, must settle before gym is built.** The rule above answers this for an
-  *imported* record. It has no answer yet for an *entered* one, and gym is plausibly
-  cue-anchored ("after work"), so it hits the gap on day one: a record keys to an
-  `Occurrence`, a cue-anchored action has none until the verdict creates one, and a
-  recording surface handed `occurrenceId: null` has nowhere to write — nor can it write
-  *before* the verdict, which is the whole premise of "recording does not log." Two
-  candidate answers, neither chosen here: **(a)** the seam materialises an occurrence on
-  demand when recording begins, mirroring the import rule above, or **(b)** workflows are
-  documented as scheduled-only, so a cue-anchored loop simply carries no workflow. Either
-  way, materialising-on-record must not create an `ActionLog` — the one-occasion-one-log
-  invariant holds under both answers, so it is not what decides between them.
+- **An entered record with no occurrence creates one too — settled 2026-09-06.** The rule
+  above answers this for an *imported* record; this is the same answer for an *entered*
+  one, and it is what lets a cue-anchored loop ("train after work") carry a workflow at
+  all. A record keys to an `Occurrence`, and a cue-anchored action has none until a
+  verdict creates one — so **beginning to record materialises the occasion**, exactly as
+  an arriving import does.
+
+  **Materialising must not create an `ActionLog`.** That is the whole point: the occasion
+  now exists to hang sets on, and the verdict is still pressed separately, by a person,
+  afterwards. One occasion, one log, unchanged.
+
+  The alternative — declaring workflows scheduled-only — was rejected as too narrow: it
+  would have meant the most natural way to write a gym loop could not use the gym module.
+
+  Two consequences to handle rather than discover. A session begun and abandoned leaves an
+  unlogged occasion, which is indistinguishable from any other occasion nobody got to and
+  correctly ends up on `/catch-up`. And the materialising path must be the one that already
+  exists (`LogAction::freeSlotAt`'s `firstOrCreate` on `action_id` + `scheduled_for`), so
+  tapping twice in the same second cannot mint two.
 
 ## Testing
 

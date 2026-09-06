@@ -158,6 +158,20 @@ does for a log against an unplanned occasion.
 `workflow` — and that belongs to the architecture rather than to this module: it is added once, by the
 workflow spec, and every later module reuses it rather than adding its own.
 
+### Build order — decided 2026-09-06
+
+Three batches, each merging green on its own, rather than one long run before anything is reviewable.
+
+1. **The spine.** The three tables, the catalogue seeder, the registry entry, and the guards. No UI.
+   This is the first time the architecture's two extension sites carry something real rather than the
+   test-only fake — so if the shape is wrong, it is wrong here, cheaply, before three screens are built
+   on top of it.
+2. **Recording.** The session screen and the exercise screen.
+3. **Progression.** The per-exercise history screen.
+
+The ordering is deliberate: batch 1 is the one that can invalidate the design, so it goes first and
+alone.
+
 ### Notes on the tables
 
 - **`exercises`** has a nullable `user_id`. Rows with `user_id` null are the shared catalogue, visible
@@ -177,13 +191,22 @@ would rate-limit, change its pricing, or simply be unreachable from a basement g
 and this codebase already holds the opposite principle for its art: *sheets live in this repository, so
 a Pixel Lab outage can never affect the running app.*
 
-**Images are fetched on demand, not bulk-imported.** Metadata for 800 exercises is about a megabyte;
-their images are hundreds. A routine uses perhaps twenty. So an image is fetched and stored locally the
-first time an exercise is added to a template, and never fetched again — `exercises.image_path` is null
-until then, and a null image is simply an exercise without a picture, never a broken one.
+**v1 ships no images at all — revised 2026-09-06.** `exercises.image_path` stays null everywhere, and
+the rule below already covers what that looks like: a null image is an exercise without a picture, never
+a broken one. The imported text instructions still arrive.
 
-Committing the full image set was rejected on deploy cost: it would dwarf the codebase, and Forge
+The earlier plan was to fetch each image on demand the first time an exercise joined a template, and
+cache it. That is a **third-party host on the gym screen's path**, which is the same objection this spec
+already makes to a runtime catalogue API two paragraphs above — the argument was applied to the metadata
+and not to the images, which was inconsistent. It is also the exact pattern removed from the landing page
+on 2026-09-06, where Three.js was being fetched from unpkg at runtime.
+
+Committing the full image set stays rejected on deploy cost: it would dwarf the codebase, and Forge
 deploys on this project already fail at `npm ci` with the OOM killer on a marginal box.
+
+So the honest v1 position is no pictures, and a decision deferred until it is known whether they are
+missed. If they are, the bounded answer is committing a curated few dozen common movements — never a
+runtime fetch.
 - **`performed_sets.weight`** is stored in kilograms as a decimal. One unit in the database, converted
   at the edge if pounds are ever wanted. Storing whatever the user typed alongside a unit column is how
   a progression read ends up comparing 60 to 132.
