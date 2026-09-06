@@ -7,12 +7,10 @@ use App\Models\Action;
 use App\Models\ActionLog;
 use App\Models\Occurrence;
 use App\Models\User;
-use Carbon\CarbonImmutable;
-use DateTimeInterface;
+use App\Services\Scheduling\ResolvesOccasionSlot;
 use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
-use RuntimeException;
 
 /**
  * Records the outcome of one occasion — completed, failed, or skipped. A log
@@ -34,6 +32,8 @@ use RuntimeException;
  */
 final readonly class LogAction
 {
+    public function __construct(private ResolvesOccasionSlot $slots) {}
+
     /**
      * @param  array<string, mixed>  $data  Validated outcome / reason / context / metadata.
      * @param  Occurrence|null  $occurrence  The occasion being logged. Null means "the
@@ -44,7 +44,7 @@ final readonly class LogAction
     public function handle(User $user, Action $action, array $data, ?Occurrence $occurrence = null): ActionLog
     {
         return DB::transaction(function () use ($user, $action, $data, $occurrence): ActionLog {
-            $occurrence ??= $this->liveSlotFor($action);
+            $occurrence ??= $this->slots->liveSlotFor($action);
 
             $log = $action->logs()->create([
                 'user_id' => $user->id,
@@ -65,57 +65,6 @@ final readonly class LogAction
 
             return $log;
         });
-    }
-
-    /**
-     * The occasion a caller means when it names none: today's, which is what a
-     * card on screen is about. Latest first, so a day with two slots resolves
-     * the later one — the one whose moment has most recently passed.
-     *
-     * A cue-anchored action has no grid, and a day whose slots are all logged
-     * has none left, so both fall through to a slot stamped now. That is how a
-     * second log on an already-answered day is recorded as its own occasion
-     * rather than colliding with the first.
-     */
-    private function liveSlotFor(Action $action): Occurrence
-    {
-        $now = Date::now();
-        $timezone = $action->intention?->user?->timezone ?? (string) config('app.timezone');
-        $localNow = Date::now($timezone);
-
-        $slot = $action->occurrences()
-            ->unlogged()
-            ->where('scheduled_for', '<=', $now)
-            ->where('scheduled_for', '>=', $localNow->copy()->startOfDay()->utc())
-            ->orderByDesc('scheduled_for')
-            ->first();
-
-        return $slot ?? $this->freeSlotAt($action, $now);
-    }
-
-    /**
-     * The first unlogged occasion at or after `$from` for this action. Occasions
-     * are stored to the second, so two logs made inside the same second would
-     * otherwise collide on the unique (action_id, scheduled_for) index.
-     */
-    private function freeSlotAt(Action $action, DateTimeInterface $from): Occurrence
-    {
-        $stamp = CarbonImmutable::instance($from)->startOfSecond();
-
-        for ($attempt = 0; $attempt < 60; $attempt++) {
-            $slot = Occurrence::query()->firstOrCreate([
-                'action_id' => $action->id,
-                'scheduled_for' => $stamp,
-            ]);
-
-            if (! $slot->isLogged()) {
-                return $slot;
-            }
-
-            $stamp = $stamp->addSecond();
-        }
-
-        throw new RuntimeException('Could not find a free occurrence slot for action '.$action->id.'.');
     }
 
     /**
