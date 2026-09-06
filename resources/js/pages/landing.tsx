@@ -11,9 +11,13 @@ import type { RippleApi } from '@/patyourself/ripple-field';
  * small act" hero over the warm DS, then the habit-loop breakdown. Routes to
  * Fortify login/register; the app itself lives behind auth at /dashboard.
  *
- * Three.js is loaded from CDN at runtime (as the source design does) so the app
- * bundle gains no new dependency. If it fails to load, the hero degrades to the
- * static warm background — copy stays readable under the scrim.
+ * Three is imported dynamically, so it ships with the deploy but stays out of
+ * the entry bundle — only this page pays for it, and only once the hero boots.
+ * It used to arrive from unpkg via a runtime <script>, which kept it out of the
+ * bundle the same way but made the public landing page depend on a third-party
+ * host serving an unpinned file. If it fails to load, or there is no WebGL, the
+ * hero degrades to the static warm background — copy stays readable under the
+ * scrim.
  */
 
 type PatEvent = CustomEvent<{ x: number; y: number; pats: number }>;
@@ -188,17 +192,19 @@ export default function Landing() {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const apiRef = useRef<RippleApi | null>(null);
 
-    /* Boot the ripple scene once Three.js is available (CDN). Degrade quietly. */
+    /* Boot the ripple scene once Three has loaded. Degrade quietly: no WebGL,
+       or a chunk that fails to arrive, leaves the hero static and the copy
+       readable. */
     useEffect(() => {
         let cancelled = false;
 
         loadThree()
-            .then(() => {
+            .then((THREE) => {
                 if (cancelled || !canvasRef.current || apiRef.current) {
                     return;
                 }
 
-                apiRef.current = initRippleField(canvasRef.current);
+                apiRef.current = initRippleField(canvasRef.current, THREE);
             })
             .catch(() => {
                 /* no WebGL / offline — hero stays static, copy stays readable */

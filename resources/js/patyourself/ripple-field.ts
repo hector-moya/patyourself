@@ -6,9 +6,12 @@
    perfection.
 
    Ported from the design-system handoff (landing/ripple-field.js).
-   Reads the global `THREE` (loaded from CDN by the landing page) so
-   the app bundle gains no new dependency. Call initRippleField(canvas)
-   once the global is present.
+   Three arrives as a module, handed in by the caller — see loadThree()
+   at the foot of this file. It used to be read off `window.THREE`,
+   injected from unpkg at runtime, which kept it out of the bundle at the
+   cost of the public landing page executing code from a host outside the
+   deploy, unversioned by anything in this repository. The dynamic import
+   keeps the same "not in the main bundle" property without that trade.
 
    Interactions:
      • click/tap the field  -> drop a new ripple there
@@ -18,6 +21,13 @@
 
    Emits 'py-pat' { x, y, pats } (screen px) and 'py-pats-reset'.
    ============================================================ */
+
+/**
+ * The Three namespace, as `loadThree()` resolves it. Typed off the package
+ * itself rather than hand-written, so a version bump surfaces as a type error
+ * here instead of as a black hero on the landing page.
+ */
+export type ThreeModule = typeof import('three');
 
 export type RipplePalette = 'mono' | 'accents';
 
@@ -190,17 +200,18 @@ function savePats(n: number): void {
 }
 
 /**
- * Boot the ripple scene onto `canvas`. Requires the global `THREE` (the
- * landing page loads it from CDN first). Returns the imperative api the React
- * layer drives; call `dispose()` on unmount.
+ * Boot the ripple scene onto `canvas`, with the Three module `loadThree()`
+ * resolved. Returns the imperative api the React layer drives; call
+ * `dispose()` on unmount.
+ *
+ * Three is a parameter rather than a top-level import so this module stays
+ * cheap to load: the caller decides when to pay for it, and the bundler splits
+ * it into its own chunk.
  */
-export function initRippleField(canvas: HTMLCanvasElement): RippleApi {
-    const THREE: any = (window as any).THREE;
-
-    if (!THREE) {
-        throw new Error('THREE is not loaded');
-    }
-
+export function initRippleField(
+    canvas: HTMLCanvasElement,
+    THREE: ThreeModule,
+): RippleApi {
     const v3 = (arr: number[]) =>
         new THREE.Vector3(arr[0] / 255, arr[1] / 255, arr[2] / 255);
 
@@ -544,50 +555,19 @@ export function initRippleField(canvas: HTMLCanvasElement): RippleApi {
     };
 }
 
-let threePromise: Promise<void> | null = null;
-
 /**
- * Inject the Three.js UMD build from CDN once (matching the source design,
- * which keeps Three out of the app bundle). Resolves when `window.THREE` is
- * ready; rejects if the script fails to load.
+ * Fetch the Three module.
+ *
+ * A dynamic import, so Three lands in its own chunk that only the landing
+ * page pays for, and only once the hero actually boots — the same property
+ * the old CDN `<script>` was there to buy. What it no longer costs is a
+ * runtime dependency on a third-party host serving whatever it happens to
+ * serve: the version is pinned in `package.json`, hashed in the lockfile, and
+ * shipped by the deploy.
+ *
+ * Vite dedupes concurrent dynamic imports of the same module, so the caching
+ * the old loader hand-rolled is no longer this file's problem.
  */
-export function loadThree(
-    src = 'https://unpkg.com/three@0.149.0/build/three.min.js',
-): Promise<void> {
-    if ((window as any).THREE) {
-        return Promise.resolve();
-    }
-
-    if (threePromise) {
-        return threePromise;
-    }
-
-    threePromise = new Promise<void>((resolve, reject) => {
-        const existing = document.querySelector<HTMLScriptElement>(
-            'script[data-three-cdn]',
-        );
-
-        if (existing) {
-            existing.addEventListener('load', () => resolve());
-            existing.addEventListener('error', () =>
-                reject(new Error('Failed to load three.js')),
-            );
-
-            return;
-        }
-
-        const script = document.createElement('script');
-        script.src = src;
-        script.async = true;
-        script.crossOrigin = 'anonymous';
-        script.dataset.threeCdn = 'true';
-        script.addEventListener('load', () => resolve());
-        script.addEventListener('error', () => {
-            threePromise = null;
-            reject(new Error('Failed to load three.js'));
-        });
-        document.head.appendChild(script);
-    });
-
-    return threePromise;
+export function loadThree(): Promise<ThreeModule> {
+    return import('three');
 }
