@@ -54,27 +54,16 @@ class ExerciseCatalogueSeederTest extends TestCase
      * row, then ask whether it is available to this viewer. `$someoneElses`
      * must not leak in just because `$viewer` owns an unrelated exercise.
      *
-     * This does NOT fail if the wrapping closure in `availableTo` is removed
-     * while keeping the brief's literal clause order — confirmed by
-     * inspecting the compiled SQL, which is identical either way.
-     * Eloquent's `Builder::callScope()` nests whatever new where clauses a
-     * scope contributes, but which boolean it ANDs that nest with is taken
-     * from the *first* new clause the scope added (see
-     * `groupWhereSliceForScope()` in the framework); `whereNull` runs first
-     * here, so that boolean already comes out 'and'. That safety is
-     * order-dependent, not structural: drop the closure and merely swap the
-     * call order to `orWhere(...)->orWhereNull(...)` — no clause removed,
-     * nothing else changed — and the leak reappears (confirmed:
-     * `... where "id" = ? or ("user_id" = ? or "user_id" is null)`). The
-     * closure is what makes the AND unconditional instead of depending on
-     * which clause happens to run first, which is why it stays even though
-     * it doesn't change today's SQL for today's clause order.
+     * Killing mutation, verified by direct mutation + rerun: changing the
+     * scope's outer `where(function...)` to `orWhere(function...)` flips
+     * `$found` to `true` without touching test 1 or test 2 — the asymmetry
+     * that makes this test non-redundant with the one above.
      *
-     * Given the closure is in place, this test's actual killing mutation is
-     * the same one that kills the shared-row assertion above: removing
-     * `whereNull('user_id')` from inside the closure. With that removed,
-     * `$found` below turns true, because `$viewer`'s own exercise then
-     * satisfies `user_id = $viewer->id` regardless of the outer `whereKey`.
+     * NOT a killing mutation, also verified by direct mutation + rerun:
+     * removing `whereNull('user_id')` from inside the closure. That fails
+     * `test_a_user_added_exercise_is_scoped_to_them` on `$shared` but leaves
+     * this test green, because `$found` is checking a row that already
+     * belongs to a different, non-viewer user regardless of the null branch.
      */
     public function test_the_available_to_scope_stays_grouped_when_composed_with_another_where(): void
     {
