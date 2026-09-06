@@ -35,7 +35,15 @@ class CompanionVocabularyTest extends TestCase
             $root.'/app/Services/Companion/CompanionRemarks.php',
             $root.'/app/Services/Workflows/WorkflowRegistry.php',
             $root.'/app/Services/Workflows/WorkflowDefinition.php',
+            $root.'/app/Services/Training/MaterialisesOccasion.php',
             $root.'/app/Models/CompanionRemark.php',
+            $root.'/app/Models/Exercise.php',
+            $root.'/app/Models/ActionExercise.php',
+            $root.'/app/Models/PerformedSet.php',
+            // database/data/exercises.json is excluded on purpose: it is a
+            // committed, imported export of 876 third-party exercises and
+            // will contain arbitrary prose no vocabulary rule can constrain.
+            $root.'/database/seeders/ExerciseCatalogueSeeder.php',
             $root.'/app/Actions/WriteBlobRemark.php',
             $root.'/app/Mcp/Tools/WriteBlobRemarkTool.php',
             $root.'/app/Http/Controllers/CompanionController.php',
