@@ -1,6 +1,6 @@
 <?php
 
-namespace Tests\Feature\Training;
+namespace Tests\Feature\Workflows;
 
 use App\Actions\LogAction;
 use App\Models\Action;
@@ -9,7 +9,7 @@ use App\Models\Intention;
 use App\Models\Occurrence;
 use App\Models\User;
 use App\Services\Companion\CompanionResolver;
-use App\Services\Training\MaterialisesOccasion;
+use App\Services\Workflows\MaterialisesOccasion;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 

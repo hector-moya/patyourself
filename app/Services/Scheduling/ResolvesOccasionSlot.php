@@ -2,10 +2,8 @@
 
 namespace App\Services\Scheduling;
 
-use App\Actions\LogAction;
 use App\Models\Action;
 use App\Models\Occurrence;
-use App\Services\Training\MaterialisesOccasion;
 use Carbon\CarbonImmutable;
 use DateTimeInterface;
 use Illuminate\Support\Facades\Date;
@@ -14,11 +12,16 @@ use RuntimeException;
 /**
  * Which occasion an action means right now, for a caller that names none.
  *
- * Two paths need this answer: {@see LogAction} recording an outcome against
- * "the action", and {@see MaterialisesOccasion} beginning to record a workflow
- * on a cue-anchored action. They must agree — a set recorded during a session
- * and the verdict pressed after it have to land on the same occasion — so the
- * answer lives here once rather than in each of them.
+ * Two paths need this answer, and they ask different questions of it.
+ * App\Actions\LogAction records an outcome against "the action" and wants the
+ * slot whose moment has passed; App\Services\Workflows\MaterialisesOccasion
+ * begins a recording session and wants today's slot whether or not its moment
+ * has arrived. One method each, sharing the one thing they do agree on —
+ * freeSlotAt() — rather than a second implementation of it.
+ *
+ * Both callers are named in prose rather than imported: this is the lower-level
+ * collaborator, and a `use` block pointing up at the two layers that consume it
+ * inverts the dependency for the sake of a doc tag.
  */
 final readonly class ResolvesOccasionSlot
 {

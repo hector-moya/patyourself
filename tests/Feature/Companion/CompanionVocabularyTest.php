@@ -35,7 +35,7 @@ class CompanionVocabularyTest extends TestCase
             $root.'/app/Services/Companion/CompanionRemarks.php',
             $root.'/app/Services/Workflows/WorkflowRegistry.php',
             $root.'/app/Services/Workflows/WorkflowDefinition.php',
-            $root.'/app/Services/Training/MaterialisesOccasion.php',
+            $root.'/app/Services/Workflows/MaterialisesOccasion.php',
             $root.'/app/Models/CompanionRemark.php',
             $root.'/app/Models/Exercise.php',
             $root.'/app/Models/ActionExercise.php',

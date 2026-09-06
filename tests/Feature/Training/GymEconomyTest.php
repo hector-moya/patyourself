@@ -13,7 +13,7 @@ use App\Models\PerformedSet;
 use App\Models\Strategy;
 use App\Models\User;
 use App\Services\Companion\CompanionResolver;
-use App\Services\Training\MaterialisesOccasion;
+use App\Services\Workflows\MaterialisesOccasion;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;

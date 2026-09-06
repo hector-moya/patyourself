@@ -1,15 +1,19 @@
 <?php
 
-namespace App\Services\Training;
+namespace App\Services\Workflows;
 
-use App\Actions\LogAction;
 use App\Models\Action;
-use App\Models\ActionLog;
 use App\Models\Occurrence;
 use App\Services\Scheduling\ResolvesOccasionSlot;
 
 /**
  * The occasion a workflow record hangs on, created if there is not one yet.
+ *
+ * Every workflow needs this, not just the gym: "beginning to record
+ * materialises the occasion" is settled in the workflow architecture spec, and
+ * nothing in this class is gym-specific. It lives beside WorkflowRegistry so
+ * journalling or running reaches for the same rule rather than writing a second
+ * copy of it.
  *
  * A record keys to an {@see Occurrence}, and a cue-anchored action ("train
  * after work") has no schedule, so it has produced none — pressing a verdict is
@@ -17,9 +21,9 @@ use App\Services\Scheduling\ResolvesOccasionSlot;
  * presses Done or Missed, so beginning to record has to materialise the
  * occasion first.
  *
- * **Materialising must not create an {@see ActionLog}.** That is the whole
- * point: the occasion now exists to hang sets on, and the verdict is still
- * pressed separately, by a person, afterwards. One occasion, one log, unchanged.
+ * **Materialising must not create an ActionLog.** That is the whole point: the
+ * occasion now exists to hang sets on, and the verdict is still pressed
+ * separately, by a person, afterwards. One occasion, one log, unchanged.
  * `logCount` is what the companion ladder spends, so a workflow that could mint
  * a log by being more granular than "one occasion" would inflate the economy
  * every other loop is measured against.
