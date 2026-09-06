@@ -32,6 +32,15 @@ use Tests\TestCase;
  * therefore does not log: writing {@see PerformedSet} rows moves the count by
  * zero, and the verdict stays a separate press, by a person, afterwards.
  *
+ * Half of that rule is the schema's, not this file's: `action_logs` carries a
+ * unique index on `occurrence_id` (see
+ * `2026_08_26_093410_add_occurrence_columns_to_action_logs_table.php`), so a
+ * second verdict on one occasion cannot be inserted at all and no test here can
+ * fail for want of it. What these guards add is the half a unique index cannot
+ * state — that a module cannot buy extra fuel by minting extra *occasions* to
+ * log against, and that recording at the workflow's own extension site is worth
+ * nothing until a person presses the verdict.
+ *
  * The second is that history does not vanish. An exercise deleted from the
  * catalogue keeps the sets performed against it — deletion hides it from new
  * templates, it does not rewrite what was already written — and a strategy
@@ -89,6 +98,27 @@ class GymEconomyTest extends TestCase
     private function setsRecordedOn(Occurrence $occurrence): int
     {
         return PerformedSet::where('occurrence_id', $occurrence->id)->count();
+    }
+
+    /**
+     * Verdicts already on the record, one per day, most recent yesterday.
+     *
+     * Used to give two users unequal histories before a comparison starts. With
+     * both baselines at zero, comparing how far the counts moved is
+     * arithmetically the same as comparing the totals, and the weaker claim is
+     * exactly the one the delta form exists to avoid.
+     */
+    private function logPastSessions(User $user, Action $action, int $days): void
+    {
+        for ($day = 1; $day <= $days; $day++) {
+            $occurrence = Occurrence::factory()->for($action)->create([
+                'scheduled_for' => now()->subDays($day)->setTime(19, 0),
+            ]);
+
+            app(LogAction::class)->handle($user, $action, [
+                'outcome' => ActionLog::OUTCOME_COMPLETED,
+            ], $occurrence);
+        }
     }
 
     public function test_forty_performed_sets_create_no_log(): void
@@ -153,7 +183,10 @@ class GymEconomyTest extends TestCase
         $this->assertSame(24, $this->setsRecordedOn($heavy));
         $this->assertSame(1, $this->setsRecordedOn($light));
 
-        // One log each, and the twenty-four-set session did not buy a second.
+        // One log each. These two are the unique index restating itself and
+        // cannot fail while it stands; the two below are the part this test
+        // actually carries — a granular module minting a second *occasion* to
+        // log against would satisfy the index and still be caught here.
         $this->assertSame(1, $heavy->log()->count());
         $this->assertSame(1, $light->log()->count());
         $this->assertSame(2, ActionLog::count());
@@ -214,8 +247,20 @@ class GymEconomyTest extends TestCase
         $plainUser = $this->user();
         $plainAction = $this->plainAction($plainUser);
 
+        // Deliberately unequal history before the comparison starts. Two users
+        // both sitting at zero would make "the counts moved the same distance"
+        // arithmetically identical to "the counts are the same number", which
+        // is the weaker claim — a gym special case landing on the right total
+        // would survive it.
+        $this->logPastSessions($gymUser, $gymAction, 3);
+        $this->logPastSessions($plainUser, $plainAction, 1);
+
         $gymBefore = $resolver->forUser($gymUser);
         $plainBefore = $resolver->forUser($plainUser);
+
+        // The baselines really do differ, so nothing below can quietly decay
+        // back into comparing totals.
+        $this->assertNotSame($plainBefore->logCount, $gymBefore->logCount);
 
         // A real session, recorded through the workflow's own extension site
         // before the verdict is pressed: two movements, twelve sets.
@@ -257,18 +302,18 @@ class GymEconomyTest extends TestCase
         // had its chance to show.
         $this->assertSame(12, $this->setsRecordedOn($occurrence));
 
-        // The other two numbers the ladder is walked from move together too:
-        // logging is not an insight for either loop, and one log carries both
-        // of them exactly one rung.
+        // The other number the ladder is walked from moves together too:
+        // logging is not an insight for either loop, so both stay put.
         $this->assertSame(
             $plainAfter->insightCount - $plainBefore->insightCount,
             $gymAfter->insightCount - $gymBefore->insightCount,
         );
-        $this->assertSame(
-            $plainAfter->stageIndex() - $plainBefore->stageIndex(),
-            $gymAfter->stageIndex() - $gymBefore->stageIndex(),
-        );
-        $this->assertSame(1, $plainAfter->stageIndex() - $plainBefore->stageIndex());
+
+        // Nothing is asserted about `stageIndex()` moving equally, and that is
+        // deliberate: the ladder's rungs are unevenly spaced, so two users at
+        // different points on it climb different distances for the same log.
+        // These two counts are the only inputs the resolver walks it from —
+        // pin them and the ladder follows.
     }
 
     /**
