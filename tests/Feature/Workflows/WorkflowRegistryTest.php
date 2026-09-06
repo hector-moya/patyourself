@@ -29,16 +29,23 @@ class WorkflowRegistryTest extends TestCase
         $this->registry = new WorkflowRegistry;
     }
 
-    public function test_the_shipped_registry_is_empty(): void
+    /**
+     * This test used to assert the shipped registry was empty, back when
+     * nothing was plugged in. Gym is the module it was waiting for, so it now
+     * asserts the registry contains exactly `gym` — kept, not deleted,
+     * because the invariant it guards (nothing ships beyond what is named
+     * here) still matters, only the expected contents changed.
+     */
+    public function test_the_shipped_registry_is_gym_only(): void
     {
-        // Nothing is plugged in yet. Asserted by subtracting only the fake
-        // this test registered and requiring the remainder to be empty —
-        // checking a single absent name instead would stay green for any
-        // entry that happened to be spelled differently.
+        // Asserted by subtracting only the fake this test registered and
+        // requiring the remainder to be exactly `gym` — checking a single
+        // present name instead would stay green even if an unrelated entry
+        // sneaked in alongside it.
         $shipped = config('workflows.registry', []);
         unset($shipped[self::SPEC_FAKE]);
 
-        $this->assertSame([], $shipped);
+        $this->assertSame(['gym'], array_keys($shipped));
     }
 
     public function test_a_registered_name_resolves_to_what_it_attaches(): void
@@ -78,9 +85,17 @@ class WorkflowRegistryTest extends TestCase
         $this->assertFalse($this->registry->has(self::SPEC_FAKE.'.label'));
     }
 
+    /**
+     * Also broken by gym joining the shipped registry, for the same reason as
+     * the test above: `names()` used to return only the fake this test
+     * registers, because nothing else was there. It now returns `gym` (from
+     * the config file, present before `setUp` runs) followed by the fake
+     * (appended by this test's `config()->set` call), so the expectation
+     * gains the shipped entry rather than losing the fake.
+     */
     public function test_names_lists_every_registered_workflow(): void
     {
-        $this->assertSame([self::SPEC_FAKE], $this->registry->names());
+        $this->assertSame(['gym', self::SPEC_FAKE], $this->registry->names());
     }
 
     /**

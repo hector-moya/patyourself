@@ -1,5 +1,8 @@
 <?php
 
+use App\Models\ActionExercise;
+use App\Models\PerformedSet;
+
 return [
 
     /*
@@ -20,21 +23,22 @@ return [
     | Both are optional. A workflow that attaches nothing at a site is not a
     | special case; it is an empty site.
     |
-    | Empty until the first module ships. Adding a name here is what makes it
-    | choosable — a workflow is spelled by this file, never typed by a user,
-    | which is the whole difference between this and the free-form tag it
-    | replaced.
+    | Adding a name here is what makes it choosable — a workflow is spelled by
+    | this file, never typed by a user, which is the whole difference between
+    | this and the free-form tag it replaced.
     |
-    |   'gym' => [
-    |       'label'  => 'Gym',
-    |       'config' => \App\Models\ActionExercise::class,
-    |       'record' => \App\Models\PerformedSet::class,
-    |   ],
+    | `gym` is the first module plugged into these two extension sites: its
+    | routine (config) is keyed to `actions`, its performed sets (record) are
+    | keyed to `occurrences`.
     |
     */
 
     'registry' => [
-        //
+        'gym' => [
+            'label' => 'Gym',
+            'config' => ActionExercise::class,
+            'record' => PerformedSet::class,
+        ],
     ],
 
 ];
