@@ -44,14 +44,7 @@ vi.mock('@inertiajs/react', async (importOriginal) => {
                 return Promise.resolve(searchResponse);
             },
         }),
-        Form: ({
-            action,
-            method,
-            children,
-            options: _options,
-            onSuccess: _onSuccess,
-            ...rest
-        }: {
+        Form: (props: {
             action?: string;
             method?: string;
             options?: unknown;
@@ -63,35 +56,57 @@ vi.mock('@inertiajs/react', async (importOriginal) => {
                   }) => React.ReactNode)
                 | React.ReactNode;
             [key: string]: unknown;
-        }) => (
-            <form
-                action={action}
-                method={method}
-                onSubmit={(event) => {
-                    event.preventDefault();
+        }) => {
+            const { action, method, children } = props;
 
-                    submissions.push({
-                        action,
-                        method,
-                        fields: Object.fromEntries(
-                            Array.from(
-                                new FormData(event.currentTarget).entries(),
-                            ).map(([key, value]) => [key, String(value)]),
-                        ),
-                    });
-                }}
-                {...rest}
-            >
-                {typeof children === 'function'
-                    ? children({ processing: false, errors: {} })
-                    : children}
-            </form>
-        ),
+            // Everything else rides through to the DOM, minus Inertia's own
+            // props — `options` and `onSuccess` are not form attributes and
+            // React warns if they reach one. Filtered rather than destructured
+            // into discards, because a named binding nothing reads is a lint
+            // error.
+            const rest = Object.fromEntries(
+                Object.entries(props).filter(
+                    ([key]) =>
+                        ![
+                            'action',
+                            'method',
+                            'children',
+                            'options',
+                            'onSuccess',
+                        ].includes(key),
+                ),
+            );
+
+            return (
+                <form
+                    action={action}
+                    method={method}
+                    onSubmit={(event) => {
+                        event.preventDefault();
+
+                        submissions.push({
+                            action,
+                            method,
+                            fields: Object.fromEntries(
+                                Array.from(
+                                    new FormData(event.currentTarget).entries(),
+                                ).map(([key, value]) => [key, String(value)]),
+                            ),
+                        });
+                    }}
+                    {...rest}
+                >
+                    {typeof children === 'function'
+                        ? children({ processing: false, errors: {} })
+                        : children}
+                </form>
+            );
+        },
     };
 });
 
-import RoutineEditor from './routine-editor';
 import type { WorkflowConfigRow } from '@/patyourself/workflows';
+import RoutineEditor from './routine-editor';
 
 function row(overrides: Partial<WorkflowConfigRow> = {}): WorkflowConfigRow {
     return {
@@ -108,9 +123,19 @@ function row(overrides: Partial<WorkflowConfigRow> = {}): WorkflowConfigRow {
 /** Squat at position 1, row at 2, press at 3 — ids deliberately scrambled
  *  against that order so an id sort would be visible. */
 const THREE_ROWS: WorkflowConfigRow[] = [
-    row({ id: 30, exercise_id: 1, exercise_name: 'Barbell Back Squat', position: 1 }),
+    row({
+        id: 30,
+        exercise_id: 1,
+        exercise_name: 'Barbell Back Squat',
+        position: 1,
+    }),
     row({ id: 10, exercise_id: 2, exercise_name: 'Barbell Row', position: 2 }),
-    row({ id: 20, exercise_id: 3, exercise_name: 'Overhead Press', position: 3 }),
+    row({
+        id: 20,
+        exercise_id: 3,
+        exercise_name: 'Overhead Press',
+        position: 3,
+    }),
 ];
 
 describe('RoutineEditor', () => {
@@ -292,8 +317,18 @@ describe('RoutineEditor', () => {
     it('shows enough of each match to tell two of the same name apart', () => {
         searchResponse = {
             exercises: [
-                { id: 1, name: 'Bench Press', category: 'strength', equipment: 'barbell' },
-                { id: 2, name: 'Bench Press', category: 'strength', equipment: 'dumbbell' },
+                {
+                    id: 1,
+                    name: 'Bench Press',
+                    category: 'strength',
+                    equipment: 'barbell',
+                },
+                {
+                    id: 2,
+                    name: 'Bench Press',
+                    category: 'strength',
+                    equipment: 'dumbbell',
+                },
             ],
         };
 
@@ -313,8 +348,18 @@ describe('RoutineEditor', () => {
     it('adding the chosen exercise posts its id with the sets and reps written for it', () => {
         searchResponse = {
             exercises: [
-                { id: 1, name: 'Bench Press', category: 'strength', equipment: 'barbell' },
-                { id: 2, name: 'Bench Press', category: 'strength', equipment: 'dumbbell' },
+                {
+                    id: 1,
+                    name: 'Bench Press',
+                    category: 'strength',
+                    equipment: 'barbell',
+                },
+                {
+                    id: 2,
+                    name: 'Bench Press',
+                    category: 'strength',
+                    equipment: 'dumbbell',
+                },
             ],
         };
 
@@ -356,7 +401,12 @@ describe('RoutineEditor', () => {
     it('offers nothing to write a weight into, and names no record or trend', () => {
         searchResponse = {
             exercises: [
-                { id: 1, name: 'Bench Press', category: 'strength', equipment: 'barbell' },
+                {
+                    id: 1,
+                    name: 'Bench Press',
+                    category: 'strength',
+                    equipment: 'barbell',
+                },
             ],
         };
 

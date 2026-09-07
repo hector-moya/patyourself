@@ -2,8 +2,8 @@ import { render, screen } from '@testing-library/react';
 import { useEffect } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { WorkflowRecordProps, WorkflowRegistry } from './workflows';
 import { WorkflowRecord } from './workflow-record';
+import type { WorkflowRecordProps, WorkflowRegistry } from './workflows';
 
 /** A no-op for tests that don't care whether the callback fires. */
 const noop = () => {};

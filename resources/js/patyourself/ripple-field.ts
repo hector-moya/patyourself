@@ -22,12 +22,20 @@
    Emits 'py-pat' { x, y, pats } (screen px) and 'py-pats-reset'.
    ============================================================ */
 
+// Type-only, and therefore erased before anything is bundled — this does NOT
+// make Three a static dependency of this module. The dynamic `import('three')`
+// at the foot of the file is still the only thing that pulls the package in,
+// so Three keeps its own chunk and only the landing page pays for it. Written
+// as an import rather than an inline `typeof import('three')` because the
+// lint rule forbids `import()` type annotations.
+import type * as Three from 'three';
+
 /**
  * The Three namespace, as `loadThree()` resolves it. Typed off the package
  * itself rather than hand-written, so a version bump surfaces as a type error
  * here instead of as a black hero on the landing page.
  */
-export type ThreeModule = typeof import('three');
+export type ThreeModule = typeof Three;
 
 export type RipplePalette = 'mono' | 'accents';
 

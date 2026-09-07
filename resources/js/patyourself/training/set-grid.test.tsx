@@ -24,13 +24,7 @@ vi.mock('@inertiajs/react', async (importOriginal) => {
 
     return {
         ...actual,
-        Form: ({
-            action,
-            method,
-            children,
-            options: _options,
-            ...rest
-        }: {
+        Form: (props: {
             action?: string;
             method?: string;
             options?: unknown;
@@ -41,30 +35,47 @@ vi.mock('@inertiajs/react', async (importOriginal) => {
                   }) => React.ReactNode)
                 | React.ReactNode;
             [key: string]: unknown;
-        }) => (
-            <form
-                action={action}
-                method={method}
-                onSubmit={(event) => {
-                    event.preventDefault();
+        }) => {
+            const { action, method, children } = props;
 
-                    submissions.push({
-                        action,
-                        method,
-                        fields: Object.fromEntries(
-                            Array.from(
-                                new FormData(event.currentTarget).entries(),
-                            ).map(([key, value]) => [key, String(value)]),
+            // Everything else rides through to the DOM, minus Inertia's own
+            // props — `options` is not a form attribute and React warns if it
+            // reaches one. Filtered rather than destructured into discards,
+            // because a named binding nothing reads is a lint error.
+            const rest = Object.fromEntries(
+                Object.entries(props).filter(
+                    ([key]) =>
+                        !['action', 'method', 'children', 'options'].includes(
+                            key,
                         ),
-                    });
-                }}
-                {...rest}
-            >
-                {typeof children === 'function'
-                    ? children({ processing: false, errors: {} })
-                    : children}
-            </form>
-        ),
+                ),
+            );
+
+            return (
+                <form
+                    action={action}
+                    method={method}
+                    onSubmit={(event) => {
+                        event.preventDefault();
+
+                        submissions.push({
+                            action,
+                            method,
+                            fields: Object.fromEntries(
+                                Array.from(
+                                    new FormData(event.currentTarget).entries(),
+                                ).map(([key, value]) => [key, String(value)]),
+                            ),
+                        });
+                    }}
+                    {...rest}
+                >
+                    {typeof children === 'function'
+                        ? children({ processing: false, errors: {} })
+                        : children}
+                </form>
+            );
+        },
     };
 });
 

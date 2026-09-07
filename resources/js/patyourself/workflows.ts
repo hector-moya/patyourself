@@ -16,8 +16,8 @@
  */
 import type { ComponentType } from 'react';
 
-import RoutineEditor from '@/patyourself/training/routine-editor';
 import GymRecord from '@/patyourself/training/gym-record';
+import RoutineEditor from '@/patyourself/training/routine-editor';
 
 /** One exercise on an action's routine, as the loop screen sends it. */
 export interface WorkflowConfigRow {

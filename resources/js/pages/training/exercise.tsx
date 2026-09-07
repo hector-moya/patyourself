@@ -3,9 +3,8 @@ import { ChevronLeft } from 'lucide-react';
 
 import CoachLayout from '@/layouts/coach-layout';
 import { formatOccasionDay } from '@/patyourself/occasion-date';
-import SetGrid, {
-    type SetGridPerformedSet,
-} from '@/patyourself/training/set-grid';
+import SetGrid from '@/patyourself/training/set-grid';
+import type { SetGridPerformedSet } from '@/patyourself/training/set-grid';
 import { show as showSession } from '@/routes/training/session';
 
 export interface ExerciseData {
@@ -68,7 +67,8 @@ export default function ExerciseScreen({
         </Link>
     );
 
-    const hasTarget = exercise.target_sets !== null && exercise.target_reps !== null;
+    const hasTarget =
+        exercise.target_sets !== null && exercise.target_reps !== null;
 
     return (
         <CoachLayout title={exercise.name} headerLeading={back}>
@@ -80,7 +80,8 @@ export default function ExerciseScreen({
                             data-testid="exercise-target"
                             className="shrink-0 font-mono text-xs text-muted-foreground"
                         >
-                            target {exercise.target_sets} x {exercise.target_reps}
+                            target {exercise.target_sets} x{' '}
+                            {exercise.target_reps}
                         </span>
                     )}
                 </div>
