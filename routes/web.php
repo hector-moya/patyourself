@@ -63,11 +63,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('actions.logs.store');
 
     // Begin a recording session: materialises the occasion a session's sets
-    // and eventual verdict hang on. See MaterialisesOccasion for why this
-    // never logs — the verdict is still a separate press, by a person,
-    // afterwards.
+    // and eventual verdict hang on, then redirects straight into the session
+    // screen below. See MaterialisesOccasion for why this never logs — the
+    // verdict is still a separate press, by a person, afterwards.
     Route::post('actions/{action}/session', [SessionController::class, 'materialise'])
         ->name('training.session.materialise');
+
+    // The dedicated session screen: the routine, its target sets/reps, and
+    // how many of each are already recorded, plus the plain verdict controls
+    // every occasion already has. Keyed on the occurrence, exactly as its own
+    // record (PerformedSet) and read model (SessionScreen) are.
+    Route::get('occurrences/{occurrence}/session', [SessionController::class, 'show'])
+        ->name('training.session.show');
 
     // Record one set against an occasion — the gym workflow's record
     // extension site, written. Keyed on the occurrence, exactly as

@@ -6,15 +6,17 @@
  * verdict are unchanged by one — a workflow brings a recording surface and
  * nothing else.
  *
- * Empty until the first module ships. A loop with no workflow — every loop
- * today, and the ordinary case forever — routes to nothing here and keeps the
- * plain screen it has always had.
+ * `gym` is the first module registered here. A loop with no workflow — the
+ * ordinary case forever, for every non-gym loop — routes to nothing here and
+ * keeps the plain screen it has always had.
  *
  * The registry is mirrored on the server in `config/workflows.php`, which is
  * the one that decides what a name may be set to. This side decides only what
  * it draws.
  */
 import type { ComponentType } from 'react';
+
+import GymRecord from '@/patyourself/training/gym-record';
 
 /** What a recording surface is told about the occasion it is recording. */
 export interface WorkflowRecordProps {
@@ -51,7 +53,9 @@ export interface WorkflowSpec {
 export type WorkflowRegistry = Record<string, WorkflowSpec>;
 
 /** Every workflow this app draws, keyed by the name stored on the loop. */
-export const WORKFLOWS: WorkflowRegistry = {};
+export const WORKFLOWS: WorkflowRegistry = {
+    gym: { name: 'gym', label: 'Gym', record: GymRecord },
+};
 
 /**
  * The workflow a loop names, or null for "no workflow" — which is what both a

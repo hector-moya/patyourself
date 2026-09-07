@@ -54,9 +54,10 @@ describe('workflowFor', () => {
         expect(workflowFor(null)).toBeNull();
     });
 
-    it('ships no workflows yet', () => {
-        // Nothing is plugged in. A registry that quietly grew an entry would
-        // make the default-registry assertions above stop meaning anything.
-        expect(Object.keys(WORKFLOWS)).toEqual([]);
+    it('ships gym as its first, and so far only, workflow', () => {
+        // Pinned so the default-registry assertions above keep meaning what
+        // they say: an unrelated key quietly added here would not be caught
+        // by any of them, since none queries this exact set.
+        expect(Object.keys(WORKFLOWS)).toEqual(['gym']);
     });
 });
