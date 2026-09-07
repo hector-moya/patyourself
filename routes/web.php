@@ -13,6 +13,7 @@ use App\Http\Controllers\NoteController;
 use App\Http\Controllers\OccurrenceLogController;
 use App\Http\Controllers\ProgressController;
 use App\Http\Controllers\QuickLogController;
+use App\Http\Controllers\Training\ExerciseCatalogueController;
 use App\Http\Controllers\Training\ExerciseController;
 use App\Http\Controllers\Training\PerformedSetController;
 use App\Http\Controllers\Training\RoutineController;
@@ -90,6 +91,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // before anyone presses Done or Missed.
     Route::post('occurrences/{occurrence}/sets', [PerformedSetController::class, 'store'])
         ->name('occurrences.sets.store');
+
+    // Searching the exercise catalogue, for the routine editor's picker. JSON,
+    // not a page: it feeds a control on a screen the user is already on. Scoped
+    // to the shared catalogue plus the user's own additions.
+    Route::get('exercises', [ExerciseCatalogueController::class, 'index'])
+        ->name('training.exercises.index');
 
     // The routine: what an action's occasions are meant to contain, one row
     // per exercise — the gym workflow's config extension site. See
