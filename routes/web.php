@@ -13,6 +13,7 @@ use App\Http\Controllers\NoteController;
 use App\Http\Controllers\OccurrenceLogController;
 use App\Http\Controllers\ProgressController;
 use App\Http\Controllers\QuickLogController;
+use App\Http\Controllers\Training\ExerciseController;
 use App\Http\Controllers\Training\PerformedSetController;
 use App\Http\Controllers\Training\RoutineController;
 use App\Http\Controllers\Training\SessionController;
@@ -75,6 +76,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // record (PerformedSet) and read model (SessionScreen) are.
     Route::get('occurrences/{occurrence}/session', [SessionController::class, 'show'])
         ->name('training.session.show');
+
+    // The exercise screen (task 7): what to lift, what was lifted last time,
+    // and where sets against this occasion are recorded. Named and routed
+    // now, ahead of the screen itself, so the session screen's link into it
+    // goes through a generated Wayfinder helper rather than a hardcoded URL.
+    Route::get('occurrences/{occurrence}/exercises/{exercise}', [ExerciseController::class, 'show'])
+        ->name('training.exercise.show');
 
     // Record one set against an occasion — the gym workflow's record
     // extension site, written. Keyed on the occurrence, exactly as

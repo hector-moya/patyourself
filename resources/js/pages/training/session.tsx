@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/patyourself/primitives';
 import type { LogOutcome } from '@/patyourself/types';
 import { store as storeLog } from '@/routes/occurrences/logs';
+import { show as showExercise } from '@/routes/training/exercise';
 
 export interface SessionExerciseData {
     id: number;
@@ -109,7 +110,10 @@ function ExerciseRow({
             className="py-3"
         >
             <Link
-                href={`/occurrences/${occurrenceId}/exercises/${exercise.id}`}
+                href={showExercise.url({
+                    occurrence: occurrenceId,
+                    exercise: exercise.id,
+                })}
                 className="flex items-center justify-between gap-3"
             >
                 <span
