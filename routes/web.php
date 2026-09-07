@@ -13,6 +13,7 @@ use App\Http\Controllers\NoteController;
 use App\Http\Controllers\OccurrenceLogController;
 use App\Http\Controllers\ProgressController;
 use App\Http\Controllers\QuickLogController;
+use App\Http\Controllers\Training\RoutineController;
 use App\Http\Controllers\Training\SessionController;
 use App\Http\Controllers\VerdictController;
 use App\Models\Intention;
@@ -66,6 +67,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // afterwards.
     Route::post('actions/{action}/session', [SessionController::class, 'materialise'])
         ->name('training.session.materialise');
+
+    // The routine: what an action's occasions are meant to contain, one row
+    // per exercise — the gym workflow's config extension site. See
+    // ActionExercise and RoutineController.
+    Route::post('actions/{action}/exercises', [RoutineController::class, 'store'])
+        ->name('actions.exercises.store');
+    Route::patch('actions/{action}/exercises/reorder', [RoutineController::class, 'reorder'])
+        ->name('actions.exercises.reorder');
+    Route::delete('actions/{action}/exercises/{actionExercise}', [RoutineController::class, 'destroy'])
+        ->name('actions.exercises.destroy');
 
     // Edit an action's schedule (time + recurrence, or an anchored cue).
     Route::patch('actions/{action}', [ActionController::class, 'update'])->name('actions.update');
