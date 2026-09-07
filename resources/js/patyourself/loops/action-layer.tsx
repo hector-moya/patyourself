@@ -1,6 +1,8 @@
 import { Form } from '@inertiajs/react';
 import { useState } from 'react';
 import { Button } from '@/patyourself/primitives';
+import { WorkflowConfig } from '@/patyourself/workflow-config';
+import type { WorkflowConfigRow } from '@/patyourself/workflows';
 import { destroy } from '@/routes/actions';
 import actionsRoutes from '@/routes/loops/actions';
 
@@ -10,11 +12,17 @@ export type ActionSummary = {
     /** Null when the action has neither a recurrence nor a next occurrence to
      *  name — see cadenceLabel. Never a partial string like "daily at ". */
     cadence: string | null;
+    /** The action's configuration under the loop's workflow, or null when the
+     *  loop has none — see `WorkflowConfig` for why the two are kept apart. */
+    routine?: WorkflowConfigRow[] | null;
 };
 
 type Props = {
     loopId: number;
     actions: ActionSummary[];
+    /** The loop's workflow, or null for a plain loop, which draws nothing
+     *  extra here. */
+    workflow?: string | null;
 };
 
 const FIELD_CLASS =
@@ -27,37 +35,45 @@ const FIELD_CLASS =
  * occurrences, so the copy says "retire" and says the history is kept — a
  * button labelled "delete" would be describing a write that does not happen.
  */
-export function ActionLayer({ loopId, actions }: Props) {
+export function ActionLayer({ loopId, actions, workflow = null }: Props) {
     const [kind, setKind] = useState<'clock' | 'anchored'>('clock');
 
     return (
         <div className="space-y-4">
             <ul className="space-y-2">
                 {actions.map((action) => (
-                    <li
-                        key={action.id}
-                        className="flex items-center justify-between gap-3"
-                    >
-                        <span>
-                            <span className="block">{action.title}</span>
-                            {action.cadence !== null && (
-                                <span className="block text-sm opacity-70">
-                                    {action.cadence}
-                                </span>
-                            )}
-                        </span>
-                        <Form {...destroy.form(action.id)}>
-                            {({ processing }) => (
-                                <Button
-                                    type="submit"
-                                    variant="ghost"
-                                    size="sm"
-                                    disabled={processing}
-                                >
-                                    Retire
-                                </Button>
-                            )}
-                        </Form>
+                    <li key={action.id} className="space-y-2">
+                        <div className="flex items-center justify-between gap-3">
+                            <span>
+                                <span className="block">{action.title}</span>
+                                {action.cadence !== null && (
+                                    <span className="block text-sm opacity-70">
+                                        {action.cadence}
+                                    </span>
+                                )}
+                            </span>
+                            <Form {...destroy.form(action.id)}>
+                                {({ processing }) => (
+                                    <Button
+                                        type="submit"
+                                        variant="ghost"
+                                        size="sm"
+                                        disabled={processing}
+                                    >
+                                        Retire
+                                    </Button>
+                                )}
+                            </Form>
+                        </div>
+
+                        {/* Draws nothing for a plain loop, which is every loop
+                         *  with no workflow — the row above then reads exactly
+                         *  as it always has. */}
+                        <WorkflowConfig
+                            workflow={workflow}
+                            actionId={action.id}
+                            rows={action.routine ?? null}
+                        />
                     </li>
                 ))}
             </ul>

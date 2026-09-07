@@ -4,6 +4,10 @@
  * the server validates them; the UI only renders them.
  */
 
+/** Type-only, so this does not become a runtime cycle: `workflows.ts` imports
+ *  the surfaces it registers, and one of those reads back from here. */
+import type { WorkflowConfigRow } from '@/patyourself/workflows';
+
 export interface StrategyData {
     id: number;
     version: number;
@@ -130,6 +134,12 @@ export interface ActionRecordData {
     recurrence: string | null;
     schedule_kind: 'clock' | 'anchored' | null;
     anchor: string | null;
+    /**
+     * The action's configuration under the loop's workflow — for gym, its
+     * routine. Null when the loop has no workflow that configures actions,
+     * which is not the same as an empty routine: see `WorkflowConfig`.
+     */
+    routine?: WorkflowConfigRow[] | null;
 }
 
 export interface IntentionData {

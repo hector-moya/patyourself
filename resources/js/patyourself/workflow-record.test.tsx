@@ -30,13 +30,27 @@ function MaterialisingSurface({ onOccurrenceMaterialised }: WorkflowRecordProps)
     return null;
 }
 
+// `config: null` throughout: this file is about the record extension site, and
+// a workflow that configures nothing is an empty site rather than a special
+// case. `workflow-config.test.tsx` is the mirror of this for the other one.
 const FAKE: WorkflowRegistry = {
-    'spec-fake': { name: 'spec-fake', label: 'Spec fake', record: Surface },
-    bare: { name: 'bare', label: 'Bare', record: null },
-    broken: { name: 'broken', label: 'Broken', record: ThrowingSurface },
+    'spec-fake': {
+        name: 'spec-fake',
+        label: 'Spec fake',
+        config: null,
+        record: Surface,
+    },
+    bare: { name: 'bare', label: 'Bare', config: null, record: null },
+    broken: {
+        name: 'broken',
+        label: 'Broken',
+        config: null,
+        record: ThrowingSurface,
+    },
     materialising: {
         name: 'materialising',
         label: 'Materialising',
+        config: null,
         record: MaterialisingSurface,
     },
 };

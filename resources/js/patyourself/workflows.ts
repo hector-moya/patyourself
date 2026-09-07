@@ -16,7 +16,36 @@
  */
 import type { ComponentType } from 'react';
 
+import RoutineEditor from '@/patyourself/training/routine-editor';
 import GymRecord from '@/patyourself/training/gym-record';
+
+/** One exercise on an action's routine, as the loop screen sends it. */
+export interface WorkflowConfigRow {
+    id: number;
+    exercise_id: number;
+    /** Null only if the catalogue row went missing under it; the editor
+     *  renders the gap rather than dropping the row, because the row is still
+     *  real and still removable. */
+    exercise_name: string | null;
+    position: number;
+    target_sets: number;
+    target_reps: number;
+}
+
+/**
+ * What a configuration surface is told about the action it is configuring.
+ *
+ * The mirror of `WorkflowRecordProps`, one extension site over: a record is a
+ * fact about one occasion, a configuration is part of the standing
+ * prescription and so keys to the action. `config/workflows.php` draws the
+ * same line on the server, where gym's `config` is keyed to `actions` and its
+ * `record` to `occurrences`.
+ */
+export interface WorkflowConfigProps {
+    actionId: number;
+    /** The action's current configuration, in the order the server sent it. */
+    rows: WorkflowConfigRow[];
+}
 
 /** What a recording surface is told about the occasion it is recording. */
 export interface WorkflowRecordProps {
@@ -44,6 +73,11 @@ export interface WorkflowSpec {
     name: string;
     label: string;
     /**
+     * What this workflow draws to configure an action — what its occasions are
+     * meant to contain — or null when it draws nothing.
+     */
+    config: ComponentType<WorkflowConfigProps> | null;
+    /**
      * What this workflow draws to record an occasion, or null when it draws
      * nothing. Null is an empty attachment site, not a missing surface.
      */
@@ -54,7 +88,12 @@ export type WorkflowRegistry = Record<string, WorkflowSpec>;
 
 /** Every workflow this app draws, keyed by the name stored on the loop. */
 export const WORKFLOWS: WorkflowRegistry = {
-    gym: { name: 'gym', label: 'Gym', record: GymRecord },
+    gym: {
+        name: 'gym',
+        label: 'Gym',
+        config: RoutineEditor,
+        record: GymRecord,
+    },
 };
 
 /**

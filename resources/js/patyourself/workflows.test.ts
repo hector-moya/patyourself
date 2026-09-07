@@ -8,8 +8,13 @@ function Surface() {
 }
 
 const FAKE: WorkflowRegistry = {
-    'spec-fake': { name: 'spec-fake', label: 'Spec fake', record: Surface },
-    bare: { name: 'bare', label: 'Bare', record: null },
+    'spec-fake': {
+        name: 'spec-fake',
+        label: 'Spec fake',
+        config: null,
+        record: Surface,
+    },
+    bare: { name: 'bare', label: 'Bare', config: null, record: null },
 };
 
 describe('workflowFor', () => {
