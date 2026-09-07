@@ -49,7 +49,7 @@ export interface ExerciseProps {
  * not suggested by this screen — and the sets already recorded this
  * occasion. `last` is pure information: last session's own numbers, on
  * screen so nobody has to remember them, never a suggested weight, a record
- * detection, a 1RM, a percentage, or a trend called progress. See this
+ * detection, a 1RM, a fraction of one, or a trend called progress. See this
  * file's own tests, and `SetGrid`'s, for the line drawn around that.
  */
 export default function ExerciseScreen({

@@ -46,7 +46,7 @@ export interface SessionProps {
  * Record, never prescribe: target sets and reps are shown because the user
  * wrote them on the routine, not because this screen is telling them what to
  * lift. Nothing here suggests a weight, names a record, or shows a
- * percentage — see `SessionScreenTest` and this file's own tests for the
+ * fraction — see `SessionScreenTest` and this file's own tests for the
  * line drawn around that.
  */
 export default function Session({

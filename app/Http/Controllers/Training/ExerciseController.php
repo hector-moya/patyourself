@@ -25,8 +25,8 @@ use Inertia\Response;
  * user wrote onto the routine, `LastPerformance` supplies last session's own
  * numbers as pure information, and `PerformedSet` supplies what is already
  * recorded this occasion. Nothing computed here is a suggested weight, a
- * record detection, a 1RM, or a percentage — see `LastPerformance`'s own
- * docblock for why that read stays a read.
+ * record detection, a 1RM, or a fraction of one — see `LastPerformance`'s
+ * own docblock for why that read stays a read.
  */
 class ExerciseController extends Controller
 {

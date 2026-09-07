@@ -13,7 +13,7 @@ use Illuminate\Database\Eloquent\Builder;
  * exercise.
  *
  * A pure read, and deliberately a thin one — no suggested weight, no record
- * detection, no 1RM, no percentage, no trend called progress. The spec says
+ * detection, no 1RM, no fraction of one, no trend called progress. The spec says
  * the only thing a suggestion would give you is last session's own numbers,
  * and those can simply be on the screen.
  *
