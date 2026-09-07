@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Services\Training\LastPerformance;
 use App\Services\Workflows\MaterialisesOccasion;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /**
@@ -178,5 +179,98 @@ class LastPerformanceTest extends TestCase
         $current = app(MaterialisesOccasion::class)->forAction($action);
 
         $this->assertNull(app(LastPerformance::class)->forExercise($squat, $current));
+    }
+
+    /**
+     * The read must not grow with history it is never going to return.
+     *
+     * The exercise catalogue is shared, so one Exercise row accumulates sets
+     * from everyone who ever trains it. Batch 3's progression screen runs this
+     * read once per exercise on the page, so what it costs per call is not a
+     * detail that can be settled later.
+     *
+     * The statements themselves, not a count of them or of their bindings.
+     * The shape being ruled out sent a *constant* number of queries, and did
+     * not send the ids as bindings either: `whereKey()` on a collection of
+     * integers routes to `whereIntegerInRaw`, which interpolates the whole
+     * list into the SQL text as literals. So neither a query count nor a
+     * binding count can see it — the growth is in the statement string, which
+     * is exactly what this compares.
+     *
+     * Killing mutation: restore the earlier
+     * `PerformedSet::...->pluck('occurrence_id')->unique()` fed back in as
+     * `Occurrence::whereKey($occurrenceIds)`. That select is scoped by
+     * exercise alone, so every occasion any user has ever recorded this
+     * exercise against is interpolated into an `id in (...)` list — 3
+     * strangers and 30 strangers then send visibly different statements and
+     * this assertion fails. Verified by direct mutation and rerun.
+     */
+    public function test_the_read_sends_the_same_statements_however_much_history_the_exercise_carries(): void
+    {
+        $this->assertSame(
+            $this->statementsReadingLastPerformanceBeside(3),
+            $this->statementsReadingLastPerformanceBeside(30),
+            'The last-performance read sends a bigger statement as the shared exercise accumulates other people’s sessions.'
+        );
+    }
+
+    /**
+     * The SQL one `forExercise` call sends, with `$strangers` other users'
+     * sessions already recorded against the same shared exercise.
+     *
+     * @return list<string>
+     */
+    private function statementsReadingLastPerformanceBeside(int $strangers): array
+    {
+        $squat = $this->exercise();
+
+        for ($i = 0; $i < $strangers; $i++) {
+            $strangerAction = $this->gymAction($this->user());
+            $strangerOccurrence = Occurrence::factory()->for($strangerAction)
+                ->create(['scheduled_for' => now()->subDays(2)]);
+            PerformedSet::factory()->create([
+                'occurrence_id' => $strangerOccurrence->id,
+                'exercise_id' => $squat->id,
+                'set_number' => 1,
+                'reps' => 5,
+                'weight' => 100,
+            ]);
+        }
+
+        $user = $this->user();
+        $action = $this->gymAction($user);
+
+        $mine = Occurrence::factory()->for($action)->create(['scheduled_for' => now()->subDay()]);
+        PerformedSet::factory()->create([
+            'occurrence_id' => $mine->id,
+            'exercise_id' => $squat->id,
+            'set_number' => 1,
+            'reps' => 10,
+            'weight' => 60,
+        ]);
+
+        $current = app(MaterialisesOccasion::class)->forAction($action);
+
+        // The query log rather than DB::listen: a listener registered per call
+        // would still be attached on the next one and double-count it.
+        DB::enableQueryLog();
+        DB::flushQueryLog();
+
+        $result = app(LastPerformance::class)->forExercise($squat, $current);
+
+        $statements = array_map(
+            fn (array $query): string => (string) $query['query'],
+            DB::getQueryLog(),
+        );
+
+        DB::flushQueryLog();
+        DB::disableQueryLog();
+
+        // Pins that the measured call actually did the work, so a read that
+        // returned null early could not pass this by being cheap.
+        $this->assertNotNull($result);
+        $this->assertSame([10], array_column($result['sets'], 'reps'));
+
+        return $statements;
     }
 }

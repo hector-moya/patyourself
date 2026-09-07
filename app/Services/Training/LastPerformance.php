@@ -6,7 +6,6 @@ use App\Models\Exercise;
 use App\Models\Occurrence;
 use App\Models\PerformedSet;
 use Carbon\CarbonImmutable;
-use Illuminate\Database\Eloquent\Builder;
 
 /**
  * The exercise screen's read model: what was lifted last time, for one
@@ -23,6 +22,19 @@ use Illuminate\Database\Eloquent\Builder;
  * already showing on screen. Scoped to the occasion's owner, because the
  * exercise catalogue is shared and a bare read by exercise id would hand one
  * user's numbers to another.
+ *
+ * Two bounded queries, whatever the history's size: one to find the occasion,
+ * one to read its sets. The occasion lookup is a join rather than a
+ * `pluck('occurrence_id')` fed back in as a `whereKey(...)`. That earlier shape
+ * selected every occurrence id in `performed_sets` for this exercise across
+ * every user — the catalogue is shared, so that set grows with everyone's
+ * training, not just this user's — pulled the lot into PHP to deduplicate, and
+ * then sent it straight back to the database. Note `whereKey()` on a collection
+ * of integers routes to `whereIntegerInRaw`, so those ids were interpolated
+ * into the statement as literals rather than bound: the SQL text itself grew
+ * with the table, which is why neither a query count nor a binding count could
+ * see it. Batch 3's progression screen runs this read once per exercise on the
+ * page, which is what makes the difference worth having now.
  */
 class LastPerformance
 {
@@ -36,20 +48,15 @@ class LastPerformance
     {
         $userId = $excluding->action->intention->user_id;
 
-        $occurrenceIds = PerformedSet::query()
-            ->where('exercise_id', $exercise->id)
-            ->where('occurrence_id', '!=', $excluding->id)
-            ->pluck('occurrence_id')
-            ->unique();
-
-        if ($occurrenceIds->isEmpty()) {
-            return null;
-        }
-
         $lastOccurrence = Occurrence::query()
-            ->whereKey($occurrenceIds)
-            ->whereHas('action.intention', fn (Builder $query) => $query->where('user_id', $userId))
-            ->orderByDesc('scheduled_for')
+            ->select('occurrences.*')
+            ->join('performed_sets', 'performed_sets.occurrence_id', '=', 'occurrences.id')
+            ->join('actions', 'actions.id', '=', 'occurrences.action_id')
+            ->join('intentions', 'intentions.id', '=', 'actions.intention_id')
+            ->where('performed_sets.exercise_id', $exercise->id)
+            ->where('intentions.user_id', $userId)
+            ->whereKeyNot($excluding->id)
+            ->orderByDesc('occurrences.scheduled_for')
             ->first();
 
         if ($lastOccurrence === null) {
