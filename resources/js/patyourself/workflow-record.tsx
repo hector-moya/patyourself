@@ -26,6 +26,9 @@ interface WorkflowRecordSlotProps {
     workflow: string | null;
     occurrenceId: number | null;
     actionId: number;
+    /** Forwarded to the surface untouched — see `WorkflowRecordProps` for why
+     *  it exists and what the host does with it. */
+    onOccurrenceMaterialised: (occurrenceId: number) => void;
     /** Injectable so a test can route without a workflow being shipped. */
     registry?: WorkflowRegistry;
 }
@@ -82,6 +85,7 @@ export function WorkflowRecord({
     workflow,
     occurrenceId,
     actionId,
+    onOccurrenceMaterialised,
     registry = WORKFLOWS,
 }: WorkflowRecordSlotProps) {
     const spec = workflowFor(workflow, registry);
@@ -94,7 +98,11 @@ export function WorkflowRecord({
 
     return (
         <WorkflowRecordBoundary key={workflow}>
-            <Record occurrenceId={occurrenceId} actionId={actionId} />
+            <Record
+                occurrenceId={occurrenceId}
+                actionId={actionId}
+                onOccurrenceMaterialised={onOccurrenceMaterialised}
+            />
         </WorkflowRecordBoundary>
     );
 }

@@ -66,6 +66,15 @@ export default function CatchUp({
 
 function CatchUpRow({ occurrence }: { occurrence: PendingOccurrenceData }) {
     const [outcome, setOutcome] = useState<LogOutcome | null>(null);
+    /**
+     * Seeded from `occurrence.id`, which is never null here — every catch-up
+     * row already names a real, materialised occurrence, unlike a dashboard
+     * row that can still be anchored to a slot that does not exist yet. Held
+     * as state anyway so this row honours the same
+     * `onOccurrenceMaterialised` contract `WorkflowRecordProps` puts on every
+     * recording surface, mirroring `dashboard.tsx`'s `OccasionRow`.
+     */
+    const [occurrenceId, setOccurrenceId] = useState(occurrence.id);
 
     return (
         <li className="py-3">
@@ -80,12 +89,13 @@ function CatchUpRow({ occurrence }: { occurrence: PendingOccurrenceData }) {
 
             <WorkflowRecord
                 workflow={occurrence.workflow}
-                occurrenceId={occurrence.id}
+                occurrenceId={occurrenceId}
                 actionId={occurrence.action_id}
+                onOccurrenceMaterialised={setOccurrenceId}
             />
 
             <Form
-                action={`/occurrences/${occurrence.id}/logs`}
+                action={`/occurrences/${occurrenceId}/logs`}
                 method="post"
                 options={{ preserveScroll: true }}
                 className="mt-2 flex flex-col gap-2"

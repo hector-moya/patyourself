@@ -25,6 +25,17 @@ export interface WorkflowRecordProps {
      */
     occurrenceId: number | null;
     actionId: number;
+    /**
+     * Called once the surface itself materialises an occasion — the same
+     * transition `occurrenceId: null` describes above, only discovered after
+     * this render rather than before it. The host holds the id in state and
+     * keeps its own logging endpoint pointed at it, because the prop this
+     * component was mounted with came from the server render that preceded
+     * materialising and is stale from that moment on: reading it straight
+     * through would send the verdict to the action route's own live slot
+     * instead of the occasion this surface actually recorded against.
+     */
+    onOccurrenceMaterialised: (occurrenceId: number) => void;
 }
 
 export interface WorkflowSpec {

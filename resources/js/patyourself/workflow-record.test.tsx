@@ -1,8 +1,12 @@
 import { render, screen } from '@testing-library/react';
+import { useEffect } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { WorkflowRecordProps, WorkflowRegistry } from './workflows';
 import { WorkflowRecord } from './workflow-record';
+
+/** A no-op for tests that don't care whether the callback fires. */
+const noop = () => {};
 
 function Surface({ occurrenceId, actionId }: WorkflowRecordProps) {
     return (
@@ -16,10 +20,25 @@ function ThrowingSurface(): never {
     throw new Error('a broken recording surface');
 }
 
+/** Calls back with 42 once mounted, the way a surface that materialises an
+ *  occasion of its own would report it to the host. */
+function MaterialisingSurface({ onOccurrenceMaterialised }: WorkflowRecordProps) {
+    useEffect(() => {
+        onOccurrenceMaterialised(42);
+    }, [onOccurrenceMaterialised]);
+
+    return null;
+}
+
 const FAKE: WorkflowRegistry = {
     'spec-fake': { name: 'spec-fake', label: 'Spec fake', record: Surface },
     bare: { name: 'bare', label: 'Bare', record: null },
     broken: { name: 'broken', label: 'Broken', record: ThrowingSurface },
+    materialising: {
+        name: 'materialising',
+        label: 'Materialising',
+        record: MaterialisingSurface,
+    },
 };
 
 describe('WorkflowRecord', () => {
@@ -29,6 +48,7 @@ describe('WorkflowRecord', () => {
                 workflow="spec-fake"
                 occurrenceId={7}
                 actionId={3}
+                onOccurrenceMaterialised={noop}
                 registry={FAKE}
             />,
         );
@@ -36,17 +56,21 @@ describe('WorkflowRecord', () => {
         expect(screen.getByTestId('surface')).toHaveTextContent('7/3');
     });
 
-    it('draws nothing for a plain loop', () => {
+    it('draws nothing for a plain loop, and never calls the materialised callback', () => {
+        const onOccurrenceMaterialised = vi.fn();
+
         const { container } = render(
             <WorkflowRecord
                 workflow={null}
                 occurrenceId={7}
                 actionId={3}
+                onOccurrenceMaterialised={onOccurrenceMaterialised}
                 registry={FAKE}
             />,
         );
 
         expect(container).toBeEmptyDOMElement();
+        expect(onOccurrenceMaterialised).not.toHaveBeenCalled();
     });
 
     it('draws nothing for a workflow the registry does not know', () => {
@@ -55,6 +79,7 @@ describe('WorkflowRecord', () => {
                 workflow="gimnasio"
                 occurrenceId={7}
                 actionId={3}
+                onOccurrenceMaterialised={noop}
                 registry={FAKE}
             />,
         );
@@ -68,6 +93,7 @@ describe('WorkflowRecord', () => {
                 workflow="constructor"
                 occurrenceId={7}
                 actionId={3}
+                onOccurrenceMaterialised={noop}
                 registry={FAKE}
             />,
         );
@@ -81,6 +107,7 @@ describe('WorkflowRecord', () => {
                 workflow="bare"
                 occurrenceId={7}
                 actionId={3}
+                onOccurrenceMaterialised={noop}
                 registry={FAKE}
             />,
         );
@@ -94,11 +121,35 @@ describe('WorkflowRecord', () => {
                 workflow="spec-fake"
                 occurrenceId={null}
                 actionId={3}
+                onOccurrenceMaterialised={noop}
                 registry={FAKE}
             />,
         );
 
         expect(screen.getByTestId('surface')).toHaveTextContent('null/3');
+    });
+
+    /**
+     * `onOccurrenceMaterialised` is the seam that lets a workflow's own
+     * surface tell the host it created an occasion after the host's server
+     * render already happened. This is the registered-surface half of that
+     * contract: the slot must forward the callback it was given rather than
+     * swallowing it or wiring up one of its own.
+     */
+    it('reaches the host when a registered surface materialises an occurrence', () => {
+        const onOccurrenceMaterialised = vi.fn();
+
+        render(
+            <WorkflowRecord
+                workflow="materialising"
+                occurrenceId={null}
+                actionId={3}
+                onOccurrenceMaterialised={onOccurrenceMaterialised}
+                registry={FAKE}
+            />,
+        );
+
+        expect(onOccurrenceMaterialised).toHaveBeenCalledWith(42);
     });
 
     describe('when the registered surface throws', () => {
@@ -115,17 +166,21 @@ describe('WorkflowRecord', () => {
             consoleError.mockRestore();
         });
 
-        it('degrades to nothing rather than propagating past this component', () => {
+        it('degrades to nothing rather than propagating past this component, and calls nothing back', () => {
+            const onOccurrenceMaterialised = vi.fn();
+
             const { container } = render(
                 <WorkflowRecord
                     workflow="broken"
                     occurrenceId={7}
                     actionId={3}
+                    onOccurrenceMaterialised={onOccurrenceMaterialised}
                     registry={FAKE}
                 />,
             );
 
             expect(container).toBeEmptyDOMElement();
+            expect(onOccurrenceMaterialised).not.toHaveBeenCalled();
         });
 
         /**
@@ -143,6 +198,7 @@ describe('WorkflowRecord', () => {
                     workflow="broken"
                     occurrenceId={7}
                     actionId={3}
+                    onOccurrenceMaterialised={noop}
                     registry={FAKE}
                 />,
             );
@@ -152,6 +208,7 @@ describe('WorkflowRecord', () => {
                     workflow="spec-fake"
                     occurrenceId={7}
                     actionId={3}
+                    onOccurrenceMaterialised={noop}
                     registry={FAKE}
                 />,
             );
@@ -166,6 +223,7 @@ describe('WorkflowRecord', () => {
                 workflow="spec-fake"
                 occurrenceId={7}
                 actionId={3}
+                onOccurrenceMaterialised={noop}
                 registry={FAKE}
             />,
         );

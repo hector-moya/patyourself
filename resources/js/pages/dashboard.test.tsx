@@ -1,5 +1,6 @@
 import type * as InertiaReact from '@inertiajs/react';
 import { fireEvent, render, screen } from '@testing-library/react';
+import { useEffect } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 const page = { url: '/dashboard', props: { unread_notifications_count: 0 } };
@@ -9,7 +10,44 @@ vi.mock('@inertiajs/react', async (importOriginal) => {
     return { ...actual, Head: () => null, usePage: () => page };
 });
 
+/**
+ * Calls back with 42 once mounted, standing in for a workflow surface that
+ * materialises an occasion of its own after the server render this screen
+ * was given. Only takes over for the one sentinel workflow name a test below
+ * opts into — every other workflow (including `'constructor'`, the
+ * prototype-chain fallback the test suite pins elsewhere) still goes through
+ * the real `WorkflowRecord`, unmodified.
+ */
+function MaterialisingSurface({
+    onOccurrenceMaterialised,
+}: {
+    onOccurrenceMaterialised: (occurrenceId: number) => void;
+}) {
+    useEffect(() => {
+        onOccurrenceMaterialised(42);
+    }, [onOccurrenceMaterialised]);
+
+    return null;
+}
+
+vi.mock('@/patyourself/workflow-record', async (importOriginal) => {
+    const actual = await importOriginal<typeof WorkflowRecordModule>();
+
+    return {
+        ...actual,
+        WorkflowRecord: (props: Parameters<typeof actual.WorkflowRecord>[0]) =>
+            props.workflow === 'materialising-test' ? (
+                <MaterialisingSurface
+                    onOccurrenceMaterialised={props.onOccurrenceMaterialised}
+                />
+            ) : (
+                <actual.WorkflowRecord {...props} />
+            ),
+    };
+});
+
 import { companion, noCompanion } from '@/patyourself/companion.fixture';
+import type * as WorkflowRecordModule from '@/patyourself/workflow-record';
 
 import Dashboard from './dashboard';
 import type {ReadyForVerdictData, TodaysOccasionData} from './dashboard';
@@ -115,6 +153,37 @@ describe('Dashboard', () => {
         expect(screen.getByTestId('occasion-form-7')).toHaveAttribute(
             'action',
             '/actions/7/logs',
+        );
+    });
+
+    /**
+     * The defect this pins: `occurrence_id` is server-rendered, and a
+     * workflow's recording surface can materialise an occasion on the client
+     * afterwards. The occasion below starts with a null occurrence id — the
+     * same anchored, not-yet-materialised case as the test above — but its
+     * surface names 42 once mounted. The verdict must follow that occasion,
+     * not fall back to the action route's own live slot, which can resolve
+     * to a different occasion entirely from the one just recorded against.
+     *
+     * Named killing mutation: in `OccasionRow`, drop the `occurrenceId`
+     * state and pass `logEndpoint(occasion.action_id, occasion.occurrence_id)`
+     * instead — reading the stale prop straight through. This test then posts
+     * to `/actions/7/logs` and fails.
+     */
+    it('follows a workflow surface that materialises an occasion, not the stale server prop', () => {
+        renderDashboard({
+            occasions: [
+                occasion({
+                    occurrence_id: null,
+                    due: 'anchored',
+                    workflow: 'materialising-test',
+                }),
+            ],
+        });
+
+        expect(screen.getByTestId('occasion-form-7')).toHaveAttribute(
+            'action',
+            '/occurrences/42/logs',
         );
     });
 

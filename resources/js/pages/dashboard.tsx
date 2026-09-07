@@ -186,15 +186,25 @@ function CompanionCorner({
  * anchored action whose slot was never materialised — it logs the live slot
  * through the action route. Sending everything to the action route would log
  * the wrong thing and say nothing about it.
+ *
+ * Takes the occurrence id as its own argument rather than the whole occasion:
+ * the caller passes its own state, not `occasion.occurrence_id` directly.
+ * That field is a one-time server render, and a workflow's recording surface
+ * can materialise an occasion on the client afterwards — the row keeps the
+ * current id in state, seeded from this same prop and updated by
+ * `onOccurrenceMaterialised`, so a verdict pressed after materialising still
+ * follows the occasion the surface actually recorded against instead of
+ * falling back to whatever the action route's live slot resolves to.
  */
-function logEndpoint(occasion: TodaysOccasionData): string {
-    return occasion.occurrence_id === null
-        ? `/actions/${occasion.action_id}/logs`
-        : `/occurrences/${occasion.occurrence_id}/logs`;
+function logEndpoint(actionId: number, occurrenceId: number | null): string {
+    return occurrenceId === null
+        ? `/actions/${actionId}/logs`
+        : `/occurrences/${occurrenceId}/logs`;
 }
 
 function OccasionRow({ occasion }: { occasion: TodaysOccasionData }) {
     const [outcome, setOutcome] = useState<LogOutcome | null>(null);
+    const [occurrenceId, setOccurrenceId] = useState(occasion.occurrence_id);
 
     return (
         <li className="py-3">
@@ -216,12 +226,13 @@ function OccasionRow({ occasion }: { occasion: TodaysOccasionData }) {
 
             <WorkflowRecord
                 workflow={occasion.workflow}
-                occurrenceId={occasion.occurrence_id}
+                occurrenceId={occurrenceId}
                 actionId={occasion.action_id}
+                onOccurrenceMaterialised={setOccurrenceId}
             />
 
             <Form
-                action={logEndpoint(occasion)}
+                action={logEndpoint(occasion.action_id, occurrenceId)}
                 method="post"
                 options={{ preserveScroll: true }}
                 className="mt-2 flex flex-col gap-2"
