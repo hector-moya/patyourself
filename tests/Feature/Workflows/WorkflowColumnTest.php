@@ -102,6 +102,35 @@ class WorkflowColumnTest extends TestCase
         ]);
     }
 
+    /**
+     * The test above posts a literal null, which is what an API client sends.
+     * The shipped control is an HTML `<select>` whose "Nothing extra" option
+     * has an empty value, and a form posts that as `''`, never as null — so
+     * the two are genuinely different payloads and only one of them was
+     * covered. `''` survives `Rule::in([...])` only because Laravel's
+     * ConvertEmptyStringsToNull middleware has already turned it into null by
+     * the time validation runs; without that it would fail the rule and the
+     * picker could set a workflow but never clear one.
+     *
+     * Killing mutation: remove ConvertEmptyStringsToNull from bootstrap/app.php's
+     * middleware stack. `''` then reaches the `Rule::in` and this test fails on
+     * `assertSessionHasNoErrors` — verified by direct mutation and rerun.
+     */
+    public function test_the_pickers_empty_choice_returns_a_loop_to_no_workflow(): void
+    {
+        $user = User::factory()->create();
+        $loop = $this->loopFor($user, self::SPEC_FAKE);
+
+        $this->actingAs($user)->patch('/loops/'.$loop->id, [
+            'workflow' => '',
+        ])->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('intentions', [
+            'id' => $loop->id,
+            'workflow' => null,
+        ]);
+    }
+
     public function test_a_registered_workflow_is_accepted_on_creation(): void
     {
         $user = User::factory()->create();

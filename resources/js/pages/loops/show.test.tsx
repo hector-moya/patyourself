@@ -582,4 +582,173 @@ describe('LoopShow', () => {
         expect(screen.getByText('daily')).toBeInTheDocument();
         expect(screen.queryByText(/daily at/i)).not.toBeInTheDocument();
     });
+
+    describe('the workflow picker', () => {
+        const WORKFLOWS = [{ name: 'gym', label: 'Gym' }];
+
+        /**
+         * Recording nothing extra is what almost every loop does, forever, so
+         * it has to be the ordinary, already-selected option — not a field
+         * left blank that the control implies should be filled.
+         *
+         * Killing mutation: drop the `<option value="">Nothing extra</option>`
+         * and default the select to the first registered workflow. A plain
+         * loop's picker would show "Gym" selected, and both assertions below
+         * fail — verified by direct mutation and rerun.
+         */
+        it('offers recording nothing as the selected default for a plain loop', () => {
+            render(
+                <LoopShow
+                    intention={intention({ workflow: null })}
+                    strategies={[]}
+                    {...record}
+                    workflows={WORKFLOWS}
+                />,
+            );
+
+            const select = screen.getByLabelText('What this loop records');
+
+            expect(select).toHaveValue('');
+            expect(
+                screen.getByRole('option', { name: 'Nothing extra' }),
+            ).toBeInTheDocument();
+        });
+
+        /**
+         * The options come from the server registry, never from a list held
+         * here — `UpdateIntentionRequest` validates against the same registry,
+         * so a client-side copy could only ever drift out of agreement.
+         *
+         * Killing mutation: hardcode the options to `['gym']` and ignore the
+         * prop. This test's own registry entry would not appear and the
+         * assertion fails — verified by direct mutation and rerun.
+         */
+        it('draws its options from the registry the server sent, not a list of its own', () => {
+            render(
+                <LoopShow
+                    intention={intention({ workflow: null })}
+                    strategies={[]}
+                    {...record}
+                    workflows={[{ name: 'brewing', label: 'Brewing' }]}
+                />,
+            );
+
+            expect(
+                screen.getByRole('option', { name: 'Brewing' }),
+            ).toBeInTheDocument();
+            expect(
+                screen.queryByRole('option', { name: 'Gym' }),
+            ).not.toBeInTheDocument();
+        });
+
+        /**
+         * Killing mutation: default the select to `''` regardless of the
+         * loop's own workflow. A gym loop would open its picker showing
+         * "Nothing extra" and this assertion fails — verified by direct
+         * mutation and rerun.
+         */
+        it('shows the loop’s current workflow as selected', () => {
+            render(
+                <LoopShow
+                    intention={intention({ workflow: 'gym' })}
+                    strategies={[]}
+                    {...record}
+                    workflows={WORKFLOWS}
+                />,
+            );
+
+            expect(
+                screen.getByLabelText('What this loop records'),
+            ).toHaveValue('gym');
+        });
+
+        /**
+         * `?_method=PUT` is Wayfinder's form variant spoofing the verb, since
+         * a browser form can only ever be GET or POST. That is part of the
+         * contract with `loops.update`, so it is asserted rather than trimmed
+         * away.
+         *
+         * Killing mutation: point the picker's form at a route other than the
+         * loop update one (or drop the `name="workflow"` off the select).
+         * Either way the choice would never reach `UpdateIntentionRequest` —
+         * verified by direct mutation and rerun.
+         */
+        it('saves the choice to the loop update route', () => {
+            render(
+                <LoopShow
+                    intention={intention({ id: 4, workflow: null })}
+                    strategies={[]}
+                    {...record}
+                    workflows={WORKFLOWS}
+                />,
+            );
+
+            const select = screen.getByLabelText('What this loop records');
+            const form = select.closest('form');
+
+            expect(form).toHaveAttribute('action', '/loops/4?_method=PUT');
+            expect(select).toHaveAttribute('name', 'workflow');
+        });
+    });
+
+    describe('the routine editor', () => {
+        /**
+         * A plain loop must look exactly as it does today: the action layer is
+         * shared by every loop in the app, and the configuration surface is
+         * additive or it is a regression.
+         *
+         * Killing mutation: render the editor whenever `routine` is present,
+         * ignoring the loop's workflow. It would appear on a plain loop whose
+         * server props happened to carry a routine — verified by direct
+         * mutation and rerun.
+         */
+        it('draws nothing on a plain loop’s action', () => {
+            render(
+                <LoopShow
+                    intention={intention({ workflow: null })}
+                    strategies={[]}
+                    {...record}
+                    actions={[actionRecord({ id: 9, title: 'Upper A' })]}
+                />,
+            );
+
+            expect(
+                screen.queryByTestId('routine-editor-9'),
+            ).not.toBeInTheDocument();
+        });
+
+        /**
+         * Killing mutation: pass `workflow={null}` into `ActionLayer` rather
+         * than the loop's own. The editor would never draw for anyone and this
+         * assertion fails — verified by direct mutation and rerun.
+         */
+        it('draws on a gym loop’s action, beside the action itself', () => {
+            render(
+                <LoopShow
+                    intention={intention({ workflow: 'gym' })}
+                    strategies={[]}
+                    {...record}
+                    actions={[
+                        actionRecord({
+                            id: 9,
+                            title: 'Upper A',
+                            routine: [
+                                {
+                                    id: 1,
+                                    exercise_id: 5,
+                                    exercise_name: 'Bench Press',
+                                    position: 1,
+                                    target_sets: 3,
+                                    target_reps: 10,
+                                },
+                            ],
+                        }),
+                    ]}
+                />,
+            );
+
+            expect(screen.getByTestId('routine-editor-9')).toBeInTheDocument();
+            expect(screen.getByText('Bench Press')).toBeInTheDocument();
+        });
+    });
 });

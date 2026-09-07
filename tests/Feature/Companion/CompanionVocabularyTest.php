@@ -60,11 +60,13 @@ class CompanionVocabularyTest extends TestCase
             $root.'/resources/js/patyourself/ui/README.md',
             $root.'/resources/js/patyourself/workflows.ts',
             $root.'/resources/js/patyourself/workflow-record.tsx',
+            $root.'/resources/js/patyourself/workflow-config.tsx',
             $root.'/resources/js/pages/companion.tsx',
             $root.'/app/Actions/Training/AddRoutineExercise.php',
             $root.'/app/Actions/Training/RecordSet.php',
             $root.'/app/Actions/Training/RemoveRoutineExercise.php',
             $root.'/app/Actions/Training/ReorderRoutine.php',
+            $root.'/app/Http/Controllers/Training/ExerciseCatalogueController.php',
             $root.'/app/Http/Controllers/Training/ExerciseController.php',
             $root.'/app/Http/Controllers/Training/PerformedSetController.php',
             $root.'/app/Http/Controllers/Training/RoutineController.php',
@@ -79,6 +81,13 @@ class CompanionVocabularyTest extends TestCase
             $root.'/resources/js/pages/training/session.tsx',
             $root.'/resources/js/patyourself/training/gym-record.tsx',
             $root.'/resources/js/patyourself/training/set-grid.tsx',
+            // The two setup surfaces. The routine editor especially: it is
+            // where a person writes the targets every other gym screen quotes
+            // back at them, so it is the most tempting place in the module to
+            // start scoring what they wrote against what they did.
+            $root.'/resources/js/patyourself/training/routine-editor.tsx',
+            $root.'/resources/js/pages/loops/show.tsx',
+            $root.'/resources/js/patyourself/loops/action-layer.tsx',
         ];
     }
 
