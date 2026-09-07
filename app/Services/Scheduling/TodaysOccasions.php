@@ -13,7 +13,17 @@ use Illuminate\Support\Facades\Date;
 /**
  * The one definition of "what is due today" for a user: unlogged occasions
  * inside the user's local day, plus cue-anchored actions, which have no
- * schedule and so no occasion to be inside it.
+ * schedule and so usually no occasion to be inside it.
+ *
+ * Usually, not always. Beginning to record materialises an occasion for a
+ * cue-anchored action — App\Services\Workflows\MaterialisesOccasion, named in
+ * prose rather than imported so this layer does not reach up at the workflow
+ * one for a doc tag — and from that moment the action belongs to the first half
+ * of this list rather than the second. The two halves are exclusive by
+ * construction, not by coincidence, and that is what the whereDoesntHave below
+ * is for: two entries for one action mean two cards, two verdicts and logCount
+ * +2 for a single session, which the unique index on action_logs.occurrence_id
+ * cannot catch because they are two real, distinct occasions.
  *
  * The window is the whole point. Occasions never expire — a missed one stays
  * loggable forever — so selecting every unlogged past occasion would build a
@@ -45,12 +55,17 @@ class TodaysOccasions
         $now = Date::now();
         $localNow = Date::now($timezone);
 
+        // Held once and used by both branches. The anchored branch excludes
+        // exactly what the scheduled branch selects, so the two can only agree
+        // if they read the same window from the same variable.
+        $localDay = [
+            $localNow->copy()->startOfDay()->utc(),
+            $localNow->copy()->endOfDay()->utc(),
+        ];
+
         $scheduled = Occurrence::query()
             ->unlogged()
-            ->whereBetween('scheduled_for', [
-                $localNow->copy()->startOfDay()->utc(),
-                $localNow->copy()->endOfDay()->utc(),
-            ])
+            ->whereBetween('scheduled_for', $localDay)
             ->whereHas('action', fn (Builder $query) => $this->restrictToUsersActiveLoops($query, $user))
             ->with('action.intention:id,title,workflow')
             ->orderBy('scheduled_for')
@@ -64,7 +79,22 @@ class TodaysOccasions
                     : TodaysOccasion::UPCOMING,
             ));
 
-        $anchoredQuery = Action::query()->whereNull('series_started_at');
+        // Cue-anchored, and not already standing in the scheduled half above.
+        // `unlogged` and the window are both load-bearing, and each keeps a
+        // different action on the list: a logged occasion means the day was
+        // answered and a cue-anchored action is offerable again, and an
+        // unlogged occasion from an earlier day belongs to /catch-up, which the
+        // scheduled branch will not return. Widen this past today's unlogged
+        // rows and the action falls out of both halves and off the day.
+        //
+        // One correlated subquery, not a relation read per action: three
+        // surfaces call this service, so an N+1 here is paid three times.
+        $anchoredQuery = Action::query()
+            ->whereNull('series_started_at')
+            ->whereDoesntHave('occurrences', fn (Builder $occasions) => $occasions
+                ->unlogged()
+                ->whereBetween('scheduled_for', $localDay));
+
         $this->restrictToUsersActiveLoops($anchoredQuery, $user);
 
         $anchored = $anchoredQuery
