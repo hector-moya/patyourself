@@ -231,6 +231,42 @@ rather than discovered when running is built.
   changing shared dashboard code ahead of that would be guessing. Settle it when the screen
   exists.
 
+  **Settled 2026-09-07**, in batch 2, once the screen existed. The anchored branch now
+  excludes any action already holding an unlogged occurrence inside the same local-day
+  window the scheduled branch uses, so the materialised action appears once, as the
+  scheduled entry carrying the occurrence — which is the entry that posts to the occurrence
+  route.
+- **The action-keyed verdict routes can still split a session from its outcome — recorded
+  2026-09-07 and deliberately not solved.** The bullet above says a recording surface must
+  pass its occurrence to `LogAction::handle()`. Two surfaces still do not, because they have
+  no occurrence to pass: `ActionLogController` and `Api\ActionLogController` are keyed on the
+  *action*, so `LogAction` resolves afresh through `liveSlotFor()`.
+
+  Concretely. A clock-scheduled gym action with a 19:00 slot. Recording starts at 18:00, and
+  `MaterialisesOccasion` uses `todaysSlotFor()` — no ceiling — so the sets attach to the
+  19:00 slot, correctly. The verdict is then pressed at 18:30 through the action-keyed JSON
+  route. `liveSlotFor()` is ceilinged at `now`, cannot see 19:00, falls through to
+  `freeSlotAt(18:30)` and mints a second occasion. One session, two occasions: the log lands
+  on the new one and the one holding the sets is left unlogged on `/catch-up`.
+
+  Not being solved now, for three reasons. It is not reachable from the shipped web UI —
+  `GymRecord` redirects into the session screen, which posts its verdict to
+  `occurrences.logs.store` — and MCP's `LogOutcomeTool` always passes an occurrence, so the
+  JSON route is the only way in. The obvious-looking fix is the wrong one: widening
+  `liveSlotFor()` to see slots that have not arrived would mean a verdict could log a session
+  that has not happened yet, which is precisely what its ceiling exists to prevent, and 18
+  `LogActionTest` cases pin that semantics on purpose. And the right fix needs a question this
+  layer cannot currently ask.
+
+  What would solve it: making "does today already hold an occasion this action has *recorded
+  against*?" answerable, and having the action-keyed routes prefer that occasion over minting
+  a new one. That is a question about records rather than about slots, so it belongs beside
+  `WorkflowDefinition`, which is the thing that knows a workflow has a record side at all — not
+  inside `ResolvesOccasionSlot`, which deliberately knows nothing about workflows. The cheaper
+  alternative, if the JSON API only ever needs to stop being wrong rather than get this right,
+  is to give it an occurrence-keyed sibling the way the web side already has one, and leave
+  the action-keyed route for actions that record nothing.
+
 ## Testing
 
 - A loop with `workflow: null` behaves **exactly** as loops do today. This is the regression that
