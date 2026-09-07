@@ -68,12 +68,17 @@ class SessionScreenTest extends TestCase
         $row = Exercise::factory()->create(['name' => 'Barbell Row']);
         $press = Exercise::factory()->create(['name' => 'Overhead Press']);
 
+        // Positions deliberately out of step with both insertion order and id
+        // order. `ActionExerciseFactory::configure()` sequences position to
+        // `index + 1`, so leaving it alone would make all three coincide and
+        // the ordering assertion below would pass against a `SessionScreen`
+        // that never sorted at all.
         ActionExercise::factory()
             ->count(3)
             ->sequence(
-                ['exercise_id' => $squat->id, 'target_sets' => 5, 'target_reps' => 5],
-                ['exercise_id' => $row->id, 'target_sets' => 4, 'target_reps' => 8],
-                ['exercise_id' => $press->id, 'target_sets' => 3, 'target_reps' => 10],
+                ['exercise_id' => $squat->id, 'target_sets' => 5, 'target_reps' => 5, 'position' => 3],
+                ['exercise_id' => $row->id, 'target_sets' => 4, 'target_reps' => 8, 'position' => 1],
+                ['exercise_id' => $press->id, 'target_sets' => 3, 'target_reps' => 10, 'position' => 2],
             )
             ->create(['action_id' => $action->id]);
 
@@ -88,23 +93,29 @@ class SessionScreenTest extends TestCase
 
         $this->assertCount(3, $screen);
 
-        // Position order, not insertion or id order.
-        $this->assertSame($squat->id, $screen[0]['exercise']->id);
-        $this->assertSame($row->id, $screen[1]['exercise']->id);
-        $this->assertSame($press->id, $screen[2]['exercise']->id);
+        // Position order — 1, 2, 3 — which is row, press, squat. Insertion and
+        // id order would both be squat, row, press.
+        $this->assertSame($row->id, $screen[0]['exercise']->id);
+        $this->assertSame($press->id, $screen[1]['exercise']->id);
+        $this->assertSame($squat->id, $screen[2]['exercise']->id);
 
-        $this->assertSame(5, $screen[0]['target_sets']);
-        $this->assertSame(5, $screen[0]['target_reps']);
+        // The targets travel with their own row, not with the slot it landed
+        // in: row is position 1 at 4 x 8, squat is position 3 at 5 x 5.
+        $this->assertSame(4, $screen[0]['target_sets']);
+        $this->assertSame(8, $screen[0]['target_reps']);
+        $this->assertSame(5, $screen[2]['target_sets']);
+        $this->assertSame(5, $screen[2]['target_reps']);
 
         // Proof the exercise is loaded in full, not column-limited.
         $this->assertSame(
             ['Set up under the bar.', 'Stand and step back.'],
-            $screen[0]['exercise']->instructions,
+            $screen[2]['exercise']->instructions,
         );
 
-        $this->assertCount(2, $screen[0]['performed_sets']);
+        // The two recorded sets are squat's, and follow squat to position 3.
+        $this->assertCount(0, $screen[0]['performed_sets']);
         $this->assertCount(0, $screen[1]['performed_sets']);
-        $this->assertCount(0, $screen[2]['performed_sets']);
+        $this->assertCount(2, $screen[2]['performed_sets']);
     }
 
     /**

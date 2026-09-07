@@ -69,12 +69,17 @@ class SessionScreenRenderTest extends TestCase
         $row = Exercise::factory()->create(['name' => 'Barbell Row']);
         $press = Exercise::factory()->create(['name' => 'Overhead Press']);
 
+        // Positions deliberately out of step with both insertion order and id
+        // order. `ActionExerciseFactory::configure()` sequences position to
+        // `index + 1`, so leaving it alone would make all three coincide and
+        // the ordering assertions below would pass against a controller that
+        // never sorted at all.
         ActionExercise::factory()
             ->count(3)
             ->sequence(
-                ['exercise_id' => $squat->id, 'target_sets' => 5, 'target_reps' => 5],
-                ['exercise_id' => $row->id, 'target_sets' => 4, 'target_reps' => 8],
-                ['exercise_id' => $press->id, 'target_sets' => 3, 'target_reps' => 10],
+                ['exercise_id' => $squat->id, 'target_sets' => 5, 'target_reps' => 5, 'position' => 3],
+                ['exercise_id' => $row->id, 'target_sets' => 4, 'target_reps' => 8, 'position' => 1],
+                ['exercise_id' => $press->id, 'target_sets' => 3, 'target_reps' => 10, 'position' => 2],
             )
             ->create(['action_id' => $action->id]);
 
@@ -99,15 +104,18 @@ class SessionScreenRenderTest extends TestCase
                 ->where('action_title', 'Upper A')
                 ->where('scheduled_for', $occurrence->scheduled_for->toIso8601String())
                 ->has('exercises', 3)
-                // Position order, not insertion or id order.
-                ->where('exercises.0.name', 'Barbell Back Squat')
-                ->where('exercises.0.target_sets', 5)
-                ->where('exercises.0.target_reps', 5)
-                ->where('exercises.0.performed_count', 2)
-                ->where('exercises.1.name', 'Barbell Row')
-                ->where('exercises.1.performed_count', 0)
-                ->where('exercises.2.name', 'Overhead Press')
-                ->where('exercises.2.performed_count', 1)
+                // Position order — 1, 2, 3 — which is row, press, squat.
+                // Insertion and id order would both be squat, row, press.
+                ->where('exercises.0.name', 'Barbell Row')
+                ->where('exercises.0.target_sets', 4)
+                ->where('exercises.0.target_reps', 8)
+                ->where('exercises.0.performed_count', 0)
+                ->where('exercises.1.name', 'Overhead Press')
+                ->where('exercises.1.performed_count', 1)
+                ->where('exercises.2.name', 'Barbell Back Squat')
+                ->where('exercises.2.target_sets', 5)
+                ->where('exercises.2.target_reps', 5)
+                ->where('exercises.2.performed_count', 2)
             );
     }
 

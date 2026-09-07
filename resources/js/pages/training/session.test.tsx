@@ -49,22 +49,36 @@ describe('Session', () => {
      * test's dot-count assertion fails — verified by direct mutation and
      * rerun.
      */
-    it('renders exercises in position order with target sets/reps and one dot per target set, filled to the number recorded', () => {
+    it('renders exercises in the order the server sent them, with target sets/reps and one dot per target set, filled to the number recorded', () => {
+        // The server sends the routine already in position order (see
+        // `SessionScreen`), so what this screen owes is to render that array
+        // as given and not re-sort it. The ids are deliberately scrambled
+        // against the array order and the names deliberately not alphabetical,
+        // so a component that sorted by either would produce a different list
+        // and fail below. With ascending ids the assertion could not tell a
+        // faithful render from an id sort at all.
         renderSession({
             exercises: [
                 exercise({
-                    id: 1,
+                    id: 7,
                     name: 'Bench press',
                     target_sets: 3,
                     target_reps: 10,
                     performed_count: 2,
                 }),
                 exercise({
-                    id: 2,
+                    id: 3,
                     name: 'Barbell row',
                     target_sets: 4,
                     target_reps: 8,
                     performed_count: 0,
+                }),
+                exercise({
+                    id: 5,
+                    name: 'Lat pulldown',
+                    target_sets: 3,
+                    target_reps: 12,
+                    performed_count: 3,
                 }),
             ],
         });
@@ -73,18 +87,19 @@ describe('Session', () => {
             .getAllByTestId(/^exercise-row-/)
             .map((row) => within(row).getByTestId('exercise-name').textContent);
 
-        // Position order, not insertion or id order in reverse or by name.
-        expect(names).toEqual(['Bench press', 'Barbell row']);
+        // Given order. By id it would be row, pulldown, bench; alphabetically
+        // row, bench, pulldown; reversed, pulldown, row, bench.
+        expect(names).toEqual(['Bench press', 'Barbell row', 'Lat pulldown']);
 
-        expect(screen.getByTestId('exercise-target-1')).toHaveTextContent(
+        expect(screen.getByTestId('exercise-target-7')).toHaveTextContent(
             '3 x 10',
         );
-        expect(screen.getByTestId('exercise-target-2')).toHaveTextContent(
+        expect(screen.getByTestId('exercise-target-3')).toHaveTextContent(
             '4 x 8',
         );
 
         const benchDots = within(
-            screen.getByTestId('exercise-dots-1'),
+            screen.getByTestId('exercise-dots-7'),
         ).getAllByTestId('set-dot');
         expect(benchDots).toHaveLength(3);
         expect(
@@ -92,7 +107,7 @@ describe('Session', () => {
         ).toHaveLength(2);
 
         const rowDots = within(
-            screen.getByTestId('exercise-dots-2'),
+            screen.getByTestId('exercise-dots-3'),
         ).getAllByTestId('set-dot');
         expect(rowDots).toHaveLength(4);
         expect(

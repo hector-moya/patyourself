@@ -48,9 +48,12 @@ class DailyDigestNotification extends Notification implements ShouldQueue
 
             $mail->line("• {$occasion->action->title} — {$occasion->action->intention->title} ({$when})");
 
-            // A cue-anchored action has no occurrence yet — logging it is what
-            // creates one — so there is nothing to build a one-click link
-            // against. It stays listed above, without links, until it fires.
+            // A row with no occurrence has nothing to build a one-click link
+            // against, so it stays listed above without them. That is the
+            // cue-anchored case before anything has happened to it — logging
+            // is one thing that creates the occasion, and since the gym module
+            // beginning to record is another, so a cue-anchored row mid-session
+            // does carry links here.
             if ($occasion->occurrence !== null) {
                 $links = QuickLogLinks::linksFor($occasion->occurrence);
 
