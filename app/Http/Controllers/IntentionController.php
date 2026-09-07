@@ -10,10 +10,13 @@ use App\Http\Requests\UpdateIntentionRequest;
 use App\Http\Resources\IntentionResource;
 use App\Http\Resources\StrategyResource;
 use App\Models\Action;
+use App\Models\ActionExercise;
 use App\Models\ActionLog;
 use App\Models\Intention;
 use App\Models\Note;
 use App\Services\Progress\LoopProgress;
+use App\Services\Workflows\WorkflowDefinition;
+use App\Services\Workflows\WorkflowRegistry;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -155,18 +158,66 @@ class IntentionController extends Controller
             // resources/js/patyourself/loops/cadence.ts. A schedule_kind of
             // "clock" with a recurrence but no upcoming occurrence must read
             // as "daily", not "daily at " with nothing after it.
-            'actions' => $intention->actions()
-                ->where('status', '!=', Action::STATUS_ARCHIVED)
-                ->get()
-                ->map(fn (Action $action): array => [
-                    'id' => $action->id,
-                    'title' => $action->title,
-                    'recurrence' => $action->recurrence,
-                    'schedule_kind' => $action->metadata['schedule_kind'] ?? null,
-                    'anchor' => $action->metadata['anchor'] ?? null,
-                    'next_occurrence_at' => $action->nextOccurrenceAt()?->timezone($timezone)->toIso8601String(),
-                ])->values()->all(),
+            'actions' => $this->actionLayer($intention, $timezone),
+            // What a loop may be set to record, straight from the registry.
+            // The client draws the control from this rather than holding its
+            // own copy of the list: the server is what decides which names are
+            // acceptable (see UpdateIntentionRequest), and a second list in
+            // the client could only ever drift out of agreement with it.
+            'workflows' => collect(app(WorkflowRegistry::class)->all())
+                ->map(fn (WorkflowDefinition $definition): array => [
+                    'name' => $definition->name,
+                    'label' => $definition->label,
+                ])
+                ->values()
+                ->all(),
         ]);
+    }
+
+    /**
+     * The loop's live actions, each carrying its routine when the loop records
+     * through a workflow that configures one.
+     *
+     * `routine` is null — not an empty list — for a loop with no workflow, so
+     * the client can tell "this loop does not configure actions" from "this
+     * action's routine is empty". A plain loop pays for neither the eager load
+     * nor the extra key.
+     *
+     * The eager load names no columns. A `->with('actionExercises.exercise:id,name')`
+     * would return null for anything unnamed forever with the suite green —
+     * the trap this project has been bitten by three times.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function actionLayer(Intention $intention, string $timezone): array
+    {
+        $configuresActions = app(WorkflowRegistry::class)->for($intention->workflow)?->config !== null;
+
+        return $intention->actions()
+            ->where('status', '!=', Action::STATUS_ARCHIVED)
+            ->when($configuresActions, fn (Builder $query) => $query->with('actionExercises.exercise'))
+            ->get()
+            ->map(fn (Action $action): array => [
+                'id' => $action->id,
+                'title' => $action->title,
+                'recurrence' => $action->recurrence,
+                'schedule_kind' => $action->metadata['schedule_kind'] ?? null,
+                'anchor' => $action->metadata['anchor'] ?? null,
+                'next_occurrence_at' => $action->nextOccurrenceAt()?->timezone($timezone)->toIso8601String(),
+                'routine' => $configuresActions
+                    ? $action->actionExercises
+                        ->map(fn (ActionExercise $row): array => [
+                            'id' => $row->id,
+                            'exercise_id' => $row->exercise_id,
+                            'exercise_name' => $row->exercise?->name,
+                            'position' => $row->position,
+                            'target_sets' => $row->target_sets,
+                            'target_reps' => $row->target_reps,
+                        ])
+                        ->values()
+                        ->all()
+                    : null,
+            ])->values()->all();
     }
 
     /**

@@ -73,6 +73,21 @@ class Action extends Model
     }
 
     /**
+     * The routine attached at the gym workflow's config extension site: what
+     * this action's occasions are meant to contain, one row per exercise, in
+     * `position` order.
+     *
+     * Empty for every action with no workflow, which is the ordinary case —
+     * a plain action has no routine and reads exactly as it always has.
+     *
+     * @return HasMany<ActionExercise, $this>
+     */
+    public function actionExercises(): HasMany
+    {
+        return $this->hasMany(ActionExercise::class)->orderBy('position');
+    }
+
+    /**
      * Every materialised instance of this action. The action row is the
      * standing prescription; these are the occasions it has actually
      * produced, and the rows outcomes attach to.
