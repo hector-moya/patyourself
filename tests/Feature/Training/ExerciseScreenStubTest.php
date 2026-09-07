@@ -221,6 +221,70 @@ class ExerciseScreenStubTest extends TestCase
             ->assertForbidden();
     }
 
+    /**
+     * Owning the occasion is not the same question as being allowed to see the
+     * exercise. The catalogue is shared, so `Gate::authorize('log', ...)`
+     * proves only that the *occasion* is yours — a stranger's private
+     * addition, named through an occasion you do own, must still not render
+     * its name or its instructions.
+     *
+     * `assertNotFound` rather than `assertForbidden`: the read side matches
+     * `StoreRoutineExerciseRequest` and `StorePerformedSetRequest`, which
+     * both treat an exercise outside `availableTo` as one that does not exist
+     * for this user.
+     *
+     * Killing mutation: delete the `abort_unless(... availableTo ...)` guard
+     * from `ExerciseController::show` — the stranger's row is still bound off
+     * the id in the URL and the screen renders 200 with their name and their
+     * instructions on it. Verified by direct mutation and rerun.
+     */
+    public function test_another_users_private_exercise_is_not_found(): void
+    {
+        $user = $this->user();
+        $occurrence = $this->occurrenceFor($user);
+
+        $stranger = $this->user();
+        $private = Exercise::factory()->create([
+            'user_id' => $stranger->id,
+            'name' => 'Stranger Only Lift',
+            'instructions' => ['Nobody else gets to read this.'],
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get("/occurrences/{$occurrence->id}/exercises/{$private->id}");
+
+        $response->assertNotFound();
+        $response->assertDontSee('Stranger Only Lift');
+        $response->assertDontSee('Nobody else gets to read this.');
+    }
+
+    /**
+     * The other half of the same rule: the user's *own* private addition is
+     * theirs to read, so scoping the binding must not lock them out of it.
+     *
+     * Killing mutation: narrow the guard to `whereNull('user_id')` instead of
+     * `availableTo($request->user())` — the shared catalogue would still work,
+     * every other test in this file would stay green, and only this one would
+     * 404. Verified by direct mutation and rerun.
+     */
+    public function test_the_users_own_private_exercise_renders(): void
+    {
+        $user = $this->user();
+        $occurrence = $this->occurrenceFor($user);
+        $own = Exercise::factory()->create([
+            'user_id' => $user->id,
+            'name' => 'My Own Lift',
+        ]);
+
+        $this->actingAs($user)
+            ->get("/occurrences/{$occurrence->id}/exercises/{$own->id}")
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('training/exercise')
+                ->where('exercise.name', 'My Own Lift')
+            );
+    }
+
     public function test_guests_are_redirected(): void
     {
         $occurrence = $this->occurrenceFor($this->user());

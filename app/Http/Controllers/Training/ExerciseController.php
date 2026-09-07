@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Training;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Training\StorePerformedSetRequest;
+use App\Http\Requests\Training\StoreRoutineExerciseRequest;
 use App\Models\ActionExercise;
 use App\Models\Exercise;
 use App\Models\Occurrence;
@@ -21,6 +23,19 @@ use Inertia\Response;
  * seam in this module (`PerformedSetController`, `OccurrenceLogController`,
  * `SessionController::show`) — a set is a fact about one occasion.
  *
+ * The URL names two things and they are two separate questions. Owning the
+ * occasion is what `Gate::authorize('log', ...)` settles; it says nothing
+ * about the exercise, because the catalogue is shared and the id in the URL
+ * is bound straight off the table. So this read is scoped by
+ * {@see Exercise::availableTo()} as well — the same rule
+ * {@see StoreRoutineExerciseRequest} and
+ * {@see StorePerformedSetRequest} already apply on
+ * the write side. Without it, an occasion you own is enough to render a
+ * stranger's private exercise, name and instructions included. Refused as a
+ * 404 rather than a 403 for the same reason the two requests do: an exercise
+ * outside your catalogue is one that does not exist as far as you are
+ * concerned, and a 403 would confirm the id is real.
+ *
  * Record, never prescribe: the routine row supplies the target sets/reps the
  * user wrote onto the routine, `LastPerformance` supplies last session's own
  * numbers as pure information, and `PerformedSet` supplies what is already
@@ -33,6 +48,11 @@ class ExerciseController extends Controller
     public function show(Occurrence $occurrence, Exercise $exercise, Request $request, LastPerformance $lastPerformance): Response
     {
         Gate::authorize('log', $occurrence);
+
+        abort_unless(
+            Exercise::query()->availableTo($request->user())->whereKey($exercise->id)->exists(),
+            404,
+        );
 
         $routine = ActionExercise::query()
             ->where('action_id', $occurrence->action_id)
