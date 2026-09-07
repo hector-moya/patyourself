@@ -1,9 +1,228 @@
+import type * as InertiaReact from '@inertiajs/react';
 import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+/**
+ * What each submitted open row actually sent: the `<form>`'s own action and
+ * method, plus its serialised fields.
+ */
+const submissions: {
+    action?: string;
+    method?: string;
+    fields: Record<string, string>;
+}[] = [];
+
+/**
+ * `Form` is stood in for so a click can be resolved synchronously, without a
+ * live server behind it — the same seam `gym-record.test.tsx` stubs. It
+ * renders a real `<form>` carrying the action/method it was handed, and
+ * serialises the form's own fields on submit through `FormData`, which is what
+ * Inertia's own `Form` does with them.
+ */
+vi.mock('@inertiajs/react', async (importOriginal) => {
+    const actual = await importOriginal<typeof InertiaReact>();
+
+    return {
+        ...actual,
+        Form: ({
+            action,
+            method,
+            children,
+            options: _options,
+            ...rest
+        }: {
+            action?: string;
+            method?: string;
+            options?: unknown;
+            children:
+                | ((props: {
+                      processing: boolean;
+                      errors: Record<string, string>;
+                  }) => React.ReactNode)
+                | React.ReactNode;
+            [key: string]: unknown;
+        }) => (
+            <form
+                action={action}
+                method={method}
+                onSubmit={(event) => {
+                    event.preventDefault();
+
+                    submissions.push({
+                        action,
+                        method,
+                        fields: Object.fromEntries(
+                            Array.from(
+                                new FormData(event.currentTarget).entries(),
+                            ).map(([key, value]) => [key, String(value)]),
+                        ),
+                    });
+                }}
+                {...rest}
+            >
+                {typeof children === 'function'
+                    ? children({ processing: false, errors: {} })
+                    : children}
+            </form>
+        ),
+    };
+});
 
 import SetGrid from './set-grid';
 
 describe('SetGrid', () => {
+    beforeEach(() => {
+        submissions.length = 0;
+    });
+
+    /**
+     * The control that records a set is a button, not a checkbox.
+     *
+     * It was an `<input type="checkbox">` with `checked={false}` hardcoded and
+     * `submit()` wired to `onChange`. A screen reader announced "checkbox, not
+     * checked"; the user activated it; it stayed not-checked, because the open
+     * row is replaced by a settled one on reload and never ticks. A control
+     * that can never hold the state it advertises is not that control.
+     *
+     * Killing mutation: revert it to `<input type="checkbox" checked={false}
+     * onChange={() => submit()} />`. `getByRole('button', ...)` no longer finds
+     * it and this test fails on the query — verified by direct mutation and
+     * rerun.
+     */
+    it('offers a submit button to record a set, not a checkbox that can never be checked', () => {
+        render(
+            <SetGrid
+                occurrenceId={42}
+                exerciseId={7}
+                targetSets={1}
+                performedSets={[]}
+            />,
+        );
+
+        const control = screen.getByRole('button', { name: 'record set 1' });
+
+        expect(control).toHaveAttribute('type', 'submit');
+        expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+    });
+
+    /**
+     * The round trip this whole batch exists for, up to the network boundary:
+     * activating the control submits the open row's own fields to
+     * `occurrences.sets.store` as a POST. `RecordSetTest` owns the other half —
+     * that this exact payload against that exact route lands a `PerformedSet`
+     * with these values — and the two meet on the field names asserted here.
+     *
+     * Killing mutation: give the button `type="button"` (which is what it
+     * would need to be if the old `onChange` submit were dropped without
+     * replacing it). Clicking it no longer submits the form, `submissions`
+     * stays empty, and the first assertion below fails — verified by direct
+     * mutation and rerun.
+     */
+    it('submitting an open row posts that row’s weight, reps and exercise to the sets route', () => {
+        render(
+            <SetGrid
+                occurrenceId={42}
+                exerciseId={7}
+                targetSets={2}
+                performedSets={[]}
+            />,
+        );
+
+        fireEvent.change(screen.getByTestId('set-weight-input-1'), {
+            target: { value: '60' },
+        });
+        fireEvent.change(screen.getByTestId('set-reps-input-1'), {
+            target: { value: '10' },
+        });
+
+        fireEvent.click(screen.getByRole('button', { name: 'record set 1' }));
+
+        expect(submissions).toHaveLength(1);
+        expect(submissions[0].action).toBe('/occurrences/42/sets');
+        expect(submissions[0].method).toBe('post');
+        expect(submissions[0].fields).toEqual({
+            exercise_id: '7',
+            weight: '60',
+            reps: '10',
+        });
+    });
+
+    /**
+     * Each open row submits itself and nothing else. The rows are separate
+     * `<form>`s, so a second row's blank fields must not ride along with the
+     * first — and the row that is submitted must be the one whose button was
+     * pressed.
+     *
+     * Killing mutation: hoist the `<Form>` to wrap the whole grid rather than
+     * one row. Row 2's inputs would then serialise into the same submission,
+     * `reps` would arrive as the last row's blank value, and the payload
+     * assertion below fails — verified by direct mutation and rerun.
+     */
+    it('submits only the row whose control was pressed', () => {
+        render(
+            <SetGrid
+                occurrenceId={42}
+                exerciseId={7}
+                targetSets={3}
+                performedSets={[]}
+            />,
+        );
+
+        fireEvent.change(screen.getByTestId('set-weight-input-2'), {
+            target: { value: '75' },
+        });
+        fireEvent.change(screen.getByTestId('set-reps-input-2'), {
+            target: { value: '8' },
+        });
+
+        fireEvent.click(screen.getByRole('button', { name: 'record set 2' }));
+
+        expect(submissions).toHaveLength(1);
+        expect(submissions[0].fields).toEqual({
+            exercise_id: '7',
+            weight: '75',
+            reps: '8',
+        });
+    });
+
+    /**
+     * A body-weight set: reps, no weight. The spec's Error handling says "a
+     * set with reps but no weight is valid (body weight); a set with neither
+     * is not recorded", and `StorePerformedSetRequest` makes `weight`
+     * nullable to encode exactly that — so an empty weight field must still
+     * submit rather than being blocked client-side.
+     *
+     * Killing mutation: add `required` to the weight input. jsdom's form
+     * submission is not blocked by constraint validation, so this is proven
+     * instead by the empty string arriving in the payload: change the
+     * component to omit an empty weight from the form (e.g. render the input
+     * only when non-empty) and the `weight: ''` assertion fails — verified by
+     * direct mutation and rerun.
+     */
+    it('submits a body-weight set as reps with an empty weight', () => {
+        render(
+            <SetGrid
+                occurrenceId={42}
+                exerciseId={7}
+                targetSets={1}
+                performedSets={[]}
+            />,
+        );
+
+        fireEvent.change(screen.getByTestId('set-reps-input-1'), {
+            target: { value: '12' },
+        });
+
+        fireEvent.click(screen.getByRole('button', { name: 'record set 1' }));
+
+        expect(submissions).toHaveLength(1);
+        expect(submissions[0].fields).toEqual({
+            exercise_id: '7',
+            weight: '',
+            reps: '12',
+        });
+    });
+
     /**
      * Killing mutation: drop the default lookup entirely (every open row
      * starts blank with no fallback to the row above). Row 2's weight input

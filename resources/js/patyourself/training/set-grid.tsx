@@ -186,7 +186,7 @@ function OpenRow({
             className={`${CELL_GRID} py-1.5`}
             data-testid={`set-row-open-${rowNumber}`}
         >
-            {({ processing, errors, submit }) => (
+            {({ processing, errors }) => (
                 <>
                     <input type="hidden" name="exercise_id" value={exerciseId} />
 
@@ -216,15 +216,22 @@ function OpenRow({
                         className={INPUT_CLASS}
                     />
 
-                    <input
-                        type="checkbox"
-                        aria-label={`mark set ${rowNumber} done`}
+                    {/* A button, because that is what it does. It was a
+                     *  checkbox with `checked={false}` hardcoded and submit
+                     *  wired to onChange — so it announced itself as "checkbox,
+                     *  not checked", and stayed not-checked after being
+                     *  activated, because the row it belongs to is replaced by
+                     *  a settled one on the reload rather than ever ticking.
+                     *  Nothing about it was ever a two-state control. */}
+                    <button
+                        type="submit"
+                        aria-label={`record set ${rowNumber}`}
                         data-testid={`set-done-${rowNumber}`}
-                        checked={false}
                         disabled={processing}
-                        onChange={() => submit()}
-                        className="size-5"
-                    />
+                        className="flex size-6 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground disabled:opacity-60"
+                    >
+                        <Icon name="check" size={16} />
+                    </button>
 
                     {(errors.reps ?? errors.weight) && (
                         <p className="col-span-3 text-xs text-destructive">
