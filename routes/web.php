@@ -13,6 +13,7 @@ use App\Http\Controllers\NoteController;
 use App\Http\Controllers\OccurrenceLogController;
 use App\Http\Controllers\ProgressController;
 use App\Http\Controllers\QuickLogController;
+use App\Http\Controllers\Training\PerformedSetController;
 use App\Http\Controllers\Training\RoutineController;
 use App\Http\Controllers\Training\SessionController;
 use App\Http\Controllers\VerdictController;
@@ -67,6 +68,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // afterwards.
     Route::post('actions/{action}/session', [SessionController::class, 'materialise'])
         ->name('training.session.materialise');
+
+    // Record one set against an occasion — the gym workflow's record
+    // extension site, written. Keyed on the occurrence, exactly as
+    // PerformedSet itself is: sets are ticked off during a session, long
+    // before anyone presses Done or Missed.
+    Route::post('occurrences/{occurrence}/sets', [PerformedSetController::class, 'store'])
+        ->name('occurrences.sets.store');
 
     // The routine: what an action's occasions are meant to contain, one row
     // per exercise — the gym workflow's config extension site. See
