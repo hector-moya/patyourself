@@ -13,6 +13,7 @@ use App\Http\Controllers\NoteController;
 use App\Http\Controllers\OccurrenceLogController;
 use App\Http\Controllers\ProgressController;
 use App\Http\Controllers\QuickLogController;
+use App\Http\Controllers\Training\SessionController;
 use App\Http\Controllers\VerdictController;
 use App\Models\Intention;
 use Illuminate\Support\Facades\Gate;
@@ -58,6 +59,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Log an action's outcome (completion / failure + reason).
     Route::post('actions/{action}/logs', [ActionLogController::class, 'store'])
         ->name('actions.logs.store');
+
+    // Begin a recording session: materialises the occasion a session's sets
+    // and eventual verdict hang on. See MaterialisesOccasion for why this
+    // never logs — the verdict is still a separate press, by a person,
+    // afterwards.
+    Route::post('actions/{action}/session', [SessionController::class, 'materialise'])
+        ->name('training.session.materialise');
 
     // Edit an action's schedule (time + recurrence, or an anchored cue).
     Route::patch('actions/{action}', [ActionController::class, 'update'])->name('actions.update');
