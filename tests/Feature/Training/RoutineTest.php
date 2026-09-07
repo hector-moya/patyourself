@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Training;
 
+use App\Actions\Training\RemoveRoutineExercise;
 use App\Models\Action;
 use App\Models\ActionExercise;
 use App\Models\Exercise;
@@ -83,6 +84,48 @@ class RoutineTest extends TestCase
         $this->assertSame(
             [$squat->id, $row->id, $press->id],
             ActionExercise::where('action_id', $action->id)->orderBy('position')->pluck('exercise_id')->all(),
+        );
+    }
+
+    /**
+     * The next open position is the max plus one, not the count plus one.
+     *
+     * A count is only the next open slot while the positions happen to be
+     * contiguous — which is true today only because
+     * {@see RemoveRoutineExercise} renumbers after every
+     * removal. Nothing in the schema requires contiguity, so this pins the
+     * arithmetic rather than the tidiness that currently hides the difference.
+     *
+     * Killing mutation: restore `position => ActionExercise::where('action_id',
+     * $action->id)->count() + 1` in `AddRoutineExercise`. With rows already at
+     * 1 and 3 the count is 2, so it computes position 3, collides with the
+     * unique index on (action_id, position), and the request 500s instead of
+     * redirecting — verified by direct mutation and rerun.
+     */
+    public function test_the_next_position_is_the_max_plus_one_not_the_count_plus_one(): void
+    {
+        $user = $this->user();
+        $action = $this->gymAction($user);
+
+        ActionExercise::factory()->create(['action_id' => $action->id, 'position' => 1]);
+        ActionExercise::factory()->create(['action_id' => $action->id, 'position' => 3]);
+
+        $press = $this->exercise('Overhead Press');
+
+        $this->actingAs($user)
+            ->post(route('actions.exercises.store', $action), [
+                'exercise_id' => $press->id,
+                'target_sets' => 3,
+                'target_reps' => 8,
+            ])
+            ->assertSessionHasNoErrors()
+            ->assertRedirect();
+
+        $this->assertSame(
+            4,
+            ActionExercise::where('action_id', $action->id)
+                ->where('exercise_id', $press->id)
+                ->value('position'),
         );
     }
 
