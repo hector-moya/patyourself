@@ -63,6 +63,11 @@ class ExerciseHistory
             ->where('intentions.user_id', $user->id)
             ->orderByDesc('occurrences.scheduled_for')
             ->orderByDesc('occurrences.id')
+            // Not redundant, even though no test can prove it: SQLite's
+            // covering unique index on (occurrence_id, exercise_id,
+            // set_number) already returns rows in this order on its own, so
+            // deleting this line stays green here and breaks ordering only
+            // on MySQL in production.
             ->orderBy('performed_sets.set_number')
             ->get();
 
