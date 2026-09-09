@@ -124,11 +124,26 @@ describe('formatSession', () => {
 describe('ProgressionScreen', () => {
     /**
      * `sessions` arrives newest first and the screen must render it as
-     * given, not re-sort it.
+     * given, not re-sort it. Also pins the wiring between `formatSession`
+     * and the row itself — `formatSession` is well covered as a pure
+     * function above, but that proves nothing about what actually reaches
+     * the DOM.
+     *
+     * The older row is given an empty `sets` array rather than a second
+     * populated one, which incidentally exercises `formatSession([])`'s
+     * guard against the rendered output rather than only against the
+     * function directly.
      *
      * Killing mutation: `.slice().reverse()` the sessions before mapping.
      * The two rows would then swap DOM order — verified by direct mutation
      * and rerun.
+     *
+     * Killing mutation (rendered text): blank the `formatSession` call at
+     * `progression.tsx:69` (`{formatSession(session.sets)}` → `{''}`), or
+     * delete the date `<span>` at `:71-76`. Either would leave the row's
+     * own weight/reps or date text absent while every other test — none of
+     * which reads a row's text — stays green. Verified by direct mutation
+     * and rerun; raw output captured in the task report.
      */
     it('renders one row per session, newest first', () => {
         renderProgression({
@@ -136,10 +151,16 @@ describe('ProgressionScreen', () => {
                 session({
                     occurrence_id: 2,
                     performed_at: '2026-09-02T09:00:00+00:00',
+                    sets: [
+                        { reps: 10, weight: 60 },
+                        { reps: 10, weight: 60 },
+                        { reps: 8, weight: 60 },
+                    ],
                 }),
                 session({
                     occurrence_id: 1,
                     performed_at: '2026-08-29T09:00:00+00:00',
+                    sets: [],
                 }),
             ],
         });
@@ -150,6 +171,12 @@ describe('ProgressionScreen', () => {
             'progression-row-2',
             'progression-row-1',
         ]);
+        expect(screen.getByTestId('progression-row-2')).toHaveTextContent(
+            '60kg · 10 / 10 / 8',
+        );
+        expect(screen.getByTestId('progression-row-2')).toHaveTextContent(
+            '2 Sep',
+        );
     });
 
     /**

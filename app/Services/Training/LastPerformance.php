@@ -2,6 +2,7 @@
 
 namespace App\Services\Training;
 
+use App\Http\Controllers\Training\ExerciseController;
 use App\Models\Exercise;
 use App\Models\Occurrence;
 use App\Models\PerformedSet;
@@ -40,8 +41,9 @@ use Carbon\CarbonImmutable;
  * of integers routes to `whereIntegerInRaw`, so those ids were interpolated
  * into the statement as literals rather than bound: the SQL text itself grew
  * with the table, which is why neither a query count nor a binding count could
- * see it. Batch 3's progression screen runs this read once per exercise on the
- * page, which is what makes the difference worth having now.
+ * see it. This class has one caller, {@see ExerciseController},
+ * which runs it once per exercise screen visit — batch 3's progression screen
+ * has its own read, {@see ExerciseHistory}, and does not call this one.
  */
 class LastPerformance
 {

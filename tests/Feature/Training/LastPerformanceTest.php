@@ -142,12 +142,14 @@ class LastPerformanceTest extends TestCase
      * which one counts as "last" is whatever order the engine returns,
      * which differs between SQLite here and MySQL in production.
      *
-     * Killing mutation: remove `orderByDesc('occurrences.id')`. Verified by
-     * direct mutation and rerun — repeatedly, since a dropped tiebreaker is
-     * only ever *nondeterministic* in principle; on this project's SQLite
-     * test engine the join happened to come back in a stable order without
-     * it too, so a single run would not have been enough to trust the
-     * result either way.
+     * Killing mutation: remove `orderByDesc('occurrences.id')`. Killed 8/8
+     * reruns. Rerun repeatedly on purpose, since a dropped tiebreaker is only
+     * ever *nondeterministic* in principle — a single failing run could not
+     * by itself rule out a lucky pass on a different run. What the eight runs
+     * actually showed is that SQLite's join comes back in a stable order even
+     * without the tiebreaker, but a stably *wrong* one: it never matches the
+     * order the tiebreaker demands, so the mutation was killed every time,
+     * not merely once.
      */
     public function test_two_occasions_sharing_a_scheduled_for_resolve_deterministically(): void
     {

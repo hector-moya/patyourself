@@ -18,15 +18,9 @@ use Tests\TestCase;
  *
  * Keyed on the exercise alone rather than on an occasion, so most of these
  * tests never need one — the catalogue-ownership check
- * ({@see ExerciseController}'s own `test_another_users_private_exercise_is_not_found`
+ * ({@see ExerciseScreenStubTest}'s own `test_another_users_private_exercise_is_not_found`
  * is the sibling this file's IDOR guard is modelled on) is settled straight
  * off the bound model.
- *
- * `->component('training/progression', false)` — the second argument tells
- * the Inertia testing helper not to check the page component file exists on
- * disk. It doesn't yet; that is task 3's to add, against the payload shape
- * this file pins. {@see ExerciseScreenStubTest} used the same escape hatch
- * ahead of task 7.
  */
 class ProgressionScreenTest extends TestCase
 {
@@ -106,7 +100,7 @@ class ProgressionScreenTest extends TestCase
             ->get("/exercises/{$squat->id}/progression")
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->component('training/progression', false)
+                ->component('training/progression')
                 ->where('exercise.id', $squat->id)
                 ->where('exercise.name', 'Barbell Back Squat')
                 ->has('sessions', 2)
@@ -172,7 +166,7 @@ class ProgressionScreenTest extends TestCase
             ->get("/exercises/{$exercise->id}/progression")
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->component('training/progression', false)
+                ->component('training/progression')
                 ->where('exercise.name', 'Barbell Bench Press')
             );
     }
@@ -194,7 +188,7 @@ class ProgressionScreenTest extends TestCase
             ->get("/exercises/{$exercise->id}/progression")
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->component('training/progression', false)
+                ->component('training/progression')
                 ->where('sessions', [])
             );
     }

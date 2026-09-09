@@ -44,6 +44,15 @@ const FIELD_CLASS =
     'w-full rounded-md border border-border bg-background px-3 py-2 text-sm';
 
 export default function RoutineEditor({ actionId, rows }: WorkflowConfigProps) {
+    // One flag for the whole editor, not one per row: two rows reordered in
+    // quick succession both compute their payload from the same unrefreshed
+    // `rows` prop, so a per-row guard only blocks a second tap on the *same*
+    // row and leaves the cross-row race wide open — see `RoutineRow.move()`.
+    // The consequence is deliberate: an in-flight reorder disables every
+    // row's arrows, not just the row that started it, because the payload
+    // posted is the whole order, not one row's move.
+    const [reordering, setReordering] = useState(false);
+
     return (
         <div data-testid={`routine-editor-${actionId}`} className="space-y-3">
             {rows.length === 0 ? (
@@ -59,6 +68,8 @@ export default function RoutineEditor({ actionId, rows }: WorkflowConfigProps) {
                             row={row}
                             rows={rows}
                             index={index}
+                            reordering={reordering}
+                            setReordering={setReordering}
                         />
                     ))}
                 </ul>
@@ -75,20 +86,27 @@ export default function RoutineEditor({ actionId, rows }: WorkflowConfigProps) {
  *
  * Up/down rather than dragging: a drag surface would need a dependency this
  * project has not taken, and would leave the order unreachable by keyboard.
+ *
+ * `reordering` and `setReordering` are owned by `RoutineEditor`, not this
+ * row — a flag scoped to one row cannot see a second row's move starting
+ * while its own patch is still in flight, which is exactly the race this
+ * guard exists to close.
  */
 function RoutineRow({
     actionId,
     row,
     rows,
     index,
+    reordering,
+    setReordering,
 }: {
     actionId: number;
     row: WorkflowConfigRow;
     rows: WorkflowConfigRow[];
     index: number;
+    reordering: boolean;
+    setReordering: (reordering: boolean) => void;
 }) {
-    const [reordering, setReordering] = useState(false);
-
     /** The whole order with `index` moved by one step, as ReorderRoutine wants it. */
     function move(by: -1 | 1) {
         if (reordering) {

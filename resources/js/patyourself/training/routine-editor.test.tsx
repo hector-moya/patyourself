@@ -316,14 +316,48 @@ describe('RoutineEditor', () => {
     });
 
     /**
+     * The cross-row case the guard above does not by itself prove: clicking
+     * row A's ↓ and then, before that round trip resolves, row B's ↑. Both
+     * clicks compute their payload from the same unrefreshed `rows` prop, so
+     * if each row tracked its own `reordering` flag, both patches would
+     * fire and the last to arrive would silently overwrite the first —
+     * losing a move one row over from the row that was guarded.
+     *
+     * One shared flag closes this completely, and does so on purpose at the
+     * cost of disabling every row's arrows while any one reorder is in
+     * flight — the payload posted is the whole order, not one row's move,
+     * so there is no such thing as an unrelated row's reorder here.
+     *
+     * Killing mutation: scope `reordering`/`setReordering` back to a
+     * `useState` inside `RoutineRow` instead of `RoutineEditor`. Row B's
+     * button would then read its own, still-`false` flag and dispatch a
+     * second `router.patch` — verified by direct mutation and rerun, raw
+     * output captured in the task report.
+     */
+    it('does not fire a second reorder for a different row while the first is still in flight', () => {
+        render(<RoutineEditor actionId={7} rows={THREE_ROWS} />);
+
+        fireEvent.click(
+            screen.getByRole('button', { name: 'move Barbell Back Squat down' }),
+        );
+        fireEvent.click(
+            screen.getByRole('button', { name: 'move Overhead Press up' }),
+        );
+
+        expect(patches).toHaveLength(1);
+    });
+
+    /**
      * A refused reorder still has to hand the row back — `onFinish` rather
      * than `onSuccess`, or a single validation failure would leave the
      * controls frozen until the page reloads.
      *
      * Killing mutation: settle the guard on `onSuccess` instead of
-     * `onFinish`. Invoking the captured callback would leave the button
-     * disabled and this assertion fails — verified by direct mutation and
-     * rerun.
+     * `onFinish`. The mock only ever pushes onto `finishers` from
+     * `options.onFinish`, so there is nothing to capture and
+     * `expect(finishers).toHaveLength(1)` fails first, before this test
+     * ever gets to invoking a callback or checking the button — verified by
+     * direct mutation and rerun.
      */
     it('re-enables the controls once the reorder finishes', () => {
         render(<RoutineEditor actionId={7} rows={THREE_ROWS} />);

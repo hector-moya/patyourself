@@ -332,7 +332,9 @@ log, the same as everything else.
 
 ## Assumptions
 
-- Single user in practice. The exercise catalogue is user-scoped anyway, because that costs nothing now
-  and a shared catalogue would need a migration later.
+- Single user in practice. The exercise catalogue is shared, not user-scoped — rows with `user_id` null
+  are the shared catalogue, visible to everyone, and a row with a `user_id` is that person's own addition
+  (see "Notes on the tables" above). That is exactly what makes `Exercise::availableTo()` a guard worth
+  having rather than a formality: a bare `where('user_id', $user->id)` would 404 every shared row.
 - Kilograms. Pounds are a display concern if they ever arrive.
 - The person lifting knows what they want to lift. This module is a notebook, not a coach.
