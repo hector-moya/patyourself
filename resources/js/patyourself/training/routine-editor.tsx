@@ -87,16 +87,27 @@ function RoutineRow({
     rows: WorkflowConfigRow[];
     index: number;
 }) {
+    const [reordering, setReordering] = useState(false);
+
     /** The whole order with `index` moved by one step, as ReorderRoutine wants it. */
     function move(by: -1 | 1) {
+        if (reordering) {
+            return;
+        }
+
         const reordered = rows.map((each) => each.id);
         const [moved] = reordered.splice(index, 1);
         reordered.splice(index + by, 0, moved);
 
+        setReordering(true);
+
         router.patch(
             routine.reorder.url(actionId),
             { order: reordered },
-            { preserveScroll: true },
+            {
+                preserveScroll: true,
+                onFinish: () => setReordering(false),
+            },
         );
     }
 
@@ -132,7 +143,7 @@ function RoutineRow({
             <button
                 type="button"
                 aria-label={`move ${row.exercise_name ?? 'this exercise'} up`}
-                disabled={index === 0}
+                disabled={index === 0 || reordering}
                 onClick={() => move(-1)}
                 className="shrink-0 rounded-md border border-border px-1.5 py-0.5 text-xs text-muted-foreground hover:text-foreground disabled:opacity-40"
             >
@@ -141,7 +152,7 @@ function RoutineRow({
             <button
                 type="button"
                 aria-label={`move ${row.exercise_name ?? 'this exercise'} down`}
-                disabled={index === rows.length - 1}
+                disabled={index === rows.length - 1 || reordering}
                 onClick={() => move(1)}
                 className="shrink-0 rounded-md border border-border px-1.5 py-0.5 text-xs text-muted-foreground hover:text-foreground disabled:opacity-40"
             >

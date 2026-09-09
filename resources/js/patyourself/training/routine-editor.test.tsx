@@ -1,5 +1,5 @@
 import type * as InertiaReact from '@inertiajs/react';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 /** What each submitted form actually sent: its action, method and fields. */
@@ -11,6 +11,9 @@ const submissions: {
 
 /** Every `router.patch` the editor issued: url and payload. */
 const patches: { url: string; data: unknown }[] = [];
+
+/** Each patch's own `onFinish`, captured so a test can settle it on demand. */
+const finishers: (() => void)[] = [];
 
 /** What the stubbed catalogue search will answer with, and what it was asked. */
 const searches: string[] = [];
@@ -30,8 +33,16 @@ vi.mock('@inertiajs/react', async (importOriginal) => {
         ...actual,
         router: {
             ...actual.router,
-            patch: (url: string, data: unknown) => {
+            patch: (
+                url: string,
+                data: unknown,
+                options?: { onFinish?: () => void },
+            ) => {
                 patches.push({ url, data });
+
+                if (options?.onFinish) {
+                    finishers.push(options.onFinish);
+                }
             },
         },
         useHttp: () => ({
@@ -144,6 +155,7 @@ describe('RoutineEditor', () => {
     beforeEach(() => {
         submissions.length = 0;
         patches.length = 0;
+        finishers.length = 0;
         searches.length = 0;
         searchResponse = null;
     });
@@ -274,6 +286,62 @@ describe('RoutineEditor', () => {
 
         expect(patches).toHaveLength(1);
         expect(patches[0].data).toEqual({ order: [30, 20, 10] });
+    });
+
+    /**
+     * Two fast reorders would both compute their order from the same stale
+     * `rows` prop, so the second `router.patch` would overwrite the first and
+     * the first move would vanish — worse than an error, because nothing
+     * would say so.
+     *
+     * Killing mutation: drop `setReordering(true)` from `move()`, so the
+     * guard never engages. Both clicks would reach `router.patch` and this
+     * assertion fails — verified by direct mutation and rerun. (Dropping only
+     * the early return, or only the buttons' `|| reordering`, survives here:
+     * React refuses to dispatch `click` to a `disabled` native button, so the
+     * other mechanism alone still blocks the second tap — the two are
+     * deliberately redundant rather than each covering a distinct case.)
+     */
+    it('does not fire a second reorder while the first is still in flight', () => {
+        render(<RoutineEditor actionId={7} rows={THREE_ROWS} />);
+
+        const downButton = screen.getByRole('button', {
+            name: 'move Barbell Row down',
+        });
+
+        fireEvent.click(downButton);
+        fireEvent.click(downButton);
+
+        expect(patches).toHaveLength(1);
+    });
+
+    /**
+     * A refused reorder still has to hand the row back — `onFinish` rather
+     * than `onSuccess`, or a single validation failure would leave the
+     * controls frozen until the page reloads.
+     *
+     * Killing mutation: settle the guard on `onSuccess` instead of
+     * `onFinish`. Invoking the captured callback would leave the button
+     * disabled and this assertion fails — verified by direct mutation and
+     * rerun.
+     */
+    it('re-enables the controls once the reorder finishes', () => {
+        render(<RoutineEditor actionId={7} rows={THREE_ROWS} />);
+
+        const downButton = screen.getByRole('button', {
+            name: 'move Barbell Row down',
+        });
+
+        fireEvent.click(downButton);
+
+        expect(downButton).toBeDisabled();
+        expect(finishers).toHaveLength(1);
+
+        act(() => {
+            finishers[0]();
+        });
+
+        expect(downButton).not.toBeDisabled();
     });
 
     /**
