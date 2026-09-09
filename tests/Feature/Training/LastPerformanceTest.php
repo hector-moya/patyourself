@@ -256,9 +256,11 @@ class LastPerformanceTest extends TestCase
      * The read must not grow with history it is never going to return.
      *
      * The exercise catalogue is shared, so one Exercise row accumulates sets
-     * from everyone who ever trains it. Batch 3's progression screen runs this
-     * read once per exercise on the page, so what it costs per call is not a
-     * detail that can be settled later.
+     * from everyone who ever trains it. `LastPerformance` has one caller,
+     * `ExerciseController`, which runs this read once per exercise screen
+     * visit — batch 3's progression screen has its own read, `ExerciseHistory`,
+     * and does not call this one — so what this call costs is not a detail
+     * that can be settled later.
      *
      * The statements themselves, not a count of them or of their bindings.
      * The shape being ruled out sent a *constant* number of queries, and did
