@@ -95,7 +95,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Searching the exercise catalogue, for the routine editor's picker. JSON,
     // not a page: it feeds a control on a screen the user is already on. Scoped
     // to the shared catalogue plus the user's own additions.
+    // Throttled because this is the module's only unbounded-cardinality read:
+    // every other training route resolves one bound model, this one runs a
+    // `like` scan over the whole catalogue. 60/minute per user clears typing a
+    // term and correcting it several times over, and bounds a script that
+    // walks the catalogue a letter at a time.
     Route::get('exercises', [ExerciseCatalogueController::class, 'index'])
+        ->middleware('throttle:60,1')
         ->name('training.exercises.index');
 
     // The routine: what an action's occasions are meant to contain, one row
