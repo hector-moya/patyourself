@@ -1,13 +1,14 @@
-import { Form, Link } from '@inertiajs/react';
+import { Link } from '@inertiajs/react';
 import { useState } from 'react';
 
 import CoachLayout from '@/layouts/coach-layout';
 import { BottomNav } from '@/patyourself/bottom-nav';
 import { formatOccasionDay } from '@/patyourself/occasion-date';
-import { Button } from '@/patyourself/primitives';
 import { SectionHeading } from '@/patyourself/strategy-timeline';
-import type { LogOutcome, PendingOccurrenceData } from '@/patyourself/types';
+import type { PendingOccurrenceData } from '@/patyourself/types';
+import VerdictForm from '@/patyourself/verdict-form';
 import { WorkflowRecord } from '@/patyourself/workflow-record';
+import { store as storeOccurrenceLog } from '@/routes/occurrences/logs';
 
 interface CatchUpProps {
     occurrences: PendingOccurrenceData[];
@@ -65,7 +66,6 @@ export default function CatchUp({
 }
 
 function CatchUpRow({ occurrence }: { occurrence: PendingOccurrenceData }) {
-    const [outcome, setOutcome] = useState<LogOutcome | null>(null);
     /**
      * Seeded from `occurrence.id`, which is never null here — every catch-up
      * row already names a real, materialised occurrence, unlike a dashboard
@@ -94,80 +94,10 @@ function CatchUpRow({ occurrence }: { occurrence: PendingOccurrenceData }) {
                 onOccurrenceMaterialised={setOccurrenceId}
             />
 
-            <Form
-                action={`/occurrences/${occurrenceId}/logs`}
-                method="post"
-                options={{ preserveScroll: true }}
-                className="mt-2 flex flex-col gap-2"
-            >
-                {({ processing, errors }) => (
-                    <>
-                        <div className="flex flex-wrap gap-2">
-                            {OUTCOMES.map((option) => (
-                                <label
-                                    key={option.value}
-                                    className="flex cursor-pointer items-center gap-1.5 rounded-full border border-border px-3 py-1 text-xs text-muted-foreground has-checked:border-primary has-checked:text-foreground"
-                                >
-                                    <input
-                                        type="radio"
-                                        name="outcome"
-                                        value={option.value}
-                                        checked={outcome === option.value}
-                                        onChange={() =>
-                                            setOutcome(option.value)
-                                        }
-                                        className="sr-only"
-                                    />
-                                    {option.label}
-                                </label>
-                            ))}
-                        </div>
-
-                        {/* A failure carries the user's own words, the same rule
-                            the tool boundary enforces, for the same reason. */}
-                        {outcome === 'failed' && (
-                            <div className="flex flex-col gap-1">
-                                <textarea
-                                    name="reason"
-                                    rows={2}
-                                    placeholder="What happened, in your words"
-                                    aria-label="What happened, in your words"
-                                    className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-                                />
-                                {errors.reason && (
-                                    <p className="text-xs text-destructive">
-                                        {errors.reason}
-                                    </p>
-                                )}
-                            </div>
-                        )}
-
-                        {outcome !== null && (
-                            <Button
-                                type="submit"
-                                disabled={processing}
-                                className="self-start"
-                            >
-                                Log it
-                            </Button>
-                        )}
-                    </>
-                )}
-            </Form>
+            <VerdictForm action={storeOccurrenceLog.url(occurrenceId)} />
         </li>
     );
 }
-
-/**
- * `skipped` means the occasion never happened. `failed` means it happened and
- * the strategy did not hold — including simply not thinking about it. Neither
- * label says anything about the person.
- */
-const OUTCOMES: { value: LogOutcome; label: string }[] = [
-    { value: 'completed', label: 'Did it' },
-    { value: 'failed', label: 'Did not hold' },
-    { value: 'skipped', label: 'Never happened' },
-];
 
 interface LoopGroup {
     loopId: number;

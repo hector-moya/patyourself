@@ -1,11 +1,9 @@
-import { Form, Link } from '@inertiajs/react';
+import { Link } from '@inertiajs/react';
 import { ChevronLeft } from 'lucide-react';
-import { useState } from 'react';
 
 import CoachLayout from '@/layouts/coach-layout';
 import { cn } from '@/lib/utils';
-import { Button } from '@/patyourself/primitives';
-import type { LogOutcome } from '@/patyourself/types';
+import VerdictForm from '@/patyourself/verdict-form';
 import { store as storeLog } from '@/routes/occurrences/logs';
 import { show as showExercise } from '@/routes/training/exercise';
 
@@ -91,7 +89,11 @@ export default function Session({
                     </ul>
                 )}
 
-                <VerdictForm occurrenceId={occurrenceId} />
+                <VerdictForm
+                    action={storeLog.url(occurrenceId)}
+                    className="flex flex-col gap-2"
+                    testId="session-verdict-form"
+                />
             </div>
         </CoachLayout>
     );
@@ -176,80 +178,6 @@ function SetDots({
         </span>
     );
 }
-
-/**
- * The plain verdict controls, unchanged from the dashboard and catch-up
- * screens beyond posting to this occasion's own occurrence route — the
- * screen only ever exists once that occurrence does, so there is no
- * anchored/no-slot fallback to branch on here.
- */
-function VerdictForm({ occurrenceId }: { occurrenceId: number }) {
-    const [outcome, setOutcome] = useState<LogOutcome | null>(null);
-
-    return (
-        <Form
-            action={storeLog.url(occurrenceId)}
-            method="post"
-            options={{ preserveScroll: true }}
-            className="flex flex-col gap-2"
-            data-testid="session-verdict-form"
-        >
-            {({ processing, errors }) => (
-                <>
-                    <div className="flex flex-wrap gap-2">
-                        {OUTCOMES.map((option) => (
-                            <label
-                                key={option.value}
-                                className="flex cursor-pointer items-center gap-1.5 rounded-full border border-border px-3 py-1 text-xs text-muted-foreground has-checked:border-primary has-checked:text-foreground"
-                            >
-                                <input
-                                    type="radio"
-                                    name="outcome"
-                                    value={option.value}
-                                    checked={outcome === option.value}
-                                    onChange={() => setOutcome(option.value)}
-                                    className="sr-only"
-                                />
-                                {option.label}
-                            </label>
-                        ))}
-                    </div>
-
-                    {outcome === 'failed' && (
-                        <div className="flex flex-col gap-1">
-                            <textarea
-                                name="reason"
-                                rows={2}
-                                placeholder="What happened, in your words"
-                                aria-label="What happened, in your words"
-                                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-                            />
-                            {errors.reason && (
-                                <p className="text-xs text-destructive">
-                                    {errors.reason}
-                                </p>
-                            )}
-                        </div>
-                    )}
-
-                    {outcome !== null && (
-                        <div className="self-start">
-                            <Button type="submit" disabled={processing}>
-                                Log it
-                            </Button>
-                        </div>
-                    )}
-                </>
-            )}
-        </Form>
-    );
-}
-
-const OUTCOMES: { value: LogOutcome; label: string }[] = [
-    { value: 'completed', label: 'Did it' },
-    { value: 'failed', label: 'Did not hold' },
-    { value: 'skipped', label: 'Never happened' },
-];
 
 /**
  * "Wednesday 10 September" — the header names the day, in the offset it was
