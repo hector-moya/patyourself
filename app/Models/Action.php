@@ -124,8 +124,11 @@ class Action extends Model
      *
      * Honours an eager load when the caller arranged one. A screen listing
      * several actions loads `upcomingOccurrences` once for all of them; a
-     * caller holding a single action pays for its own query, which is the
-     * cheaper of the two for one row.
+     * caller holding a single action calls `upcomingOccurrences()` fresh
+     * instead — building the same query without loading or caching the
+     * relation — which is the cheaper of the two for one row. Routing both
+     * branches through the same relation method, rather than restating its
+     * clauses here, keeps them structurally unable to disagree.
      */
     public function nextOccurrenceAt(): ?CarbonImmutable
     {
@@ -133,10 +136,6 @@ class Action extends Model
             return $this->upcomingOccurrences->first()?->scheduled_for;
         }
 
-        return $this->occurrences()
-            ->unlogged()
-            ->where('scheduled_for', '>=', Date::now())
-            ->orderBy('scheduled_for')
-            ->value('scheduled_for');
+        return $this->upcomingOccurrences()->value('scheduled_for');
     }
 }

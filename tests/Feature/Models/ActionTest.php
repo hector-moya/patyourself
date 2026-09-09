@@ -85,7 +85,20 @@ class ActionTest extends TestCase
      */
     public function test_next_occurrence_at_agrees_whether_or_not_the_relation_is_eager_loaded(): void
     {
-        $action = $this->action(Intention::factory()->create());
+        $intention = Intention::factory()->create();
+
+        // Pinned rather than routed through the shared `action()` helper
+        // (which leaves both on ActionFactory's random defaults): this test
+        // only reads the Occurrence rows created below, but an unpinned
+        // factory in a fresh test is exactly how the nondeterminism trap
+        // re-enters.
+        $action = Action::factory()
+            ->for($intention)
+            ->for(Strategy::factory()->for($intention)->create(['version' => 1]), 'strategy')
+            ->create([
+                'recurrence' => 'daily',
+                'series_started_at' => now()->subDay(),
+            ]);
 
         $soonest = Occurrence::factory()->for($action)->create(['scheduled_for' => now()->addHours(1)]);
         Occurrence::factory()->for($action)->create(['scheduled_for' => now()->addHours(2)]);
