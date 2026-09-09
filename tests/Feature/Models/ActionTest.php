@@ -5,6 +5,7 @@ namespace Tests\Feature\Models;
 use App\Models\Action;
 use App\Models\ActionLog;
 use App\Models\Intention;
+use App\Models\Occurrence;
 use App\Models\Strategy;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -73,5 +74,33 @@ class ActionTest extends TestCase
     public function test_the_next_due_cursor_is_gone(): void
     {
         $this->assertFalse(Schema::hasColumn('actions', 'scheduled_for'));
+    }
+
+    /**
+     * `nextOccurrenceAt()` has two branches: one reads a pre-loaded
+     * `upcomingOccurrences` relation, the other queries fresh when the caller
+     * arranged no eager load. Both must apply the same filter and the same
+     * order — this is the test that would catch the two silently drifting
+     * apart.
+     */
+    public function test_next_occurrence_at_agrees_whether_or_not_the_relation_is_eager_loaded(): void
+    {
+        $action = $this->action(Intention::factory()->create());
+
+        $soonest = Occurrence::factory()->for($action)->create(['scheduled_for' => now()->addHours(1)]);
+        Occurrence::factory()->for($action)->create(['scheduled_for' => now()->addHours(2)]);
+        Occurrence::factory()->for($action)->create(['scheduled_for' => now()->addHours(3)]);
+
+        $cold = $action->nextOccurrenceAt();
+
+        $eagerLoaded = Action::query()
+            ->with('upcomingOccurrences')
+            ->findOrFail($action->id)
+            ->nextOccurrenceAt();
+
+        $this->assertNotNull($cold);
+        $this->assertNotNull($eagerLoaded);
+        $this->assertTrue($soonest->scheduled_for->equalTo($cold));
+        $this->assertTrue($cold->equalTo($eagerLoaded));
     }
 }

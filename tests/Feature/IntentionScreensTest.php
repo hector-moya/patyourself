@@ -528,6 +528,66 @@ class IntentionScreensTest extends TestCase
     }
 
     /**
+     * `actionLayer()` maps over a loop's actions and calls `nextOccurrenceAt()`
+     * on each one, which — without the eager load — issues its own query per
+     * action. Asserted as "the same cost whichever action count" rather than
+     * against an absolute number, for the same reason as the experiment
+     * ladder test above: it survives an unrelated query being added to this
+     * screen and still goes red the moment cost starts scaling with the
+     * number of actions.
+     *
+     * Every action is clock-scheduled (trap 6, not `anchored()`) with
+     * `recurrence` and `series_started_at` pinned (trap 5) rather than left to
+     * the factory's random defaults, and each carries one materialised future
+     * occurrence so `nextOccurrenceAt()` has something to find.
+     *
+     * Killing mutation: remove `->with('upcomingOccurrences')` from
+     * `actionLayer()`. The five-action count then exceeds the one-action
+     * count by four and the test goes red.
+     */
+    public function test_the_action_layer_costs_the_same_for_five_actions_as_for_one(): void
+    {
+        $user = User::factory()->create();
+
+        $this->assertSame(
+            $this->queriesRenderingLoopWithActions($user, 1),
+            $this->queriesRenderingLoopWithActions($user, 5),
+            'The action layer costs more per extra action — nextOccurrenceAt() is issuing its own query per row.'
+        );
+    }
+
+    /** Queries issued rendering one loop's action layer with `$actionCount` clock-scheduled actions. */
+    private function queriesRenderingLoopWithActions(User $user, int $actionCount): int
+    {
+        $intention = Intention::factory()->for($user)->create();
+
+        for ($i = 0; $i < $actionCount; $i++) {
+            $action = Action::factory()->for($intention)->create([
+                'recurrence' => 'daily',
+                'series_started_at' => now()->subDay(),
+            ]);
+
+            Occurrence::factory()->for($action)->create([
+                'scheduled_for' => now()->addHours(2),
+            ]);
+        }
+
+        // The query log rather than DB::listen: a listener registered per call
+        // would still be attached on the next one and double-count it.
+        DB::enableQueryLog();
+        DB::flushQueryLog();
+
+        $this->actingAs($user)->get("/loops/{$intention->id}")->assertOk();
+
+        $count = count(DB::getQueryLog());
+
+        DB::flushQueryLog();
+        DB::disableQueryLog();
+
+        return $count;
+    }
+
+    /**
      * write-reflection records the window and the occasion count from the record
      * rather than from Claude. Dropping them leaves a claim with no provenance.
      */

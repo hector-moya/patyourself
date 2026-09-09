@@ -187,6 +187,11 @@ class IntentionController extends Controller
      * would return null for anything unnamed forever with the suite green —
      * the trap this project has been bitten by three times.
      *
+     * `upcomingOccurrences` is loaded unconditionally, beside the routine's
+     * conditional load, because every action here reads `next_occurrence_at`
+     * whether or not the loop configures a routine — without it,
+     * `nextOccurrenceAt()` issues its own query per action.
+     *
      * @return list<array<string, mixed>>
      */
     private function actionLayer(Intention $intention, string $timezone): array
@@ -195,6 +200,7 @@ class IntentionController extends Controller
 
         return $intention->actions()
             ->where('status', '!=', Action::STATUS_ARCHIVED)
+            ->with('upcomingOccurrences')
             ->when($configuresActions, fn (Builder $query) => $query->with('actionExercises.exercise'))
             ->get()
             ->map(fn (Action $action): array => [

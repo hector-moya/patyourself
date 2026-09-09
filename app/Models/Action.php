@@ -100,14 +100,39 @@ class Action extends Model
     }
 
     /**
+     * The occasions still ahead of now and still awaiting an outcome, soonest
+     * first. Exists so a screen listing several actions can load all of their
+     * next occasions in one query instead of one per action — see
+     * {@see self::nextOccurrenceAt()}.
+     *
+     * @return HasMany<Occurrence, $this>
+     */
+    public function upcomingOccurrences(): HasMany
+    {
+        return $this->occurrences()
+            ->unlogged()
+            ->where('scheduled_for', '>=', Date::now())
+            ->orderBy('scheduled_for');
+    }
+
+    /**
      * The next occasion still awaiting an outcome, at or after now. Null when
      * there is none — including for a cue-anchored action, which has no grid,
      * and for a day whose slots are all behind us: the grid is materialised
      * only through the end of the local day, so there is genuinely nothing
      * further to report.
+     *
+     * Honours an eager load when the caller arranged one. A screen listing
+     * several actions loads `upcomingOccurrences` once for all of them; a
+     * caller holding a single action pays for its own query, which is the
+     * cheaper of the two for one row.
      */
     public function nextOccurrenceAt(): ?CarbonImmutable
     {
+        if ($this->relationLoaded('upcomingOccurrences')) {
+            return $this->upcomingOccurrences->first()?->scheduled_for;
+        }
+
         return $this->occurrences()
             ->unlogged()
             ->where('scheduled_for', '>=', Date::now())
