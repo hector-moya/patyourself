@@ -106,6 +106,8 @@ vi.mock('@inertiajs/react', async (importOriginal) => {
 });
 
 import type { WorkflowConfigRow } from '@/patyourself/workflows';
+import { show as showProgression } from '@/routes/training/progression';
+
 import RoutineEditor from './routine-editor';
 
 function row(overrides: Partial<WorkflowConfigRow> = {}): WorkflowConfigRow {
@@ -170,6 +172,52 @@ describe('RoutineEditor', () => {
         expect(screen.getByTestId('routine-row-target-30')).toHaveTextContent(
             '5 x 5',
         );
+    });
+
+    /**
+     * The routine editor is the surface that works with no session running,
+     * so it is the row name's second door into that exercise's progression
+     * screen — through the generated Wayfinder helper, never a hand-built
+     * URL.
+     *
+     * Killing mutation: link the row unconditionally, regardless of
+     * `exercise_name`. This test alone would still pass; it is the null-name
+     * test below that catches that mutation.
+     */
+    it('links a row’s name to that exercise’s progression screen when the catalogue still knows it', () => {
+        render(<RoutineEditor actionId={7} rows={THREE_ROWS} />);
+
+        const link = screen.getByTestId('routine-row-name-30');
+
+        expect(link.tagName).toBe('A');
+        expect(link).toHaveAttribute('href', showProgression.url(1));
+        expect(link).toHaveTextContent('Barbell Back Squat');
+    });
+
+    /**
+     * A row whose exercise dropped out of the catalogue has nothing to link
+     * to — `exercise_name` is null precisely because the row's exercise is
+     * unresolvable, so there is no history a progression link could show.
+     *
+     * Killing mutation: link the row unconditionally regardless of
+     * `exercise_name`. The row would render an anchor here and this
+     * assertion fails — verified by direct mutation and rerun.
+     */
+    it('renders a row with no catalogue name as plain text, with no link', () => {
+        render(
+            <RoutineEditor
+                actionId={7}
+                rows={[row({ id: 40, exercise_id: 4, exercise_name: null })]}
+            />,
+        );
+
+        const nameElement = screen.getByTestId('routine-row-name-40');
+
+        expect(nameElement.tagName).not.toBe('A');
+        expect(nameElement).toHaveTextContent(
+            'This exercise is no longer in the catalogue',
+        );
+        expect(screen.queryByRole('link')).not.toBeInTheDocument();
     });
 
     /**

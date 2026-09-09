@@ -5,6 +5,7 @@ import CoachLayout from '@/layouts/coach-layout';
 import { formatOccasionDay } from '@/patyourself/occasion-date';
 import SetGrid from '@/patyourself/training/set-grid';
 import type { SetGridPerformedSet } from '@/patyourself/training/set-grid';
+import { show as showProgression } from '@/routes/training/progression';
 import { show as showSession } from '@/routes/training/session';
 
 export interface ExerciseData {
@@ -94,6 +95,13 @@ export default function ExerciseScreen({
                         last {formatLastPerformance(last)}
                     </p>
                 )}
+
+                <Link
+                    href={showProgression.url(exercise.id)}
+                    className="text-right text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                >
+                    Earlier sessions
+                </Link>
 
                 {exercise.image_path && (
                     <img

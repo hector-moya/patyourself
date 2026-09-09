@@ -19,13 +19,14 @@
  * rather than one moved row: `ReorderRoutine` refuses a payload that does not
  * name every current row, so a partial order cannot be half-applied.
  */
-import { Form, router, useHttp } from '@inertiajs/react';
+import { Form, Link, router, useHttp } from '@inertiajs/react';
 import { useState } from 'react';
 
 import { Button } from '@/patyourself/primitives';
 import type { WorkflowConfigProps, WorkflowConfigRow } from '@/patyourself/workflows';
 import routine from '@/routes/actions/exercises';
 import catalogue from '@/routes/training/exercises';
+import { show as showProgression } from '@/routes/training/progression';
 
 /** One row of `ExerciseCatalogueController::index`'s JSON. */
 interface CatalogueMatch {
@@ -104,12 +105,22 @@ function RoutineRow({
             data-testid={`routine-row-${row.id}`}
             className="flex items-center gap-2"
         >
-            <span
-                data-testid={`routine-row-name-${row.id}`}
-                className="min-w-0 flex-1 truncate text-sm text-foreground"
-            >
-                {row.exercise_name ?? 'This exercise is no longer in the catalogue'}
-            </span>
+            {row.exercise_name === null ? (
+                <span
+                    data-testid={`routine-row-name-${row.id}`}
+                    className="min-w-0 flex-1 truncate text-sm text-foreground"
+                >
+                    This exercise is no longer in the catalogue
+                </span>
+            ) : (
+                <Link
+                    href={showProgression.url(row.exercise_id)}
+                    data-testid={`routine-row-name-${row.id}`}
+                    className="min-w-0 flex-1 truncate text-sm text-foreground underline underline-offset-2 hover:text-muted-foreground"
+                >
+                    {row.exercise_name}
+                </Link>
+            )}
 
             <span
                 data-testid={`routine-row-target-${row.id}`}

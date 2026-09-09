@@ -15,6 +15,8 @@ vi.mock('@inertiajs/react', async (importOriginal) => {
     return { ...actual, Head: () => null, usePage: () => page };
 });
 
+import { show as showProgression } from '@/routes/training/progression';
+
 import ExerciseScreen from './exercise';
 import type { ExerciseData, ExerciseProps } from './exercise';
 
@@ -160,6 +162,23 @@ describe('ExerciseScreen', () => {
             'href',
             '/occurrences/42/session',
         );
+    });
+
+    /**
+     * The screen's second door into its own history: a link to the
+     * progression screen for this exercise, through the generated Wayfinder
+     * helper rather than a hand-built URL.
+     *
+     * Killing mutation: drop the link from `exercise.tsx` entirely. There
+     * would be no "Earlier sessions" link and this assertion fails —
+     * verified by direct mutation and rerun.
+     */
+    it('links to the progression screen for this exercise, named as history rather than a judgement', () => {
+        renderExercise({ exercise: exercise({ id: 9 }) });
+
+        expect(
+            screen.getByRole('link', { name: 'Earlier sessions' }),
+        ).toHaveAttribute('href', showProgression.url(9));
     });
 
     /**
