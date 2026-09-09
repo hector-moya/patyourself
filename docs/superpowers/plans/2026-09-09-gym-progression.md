@@ -488,7 +488,7 @@ renders a mixed-weight session per set, never collapsing to the first weight
 renders a body-weight session as reps only — never "0kg"
 renders a mixed session containing a body-weight set without printing "0kg"
 renders an empty state when there is no history, and no chart, table or axis
-links back to the exercise it describes
+renders no back control — the screen has two entry points and cannot know which was used
 says nothing prescriptive: no "record", "best", "1RM", "progress", "percentage", "target"
 ```
 
@@ -504,7 +504,7 @@ The last one asserts against the **rendered output**, not the source — a vocab
 | body weight | `${weight ?? 0}kg` | `0kg` appears, red |
 | mixed + body weight | same | `0kg` appears, red |
 | empty state | render the list unconditionally | the empty copy is absent, red |
-| back link | drop the `href` | red |
+| no back control | pass a `headerLeading` link to `CoachLayout` | an anchor appears in the header, red |
 | vocabulary | add the word `progress` to the heading | red |
 
 - [ ] **Step 2: Run to verify they fail**
@@ -518,9 +518,6 @@ Expected: cannot resolve `./progression`.
 - [ ] **Step 3: Implement**
 
 ```tsx
-import { Link } from '@inertiajs/react';
-import { ChevronLeft } from 'lucide-react';
-
 import CoachLayout from '@/layouts/coach-layout';
 import { formatOccasionDay } from '@/patyourself/occasion-date';
 
@@ -553,23 +550,20 @@ export interface ProgressionProps {
  * decoration. There is no record detection, no estimated 1RM, no volume
  * total, no fraction of one, and no trend named. Every number on this screen
  * is one the user recorded, shown back to them unchanged.
+ *
+ * This screen carries no back control. `CoachLayout`'s `headerLeading` is
+ * optional, and there are two ways in — the exercise screen mid-session, and
+ * a routine row on the loop's own record — with nothing in the payload saying
+ * which. A fixed back link would send half its visitors somewhere they did
+ * not come from, and there is no `GET /exercises/{exercise}` route for one to
+ * point at in any case.
  */
 export default function ProgressionScreen({
     exercise,
     sessions,
 }: ProgressionProps) {
-    const back = (
-        <Link
-            href={`/exercises/${exercise.id}`}
-            className="-ml-1 flex size-8 items-center justify-center rounded-md text-muted-foreground hover:text-foreground"
-            aria-label="Back"
-        >
-            <ChevronLeft className="size-5" />
-        </Link>
-    );
-
     return (
-        <CoachLayout title={exercise.name} headerLeading={back}>
+        <CoachLayout title={exercise.name}>
             <div className="flex flex-col gap-6">
                 <p className="text-sm text-foreground">{exercise.name}</p>
 
@@ -645,8 +639,6 @@ export function formatSession(sets: ProgressionSet[]): string {
 }
 ```
 
-**The back link is a placeholder in this task and Task 4 replaces it with a Wayfinder helper.** Leave the `href` as written here only until Task 4; it is listed in Task 4's steps explicitly so it cannot be forgotten.
-
 - [ ] **Step 4: Prove the mutations, then verify**
 
 ```bash
@@ -672,8 +664,7 @@ A screen nobody can open is not shipped. Two doors: from the exercise screen mid
 **Files:**
 - Modify: `resources/js/pages/training/exercise.tsx`
 - Modify: `resources/js/patyourself/training/routine-editor.tsx`
-- Modify: `resources/js/pages/training/progression.tsx` (replace the placeholder back link)
-- Test: `resources/js/pages/training/exercise.test.tsx` (extend), `resources/js/patyourself/training/routine-editor.test.tsx` (extend), `resources/js/pages/training/progression.test.tsx` (extend)
+- Test: `resources/js/pages/training/exercise.test.tsx` (extend), `resources/js/patyourself/training/routine-editor.test.tsx` (extend)
 
 **Interfaces:**
 - Consumes: the Wayfinder helper generated in Task 2 — `import { show as showProgression } from '@/routes/training/progression';`
@@ -692,9 +683,9 @@ In `exercise.test.tsx`: the screen renders a link whose href is the progression 
 
 In `routine-editor.test.tsx`: a routine row whose `exercise_name` is present renders its name as a link to that exercise's progression; a row whose `exercise_name` is null (no longer in the catalogue) renders plain text and **no link**.
 
-In `progression.test.tsx`: the back link points at the exercise catalogue entry via the helper, not a hand-built string.
+Assert both hrefs against the helper's own `.url()` output, never against a hand-written string — a test that hardcodes the URL cannot see the helper drift away from the route.
 
-**Named killing mutations:** drop the link from `exercise.tsx` — the exercise test goes red. Link the routine row unconditionally — the null-name test finds an anchor and goes red. Leave the hardcoded `href` in `progression.tsx` — assert against the helper's own `.url()` output so a divergence is red.
+**Named killing mutations:** drop the link from `exercise.tsx` — the exercise test goes red. Link the routine row unconditionally — the null-name test finds an anchor and goes red.
 
 - [ ] **Step 2: Run to verify they fail.**
 
@@ -733,8 +724,6 @@ In `routine-editor.tsx`, the row name becomes a link when there is a name to lin
 ```
 
 The `data-testid` stays on whichever element renders, so existing assertions keep working. A row with no catalogue name gets no link because there is no exercise left to show a history for — the name is null precisely because the row's exercise is unresolvable.
-
-In `progression.tsx`, replace the placeholder back `href` with the appropriate generated helper.
 
 - [ ] **Step 4: Verify**
 
