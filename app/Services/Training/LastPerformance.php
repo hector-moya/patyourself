@@ -23,6 +23,13 @@ use Carbon\CarbonImmutable;
  * exercise catalogue is shared and a bare read by exercise id would hand one
  * user's numbers to another.
  *
+ * The sort carries a tiebreaker on `occurrences.id`. This method hands back
+ * exactly one occasion as "last", and two occasions can share a
+ * `scheduled_for` — different actions, same slot, the same exercise recorded
+ * in both routines. Without the tiebreaker, which single occasion wins that
+ * choice is whatever order the engine returns, and that order differs
+ * between SQLite here and MySQL in production.
+ *
  * Two bounded queries, whatever the history's size: one to find the occasion,
  * one to read its sets. The occasion lookup is a join rather than a
  * `pluck('occurrence_id')` fed back in as a `whereKey(...)`. That earlier shape
@@ -57,6 +64,7 @@ class LastPerformance
             ->where('intentions.user_id', $userId)
             ->whereKeyNot($excluding->id)
             ->orderByDesc('occurrences.scheduled_for')
+            ->orderByDesc('occurrences.id')
             ->first();
 
         if ($lastOccurrence === null) {

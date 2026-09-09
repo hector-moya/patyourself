@@ -182,6 +182,50 @@ describe('ExerciseScreen', () => {
     });
 
     /**
+     * With no routine row (`target_sets` null) and nothing recorded yet,
+     * `SetGrid`'s `pendingCount = max(targetSets - performedSets.length, 0)`
+     * must still land on at least one open row — a screen whose entire
+     * purpose is recording must never compute zero pending rows.
+     *
+     * Killing mutation: revert `exercise.target_sets ?? performedSets.length
+     * + 1` back to `exercise.target_sets ?? performedSets.length` (drop the
+     * `+ 1`). With `target_sets: null` and nothing recorded that computes
+     * `0 - 0 = 0` and `set-row-open-1` is absent — verified by direct
+     * mutation and rerun.
+     */
+    it('offers an open row when the exercise has no routine target and nothing recorded', () => {
+        renderExercise({
+            exercise: exercise({ target_sets: null, target_reps: null }),
+            performed_sets: [],
+        });
+
+        expect(screen.getByTestId('set-row-open-1')).toBeInTheDocument();
+    });
+
+    /**
+     * Same defect, reachable mid-session: two sets already recorded against
+     * this occasion, then the exercise is dropped from the routine before
+     * the third set. The extra row must still appear past what is already
+     * recorded, not just on an otherwise-blank screen.
+     *
+     * Killing mutation: same as above — with the `+ 1` reverted, two
+     * recorded sets and `target_sets: null` compute `0 - 2 = 0` (clamped)
+     * pending rows and `set-row-open-3` is absent — verified by direct
+     * mutation and rerun.
+     */
+    it('offers an open row when the exercise has no routine target and sets already recorded', () => {
+        renderExercise({
+            exercise: exercise({ target_sets: null, target_reps: null }),
+            performed_sets: [
+                { reps: 10, weight: 60 },
+                { reps: 8, weight: 60 },
+            ],
+        });
+
+        expect(screen.getByTestId('set-row-open-3')).toBeInTheDocument();
+    });
+
+    /**
      * The line this screen must not cross: record, never prescribe. Nothing
      * here may suggest a weight, name a record, cite a 1RM, show a
      * percentage, or call a trend progress.

@@ -111,10 +111,17 @@ export default function ExerciseScreen({
                     />
                 )}
 
+                {/* With no routine row there is no target to work down to, so the screen
+                    offers one open row past whatever is already recorded — a set at a
+                    time, for as long as the user keeps going. Without the `+ 1` the grid
+                    computes zero pending rows and a recording screen offers nowhere to
+                    record, which is reachable by taking an exercise off the routine
+                    mid-session. It is not a target: nothing here says how many sets there
+                    should be. */}
                 <SetGrid
                     occurrenceId={occurrenceId}
                     exerciseId={exercise.id}
-                    targetSets={exercise.target_sets ?? performedSets.length}
+                    targetSets={exercise.target_sets ?? performedSets.length + 1}
                     performedSets={performedSets}
                 />
 

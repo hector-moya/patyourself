@@ -46,6 +46,20 @@ class LastPerformanceTest extends TestCase
             ->create();
     }
 
+    /**
+     * A clock-scheduled gym action. `recurrence` and `series_started_at` are
+     * pinned explicitly rather than left to the factory's random defaults.
+     */
+    private function clockScheduledGymAction(User $user): Action
+    {
+        return Action::factory()
+            ->for(Intention::factory()->for($user)->withWorkflow('gym'))
+            ->create([
+                'recurrence' => 'daily',
+                'series_started_at' => now()->subDays(30),
+            ]);
+    }
+
     private function exercise(string $name = 'Barbell Back Squat'): Exercise
     {
         return Exercise::factory()->create(['name' => $name]);
@@ -120,6 +134,61 @@ class LastPerformanceTest extends TestCase
         $this->assertTrue($recent->scheduled_for->equalTo($result['performed_at']));
         $this->assertSame([10, 8], array_column($result['sets'], 'reps'));
         $this->assertSame([60.0, 60.0], array_column($result['sets'], 'weight'));
+    }
+
+    /**
+     * Two occasions can share a `scheduled_for` — different actions, same
+     * slot, the same exercise recorded in both — and without a tiebreaker
+     * which one counts as "last" is whatever order the engine returns,
+     * which differs between SQLite here and MySQL in production.
+     *
+     * Killing mutation: remove `orderByDesc('occurrences.id')`. Verified by
+     * direct mutation and rerun — repeatedly, since a dropped tiebreaker is
+     * only ever *nondeterministic* in principle; on this project's SQLite
+     * test engine the join happened to come back in a stable order without
+     * it too, so a single run would not have been enough to trust the
+     * result either way.
+     */
+    public function test_two_occasions_sharing_a_scheduled_for_resolve_deterministically(): void
+    {
+        $user = $this->user();
+        // Two different actions, not one — `occurrences` uniques on
+        // (action_id, scheduled_for), so the same action could never carry
+        // two occasions at the same instant.
+        $firstAction = $this->clockScheduledGymAction($user);
+        $secondAction = $this->clockScheduledGymAction($user);
+        $squat = $this->exercise();
+        $sharedTime = now()->subDays(3);
+
+        $first = Occurrence::factory()->for($firstAction)->create(['scheduled_for' => $sharedTime]);
+        PerformedSet::factory()->create([
+            'occurrence_id' => $first->id,
+            'exercise_id' => $squat->id,
+            'set_number' => 1,
+            'reps' => 5,
+            'weight' => 40,
+        ]);
+
+        $second = Occurrence::factory()->for($secondAction)->create(['scheduled_for' => $sharedTime]);
+        PerformedSet::factory()->create([
+            'occurrence_id' => $second->id,
+            'exercise_id' => $squat->id,
+            'set_number' => 1,
+            'reps' => 8,
+            'weight' => 90,
+        ]);
+
+        $currentAction = $this->clockScheduledGymAction($user);
+        $current = app(MaterialisesOccasion::class)->forAction($currentAction);
+
+        $result = app(LastPerformance::class)->forExercise($squat, $current);
+
+        $this->assertNotNull($result);
+        // $second was created after $first, so it carries the higher id —
+        // the returned sets must be $second's (reps 8, weight 90kg), not
+        // $first's (reps 5, weight 40kg).
+        $this->assertSame([8], array_column($result['sets'], 'reps'));
+        $this->assertSame([90.0], array_column($result['sets'], 'weight'));
     }
 
     /**
