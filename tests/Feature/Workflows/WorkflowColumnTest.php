@@ -107,14 +107,18 @@ class WorkflowColumnTest extends TestCase
      * The shipped control is an HTML `<select>` whose "Nothing extra" option
      * has an empty value, and a form posts that as `''`, never as null — so
      * the two are genuinely different payloads and only one of them was
-     * covered. `''` survives `Rule::in([...])` only because Laravel's
-     * ConvertEmptyStringsToNull middleware has already turned it into null by
-     * the time validation runs; without that it would fail the rule and the
-     * picker could set a workflow but never clear one.
+     * covered. `''` never actually reaches `Rule::in([...])`: Laravel's
+     * validator skips every non-implicit rule — `string` and `Rule::in`
+     * included — once a field's value is an empty string, so validation
+     * passes either way. What ConvertEmptyStringsToNull buys this request is
+     * converting the posted `''` into `null` before validation runs, so the
+     * stored column ends up `null` rather than the literal string `''`.
      *
      * Killing mutation: remove ConvertEmptyStringsToNull from bootstrap/app.php's
-     * middleware stack. `''` then reaches the `Rule::in` and this test fails on
-     * `assertSessionHasNoErrors` — verified by direct mutation and rerun.
+     * middleware stack. `''` then survives validation unconverted and is
+     * written to the `workflow` column as `''` instead of `null` — this test
+     * fails on `assertDatabaseHas`, not `assertSessionHasNoErrors` — verified
+     * by direct mutation and rerun.
      */
     public function test_the_pickers_empty_choice_returns_a_loop_to_no_workflow(): void
     {

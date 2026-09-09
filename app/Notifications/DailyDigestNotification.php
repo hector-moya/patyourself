@@ -50,10 +50,11 @@ class DailyDigestNotification extends Notification implements ShouldQueue
 
             // A row with no occurrence has nothing to build a one-click link
             // against, so it stays listed above without them. That is the
-            // cue-anchored case before anything has happened to it — logging
-            // is one thing that creates the occasion, and since the gym module
-            // beginning to record is another, so a cue-anchored row mid-session
-            // does carry links here.
+            // cue-anchored case before anything has happened to it — there
+            // are now two ways an occasion comes into being, logging one and
+            // the gym module's beginning to record one, so a cue-anchored row
+            // that is mid-session does have an occurrence and therefore does
+            // carry its one-click links here.
             if ($occasion->occurrence !== null) {
                 $links = QuickLogLinks::linksFor($occasion->occurrence);
 

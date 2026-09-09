@@ -697,10 +697,12 @@ describe('LoopShow', () => {
          * shared by every loop in the app, and the configuration surface is
          * additive or it is a regression.
          *
-         * Killing mutation: render the editor whenever `routine` is present,
-         * ignoring the loop's workflow. It would appear on a plain loop whose
-         * server props happened to carry a routine — verified by direct
-         * mutation and rerun.
+         * Killing mutation: have `show.tsx` hand `ActionLayer` a hardcoded
+         * workflow instead of the loop's own, so the routine editor renders
+         * off `routine` alone. The plain loop's action below is given a
+         * routine for exactly this reason — without one, the mutation has
+         * nothing to render and this test would still pass — verified by
+         * direct mutation and rerun.
          */
         it('draws nothing on a plain loop’s action', () => {
             render(
@@ -708,7 +710,22 @@ describe('LoopShow', () => {
                     intention={intention({ workflow: null })}
                     strategies={[]}
                     {...record}
-                    actions={[actionRecord({ id: 9, title: 'Upper A' })]}
+                    actions={[
+                        actionRecord({
+                            id: 9,
+                            title: 'Upper A',
+                            routine: [
+                                {
+                                    id: 1,
+                                    exercise_id: 5,
+                                    exercise_name: 'Bench Press',
+                                    position: 1,
+                                    target_sets: 3,
+                                    target_reps: 10,
+                                },
+                            ],
+                        }),
+                    ]}
                 />,
             );
 

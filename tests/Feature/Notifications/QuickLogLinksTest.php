@@ -163,4 +163,50 @@ class QuickLogLinksTest extends TestCase
         preg_match('#https?://[^"\s]+/o/\d+/(completed|skipped)[^"\s]*#', $rendered, $matches);
         $this->assertEmpty($matches, 'An action with no occurrence yet has nothing to log against.');
     }
+
+    /**
+     * The mirror of the test above: beginning to record (the gym module's
+     * MaterialisesOccasion) is a second way an occasion comes into being,
+     * alongside logging one. A cue-anchored row that is mid-session — its
+     * occasion stamped, no verdict pressed yet — is not the "nothing has
+     * happened to it" case, so it must carry its links same as any other row.
+     *
+     * Killing mutation: change `toMail`'s `$occasion->occurrence !== null`
+     * check to something that only recognises a *logged* occurrence (e.g.
+     * `$occasion->occurrence?->log !== null`). This row's occurrence carries
+     * no log yet, so the links would disappear and this test would fail.
+     */
+    public function test_the_digest_carries_links_for_a_cue_anchored_row_whose_occasion_has_been_materialised_but_not_logged(): void
+    {
+        $user = User::factory()->create();
+        $loop = Intention::factory()->for($user)->create();
+        $action = Action::factory()->for($loop, 'intention')->create([
+            'status' => Action::STATUS_ACTIVE,
+            'series_started_at' => null,
+            'recurrence' => null,
+        ]);
+
+        // Mid-session: MaterialisesOccasion has already stamped today's
+        // occurrence for this cue-anchored action, but no verdict has been
+        // pressed yet, so there is no ActionLog.
+        $occurrence = $action->occurrences()->create(['scheduled_for' => now()]);
+
+        $occasions = collect([
+            new TodaysOccasion(
+                action: $action,
+                occurrence: $occurrence,
+                scheduledFor: null,
+                due: TodaysOccasion::ANCHORED,
+            ),
+        ]);
+
+        $mail = (new DailyDigestNotification($occasions))->toMail($user);
+        $rendered = (string) $mail->render();
+
+        preg_match('#href="(https?://[^"]+/o/\d+/completed[^"]*)"#', $rendered, $matches);
+        $this->assertNotEmpty($matches, 'A cue-anchored row with a materialised occasion should carry a one-click Done link.');
+
+        $this->get(html_entity_decode($matches[1]))->assertOk();
+        $this->assertDatabaseHas('action_logs', ['occurrence_id' => $occurrence->id, 'outcome' => 'completed']);
+    }
 }
