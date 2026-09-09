@@ -1081,15 +1081,13 @@ public function nextOccurrenceAt(): ?CarbonImmutable
         return $this->upcomingOccurrences->first()?->scheduled_for;
     }
 
-    return $this->occurrences()
-        ->unlogged()
-        ->where('scheduled_for', '>=', Date::now())
-        ->orderBy('scheduled_for')
-        ->value('scheduled_for');
+    return $this->upcomingOccurrences()->value('scheduled_for');
 }
 ```
 
-The two branches must answer identically — same filter, same order. A test asserting that is cheap and worth adding: build one action with three upcoming occasions, read `nextOccurrenceAt()` cold, then again on a freshly eager-loaded copy, and assert the two agree.
+**Corrected during execution.** This block first restated the relation's three clauses inline, and review called that what it was: verbatim duplication of a logic block, which this project's rubric treats as Important. Calling `upcomingOccurrences()` **with parentheses** builds a fresh query builder without consulting or populating the loaded relation, so the fallback keeps its cheap, single-column, uncached semantics while the two paths become structurally incapable of disagreeing.
+
+The two branches must still answer identically. A test asserting that is cheap and worth adding: build one action with three upcoming occasions, read `nextOccurrenceAt()` cold, then again on a freshly eager-loaded copy, and assert the two agree. Pin `recurrence` and `series_started_at` at the call site — `ActionFactory` randomises both.
 
 In `IntentionController::actionLayer()`, add the eager load to the existing chain:
 
