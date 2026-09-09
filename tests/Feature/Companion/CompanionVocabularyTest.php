@@ -61,6 +61,13 @@ class CompanionVocabularyTest extends TestCase
             $root.'/resources/js/patyourself/workflows.ts',
             $root.'/resources/js/patyourself/workflow-record.tsx',
             $root.'/resources/js/patyourself/workflow-config.tsx',
+            // Not a training file: it holds the outcome labels and the reason
+            // copy for every screen in the app (dashboard, catch-up, the gym
+            // session), which is exactly the user-facing copy this list
+            // exists to scan. It replaced three separate copies of that
+            // form, each of which this list would otherwise have had to
+            // list on its own.
+            $root.'/resources/js/patyourself/verdict-form.tsx',
             $root.'/resources/js/pages/companion.tsx',
             $root.'/app/Actions/Training/AddRoutineExercise.php',
             $root.'/app/Actions/Training/RecordSet.php',
@@ -69,15 +76,18 @@ class CompanionVocabularyTest extends TestCase
             $root.'/app/Http/Controllers/Training/ExerciseCatalogueController.php',
             $root.'/app/Http/Controllers/Training/ExerciseController.php',
             $root.'/app/Http/Controllers/Training/PerformedSetController.php',
+            $root.'/app/Http/Controllers/Training/ProgressionController.php',
             $root.'/app/Http/Controllers/Training/RoutineController.php',
             $root.'/app/Http/Controllers/Training/SessionController.php',
             $root.'/app/Http/Requests/Training/ReorderRoutineRequest.php',
             $root.'/app/Http/Requests/Training/StorePerformedSetRequest.php',
             $root.'/app/Http/Requests/Training/StoreRoutineExerciseRequest.php',
+            $root.'/app/Services/Training/ExerciseHistory.php',
             $root.'/app/Services/Training/LastPerformance.php',
             $root.'/app/Services/Training/RoutineOrderException.php',
             $root.'/app/Services/Training/SessionScreen.php',
             $root.'/resources/js/pages/training/exercise.tsx',
+            $root.'/resources/js/pages/training/progression.tsx',
             $root.'/resources/js/pages/training/session.tsx',
             $root.'/resources/js/patyourself/training/gym-record.tsx',
             $root.'/resources/js/patyourself/training/set-grid.tsx',

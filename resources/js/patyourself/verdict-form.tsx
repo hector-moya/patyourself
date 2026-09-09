@@ -6,7 +6,7 @@ import type { LogOutcome } from '@/patyourself/types';
 
 export interface VerdictFormProps {
     /** Where the verdict posts. Every caller resolves this through a
-     *  Wayfinder helper — the two endpoints differ in what they key on, and
+     *  Wayfinder helper — the two routes differ in what they key on, and
      *  choosing between them is the caller's question, not this form's. */
     action: string;
     className?: string;
