@@ -16,6 +16,7 @@ use App\Http\Controllers\QuickLogController;
 use App\Http\Controllers\Training\ExerciseCatalogueController;
 use App\Http\Controllers\Training\ExerciseController;
 use App\Http\Controllers\Training\PerformedSetController;
+use App\Http\Controllers\Training\ProgressionController;
 use App\Http\Controllers\Training\RoutineController;
 use App\Http\Controllers\Training\SessionController;
 use App\Http\Controllers\VerdictController;
@@ -103,6 +104,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('exercises', [ExerciseCatalogueController::class, 'index'])
         ->middleware('throttle:60,1')
         ->name('training.exercises.index');
+
+    // What was lifted on one exercise, across every session that recorded it.
+    // Keyed on the exercise alone — the only training screen that is about a
+    // movement rather than about one occasion, and reachable outside a
+    // session for that reason. Unthrottled, unlike the catalogue search above:
+    // this resolves one bound model rather than scanning the catalogue.
+    Route::get('exercises/{exercise}/progression', [ProgressionController::class, 'show'])
+        ->name('training.progression.show');
 
     // The routine: what an action's occasions are meant to contain, one row
     // per exercise — the gym workflow's config extension site. See
