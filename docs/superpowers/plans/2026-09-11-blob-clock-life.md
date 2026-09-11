@@ -881,43 +881,11 @@ Worked example, for a measured `sleep` on `arms` of head `[-1, -2, -3, -2]` and 
 
 - [ ] **Step 4: Add the two new guards**
 
-In `resources/js/patyourself/sprite-layout.test.ts`:
+**The sheet-dimension guard already exists** — `blob-renderer.test.tsx:693`, "matches each PNG to its own row and column count", reading the IHDR bytes out of `form.sheet`. Its docblock names this very batch as the work it was written for: *"a row added to `FORMS` without regenerating the sheet — the next planned work is animations for the `blob` and `legs` forms — rescales every cell on that sheet."* **Do not add a second one.** It covers the repadded sheets for free, and it will be red until Task 2's art is in place with the right dimensions.
+
+So `sprite-layout.test.ts` gets two new guards, not three:
 
 ```ts
-import { readFileSync } from 'node:fs';
-
-/** Which file each form's sheet actually is. Named here because `form.sheet`
- *  is a bundled URL by the time this test sees it, not a path on disk. */
-const SHEET_FILES: Record<string, string> = {
-    blob: 'humus-blob.png',
-    legs: 'humus-legs.png',
-    arms: 'humus-arms.png',
-};
-
-/** A PNG's width and height, out of the IHDR chunk that always comes first. */
-function pngSize(file: string): [number, number] {
-    const bytes = readFileSync(new URL(`./sprites/${file}`, import.meta.url));
-
-    return [bytes.readUInt32BE(16), bytes.readUInt32BE(20)];
-}
-
-/**
- * The renderer sizes its `<image>` as `columnsOf(form) * CELL` by
- * `animations.length * CELL` and trusts the file to match. A sheet that does
- * not scales the entire image, and every existing assertion here stays green
- * while it happens — the same shape of failure that once put the shoes in the
- * bottom-left corner with the feet bare.
- */
-it('has sheets whose pixels are exactly the grid the renderer assumes', () => {
-    for (const form of FORMS) {
-        expect([SHEET_FILES[form.feature], ...pngSize(SHEET_FILES[form.feature])]).toEqual([
-            SHEET_FILES[form.feature],
-            columnsOf(form) * CELL,
-            form.animations.length * CELL,
-        ]);
-    }
-});
-
 /**
  * Nothing Blob does moves it sideways, and that single fact is why a worn
  * item is one sprite rather than one per frame. It has been prose in
@@ -1018,69 +986,55 @@ function eyesClosed(animation: AnimationName, frame: number): boolean {
 
 - [ ] **Step 7: Write the renderer tests**
 
-In `resources/js/patyourself/blob-renderer.test.tsx`, following that file's existing patterns:
+In `resources/js/patyourself/blob-renderer.test.tsx`, inside the existing `describe('poses')` block so they sit with the other pose cases. Use that file's own `draw()` and `renderBody()` helpers, and its real closed-eyes selector — `[data-testid="blob-eyes-closed"]`, which is what `<Eyes closed>` renders. There is no `.blob-eyes--closed` class; do not invent one.
 
 ```ts
-/**
- * Sleep is the one animation whose eyes are shut for its whole duration, and
- * the SVG renderer is what the fixture defaults to — so this is the path most
- * of the suite actually draws.
- */
-it('keeps Blob&apos;s eyes shut for every frame of sleep', () => {
-    for (let frame = 0; frame < ANIMATIONS.sleep.frames; frame += 1) {
-        const { container } = render(
-            <svg>
-                <SvgBlobRenderer
-                    animation="sleep"
-                    frame={frame}
-                    features={['blob', 'legs', 'arms']}
-                    items={[]}
-                    abilities={[]}
-                />
-            </svg>,
-        );
+        /**
+         * The only animation whose eyes are shut for its whole duration —
+         * `blink` shuts them for one frame and `pet` from the second. The SVG
+         * renderer is what the shared fixture defaults to, so this is the path
+         * most of the suite actually draws.
+         */
+        it('keeps the eyes shut through every frame of sleep', () => {
+            for (let frame = 0; frame < ANIMATIONS.sleep.frames; frame += 1) {
+                expect(
+                    draw({ animation: 'sleep', frame }).querySelector(
+                        '[data-testid="blob-eyes-closed"]',
+                    ),
+                    `frame ${frame}`,
+                ).not.toBeNull();
+            }
+        });
 
-        expect(container.querySelector('.blob-eyes--closed')).not.toBeNull();
-    }
-});
+        /**
+         * Every animation the clock can play has to become a pose. The switch's
+         * default branch holds the body still, which is right for `blink` and
+         * wrong for anything that moves — an animation added to the registry
+         * and forgotten here would fall through to it and simply never
+         * animate, with every other assertion in this file still green.
+         */
+        it('gives every animation that moves a pose that changes', () => {
+            for (const name of Object.keys(ANIMATIONS) as AnimationName[]) {
+                // Scene animations have no body to pose, and blink is the one
+                // that deliberately holds still: see the two cases above.
+                if (ANIMATIONS[name].channel === 'scene' || name === 'blink') {
+                    continue;
+                }
 
-/**
- * Every animation the clock can play has to become a pose. The default branch
- * holds the body still, which is right for blink and wrong for anything that
- * moves — an animation that fell through to it would simply never animate.
- */
-it('gives every non-scene animation a transform of its own', () => {
-    for (const name of Object.keys(ANIMATIONS) as AnimationName[]) {
-        if (ANIMATIONS[name].channel === 'scene' || name === 'blink') {
-            continue;
-        }
+                const styles = new Set<string>();
 
-        const transforms = new Set<string>();
+                for (let frame = 0; frame < ANIMATIONS[name].frames; frame += 1) {
+                    styles.add(
+                        renderBody(name, frame).getAttribute('style') ?? '',
+                    );
+                }
 
-        for (let frame = 0; frame < ANIMATIONS[name].frames; frame += 1) {
-            const { container } = render(
-                <svg>
-                    <SvgBlobRenderer
-                        animation={name}
-                        frame={frame}
-                        features={['blob', 'legs', 'arms']}
-                        items={[]}
-                        abilities={[]}
-                    />
-                </svg>,
-            );
-
-            transforms.add(
-                container.querySelector('.blob-anim')?.getAttribute('style') ?? '',
-            );
-        }
-
-        expect(transforms.size, `${name} never changes`).toBeGreaterThan(1);
-    }
-});
+                expect(styles.size, `${name} never changes pose`).toBeGreaterThan(1);
+            }
+        });
 ```
 
-Check the closed-eyes class name against what `<Eyes closed>` actually renders in that file and use the real one — `.blob-eyes--closed` is the expected name, not a guess to leave unverified.
+That file does not import `ANIMATIONS` yet — add it to the existing `companion-animations` import, which today brings in only the `AnimationName` type.
 
 - [ ] **Step 8: Run it all**
 
@@ -1105,11 +1059,13 @@ offsets and a case each in the SVG renderer. sleep is 1fps — the slowest
 rate in the table — because a four-second breath is what separates
 sleeping from standing still.
 
-Two new guards. One holds every sheet's pixel dimensions to the grid the
-renderer assumes, which nothing checked: a mis-sized sheet scales the
-whole image while every existing assertion stays green. The other holds
-every per-frame anchor delta to x = 0, which had been prose in BLOB.md
-and is exactly what a lying-down sleeping pose would have broken.
+Two new guards. One holds every per-frame anchor delta to x = 0, which
+had been prose in BLOB.md and nothing else, and is exactly what a
+lying-down sleeping pose would have broken. The other holds every form
+to having a sleep row, because the hold-the-first-idle-frame fallback is
+fine for a wave an early form cannot do and not for eight hours a night.
+The sheet-dimension guard needed nothing: it already existed, and its
+docblock names this batch as the work it was written for.
 
 Nothing selects sleep yet."
 ```
