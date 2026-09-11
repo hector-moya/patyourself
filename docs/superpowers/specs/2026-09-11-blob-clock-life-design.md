@@ -184,6 +184,16 @@ asleep. There is no going-to-bed animation.
 first part after an asleep one that is not itself asleep — `sunrise`, today, without the word
 `'sunrise'` appearing anywhere in the TypeScript.
 
+> **Correction, added after implementation.** "Nothing ticks the hour" above turned out to be false:
+> `useSpriteClock`'s rAF tick calls `setFrame` from inside `Companion`/`CompanionRoom`, which re-renders
+> whatever reads `ambientFor`, `selfStartedFor` and `partOfDay` with a fresh `new Date().getHours()` on
+> every tick — effectively ticking the hour at the running ambient's own frame rate (about 1Hz asleep,
+> 2Hz idle) whenever the tab is visible. See `docs/BLOB.md` §6 for the full mechanism. The decision
+> stands anyway: what was missing was never detection of the boundary, only an animated *transition*
+> across it, and that still has to earn a sprite row on its own terms. The one place the original premise
+> does hold is `prefers-reduced-motion`, where the hook never subscribes and the hour really is read only
+> at render.
+
 ### Pottering is `look`, in place
 
 `look` is a self-starting one-shot for every awake part: Blob turns to look at something, and turns
@@ -484,7 +494,9 @@ Baseline measured on this branch before starting: **1000 PHP tests / 6319 assert
   21:00 is simply already asleep.
 - **An hour ticker.** The part of day stays read-at-render, matching the room's light. If a live
   boundary is ever wanted it is one `setInterval` and a re-render, and it is a separate decision with
-  its own cost.
+  its own cost. *(Correction: it turned out unnecessary regardless of that decision — the sprite clock's
+  own rAF loop already re-reads the hour at its frame rate whenever the tab is visible, so the boundary
+  is already live except under `prefers-reduced-motion`. See `docs/BLOB.md` §6.)*
 - **Server-derived time of day.** Ruled on above; revisiting it means moving the room's light too,
   and the two must never split.
 - **Sleep on the `svg` renderer's item layers.** The SVG renderer gets its three cases so the

@@ -182,6 +182,20 @@ otherwise every subscriber to one animation moves in lockstep.
 `prefers-reduced-motion: reduce` holds frame 0 and never advances. A reaction still lands, in a single
 step, because a button that does nothing is worse than one that does not animate.
 
+**The hour is effectively ticked by this same loop, not left to sit stale.** `setFrame` fires from
+inside the tick, which re-renders `Companion` and `CompanionPage` — and with them, whatever calls
+`ambientFor`, `selfStartedFor` and `partOfDay`, each of which takes a fresh `new Date().getHours()`.
+React bails out on an unchanged state, so the effective rate is the running ambient's own fps — about
+1Hz asleep, 2Hz idle — but that is still often enough that Blob falls asleep and wakes live, the room's
+light follows in the same render pass, and `selfStartedFor`'s pending timers clear the moment bedtime's
+empty list comes back. No separate hour ticker is needed, and adding one would only duplicate work this
+loop already does.
+
+**The one exception is `prefers-reduced-motion: reduce`.** The hook never subscribes to the loop at all
+(see `useSpriteClock` above), so those viewers get the hour read once, at render, and nothing ticks it
+again after. A page left open past 21:00 keeps Blob awake until something else causes a re-render.
+Harmless, arguably even fitting for that preference, but worth writing down rather than rediscovering.
+
 ### The animation registry
 
 `companion-animations.ts` is data only. Three channels:

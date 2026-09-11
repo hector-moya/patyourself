@@ -433,7 +433,13 @@ describe('ambientFor, on the clock', () => {
      *
      * The mutation this kills is any read of the record inside either
      * selector — a gate on log_count, a check for how long since the last
-     * outcome, anything at all.
+     * outcome, anything at all. `deep` also differs from `empty` on
+     * `features`, `items`, `room_objects` and `scene`, so a mutation reading
+     * any of those — "Blob only sleeps once it has a scarf" via
+     * `companion.items`, say — fails this guard too. `room` stays identical
+     * between the two: it is the one thing both selectors are supposed to
+     * read. `abilities` is left alone for the same reason — it is the other
+     * one.
      */
     it('reads the clock and nothing about the record', () => {
         const room = fourPartDay();
@@ -443,6 +449,10 @@ describe('ambientFor, on the clock', () => {
             log_count: 900,
             insight_count: 50,
             stage_index: 13,
+            features: ['blob', 'legs', 'arms'],
+            items: [{ type: 'shoes', variant: 'coral' }],
+            room_objects: ['bookshelf'],
+            scene: 'forest',
             unlocks: [unlock(), unlock({ kind: 'ability', name: 'walk' })],
             latest_unlock: unlock({ kind: 'ability', name: 'walk' }),
         });

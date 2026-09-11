@@ -48,6 +48,12 @@ describe('partOfDay', () => {
         expect(partOfDay(6, ROOM)).toBe('night');
     });
 
+    /**
+     * A part of day the config does not name falls back to `day` — one of the
+     * spec's error-handling requirements, and the only way to reach it is a
+     * room that names no parts at all, since every other value `partOfDay`
+     * can return is a key it just read out of that same object.
+     */
     it('falls back to day when the config names no parts at all', () => {
         expect(partOfDay(9, {})).toBe('day');
         expect(partOfDay(23, {})).toBe('day');
@@ -82,10 +88,14 @@ describe('asleepAt', () => {
     });
 
     it('reads the flag as a value, not as truthiness', () => {
-        // A part that says anything other than `true` is awake.
-        const room = fourParts({ night: { asleep: false } });
+        // A part that says anything other than `true` is awake. The cast is
+        // the point: the room is authored in PHP and relayed unvalidated, so
+        // `'asleep' => 1` really can arrive here, and only a truthy
+        // non-boolean tells `=== true` apart from a truthiness check.
+        const truthy = fourParts({ night: { asleep: 1 as unknown as boolean } });
 
-        expect(asleepAt(22, room)).toBe(false);
+        expect(asleepAt(22, truthy)).toBe(false);
+        expect(asleepAt(22, fourParts({ night: { asleep: false } }))).toBe(false);
     });
 
     it('is false when the config names no parts at all', () => {

@@ -23,8 +23,6 @@ import type { AnimationName } from '@/patyourself/companion-animations';
 import { asleepAt, wakingAt } from '@/patyourself/part-of-day';
 import type { RoomPalette } from '@/patyourself/part-of-day';
 
-export type { RoomPalette };
-
 export type CompanionItemData = BlobItem;
 
 export interface CompanionUnlockData {
@@ -52,7 +50,7 @@ export interface CompanionData {
     /**
      * What each part of the day is drawn in, from config — the cabin's wall
      * and window, and the light the whole scene is washed with. See
-     * `RoomPalette` above for what a part carries.
+     * `RoomPalette` in `part-of-day.ts` for what a part carries.
      */
     room: Record<string, RoomPalette>;
     /**

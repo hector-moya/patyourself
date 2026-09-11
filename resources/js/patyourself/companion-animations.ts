@@ -80,10 +80,15 @@ export const ANIMATIONS = {
      * Waking up: eligible only in the part that follows the sleeping one, and
      * fired by the same auto-timer as `blink`.
      *
-     * There is no transition to hang it on. Nothing ticks the hour and the
-     * clock stops while the tab is hidden, so a boundary animation would need
-     * a timer of its own and would then play to an empty room at dawn. This
-     * plays a few times through the morning instead, for whoever is there.
+     * There is no transition to hang it on. The hour is already re-read live,
+     * at the animation's own frame rate (see `use-sprite-clock.ts`), so the
+     * cut from `sleep` to the morning's ambient happens on its own the
+     * instant the clock crosses — no boundary event needs catching, and a
+     * dedicated timer would only duplicate work the clock already does. What
+     * a hard cut does not buy for free is an animated *transition* between
+     * the two ambients, and a sprite row has to be seen to be worth that
+     * cost. This plays a few times through the morning instead, for whoever
+     * is there.
      */
     stretch: {
         frames: 6,

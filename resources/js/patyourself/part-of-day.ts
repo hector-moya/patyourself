@@ -78,20 +78,32 @@ export function asleepAt(
  * Whether this is the part Blob wakes up in — the one that follows a sleeping
  * part, found by order rather than by name.
  *
- * There is no waking *moment*: nothing ticks the hour, and the clock stops
- * while the tab is hidden, so a boundary crossing is not an event this app can
- * see without a timer it has no reason to own. The morning is a part of the
- * day like any other, and what makes it the morning is what came before it.
+ * There is no waking *moment*: the hour is re-read live, at the animation's
+ * own frame rate (see `use-sprite-clock.ts`), so the cut from sleep to the
+ * morning's ambient already happens on its own the instant the clock crosses
+ * — there is no boundary event this needs to catch. What a hard cut between
+ * two ambients does not buy for free is an animated transition between them,
+ * and that is a cost of its own (see `stretch` in `companion-animations.ts`).
+ * The morning is a part of the day like any other, and what makes it the
+ * morning is what came before it.
  */
 export function wakingAt(
     hour: number,
     room: Record<string, RoomPalette>,
 ): boolean {
     const parts = ordered(room);
-    const current = partOfDay(hour, room);
-    const index = parts.findIndex(([name]) => name === current);
 
-    if (index === -1 || parts[index][1].asleep === true) {
+    if (parts.length === 0) {
+        return false;
+    }
+
+    // Same rule `partOfDay` uses to name the current part, worked from the
+    // index rather than the name so the list is not sorted a second time to
+    // relocate it afterwards.
+    const started = parts.filter(([, palette]) => palette.from <= hour).length;
+    const index = started === 0 ? parts.length - 1 : started - 1;
+
+    if (parts[index][1].asleep === true) {
         return false;
     }
 
