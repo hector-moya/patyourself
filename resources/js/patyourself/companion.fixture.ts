@@ -65,6 +65,7 @@ export function companion(
                 window: '#1A2530',
                 light: '#2B3F6B',
                 dim: 0.42,
+                asleep: true,
             },
         },
         ...overrides,

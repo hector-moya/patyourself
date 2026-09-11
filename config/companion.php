@@ -87,7 +87,11 @@ return [
         'sunrise' => ['from' => 5, 'wall' => '#F2E0D0', 'window' => '#F0B98A', 'light' => '#F4A15C', 'dim' => 0.18],
         'day' => ['from' => 8, 'wall' => '#EFE6D6', 'window' => '#B9D5E4', 'light' => '#FFFFFF', 'dim' => 0],
         'dusk' => ['from' => 18, 'wall' => '#E7D2BE', 'window' => '#E9A468', 'light' => '#E2762F', 'dim' => 0.22],
-        'night' => ['from' => 21, 'wall' => '#2F3A40', 'window' => '#1A2530', 'light' => '#2B3F6B', 'dim' => 0.42],
+        // `asleep` marks the part Blob sleeps through. It sits here, beside the
+        // hours, rather than being decided in the drawing: which part of the day
+        // a creature sleeps through is an authored decision. Nothing in the app
+        // exposes it, so it is not a setting.
+        'night' => ['from' => 21, 'wall' => '#2F3A40', 'window' => '#1A2530', 'light' => '#2B3F6B', 'dim' => 0.42, 'asleep' => true],
     ],
 
     /*

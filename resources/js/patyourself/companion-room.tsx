@@ -19,9 +19,11 @@ import type { ReactNode } from 'react';
 import { useSpriteClock } from '@/hooks/use-sprite-clock';
 import { BlobRenderer, FLOOR } from '@/patyourself/blob-renderer';
 import { arrivingItem, describe } from '@/patyourself/companion';
-import type { CompanionData, RoomPalette } from '@/patyourself/companion';
+import type { CompanionData } from '@/patyourself/companion';
 import type { AnimationName } from '@/patyourself/companion-animations';
 import { ANIMATIONS } from '@/patyourself/companion-animations';
+import { partOfDay } from '@/patyourself/part-of-day';
+import type { RoomPalette } from '@/patyourself/part-of-day';
 import { sceneFor } from '@/patyourself/scenes';
 import type { FoliageSpec } from '@/patyourself/scenes';
 
@@ -178,35 +180,6 @@ function isDark(hex: string): boolean {
     const b = value & 0xff;
 
     return (0.299 * r + 0.587 * g + 0.114 * b) / 255 < 0.5;
-}
-
-/**
- * Which part of the day it is, from the CLIENT clock.
- *
- * Server time would be wrong for anyone not sitting on top of the server, and
- * the whole point is that the room looks different at breakfast and at dinner
- * for the person actually looking at it.
- *
- * Entries are read in `from` order and the last one that has started wins.
- * Before the earliest start the day has not begun yet, so it is still whatever
- * the last entry is — that is how night wraps past midnight without needing a
- * fourth state to describe the small hours.
- */
-export function partOfDay(
-    hour: number,
-    room: Record<string, RoomPalette>,
-): string {
-    const parts = Object.entries(room).sort((a, b) => a[1].from - b[1].from);
-
-    if (parts.length === 0) {
-        return 'day';
-    }
-
-    const started = parts.filter(([, palette]) => palette.from <= hour);
-
-    return started.length === 0
-        ? parts[parts.length - 1][0]
-        : started[started.length - 1][0];
 }
 
 /**

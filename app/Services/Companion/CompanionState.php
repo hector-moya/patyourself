@@ -18,8 +18,8 @@ final readonly class CompanionState
      * @param  list<array{kind: string, name: string, variant: ?string, room_object: ?string, message: string, unlocked_at: ?string}>  $unlocks
      *                                                                                                                                           Every ladder entry satisfied, in ladder order. The list is the history.
      * @param  string  $renderer  Which implementation draws Blob, from config.
-     * @param  array<string, array{from: int, wall: string, window: string, light: string, dim: float|int}>  $room
-     *                                                                                                              What each part of the day is drawn in, from config: the hour it starts at, the cabin's wall and window, and the light the whole scene is washed with — Blob included — at the strength `dim` names.
+     * @param  array<string, array{from: int, wall: string, window: string, light: string, dim: float|int, asleep?: bool}>  $room
+     *                                                                                                                             What each part of the day is drawn in, from config: the hour it starts at, the cabin's wall and window, and the light the whole scene is washed with — Blob included — at the strength `dim` names.
      * @param  list<array{name: string, trigger: string, at: int}>  $scenes  Ordered scene thresholds, from config.
      * @param  ?string  $sceneOverride  A scene to draw instead of the derived one, from the environment. Empty or null means the record decides.
      */

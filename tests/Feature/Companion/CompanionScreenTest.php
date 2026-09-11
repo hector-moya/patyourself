@@ -60,7 +60,13 @@ class CompanionScreenTest extends TestCase
                 ->where('companion.room_objects', [])
                 ->where('companion.renderer', 'sprite')
                 ->has('companion.room.day')
-                ->has('companion.room.night'),
+                ->has('companion.room.night')
+                // The flag the drawing keys off, asserted at the payload's
+                // edge. `toArray()` passes the room through whole today, so
+                // this looks redundant — it is not: a payload silently
+                // dropping a newly added key has bitten this project three
+                // times in one branch.
+                ->where('companion.room.night.asleep', true)
             );
     }
 

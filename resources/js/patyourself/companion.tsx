@@ -20,6 +20,9 @@ import { BLOB_VIEWBOX, BlobRenderer } from '@/patyourself/blob-renderer';
 import type { BlobItem } from '@/patyourself/blob-renderer';
 import { ANIMATIONS } from '@/patyourself/companion-animations';
 import type { AnimationName } from '@/patyourself/companion-animations';
+import type { RoomPalette } from '@/patyourself/part-of-day';
+
+export type { RoomPalette };
 
 export type CompanionItemData = BlobItem;
 
@@ -31,17 +34,6 @@ export interface CompanionUnlockData {
     unlocked_at: string | null;
     /** What this unlock put in the room, if anything. */
     room_object: string | null;
-}
-
-export interface RoomPalette {
-    /** The local hour this part of the day starts at. */
-    from: number;
-    wall: string;
-    window: string;
-    /** The colour the whole scene is washed with, Blob included. */
-    light: string;
-    /** How strongly. Zero at midday, when the light needs no help. */
-    dim: number;
 }
 
 export interface CompanionData {

@@ -70,4 +70,28 @@ class CompanionRoomConfigTest extends TestCase
             }
         }
     }
+
+    /**
+     * Exactly one part of the day is the one Blob sleeps through, and it is the
+     * one that starts latest. The flag is what the drawing keys off, so a
+     * config that flagged `day` would put Blob to sleep at lunchtime and a
+     * config that flagged none would leave it awake all night.
+     */
+    public function test_the_last_part_of_the_day_is_the_one_blob_sleeps_through(): void
+    {
+        $room = $this->room();
+
+        $asleep = array_keys(array_filter(
+            $room,
+            static fn (array $part): bool => ($part['asleep'] ?? false) === true,
+        ));
+
+        $this->assertCount(1, $asleep);
+
+        // uasort keeps the keys, so the last one is the part that starts
+        // latest — which is the part that has to be the sleeping one.
+        uasort($room, static fn (array $a, array $b): int => $a['from'] <=> $b['from']);
+
+        $this->assertSame(array_key_last($room), $asleep[0]);
+    }
 }

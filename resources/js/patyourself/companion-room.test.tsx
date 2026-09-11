@@ -4,11 +4,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { __resetSpriteClock, useSpriteClock } from '@/hooks/use-sprite-clock';
 
 import { ANIMATIONS } from './companion-animations';
-import { CompanionRoom, partOfDay } from './companion-room';
+import { CompanionRoom } from './companion-room';
 import { companion } from './companion.fixture';
 import { SCENES, sceneFor } from './scenes';
-
-const ROOM = companion().room;
 
 /**
  * The foliage reads the shared clock, which is a module-level singleton, so
@@ -101,37 +99,6 @@ function room(overrides = {}, hour = 12) {
         />,
     ).container;
 }
-
-describe('partOfDay', () => {
-    it('reads the hour against the parts config defines', () => {
-        expect(partOfDay(9, ROOM)).toBe('day');
-        expect(partOfDay(17, ROOM)).toBe('day');
-        expect(partOfDay(19, ROOM)).toBe('dusk');
-        expect(partOfDay(22, ROOM)).toBe('night');
-    });
-
-    /**
-     * The small hours are still night. Wrapping past midnight falls out of
-     * reading the parts in order rather than out of a fourth state describing
-     * 3am.
-     */
-    it('wraps past midnight without a fourth state', () => {
-        expect(partOfDay(0, ROOM)).toBe('night');
-        expect(partOfDay(3, ROOM)).toBe('night');
-        expect(partOfDay(6, ROOM)).toBe('night');
-    });
-
-    /**
-     * A part of day the config does not name falls back to `day` — one of the
-     * spec's error-handling requirements, and the only way to reach it is a
-     * room that names no parts at all, since every other value `partOfDay`
-     * can return is a key it just read out of that same object.
-     */
-    it('falls back to day when the config names no parts at all', () => {
-        expect(partOfDay(9, {})).toBe('day');
-        expect(partOfDay(23, {})).toBe('day');
-    });
-});
 
 describe('CompanionRoom', () => {
     it('renders nothing before Blob exists', () => {
