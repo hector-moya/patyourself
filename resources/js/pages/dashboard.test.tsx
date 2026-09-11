@@ -1,7 +1,7 @@
 import type * as InertiaReact from '@inertiajs/react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { useEffect } from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const page = { url: '/dashboard', props: { unread_notifications_count: 0 } };
 vi.mock('@inertiajs/react', async (importOriginal) => {
@@ -94,6 +94,13 @@ function renderDashboard(props: Partial<React.ComponentProps<typeof Dashboard>> 
         />,
     );
 }
+
+// The one test below pins the wall clock (Blob's ambient reads it by
+// default); this teardown runs unconditionally so a failed assertion can't
+// leak a fake clock into a later test.
+afterEach(() => {
+    vi.useRealTimers();
+});
 
 describe('Dashboard', () => {
     it('names the day', () => {
@@ -315,7 +322,15 @@ describe('Dashboard', () => {
         ).toBe('notice');
     });
 
+    /**
+     * Pinned to daytime: `ambientFor` defaults to the wall clock, and the
+     * fixture's room reads as asleep outside it — the assertion below would
+     * otherwise go red for anyone running the suite at night.
+     */
     it('leaves Blob at rest on a plain visit', () => {
+        vi.useFakeTimers({ toFake: ['Date'] });
+        vi.setSystemTime(new Date('2026-09-11T13:00:00'));
+
         const { container } = renderDashboard({
             companion: companion(),
             logged_outcome_id: null,

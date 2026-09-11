@@ -20,6 +20,7 @@ import { BLOB_VIEWBOX, BlobRenderer } from '@/patyourself/blob-renderer';
 import type { BlobItem } from '@/patyourself/blob-renderer';
 import { ANIMATIONS } from '@/patyourself/companion-animations';
 import type { AnimationName } from '@/patyourself/companion-animations';
+import { asleepAt, wakingAt } from '@/patyourself/part-of-day';
 import type { RoomPalette } from '@/patyourself/part-of-day';
 
 export type { RoomPalette };
@@ -67,21 +68,57 @@ export interface CompanionData {
 const ASPECT = 84 / 64;
 
 /**
- * What Blob does at rest. Walking is the ambient once Blob can walk, and idle
- * before that — they are the same channel, so only one of them ever runs.
+ * What Blob does at rest.
+ *
+ * A precedence list of two rungs, and the order is a claim about the creature
+ * rather than a priority number: sleeping is a state of the whole of Blob,
+ * where walking and idling are what an awake Blob does. One return value, so
+ * only one ambient can ever run — the same reason `walk` and `idle` have
+ * always shared a channel.
+ *
+ * The hour defaults to the browser's, matching the room's light, which is
+ * deliberate: the two must never split. A sleeping Blob in a midday room is a
+ * bug you can see, and two clocks is how you get one. Overridable so a test
+ * can pin the time of day, exactly as `CompanionRoom` already allows.
+ *
+ * Nothing here reads the record. Blob's life is never a mirror: it sleeps
+ * because it is night, never because of anything the person did or did not do.
  */
-export function ambientFor(companion: CompanionData): AnimationName {
+export function ambientFor(
+    companion: CompanionData,
+    hour: number = new Date().getHours(),
+): AnimationName {
+    if (asleepAt(hour, companion.room)) {
+        return 'sleep';
+    }
+
     return companion.abilities.includes('walk') ? 'walk' : 'idle';
 }
 
 /**
  * Which self-starting animations this Blob is allowed to fire.
  *
- * `blink` always: it is not an ability, it is being alive. Everything else has
- * to have been earned, or the body would be doing things the ladder has not
- * announced yet.
+ * `blink` and `look` always: they are not abilities, they are being alive.
+ * Everything else has to have been earned, or the body would be doing things
+ * the ladder has not announced yet.
+ *
+ * Nothing at all while Blob is asleep. `blink` has a row on every form, so
+ * leaving it scheduled would open a sleeping Blob's eyes for an eighth of a
+ * second every few seconds.
+ *
+ * `stretch` is the morning's, and only the morning's. There is no waking
+ * moment to hang it on — see `wakingAt` — so it fires on the same random
+ * interval as everything else here, a few times through the part of the day
+ * that follows sleeping.
  */
-export function selfStartedFor(companion: CompanionData): AnimationName[] {
+export function selfStartedFor(
+    companion: CompanionData,
+    hour: number = new Date().getHours(),
+): AnimationName[] {
+    if (asleepAt(hour, companion.room)) {
+        return [];
+    }
+
     const earned = companion.abilities.filter(
         (ability): ability is AnimationName =>
             ability in ANIMATIONS &&
@@ -89,7 +126,11 @@ export function selfStartedFor(companion: CompanionData): AnimationName[] {
             'autoEvery' in ANIMATIONS[ability as AnimationName],
     );
 
-    return ['blink', ...earned];
+    const alive: AnimationName[] = wakingAt(hour, companion.room)
+        ? ['blink', 'look', 'stretch']
+        : ['blink', 'look'];
+
+    return [...alive, ...earned];
 }
 
 /** One button in the row under the scene: an animation and the word on it. */
