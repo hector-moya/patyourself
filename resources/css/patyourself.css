@@ -352,14 +352,20 @@
 .py-landing .site-header__actions{display:flex;align-items:center;gap:var(--space-3);}
 
 /* ---------- hero copy ---------- */
+/* Centred, because the hero is flat. The copy used to sit hard left with a
+   Three.js point field filling the space beside it; without the field that
+   column read as a gap where something had been removed. There is no
+   pointer-events juggling here any more either — that existed so taps fell
+   through to the canvas behind. */
 .py-landing .hero__inner{
   position:relative;z-index:2;max-width:1240px;margin:0 auto;
-  padding:0 var(--space-12);min-height:100vh;display:flex;align-items:center;
-  pointer-events:none; /* let the canvas get pats; re-enable on children */
+  padding:0 var(--space-12);min-height:100vh;
+  display:flex;align-items:center;justify-content:center;
 }
 .py-landing .hero__copy{
-  max-width:560px;pointer-events:auto;display:flex;flex-direction:column;
-  align-items:flex-start;gap:var(--space-6);padding-bottom:var(--space-10);
+  max-width:640px;display:flex;flex-direction:column;
+  align-items:center;text-align:center;gap:var(--space-6);
+  padding-bottom:var(--space-10);
 }
 .py-landing .hero__eyebrow{margin:0;}
 .py-landing .hero__title{
@@ -372,7 +378,7 @@
   margin:0;max-width:46ch;font-size:var(--text-md);line-height:var(--leading-normal);
   color:var(--fg-muted);text-wrap:pretty;
 }
-.py-landing .hero__cta{display:flex;align-items:center;gap:var(--space-3);flex-wrap:wrap;}
+.py-landing .hero__cta{display:flex;align-items:center;justify-content:center;gap:var(--space-3);flex-wrap:wrap;}
 
 
 /* ---------- scroll hint ---------- */
@@ -441,8 +447,11 @@
 @media (max-width:900px){
   .py-landing .hero::after{background:linear-gradient(to top, var(--bg) 0%, var(--bg) 30%, transparent 68%);}
   .py-landing .site-header{padding:var(--space-5) var(--space-6);}
-  .py-landing .hero__inner{padding:0 var(--space-6);align-items:flex-end;}
-  .py-landing .hero__copy{padding-bottom:26vh;gap:var(--space-5);}
+  /* Centred here too. The copy used to be bottom-anchored with 26vh of
+     padding under it, which was room for the point field above — with the
+     field gone that just pushed everything off the bottom of the screen. */
+  .py-landing .hero__inner{padding:0 var(--space-6);}
+  .py-landing .hero__copy{gap:var(--space-5);}
   .py-landing .scroll-hint{display:none;}
   .py-landing .loop-section{padding:var(--space-16) var(--space-6);}
   .py-landing .loop-grid{grid-template-columns:1fr 1fr;}
