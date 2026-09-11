@@ -331,8 +331,10 @@
     radial-gradient(120% 90% at 70% 80%, var(--bg-sunk) 0%, transparent 60%),
     var(--bg);
 }
-.py-landing .hero__canvas{position:absolute;inset:0;width:100%;height:100%;display:block;z-index:0;}
-/* soft cream scrim so the copy stays crisp over the ripples */
+/* soft cream scrim, so the copy stays crisp against the warm gradient behind
+   it. It predates the hero being flat — it used to sit over a Three.js point
+   field — and still earns its place: the gradient runs light-to-transparent
+   across the copy's own column. */
 .py-landing .hero::after{
   content:"";position:absolute;inset:0;z-index:1;pointer-events:none;
   background:linear-gradient(100deg, var(--bg) 0%, var(--bg) 22%, transparent 56%);
@@ -372,32 +374,6 @@
 }
 .py-landing .hero__cta{display:flex;align-items:center;gap:var(--space-3);flex-wrap:wrap;}
 
-/* ---------- pat hint & counter ---------- */
-.py-landing .pat-hint{
-  position:absolute;z-index:3;right:9%;bottom:12%;
-  display:flex;flex-direction:column;align-items:center;gap:var(--space-2);
-  pointer-events:none;text-align:center;
-}
-.py-landing .pat-hint__nudge{
-  font-family:var(--font-mono);font-size:var(--text-xs);letter-spacing:var(--tracking-eyebrow);
-  text-transform:uppercase;color:var(--fg-muted);transition:opacity var(--dur-slow) var(--ease-out);
-}
-.py-landing .pat-hint__count{
-  font-family:var(--font-mono);font-size:var(--text-sm);font-weight:700;
-  color:var(--fg-faint);font-variant-numeric:tabular-nums;
-}
-
-/* floating +1 pats */
-.py-landing .pat-float{
-  position:fixed;z-index:30;font-family:var(--font-mono);font-weight:700;
-  font-size:var(--text-sm);color:var(--primary);pointer-events:none;
-  animation:pat-float-up 0.9s var(--ease-out) forwards;
-}
-@keyframes pat-float-up{
-  from{opacity:0;transform:translate(-50%,6px) scale(0.9);}
-  20%{opacity:1;}
-  to{opacity:0;transform:translate(-50%,-44px) scale(1.05);}
-}
 
 /* ---------- scroll hint ---------- */
 .py-landing .scroll-hint{
@@ -467,7 +443,6 @@
   .py-landing .site-header{padding:var(--space-5) var(--space-6);}
   .py-landing .hero__inner{padding:0 var(--space-6);align-items:flex-end;}
   .py-landing .hero__copy{padding-bottom:26vh;gap:var(--space-5);}
-  .py-landing .pat-hint{right:50%;transform:translateX(50%);bottom:7%;}
   .py-landing .scroll-hint{display:none;}
   .py-landing .loop-section{padding:var(--space-16) var(--space-6);}
   .py-landing .loop-grid{grid-template-columns:1fr 1fr;}

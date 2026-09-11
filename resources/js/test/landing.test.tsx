@@ -13,10 +13,11 @@ vi.mock('@inertiajs/react', async (importOriginal) => {
     return { ...actual, Head: () => null };
 });
 
-// Three is imported dynamically and lands in its own chunk. jsdom has no
-// WebGL, so the scene never boots — which is the point: the page must render
-// its content either way, exactly as it does for a visitor whose browser
-// refuses the context.
+// The hero is flat. It used to run a Three.js point field behind the copy,
+// which meant the page had two appearances — the scene, and the static
+// fallback a browser without WebGL got. Only one of those was ever asserted
+// here, because jsdom has no WebGL either. Now there is only one appearance,
+// and these tests describe it directly rather than describing a degradation.
 describe('Landing', () => {
     /**
      * The app went zero-LLM: Claude does the thinking through the connector and
@@ -44,11 +45,19 @@ describe('Landing', () => {
         }
     });
 
-    it('shows the ripple counter starting at zero with its nudge', () => {
+    /**
+     * The counter and its nudge went with the point field. They were driven by
+     * the scene's own `py-pat` events, so without a field they would have sat
+     * at "ripples · 000" telling a visitor to tap something that is no longer
+     * there. The mutation this kills is re-adding either one without the
+     * interaction that earns it.
+     */
+    it('offers no ripple counter and nothing to tap', () => {
         render(<Landing />);
 
-        expect(screen.getByText(/ripples · 000/)).toBeInTheDocument();
-        expect(screen.getByText(/tap the field/i)).toBeInTheDocument();
+        expect(screen.queryByText(/ripples ·/)).not.toBeInTheDocument();
+        expect(screen.queryByText(/tap the field/i)).not.toBeInTheDocument();
+        expect(screen.queryByText(/one small act/i)).not.toBeInTheDocument();
     });
 
     it('offers a scroll cue to the how-it-works section', () => {
@@ -79,18 +88,28 @@ describe('Landing', () => {
         expect(login.length).toBeGreaterThanOrEqual(1);
     });
 
-    it('renders a canvas for the ripple field', () => {
+    /**
+     * The hero draws no canvas at all now, which is the whole point of the
+     * change: a public landing page was shipping a 3D engine — the single
+     * largest chunk in the bundle, larger than the app itself — to draw
+     * expanding rings behind some copy.
+     *
+     * This asserts the absence rather than the sparseness, so it reds if a
+     * canvas comes back by any route, not only if Three does.
+     */
+    it('draws no canvas, so the page ships no renderer', () => {
         const { container } = render(<Landing />);
 
-        expect(container.querySelector('canvas.hero__canvas')).not.toBeNull();
+        expect(container.querySelector('canvas')).toBeNull();
     });
 
     /**
      * The hero used to fetch Three from unpkg by injecting a <script> at
      * runtime — the one place this app executed code from a host outside its
-     * own deploy, pinned by nothing in this repository. Three is now a bundled
-     * dependency, and this is what stops the CDN creeping back: restore any
-     * loader that appends a script tag and this goes red.
+     * own deploy, pinned by nothing in this repository. Three then became a
+     * bundled dependency, and is now gone entirely; this is what stops a CDN
+     * creeping back in its place. Restore any loader that appends a script tag
+     * and this goes red.
      */
     it('fetches no script from outside the deploy', async () => {
         // jsdom's document persists across tests in this file, so clear first

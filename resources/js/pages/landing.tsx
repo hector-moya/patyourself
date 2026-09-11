@@ -1,96 +1,24 @@
 import { Head, Link } from '@inertiajs/react';
 import { Bell, ChevronDown, Flame, Play, Sparkles } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
-import { initRippleField, loadThree } from '@/patyourself/ripple-field';
-import type { RippleApi } from '@/patyourself/ripple-field';
 
 /**
  * PatYourSelf — public landing page. Ported from the design-system handoff
- * (landing/Patyourself Landing.html): an interactive Three.js "ripples from one
- * small act" hero over the warm DS, then the habit-loop breakdown. Routes to
- * Fortify login/register; the app itself lives behind auth at /dashboard.
+ * (landing/Patyourself Landing.html): a flat warm hero, then the habit-loop
+ * breakdown. Routes to Fortify login/register; the app itself lives behind
+ * auth at /dashboard.
  *
- * Three is imported dynamically, so it ships with the deploy but stays out of
- * the entry bundle — only this page pays for it, and only once the hero boots.
- * It used to arrive from unpkg via a runtime <script>, which kept it out of the
- * bundle the same way but made the public landing page depend on a third-party
- * host serving an unpinned file. If it fails to load, or there is no WebGL, the
- * hero degrades to the static warm background — copy stays readable under the
- * scrim.
+ * The hero used to run a Three.js field of 24,000 points with rings rippling
+ * outward from wherever you tapped, and a counter that read them back. It was
+ * removed: the page is the only thing in the app that used Three, and it was
+ * paying for a 3D engine — the largest chunk in the whole bundle, larger than
+ * the app itself — to draw expanding circles behind a paragraph. The deploy
+ * builds on a one-core box that also serves four other sites, and that made
+ * the cost concrete rather than theoretical.
+ *
+ * What is left is the hero the page already showed to anyone whose browser
+ * refused a WebGL context, which is why nothing here needed designing.
  */
-
-type PatEvent = CustomEvent<{ x: number; y: number; pats: number }>;
-
-/** Floating "one small act" text that rises from each pat. */
-function PatFloats() {
-    const [floats, setFloats] = useState<
-        Array<{ id: string; x: number; y: number }>
-    >([]);
-
-    useEffect(() => {
-        let n = 0;
-        const onPat = (ev: Event) => {
-            const { detail } = ev as PatEvent;
-            const id = `${++n}-${detail.x}-${detail.y}`;
-            setFloats((f) => [...f, { id, x: detail.x, y: detail.y }]);
-            window.setTimeout(
-                () => setFloats((f) => f.filter((p) => p.id !== id)),
-                950,
-            );
-        };
-        window.addEventListener('py-pat', onPat);
-
-        return () => window.removeEventListener('py-pat', onPat);
-    }, []);
-
-    return (
-        <div aria-hidden="true">
-            {floats.map((f) => (
-                <span
-                    key={f.id}
-                    className="pat-float"
-                    style={{ left: f.x, top: f.y }}
-                >
-                    one small act
-                </span>
-            ))}
-        </div>
-    );
-}
-
-/** The nudge + "ripples · NNN" counter, driven by the scene's pat events. */
-function PatHint() {
-    const [pats, setPats] = useState(0);
-
-    useEffect(() => {
-        const onPat = (ev: Event) => setPats((ev as PatEvent).detail.pats);
-        const onReset = () => setPats(0);
-        window.addEventListener('py-pat', onPat);
-        window.addEventListener('py-pats-reset', onReset);
-
-        return () => {
-            window.removeEventListener('py-pat', onPat);
-            window.removeEventListener('py-pats-reset', onReset);
-        };
-    }, []);
-
-    const nudge =
-        pats === 0
-            ? 'tap the field — start one ripple'
-            : pats < 4
-              ? 'every small act ripples out'
-              : 'progress, not perfection';
-
-    return (
-        <div className="pat-hint">
-            <span className="pat-hint__nudge">{nudge}</span>
-            <span className="pat-hint__count">
-                ripples · {String(pats).padStart(3, '0')}
-            </span>
-        </div>
-    );
-}
 
 type Stage = {
     key: string;
@@ -189,34 +117,6 @@ function LoopSection() {
 }
 
 export default function Landing() {
-    const canvasRef = useRef<HTMLCanvasElement>(null);
-    const apiRef = useRef<RippleApi | null>(null);
-
-    /* Boot the ripple scene once Three has loaded. Degrade quietly: no WebGL,
-       or a chunk that fails to arrive, leaves the hero static and the copy
-       readable. */
-    useEffect(() => {
-        let cancelled = false;
-
-        loadThree()
-            .then((THREE) => {
-                if (cancelled || !canvasRef.current || apiRef.current) {
-                    return;
-                }
-
-                apiRef.current = initRippleField(canvasRef.current, THREE);
-            })
-            .catch(() => {
-                /* no WebGL / offline — hero stays static, copy stays readable */
-            });
-
-        return () => {
-            cancelled = true;
-            apiRef.current?.dispose();
-            apiRef.current = null;
-        };
-    }, []);
-
     const scrollToHow = (e: React.MouseEvent<HTMLAnchorElement>) => {
         e.preventDefault();
         document
@@ -229,12 +129,6 @@ export default function Landing() {
             <Head title="patyourself — progress, not perfection" />
 
             <section className="hero">
-                <canvas
-                    ref={canvasRef}
-                    className="hero__canvas"
-                    aria-label="A calm field of points; rings ripple outward from a single origin"
-                />
-
                 <header className="site-header">
                     <Link
                         className="site-header__brand"
@@ -293,7 +187,6 @@ export default function Landing() {
                     </div>
                 </div>
 
-                <PatHint />
                 <a className="scroll-hint" href="#how" onClick={scrollToHow}>
                     how it works
                     <ChevronDown size={12} strokeWidth={2.5} />
@@ -301,7 +194,6 @@ export default function Landing() {
             </section>
 
             <LoopSection />
-            <PatFloats />
         </div>
     );
 }
