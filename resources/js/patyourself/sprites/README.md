@@ -10,9 +10,13 @@ is transparent.
 
 | Sheet | Feature | Size | Rows |
 | --- | --- | --- | --- |
-| `humus-blob.png` | `blob` | 128×128 | `idle`, `blink` |
-| `humus-legs.png` | `legs` | 128×128 | `idle`, `blink` |
-| `humus-arms.png` | `arms` | 384×512 | `idle`, `blink`, `walk`, `wave`, `jump`, `pet`, `play`, `notice` |
+| `humus-blob.png` | `blob` | 256×192 | `idle`, `blink`, `sleep` |
+| `humus-legs.png` | `legs` | 256×192 | `idle`, `blink`, `sleep` |
+| `humus-arms.png` | `arms` | 384×704 | `idle`, `blink`, `walk`, `wave`, `jump`, `pet`, `play`, `notice`, `sleep`, `stretch`, `look` |
+
+`blob` and `legs` widened from 2 columns to 4 when `sleep` was added, because a sheet is as wide as
+its widest row and `sleep` is 4 frames. The existing `idle`/`blink` pixels kept their exact position;
+the new columns are transparent padding, not a re-crop of anything that was already there.
 
 Cells keep the exact position Pixel Lab returned each frame at. **Do not re-crop or re-centre them.**
 Every frame of every animation arrives registered to a shared 64×64 canvas, and that shared
@@ -57,7 +61,33 @@ frame 0 and the two renderers must agree. Its pair is chosen for matching body h
 possible: the SVG renderer's own note says holding the body still is what makes a blink read as a
 blink rather than as a flinch.
 
-Everything else keeps all of its generated frames in order.
+Everything else keeps all of its generated frames in order, except `sleep`, on all three forms — also
+**selected frames, not a straight generation**, for a version of the same reason as `idle` above.
+
+A direct 4-frame request for `sleep` — "both eyes closed the whole time" — opened the eyes on frame 0
+every time, on all three forms: the same reference-frame bleed that made `idle` unusable, now hitting
+the one animation that cannot tolerate it at all (`sleep` has to print `closed` on every frame; nothing
+else in this file does). Rather than re-roll the same 4-frame request and hope, each form was
+regenerated at 8 frames instead — `v3` mode accepts up to 16 — and 4 closed-eyed frames were picked
+from the wider pool. This is the frame-selection fallback the plan names, reached for after the direct
+4-frame `sleep` failed its own closed-eyes check, not after three failed re-rolls of it; re-rolling the
+same request was never going to fix a bleed that came from the reference frame every request shares.
+The two-frame-breath fallback one step further down was not needed on any form.
+
+| Form | Pool frames kept | Why |
+| --- | --- | --- |
+| `blob` | 1, 6, 7, 1 (of 8) | frame 0 alone opened its eyes; frames 2–5 measure a 1px-deeper head than 1/6/7 do, which is fine on its own but pushes the scarf's tail 1px past the sole — `blob` has the tightest sole clearance of the three forms, none to spare. Kept to the three frames that measure identically to `idle`, repeating frame 1 for the fourth column; the mouth still varies frame to frame, so the loop is not fully static |
+| `legs` | 0, 3, 5, 7 (of 8) | the only pool where all 8 frames came back closed-eyed already; frames chosen purely for a breathing arc that closes the loop (frame 0 and frame 7 sit at the same head height) |
+| `arms` | 2, 3, 5, 7 (of 8, second pool) | the first 8-frame pool opened its eyes on frames 0 *and* 7, and its closed-eyed frames 1/3/5/6 carried a bright open-mouth pixel that reads as an eye highlight to the measurement script (the same false positive `pet` already has, see below) — so `arms` alone was regenerated a second time asking for a closed mouth too; the second pool has five unambiguously closed-eyed frames (1, 2, 3, 5, 7) and the four kept are the ones whose head height closes the loop cleanly (frame 2 and frame 7 match) |
+
+Pixel Lab job ids, for the record: `sleep` on `blob` — animation group `86ff1923-fe65-4ade-91d7-39d7439135a2`
+(discarded 4-frame attempt) and `d589a0e4-95ff-4198-a35c-0410ea768e25` (8-frame pool, used). `sleep` on
+`legs` — `7517ee99-5e42-4168-9d4e-dcce5a78536d` (discarded) and `f76bdaa1-3af6-41fe-a5a0-9a1978ed5bfc`
+(pool, used). `sleep` on `arms` — `796511e2-2851-415e-8a2a-d642a5523b92` (discarded 4-frame),
+`d909ffa7-3ffe-45df-8c5c-f11158490630` (discarded 8-frame pool, mouth artifact) and
+`db2a3055-ce79-44d5-876a-ab5b7bde4926` (8-frame pool, used). `stretch` and `look` on `arms` were kept
+from their first, direct generation — `aaa542bb-92bf-4079-bfb2-ce536b5bc007` and
+`fb14171b-57d9-4960-a9d3-8a432aec6a2e` — with no selection needed.
 
 ## Measured constants
 
@@ -158,9 +188,13 @@ at room scale on `play` frame 3.
 ```
 blob   idle    head [0,-1]   face [0,-2]   neck [0,-2]
                hand: derives to [0,0] on both frames, so no row
+       sleep   absent — the four frames kept (see "Which frames were kept, and
+               why" above) all measure identically to idle frame 0
 
 legs   idle    head [0,1]    face [0,2]    neck [0,2]    hand [0,1]
        blink   head [1,0]    face [1,0]    neck [1,0]    hand [1,0]
+       sleep   head [1,2,2,1]   face: closed throughout, so it takes head's own delta
+               neck [1,2,2,1]   hand [1,1,1,1]
 
 arms   idle    head [0,-2]   face [0,-3]   neck [0,-3]   hand [0,-1]
        walk    head [-2,-3,-3,-2]      face [-2,-3,-3,-2]      neck [-2,-3,-3,-2]
@@ -175,6 +209,12 @@ arms   idle    head [0,-2]   face [0,-3]   neck [0,-3]   hand [0,-1]
                feet [0,0,-2,-5,-2,0]      hand [0,-1,-3,-5,-3,-1]
        notice  head [-2,-6,-4,-2]      face [-3,-8,-6,-4]      neck [-3,-8,-6,-4]
                feet [0,-3,-4,-1]       hand [-1,-4,-4,-1]
+       sleep   head [-1,-1,2,-1]   face: closed throughout, so it takes head's own delta
+               neck [-1,-1,2,-1]   hand [0,0,1,0]
+       stretch head [-1,-3,-4,-3,-2,-1]   face [-1,-3,-5,-5,-3,-2]   neck [-1,-3,-5,-5,-3,-2]
+               hand [0,-1,-2,-1,-1,0]
+       look    head [-1,-1,-1,-1]   face [-1,-2,-2,-2]   neck [-1,-2,-2,-2]
+               hand: derives to [0,0,0,0] on all four frames, so no row
 ```
 
 Each bracketed list is that anchor's y-delta per frame, in order — `[0,-1]` on a 2-frame animation
@@ -184,8 +224,26 @@ than a flinch, the same reading the SVG renderer gives its own blink — and now
 `face`, it holds still along with the rest of the skull rather than carrying a delta of its own.
 
 An anchor whose derivation or reading is zero on every frame gets no row, which is why `hand` is
-absent from `blob` entirely and from `arms`'s `pet`. That is the same convention as an animation
-absent from a form's table: nothing to correct, so nothing written down.
+absent from `arms`'s `pet` and `look`, and why `blob` has no `hand` row on any animation at all —
+`idle` derives to zero on both its frames, and the four `sleep` frames kept were chosen so the body
+does not move at all (see "Which frames were kept, and why" above), so `sleep` needs no row of any
+kind, the same as `blink` on this form and on `arms`.
+
+`stretch`'s one closed-eyed frame — frame 1, the mid-stretch squint — takes `head`'s own delta for
+`face`, the same convention every other closed frame in this file uses. `look`'s closed-eyed frame is
+frame 0. Neither row gets a `feet` entry: both briefs are explicit that the feet stay on the ground
+through the whole animation, and the art agrees — every frame measures zero.
+
+**`sleep`'s pose is deliberately upright, on all three forms, and that is a constraint on the art, not
+a stylistic choice.** A sleeping creature that lies down or curls up both rotates its body and
+translates it sideways — exactly the two things every other animation in this file has always avoided,
+and the reason is not aesthetic. Every per-frame anchor delta above has an `x` component of `0`, which
+is what lets a hat, a scarf or a pair of glasses be one sprite that rides the body rather than one
+hand-placed drawing per frame of every animation. A sleeping Blob that curled up would need its own
+per-frame accessory art, or would need to go without accessories while asleep — either way, the small
+table this file is would stop being able to describe it. Sitting upright with the head merely tipping
+forward keeps `sleep` inside the same contract as `wave`, `jump` and everything else: reachable by a
+delta table, not by bespoke art.
 
 ## Adding a form
 

@@ -797,6 +797,37 @@ function bodyTransform(
                 transitionDuration: '90ms',
             };
 
+        case 'sleep':
+            // A deeper, far slower breath than idle's: about twice the
+            // amplitude at a quarter of the rate. No rotation — the sleeping
+            // Blob is drawn slumped, never tipped over, which is the same
+            // constraint the sprite art is briefed with.
+            return {
+                ...origin,
+                transform: `scaleY(${[0.97, 0.95, 0.93, 0.95][frame] ?? 0.95})`,
+                transitionDuration: '900ms',
+            };
+
+        case 'stretch':
+            // Reaching up, then settling. It reads as length rather than
+            // height because the feet never leave the floor, which is what
+            // separates it from jump.
+            return {
+                ...origin,
+                transform: `scaleY(${[0.96, 1.04, 1.06, 1.04, 1.01, 1][frame] ?? 1})`,
+                transitionDuration: '120ms',
+            };
+
+        case 'look':
+            // Turning to look at something, which on a creature that is
+            // mostly head is a lean. Smaller than wave's tilt and level again
+            // by the end, so it reads as attention rather than as a greeting.
+            return {
+                ...origin,
+                transform: `rotate(${[0, -4, -5, 0][frame] ?? 0}deg)`,
+                transitionDuration: '110ms',
+            };
+
         // blink changes the eyes and nothing else. Holding the body still is
         // what makes it read as a blink rather than a flinch.
         default:
@@ -838,8 +869,9 @@ function eyesClosed(animation: AnimationName, frame: number): boolean {
     }
 
     // Pet keeps them shut throughout — a quarter of a second of contentment,
-    // rather than a wink.
-    return animation === 'pet';
+    // rather than a wink. Sleep keeps them shut for as long as it runs, which
+    // is all night.
+    return animation === 'pet' || animation === 'sleep';
 }
 
 function translate([x, y]: readonly [number, number]): string {

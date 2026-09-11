@@ -4,6 +4,7 @@ import { resolve } from 'node:path';
 import { render } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
+import { ANIMATIONS } from '@/patyourself/companion-animations';
 import type { AnimationName } from '@/patyourself/companion-animations';
 import {
     BlobRenderer,
@@ -289,6 +290,50 @@ describe('SvgBlobRenderer', () => {
             expect(renderBody('blink', 0).getAttribute('style')).toBe(
                 renderBody('blink', 1).getAttribute('style'),
             );
+        });
+
+        /**
+         * The only animation whose eyes are shut for its whole duration —
+         * `blink` shuts them for one frame and `pet` from the second. The SVG
+         * renderer is what the shared fixture defaults to, so this is the path
+         * most of the suite actually draws.
+         */
+        it('keeps the eyes shut through every frame of sleep', () => {
+            for (let frame = 0; frame < ANIMATIONS.sleep.frames; frame += 1) {
+                expect(
+                    draw({ animation: 'sleep', frame }).querySelector(
+                        '[data-testid="blob-eyes-closed"]',
+                    ),
+                    `frame ${frame}`,
+                ).not.toBeNull();
+            }
+        });
+
+        /**
+         * Every animation the clock can play has to become a pose. The switch's
+         * default branch holds the body still, which is right for `blink` and
+         * wrong for anything that moves — an animation added to the registry
+         * and forgotten here would fall through to it and simply never
+         * animate, with every other assertion in this file still green.
+         */
+        it('gives every animation that moves a pose that changes', () => {
+            for (const name of Object.keys(ANIMATIONS) as AnimationName[]) {
+                // Scene animations have no body to pose, and blink is the one
+                // that deliberately holds still: see the two cases above.
+                if (ANIMATIONS[name].channel === 'scene' || name === 'blink') {
+                    continue;
+                }
+
+                const styles = new Set<string>();
+
+                for (let frame = 0; frame < ANIMATIONS[name].frames; frame += 1) {
+                    styles.add(
+                        renderBody(name, frame).getAttribute('style') ?? '',
+                    );
+                }
+
+                expect(styles.size, `${name} never changes pose`).toBeGreaterThan(1);
+            }
         });
     });
 });

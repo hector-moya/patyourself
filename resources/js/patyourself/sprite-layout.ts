@@ -69,7 +69,7 @@ export const FORMS: readonly SpriteForm[] = [
     {
         feature: 'blob',
         sheet: blobSheet,
-        animations: ['idle', 'blink'],
+        animations: ['idle', 'blink', 'sleep'],
         foot: 51,
         anchors: {
             head: [-1, 21],
@@ -84,8 +84,11 @@ export const FORMS: readonly SpriteForm[] = [
         // form's measured blink shows no body movement worth a table entry.
         // `neck` rides the skull now (it is `face`'s own row, `face + 9`),
         // so its offset here is `face`'s delta, not a separate measurement.
-        // `hand` gets no row on this form at all: derived from a head that
-        // moves 1 row and feet that do not, it rounds to zero on both frames.
+        // `hand` gets no row on this form's `idle` at all: derived from a
+        // head that moves 1 row and feet that do not, it rounds to zero on
+        // both frames. `sleep` is absent from this table entirely, the same
+        // as `blink`: the four frames kept for it (sprites/README.md) all
+        // measure zero on every anchor, so there is nothing here to correct.
         offsets: {
             idle: {
                 head: [
@@ -106,7 +109,7 @@ export const FORMS: readonly SpriteForm[] = [
     {
         feature: 'legs',
         sheet: legsSheet,
-        animations: ['idle', 'blink'],
+        animations: ['idle', 'blink', 'sleep'],
         foot: 53,
         anchors: {
             head: [-1, 19],
@@ -160,6 +163,37 @@ export const FORMS: readonly SpriteForm[] = [
                     [0, 0],
                 ],
             },
+            // Eyes shut on all four frames, so `face` carries `head`'s own
+            // delta rather than a reading that cannot be taken — the same
+            // convention as `idle`'s and `blink`'s closed frames use above.
+            // `neck` follows `face`. `hand` is the derivation:
+            // round((head + feet) / 2), with `feet` unmoved throughout.
+            sleep: {
+                head: [
+                    [0, 1],
+                    [0, 2],
+                    [0, 2],
+                    [0, 1],
+                ],
+                face: [
+                    [0, 1],
+                    [0, 2],
+                    [0, 2],
+                    [0, 1],
+                ],
+                neck: [
+                    [0, 1],
+                    [0, 2],
+                    [0, 2],
+                    [0, 1],
+                ],
+                hand: [
+                    [0, 1],
+                    [0, 1],
+                    [0, 1],
+                    [0, 1],
+                ],
+            },
         },
     },
     {
@@ -174,6 +208,9 @@ export const FORMS: readonly SpriteForm[] = [
             'pet',
             'play',
             'notice',
+            'sleep',
+            'stretch',
+            'look',
         ],
         foot: 53,
         anchors: {
@@ -401,6 +438,101 @@ export const FORMS: readonly SpriteForm[] = [
                     [0, -4],
                     [0, -4],
                     [0, -1],
+                ],
+            },
+            // Eyes shut on all four frames, so `face` carries `head`'s own
+            // delta rather than a reading that cannot be taken — the same
+            // convention `blink`'s closed frame and `pet` already use.
+            // `neck` follows `face`, as everywhere. `hand` is the
+            // derivation: round((head + feet) / 2), with `feet` unmoved
+            // throughout.
+            sleep: {
+                head: [
+                    [0, -1],
+                    [0, -1],
+                    [0, 2],
+                    [0, -1],
+                ],
+                face: [
+                    [0, -1],
+                    [0, -1],
+                    [0, 2],
+                    [0, -1],
+                ],
+                neck: [
+                    [0, -1],
+                    [0, -1],
+                    [0, 2],
+                    [0, -1],
+                ],
+                hand: [
+                    [0, 0],
+                    [0, 0],
+                    [0, 1],
+                    [0, 0],
+                ],
+            },
+            // The one frame with shut eyes (frame 1, the mid-stretch squint)
+            // takes `head`'s own delta for `face`, the same convention as
+            // every other closed frame in this file. `feet` gets no row: the
+            // brief for this animation is explicit that both feet stay on
+            // the ground, and the art agrees — every frame reads zero.
+            stretch: {
+                head: [
+                    [0, -1],
+                    [0, -3],
+                    [0, -4],
+                    [0, -3],
+                    [0, -2],
+                    [0, -1],
+                ],
+                face: [
+                    [0, -1],
+                    [0, -3],
+                    [0, -5],
+                    [0, -5],
+                    [0, -3],
+                    [0, -2],
+                ],
+                neck: [
+                    [0, -1],
+                    [0, -3],
+                    [0, -5],
+                    [0, -5],
+                    [0, -3],
+                    [0, -2],
+                ],
+                hand: [
+                    [0, 0],
+                    [0, -1],
+                    [0, -2],
+                    [0, -1],
+                    [0, -1],
+                    [0, 0],
+                ],
+            },
+            // The one frame with shut eyes (frame 0) takes `head`'s own
+            // delta for `face`. No `hand` row: the derivation is zero on all
+            // four frames, the same as `pet` — a glance is a lean of the
+            // skull, not a lift of the body mass.
+            look: {
+                head: [
+                    [0, -1],
+                    [0, -1],
+                    [0, -1],
+                    [0, -1],
+                ],
+                face: [
+                    [0, -1],
+                    [0, -2],
+                    [0, -2],
+                    [0, -2],
+                ],
+                neck: [
+                    [0, -1],
+                    [0, -2],
+                    [0, -2],
+                    [0, -2],
                 ],
             },
         },

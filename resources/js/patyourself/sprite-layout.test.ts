@@ -239,4 +239,40 @@ describe('sprite layout', () => {
             }
         }
     });
+
+    /**
+     * Nothing Blob does moves it sideways, and that single fact is why a worn
+     * item is one sprite rather than one per frame. It has been prose in
+     * docs/BLOB.md and nothing else; a sleeping pose that lay down or curled up
+     * is exactly what would break it, so it is a guard now.
+     */
+    it('never moves an anchor sideways, on any form or frame', () => {
+        let checked = 0;
+
+        for (const form of FORMS) {
+            for (const [animation, anchors] of Object.entries(form.offsets ?? {})) {
+                for (const [anchor, frames] of Object.entries(anchors)) {
+                    for (const [index, delta] of (frames ?? []).entries()) {
+                        expect(delta[0], `${form.feature} ${animation} ${anchor} frame ${index}`).toBe(0);
+                        checked += 1;
+                    }
+                }
+            }
+        }
+
+        // A loop that stopped finding tables would assert nothing at all.
+        expect(checked).toBeGreaterThan(100);
+    });
+
+    /**
+     * The one animation whose fallback is least acceptable: the
+     * hold-the-first-idle-frame contract is fine for a wave an early form cannot
+     * do, but sleep would leave a Blob three outcomes deep standing awake for
+     * eight hours every night.
+     */
+    it('lets every form sleep, not just the fullest one', () => {
+        for (const form of FORMS) {
+            expect(form.animations).toContain('sleep');
+        }
+    });
 });

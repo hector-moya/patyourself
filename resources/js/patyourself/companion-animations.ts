@@ -61,6 +61,53 @@ export const ANIMATIONS = {
         channel: 'ambient',
         autoEvery: [20000, 45000],
     },
+    /**
+     * What Blob does through the part of the day config marks `asleep`. An
+     * ambient like `idle` and `walk` — they share a channel, so only one of
+     * them ever runs, and which one is `ambientFor`'s to say.
+     *
+     * No `autoEvery`: this is a state rather than something Blob does now and
+     * then. 1fps is the slowest rate in this table, and that is the point — a
+     * four-second breath is what separates sleeping from standing still, more
+     * than the pose does.
+     *
+     * Not an ability, and there is no rung for it. Sleeping is on `blink`'s
+     * side of that line: being alive rather than a skill, so it needs nothing
+     * earned and announces nothing.
+     */
+    sleep: { frames: 4, fps: 1, loop: true, channel: 'ambient' },
+    /**
+     * Waking up: eligible only in the part that follows the sleeping one, and
+     * fired by the same auto-timer as `blink`.
+     *
+     * There is no transition to hang it on. Nothing ticks the hour and the
+     * clock stops while the tab is hidden, so a boundary animation would need
+     * a timer of its own and would then play to an empty room at dawn. This
+     * plays a few times through the morning instead, for whoever is there.
+     */
+    stretch: {
+        frames: 6,
+        fps: 8,
+        loop: false,
+        channel: 'ambient',
+        autoEvery: [20000, 60000],
+    },
+    /**
+     * Blob turns to look at something and turns back. Alongside `blink` in
+     * every awake part, and exempt from the ladder for the same reason: no
+     * rung would announce it and it claims no capability.
+     *
+     * In place, like every other animation here. Nothing Blob does translates
+     * sideways — see `sprite-layout.ts` on why every per-frame delta has
+     * `x = 0`.
+     */
+    look: {
+        frames: 4,
+        fps: 8,
+        loop: false,
+        channel: 'ambient',
+        autoEvery: [12000, 35000],
+    },
     pet: { frames: 4, fps: 8, loop: false, channel: 'reaction' },
     play: { frames: 6, fps: 8, loop: false, channel: 'reaction' },
     /**
