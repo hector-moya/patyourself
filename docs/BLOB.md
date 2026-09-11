@@ -36,6 +36,11 @@ included: `streak`, `congratulation`, `well done`, `completion rate`, `percent`,
 `level up`, `lonely`, `hungry`, `misses you`, `neglect`, `cooldown`. `points` is a substring trap —
 *appoints* and *disappoints* trip it.
 
+**A sleeping Blob is a function of the clock alone, never of the record.** Nothing about whether
+Blob sleeps reads `logCount`, `insightCount` or any unlock — only the browser's hour and
+`config('companion.room')` say so. That is the rule most at risk here: the day this starts reading
+what has been recorded, a state of being alive has quietly become a reward.
+
 **Any new companion source file must be added to `CompanionVocabularyTest::sourceFiles()`.** A file
 absent from that list is scanned by nothing, and this project has been bitten by exactly that.
 
@@ -130,6 +135,11 @@ Four parts of day (`sunrise` 5, `day` 8, `dusk` 18, `night` 21), each carrying a
 colour, a light colour and a `dim`. `partOfDay()` sorts by start hour and takes the last one that has
 begun, which is how night wraps past midnight without a fifth state describing 3am.
 
+**`night` also carries `asleep: true`.** It is the one field on `RoomPalette` the light itself never
+reads — `asleepAt()` and `wakingAt()` in `part-of-day.ts` do, and that flag alone is what Blob's own
+day keys off, entirely apart from the wash the room gets. A room authored before the field existed
+behaves exactly as it did: absent is awake.
+
 The light is **one `<rect>` drawn last**, over the backdrop, the foliage, the room objects **and
 Blob**, multiply-blended at the part's `dim`. It is skipped entirely when `dim` is zero — midday needs
 no help.
@@ -148,11 +158,11 @@ class both emit.**
 A form is chosen by what the record has unlocked, and each is a whole sheet of 64×64 cells — one row
 per animation, frames left to right.
 
-| Form | Sheet | Animations | Foot row |
-| --- | --- | --- | --- |
-| `blob` | `humus-blob.png` | idle, blink | 51 |
-| `legs` | `humus-legs.png` | idle, blink | 53 |
-| `arms` | `humus-arms.png` | all eight | 53 |
+| Form | Sheet | Size | Animations | Foot row |
+| --- | --- | --- | --- | --- |
+| `blob` | `humus-blob.png` | 256×192 | idle, blink, sleep | 51 |
+| `legs` | `humus-legs.png` | 256×192 | idle, blink, sleep | 53 |
+| `arms` | `humus-arms.png` | 384×704 | all eleven | 53 |
 
 An animation a form has no row for holds the first idle frame rather than drawing an empty cell.
 
@@ -176,7 +186,9 @@ step, because a button that does nothing is worse than one that does not animate
 
 `companion-animations.ts` is data only. Three channels:
 
-- **`ambient`** — what Blob does at rest, loops. `idle`, `walk`, and the self-starting one-shots.
+- **`ambient`** — what Blob does at rest, loops. `idle` and `walk` while awake, `sleep` as the resting
+  state at night, and the self-starting one-shots: `blink`, `wave`, `jump`, and — new here —
+  `stretch` and `look`.
 - **`reaction`** — plays once, overrides the ambient, hands back. `pet`, `play`, `notice`.
 - **`scene`** — belongs to the world, not the creature. `sway`, `rustle`.
 
@@ -185,12 +197,16 @@ not things Blob does. Deriving that exemption by scanning the scene registry ins
 switch off a sprite-sheet invariant at a distance.
 
 Only `ambient` animations carrying `autoEvery` self-fire, and only once the matching ability is earned
-— otherwise the body would do things the ladder has not announced.
+— otherwise the body would do things the ladder has not announced. `blink` and `look` are exempt from
+that: nothing earns them, because they are Blob being alive rather than Blob doing something, the same
+reasoning `wave` and `jump` do not get. **Nothing self-starts while Blob is asleep** — `selfStartedFor`
+returns an empty list for the whole of `night`, `blink` included, rather than opening a sleeping Blob's
+eyes every few seconds.
 
 ### Anchors
 
 `sprite-layout.ts` holds five anchors — `head`, `face`, `neck`, `feet`, `hand` — for each of the three
-forms: 15 resting positions, plus 148 per-frame offset pairs, written only where a limb actually
+forms: 15 resting positions, plus 216 per-frame offset pairs, written only where a limb actually
 carries something. All of it measured off the art, not guessed; `sprites/README.md` records how.
 
 **An anchor's two components are measured from different edges.** `y` is rows down from the cell's top;
@@ -199,6 +215,8 @@ carries something. All of it measured off the art, not guessed; `sprites/README.
 
 **Every per-frame delta has `x = 0`.** Nothing ever moves sideways; anchors only translate vertically,
 by −8 to +2. That single fact is why a worn item needs one sprite rather than one per frame.
+`sprite-layout.test.ts`'s "never moves an anchor sideways, on any form or frame" is the guard: it walks
+every offset table and fails the moment one of them stops being zero.
 
 ## 7. How the art is made
 
@@ -285,7 +303,7 @@ resources/js/patyourself/
   companion-animations.ts               the animation registry
   companion-room.tsx                    the scene compositor and the light
   blob-renderer.tsx                     both renderers, worn items, ability props
-  sprite-layout.ts                      forms, cells, the 221 anchors
+  sprite-layout.ts                      forms, cells, the 231 anchors
   sprite-items.tsx                      what Blob wears, rects or sheets
   scenes.ts                             the scene registry
   sprites/   + README.md                bodies, worn-item sheets, every measurement
@@ -312,6 +330,9 @@ Each of these was settled with evidence. The cost column is what getting it wron
 | **`FoliageSpec.phase` exists** | The clock derives frames from the absolute timestamp, so three tufts sharing one animation move in lockstep — the exact metronome the layer exists to avoid. | Three tufts move as one. |
 | **Scene animations get their own channel** | Deriving the sprite-row exemption from `SCENES` let the scene registry switch off a Blob invariant at a distance: adding a foliage layer named `wave` turned the guard green. | One union member. |
 | **The lamp is dimmed by the night wash** | A light source dimmed by darkness is backwards, but `#F2C572` washes to ~`#9E8756` against a wall at ~`#1F2830` — still by far the brightest thing in the room. Excluding it means a special case contradicting one filter over everything. | One conditional. |
+| **Sleep is a behaviour, not a rung** | It needs nothing earned and announces nothing — Blob sleeps the first night it exists, the same as `blink`. A rung would make it something the record grants, which is exactly the mirror this feature refuses to be. | A rung, permanently, and a shallow record standing awake while a deep one sleeps. |
+| **The browser's clock drives Blob's day, same as it drives the room's light** | Two clocks disagreeing is worse than one clock being wrong: a sleeping Blob in a lit room, or a lit Blob in a dark one, reads as broken rather than as a creature keeping its own hours. | The two splitting, and a sleeping Blob in a midday room. |
+| **The sleeping pose stays upright** | Lying down or curling up both rotates the body and moves it sideways — the two things every other animation here has always avoided, and the reason every per-frame anchor's `x` is `0`. A curled-up Blob would need bespoke per-frame accessory art, or would have to go without accessories while asleep. | Per-frame horizontal anchors, and one sprite per item becoming one per frame. |
 
 ## 10. Traps that have already bitten
 
@@ -350,3 +371,6 @@ Every one of these has cost a round on this project.
   `scenes.ts` — `Object.hasOwn` there, a bare lookup in the other two.
 - **The Settings area still wears the stock Laravel starter-kit shell.**
 - **A catch-up acknowledgement** is an open design question, not code.
+- **`stretch` and `look` fall back to `idle` on the `blob` and `legs` forms.** Neither form has a row
+  for either animation, so the fallback contract in §6 holds every frame to `idle` frame 0 rather than
+  drawing anything. Only `arms` draws them.

@@ -322,3 +322,19 @@ top-left. Shifting it by another half-cell — which looked right, since that is
 anchor-relative layer does — put the boots in the bottom-left corner with the feet left bare, while
 every assertion stayed green. The transform tests were checking the layer; nothing was checking the
 cell. There is a guard for it now, added after the picture showed the bug.
+
+### `sleep`, `stretch` and `look`, rendered and checked
+
+Composited straight from `BlobRenderer` — every frame of `idle`, `sleep`, `stretch` and `look` on all
+three forms, every worn item and both ability props on Blob throughout — and viewed as a static sheet
+in a browser, 48 cells in all. The shoes stayed on the feet, the hat on the head, the glasses on the
+eyes and the scarf at the throat, in every cell; nothing drifted sideways or leaned; the sprout stayed
+clear of the top of every cell. `sleep` drew shut eyes on all four frames of all three forms,
+including through `stretch`'s tallest frames, where the glasses stayed put on open eyes. `blob` and
+`legs` each drew their own `sleep` art rather than a held `idle` frame — visibly, on `blob`, even
+though its anchor table (see above) carries no `sleep` row at all; the four kept frames vary in the
+body art alone, which is exactly what "measures identically to idle on every anchor" means and not a
+sign the row is inert. `legs`' and `arms`' `sleep` also carry real anchor movement, matching their
+offset tables. `stretch` and `look` fell back to `idle` frame 0 on `blob` and `legs`, as the fallback
+contract says they should — those two forms have no rows for either, so every frame in those cells
+was identical. Nothing else was wrong.
