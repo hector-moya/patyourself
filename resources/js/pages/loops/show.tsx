@@ -241,7 +241,7 @@ export default function LoopShow({
                     loopId={intention.id}
                 />
 
-                <section data-testid="notes">
+                <section data-testid="notes" className="flex flex-col gap-6">
                     <NoteForm loopId={intention.id} />
                     <LoopNotes notes={notes} />
                 </section>
