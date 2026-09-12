@@ -8,6 +8,9 @@ must not be reopened. The per-phase specs in `docs/superpowers/specs/` are froze
 accurate for the day they were written and superseded in places since. **Where this file and a spec
 disagree, this file is right.**
 
+Its siblings hold the rest of the app on the same terms: `docs/NOTEBOOK.md` (the record Blob reads
+from), `docs/WORKFLOWS.md`, `docs/GYM.md` and `docs/MCP.md`.
+
 ---
 
 ## 1. The one sentence
@@ -388,3 +391,9 @@ Every one of these has cost a round on this project.
 - **`stretch` and `look` fall back to `idle` on the `blob` and `legs` forms.** Neither form has a row
   for either animation, so the fallback contract in §6 holds every frame to `idle` frame 0 rather than
   drawing anything. Only `arms` draws them.
+- **The `blob` form's sleep row has no vertical breath amplitude.** A livelier frame selection tripped
+  the scarf-clearance guard, which asserts a form/item pairing the ladder cannot produce — a scarf on
+  the `blob` form — so the amplitude was dropped rather than the guard. The lesson generalises past
+  this bullet: **a guard over a state the system cannot reach costs you the state it can.** Assert what
+  is reachable. Fixing this properly means narrowing that guard to the forms a scarf can actually
+  appear on, and only then restoring the amplitude.
