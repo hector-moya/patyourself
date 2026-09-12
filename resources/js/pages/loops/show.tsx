@@ -241,7 +241,7 @@ export default function LoopShow({
                     loopId={intention.id}
                 />
 
-                <section>
+                <section data-testid="notes">
                     <NoteForm loopId={intention.id} />
                     <LoopNotes notes={notes} />
                 </section>

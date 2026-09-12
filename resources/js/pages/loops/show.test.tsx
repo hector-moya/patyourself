@@ -294,14 +294,30 @@ describe('LoopShow', () => {
 
     /**
      * The note form and the notes it produces are one block. They used to be
-     * two unheaded siblings at the very bottom, below the outcome history.
+     * two siblings at the very bottom, below the outcome history: the list
+     * carried its own heading, the form carried nothing, and neither knew
+     * about the other.
+     *
+     * Asserted as containment rather than by looking for a heading. `LoopNotes`
+     * renders its own "Notes" heading and always did, so any assertion that
+     * merely finds one passes whether or not this block exists — and
+     * `getNodeText` reads only direct text-node children, so the count span
+     * does not stop `/^notes$/i` matching it.
+     *
+     * Killing mutation: drop the wrapping section, or move either child out
+     * of it.
      */
-    it('gives the notes a heading of their own', () => {
+    it('keeps the note form and its notes in one block', () => {
         render(
             <LoopShow intention={intention()} strategies={[]} {...record} />,
         );
 
-        expect(screen.getByText(/^notes$/i)).toBeInTheDocument();
+        const block = screen.getByTestId('notes');
+
+        expect(block).toContainElement(
+            screen.getByPlaceholderText('Something you noticed'),
+        );
+        expect(block).toContainElement(screen.getByText(/^notes$/i));
     });
 
     /**
