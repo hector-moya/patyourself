@@ -97,11 +97,17 @@ function previousVersionRate(
  * versioned experiment timeline, the outcomes those experiments produced, and
  * the notes taken alongside them.
  *
+ * Ordered by how often each block is the reason the screen was opened: the
+ * experiment first, the actions that carry it second, and the anatomy below
+ * both — it is the loop's identity but it changes perhaps twice in a loop's
+ * life, so it is disclosed behind the chain that names it rather than drawn.
+ *
  * The timeline and the history sit on one screen deliberately — comparing what
  * was tried against what happened is the whole point of a notebook.
  *
- * Read-only: history is only ever appended to, and outcomes are logged from the
- * catch-up screen or the conversation.
+ * Read-only: history is only ever appended to, and outcomes are logged from
+ * the catch-up screen or the conversation. The actions here are configured,
+ * not recorded against.
  */
 export default function LoopShow({
     intention,
@@ -192,10 +198,6 @@ export default function LoopShow({
                     </p>
                 )}
 
-                {/* What is being tested and whether it is holding, before any
-                    scrolling. The reflection follows it because reading what
-                    the record shows is the point of opening this screen; the
-                    anatomy sits below both because it changes rarely. */}
                 <ExperimentCard
                     current={currentVersion}
                     activeExperiment={activeExperiment}
@@ -208,7 +210,14 @@ export default function LoopShow({
                     )}
                 />
 
-                <Reflection reflection={reflection} />
+                <section>
+                    <SectionHeading>Actions</SectionHeading>
+                    <ActionLayer
+                        loopId={intention.id}
+                        actions={actionSummaries}
+                        workflow={intention.workflow}
+                    />
+                </section>
 
                 <Anatomy
                     intention={intention}
@@ -217,19 +226,24 @@ export default function LoopShow({
                     }
                 />
 
+                <Reflection reflection={reflection} />
+
                 <StrategyTimeline
                     strategies={strategies}
                     experiments={experiments}
                     activeVersion={activeExperiment?.version ?? null}
                 />
 
+                <OutcomeHistory
+                    outcomes={outcomes}
+                    total={outcomesTotal}
+                    showingAll={showingAllHistory}
+                    loopId={intention.id}
+                />
+
                 <section>
-                    <SectionHeading>Actions</SectionHeading>
-                    <ActionLayer
-                        loopId={intention.id}
-                        actions={actionSummaries}
-                        workflow={intention.workflow}
-                    />
+                    <NoteForm loopId={intention.id} />
+                    <LoopNotes notes={notes} />
                 </section>
 
                 <LoopSettings
@@ -246,16 +260,6 @@ export default function LoopShow({
                         intention.active_action ?? null,
                     )}
                 />
-
-                <OutcomeHistory
-                    outcomes={outcomes}
-                    total={outcomesTotal}
-                    showingAll={showingAllHistory}
-                    loopId={intention.id}
-                />
-
-                <NoteForm loopId={intention.id} />
-                <LoopNotes notes={notes} />
             </div>
         </CoachLayout>
     );

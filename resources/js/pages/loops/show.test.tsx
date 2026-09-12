@@ -240,12 +240,29 @@ describe('LoopShow', () => {
         ).toBeInTheDocument();
     });
 
-    it('leads with the experiment and the reflection', () => {
+    /**
+     * The screen is ordered by how often each block is the reason you opened
+     * it. The experiment leads because "what am I testing and how is it going"
+     * is every visit; the actions follow because tending them is frequent; the
+     * anatomy sits below both because it changes perhaps twice in a loop's
+     * life.
+     *
+     * Asserted as document order rather than by reading the markup, so a
+     * future edit that moves a block has to move this expectation with it.
+     *
+     * Killing mutation: swap the anatomy above the actions — the ordering
+     * assertion fails. Restore the old order entirely and it fails at the
+     * first pair.
+     */
+    it('orders the screen by how often each block is wanted', () => {
         render(
             <LoopShow
                 intention={intention()}
-                strategies={[]}
+                strategies={[
+                    strategy({ id: 7, status: 'active', verdict: null }),
+                ]}
                 {...record}
+                actions={[actionRecord()]}
                 current_version={currentVersion()}
                 experiments={[]}
                 reflection={{
@@ -257,11 +274,34 @@ describe('LoopShow', () => {
             />,
         );
 
-        expect(screen.getByTestId('experiment-state')).toHaveTextContent(
-            /day 9 of 14/i,
+        const card = screen.getByTestId('experiment-card');
+        const actionsHeading = screen.getByText(/^actions$/i);
+        const anatomy = screen.getByTestId('habit-anatomy');
+        const reflectionHeading = screen.getByText(/what the record shows/i);
+        const settings = screen.getByTestId('loop-settings');
+
+        const follows = (earlier: Element, later: Element) =>
+            Boolean(
+                earlier.compareDocumentPosition(later) &
+                    Node.DOCUMENT_POSITION_FOLLOWING,
+            );
+
+        expect(follows(card, actionsHeading)).toBe(true);
+        expect(follows(actionsHeading, anatomy)).toBe(true);
+        expect(follows(anatomy, reflectionHeading)).toBe(true);
+        expect(follows(reflectionHeading, settings)).toBe(true);
+    });
+
+    /**
+     * The note form and the notes it produces are one block. They used to be
+     * two unheaded siblings at the very bottom, below the outcome history.
+     */
+    it('gives the notes a heading of their own', () => {
+        render(
+            <LoopShow intention={intention()} strategies={[]} {...record} />,
         );
-        expect(screen.getByText(/what the record shows/i)).toBeInTheDocument();
-        expect(screen.getByText(/lunch is where it goes/i)).toBeInTheDocument();
+
+        expect(screen.getByText(/^notes$/i)).toBeInTheDocument();
     });
 
     /**
