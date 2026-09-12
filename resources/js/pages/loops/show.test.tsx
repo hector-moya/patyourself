@@ -247,10 +247,15 @@ describe('LoopShow', () => {
      * anatomy sits below both because it changes perhaps twice in a loop's
      * life.
      *
-     * Asserted as document order rather than by reading the markup, so a
-     * future edit that moves a block has to move this expectation with it.
+     * Asserted as the full adjacent chain, end to end, rather than a few
+     * sampled pairs — a gap anywhere in the middle would let a block drift
+     * without any assertion noticing. A superseded version rides alongside
+     * the active one so "Past experiments" actually renders; without it
+     * `StrategyTimeline` returns null and that link in the chain has no
+     * handle to grab.
      *
-     * Killing mutation: swap the anatomy above the actions — the ordering
+     * Killing mutation: swap any adjacent pair in `show.tsx` — for instance
+     * `StrategyTimeline` and `OutcomeHistory` — and the corresponding
      * assertion fails. Restore the old order entirely and it fails at the
      * first pair.
      */
@@ -259,11 +264,23 @@ describe('LoopShow', () => {
             <LoopShow
                 intention={intention()}
                 strategies={[
-                    strategy({ id: 7, status: 'active', verdict: null }),
+                    strategy({
+                        id: 7,
+                        version: 2,
+                        status: 'active',
+                        verdict: null,
+                    }),
+                    strategy({
+                        id: 6,
+                        version: 1,
+                        status: 'superseded',
+                        verdict: 'failed',
+                        approach: 'Put the book on the pillow',
+                    }),
                 ]}
                 {...record}
                 actions={[actionRecord()]}
-                current_version={currentVersion()}
+                current_version={currentVersion({ version: 2 })}
                 experiments={[]}
                 reflection={{
                     content: 'Lunch is where it goes.',
@@ -278,6 +295,9 @@ describe('LoopShow', () => {
         const actionsHeading = screen.getByText(/^actions$/i);
         const anatomy = screen.getByTestId('habit-anatomy');
         const reflectionHeading = screen.getByText(/what the record shows/i);
+        const pastExperiments = screen.getByText(/past experiments/i);
+        const outcomeHistory = screen.getByText(/outcome history/i);
+        const notes = screen.getByTestId('notes');
         const settings = screen.getByTestId('loop-settings');
 
         const follows = (earlier: Element, later: Element) =>
@@ -289,7 +309,10 @@ describe('LoopShow', () => {
         expect(follows(card, actionsHeading)).toBe(true);
         expect(follows(actionsHeading, anatomy)).toBe(true);
         expect(follows(anatomy, reflectionHeading)).toBe(true);
-        expect(follows(reflectionHeading, settings)).toBe(true);
+        expect(follows(reflectionHeading, pastExperiments)).toBe(true);
+        expect(follows(pastExperiments, outcomeHistory)).toBe(true);
+        expect(follows(outcomeHistory, notes)).toBe(true);
+        expect(follows(notes, settings)).toBe(true);
     });
 
     /**
