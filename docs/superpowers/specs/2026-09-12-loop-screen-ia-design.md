@@ -202,18 +202,42 @@ already sent — verified against `resources/js/patyourself/types.ts` and the ex
 | --- | --- |
 | `leads with the experiment and the reflection` | Rewrite. The experiment still leads; the reflection no longer follows it directly. Becomes an assertion about the new order |
 | `offers a verdict for the active, unconcluded version` | Split into the two conditional cases below |
-| `offers to start the next experiment behind a disclosure when a strategy is active` | Update — the disclosure is now nested inside Loop settings |
-| the four `workflow picker` cases | Update for the same nesting; the picker's own behaviour is unchanged |
+| `offers to start the next experiment behind a disclosure when a strategy is active` | Passes unchanged — see the note below |
+| the four `workflow picker` cases | Pass unchanged — see the note below |
 | `does not offer a verdict for a version already concluded` | Passes unchanged |
 | `does not offer a verdict when no version is active` | Passes unchanged |
 | `mounts the note form above the notes list` | Passes unchanged; that order is kept |
 | the two `routine editor` cases | Unaffected |
 
+### A collapsed `<details>` keeps its content in the DOM
+
+**Corrected 2026-09-12, during planning.** An earlier draft of this section claimed the
+workflow-picker and start-experiment cases needed updating for their new nesting, and that a new
+assertion should check the verdict is *absent from the page* when the version is not under review.
+Both were wrong, and the second is the dangerous one.
+
+`<details>` does not remove its children when collapsed — it hides them visually. Testing Library
+queries find them either way. So:
+
+- The four workflow-picker cases and the start-experiment case query by label and by text. Moving
+  them inside a disclosure changes nothing they assert. They pass unmoved.
+- An assertion that the verdict is absent when not under review **would pass for the wrong
+  reason** once the verdict gains its second mount point inside Loop settings — the form is in the
+  DOM in both states. It would be a test that cannot fail, which is this project's first recorded
+  trap.
+
+**Every assertion about where the verdict lives must therefore test ancestry, not presence** —
+`element.closest('[data-testid="experiment-card"]')` against
+`element.closest('[data-testid="loop-settings"]')`. The one legitimate absence assertion is at the
+component level, where `ExperimentCard` is rendered on its own and has no settings disclosure
+underneath it.
+
 ### New assertions
 
-- The verdict is absent from the page when the active version is not under review.
-- The verdict renders inside the experiment card when the active version is under review.
-- The verdict is reachable from Loop settings when not under review.
+- `ExperimentCard` alone does not render the verdict when the version is not under review.
+- The verdict renders **inside the experiment card** when the active version is under review.
+- The verdict is **inside Loop settings and not inside the card** when not under review.
+- It is in exactly one of the two places, never both.
 - The active version's hypothesis renders in the experiment card.
 - Past experiments omits the active unconcluded version.
 - Past experiments renders nothing when the active version is the only one.
