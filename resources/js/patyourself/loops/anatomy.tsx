@@ -141,7 +141,7 @@ function LoopChain({ interventionPoint }: { interventionPoint: string | null }) 
     return (
         <span
             data-testid="loop-chain"
-            className="inline-flex flex-wrap items-center gap-1 normal-case"
+            className="inline-flex flex-nowrap items-center gap-1 text-xs normal-case"
         >
             {STAGES.map((stage, index) => {
                 const acts = stage.key === interventionPoint;
