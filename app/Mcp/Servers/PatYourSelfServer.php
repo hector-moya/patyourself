@@ -5,6 +5,7 @@ namespace App\Mcp\Servers;
 use App\Mcp\Prompts\DailyCheckInPrompt;
 use App\Mcp\Prompts\ReviewExperimentPrompt;
 use App\Mcp\Tools\AddActionTool;
+use App\Mcp\Tools\AddRoutineExerciseTool;
 use App\Mcp\Tools\ConcludeExperimentTool;
 use App\Mcp\Tools\CreateLoopTool;
 use App\Mcp\Tools\GetLoopTool;
@@ -15,6 +16,8 @@ use App\Mcp\Tools\LoopOutcomesTool;
 use App\Mcp\Tools\LoopProgressTool;
 use App\Mcp\Tools\PendingOutcomesTool;
 use App\Mcp\Tools\RemoveActionTool;
+use App\Mcp\Tools\RemoveRoutineExerciseTool;
+use App\Mcp\Tools\SearchExercisesTool;
 use App\Mcp\Tools\StartExperimentTool;
 use App\Mcp\Tools\TodayActionsTool;
 use App\Mcp\Tools\UpdateActionTool;
@@ -109,6 +112,23 @@ real cue, craving, response and reward and get their agreement on the
 wording — do not invent the chain for them, because the loop only works if it
 describes their actual behaviour. New loops are created paused; tell the user
 to open the app to review and activate.
+
+Most loops record nothing beyond whether the occasion happened, and that is
+right. A training loop is the exception: pass workflow "gym" to update-loop and
+every action on it gains a routine — which exercises, for how many sets and
+reps. Then search-exercises finds a movement in the catalogue,
+add-routine-exercise puts it on one action in the order it will be worked
+through, and remove-routine-exercise takes it off again. get-loop reads back
+every action with its id and its routine, which is where the ids for both come
+from.
+
+Three gym sessions a week are THREE ACTIONS ON ONE LOOP, not three loops. The
+cue, craving, response and reward describe one behaviour — going to the gym
+instead of going home — and the experiment and its verdict belong to that
+behaviour. Each action carries its own routine, which is what makes an upper
+body Monday and a lower body Thursday different sessions of the same habit.
+Splitting them into separate loops fragments one record into three and asks the
+user to write the same chain three times.
 TEXT)]
 class PatYourSelfServer extends Server
 {
@@ -150,6 +170,13 @@ class PatYourSelfServer extends Server
         LogNoteTool::class,
         WriteReflectionTool::class,
         WriteBlobRemarkTool::class,
+        // The gym workflow's configuration surface. A loop reaches it by
+        // recording "gym" (update-loop), and then each of its actions carries a
+        // routine. Without these three the connector could create a training
+        // loop it had no way to configure, which is exactly what happened.
+        SearchExercisesTool::class,
+        AddRoutineExerciseTool::class,
+        RemoveRoutineExerciseTool::class,
     ];
 
     /**

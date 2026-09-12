@@ -25,6 +25,13 @@ outcomes say otherwise, fix the chain here rather than working around it.
 status moves a loop between active, paused and archived. Pausing stops its
 schedule; activating it again re-arms any action left stranded in the past
 rather than firing every missed slot at once.
+
+workflow says what this loop records on top of whether it happened. Almost
+every loop records nothing extra, which is the default and needs no call. Set
+it to "gym" for a training loop and each of its actions gains a routine —
+which exercises, for how many sets and reps — that you can then build with
+add-routine-exercise. Pass an empty string to go back to recording nothing
+extra; everything already written is kept either way.
 TEXT)]
 class UpdateLoopTool extends Tool
 {
@@ -54,12 +61,25 @@ class UpdateLoopTool extends Tool
             'response' => ['nullable', 'string', 'max:2000'],
             'reward' => ['nullable', 'string', 'max:2000'],
             'status' => ['nullable', 'string', Rule::in(self::STATUSES)],
+            // Validated against the registry rather than accepted as a tag.
+            // The free-text version of this failed silently on "Gym" or a
+            // trailing space, which is the whole reason the column is spelled
+            // by config — so an unknown name is a refusal, not a write. The
+            // empty string is allowed through as "nothing extra" and becomes
+            // null below; it is what the web picker's first option submits.
+            'workflow' => ['nullable', 'string', Rule::in([...array_keys(self::workflows()), ''])],
         ]);
 
         $fields = array_filter(
             array_intersect_key($validated, array_flip(['title', 'description', 'status', ...self::CHAIN_FIELDS])),
             static fn ($value): bool => $value !== null,
         );
+
+        // Handled apart from the filter above because '' is a meaningful value
+        // here and null is not: "" clears the workflow, absent leaves it be.
+        if (array_key_exists('workflow', $validated) && $validated['workflow'] !== null) {
+            $fields['workflow'] = $validated['workflow'] === '' ? null : $validated['workflow'];
+        }
 
         if ($fields === []) {
             return Response::error('Pass at least one field to change.');
@@ -88,6 +108,7 @@ class UpdateLoopTool extends Tool
             'title' => $fresh->title,
             'description' => $fresh->description,
             'status' => $fresh->status,
+            'workflow' => $fresh->workflow,
             'loop' => [
                 'cue' => $fresh->cue,
                 'craving' => $fresh->craving,
@@ -95,6 +116,23 @@ class UpdateLoopTool extends Tool
                 'reward' => $fresh->reward,
             ],
         ]);
+    }
+
+    /**
+     * The registry, keyed by the name stored on the loop.
+     *
+     * Read from config rather than listed here, so adding a module to
+     * `config/workflows.php` makes it settable through the connector without
+     * touching this tool — the same property the web picker has.
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    private static function workflows(): array
+    {
+        /** @var array<string, array<string, mixed>> $registry */
+        $registry = config('workflows.registry', []);
+
+        return $registry;
     }
 
     /**
@@ -116,6 +154,13 @@ class UpdateLoopTool extends Tool
             'status' => $schema->string()
                 ->enum(self::STATUSES)
                 ->description('active, paused or archived.'),
+            'workflow' => $schema->string()
+                ->enum([...array_keys(self::workflows()), ''])
+                ->description(
+                    'What this loop records beyond whether it happened. "gym" gives every '
+                    .'action a routine of exercises, sets and reps. An empty string records '
+                    .'nothing extra, which is the default and what almost every loop wants.'
+                ),
         ];
     }
 }

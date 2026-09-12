@@ -55,8 +55,12 @@ class GetLoopToolTest extends TestCase
 
         $payload = $this->payload($response);
 
+        // `workflow` and `actions` joined the payload when the connector
+        // gained the ability to configure a gym loop: an action's id is needed
+        // to attach a routine to it, and there was no way to read one back.
         $this->assertSame([
-            'id', 'title', 'description', 'type', 'status', 'loop', 'active_strategy_version', 'notes', 'strategies',
+            'id', 'title', 'description', 'type', 'status', 'loop', 'active_strategy_version',
+            'workflow', 'actions', 'notes', 'strategies',
         ], array_keys($payload));
 
         $this->assertSame('Read before bed', $payload['title']);

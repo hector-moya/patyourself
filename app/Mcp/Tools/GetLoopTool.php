@@ -2,6 +2,8 @@
 
 namespace App\Mcp\Tools;
 
+use App\Models\Action;
+use App\Models\ActionExercise;
 use App\Models\ActionLog;
 use App\Models\Intention;
 use App\Models\Note;
@@ -58,6 +60,10 @@ class GetLoopTool extends Tool
                 'reward' => $loop->reward,
             ],
             'active_strategy_version' => $loop->activeStrategy?->version,
+            // What this loop records beyond whether it happened. Null is the
+            // ordinary case and means the outcome is the whole record.
+            'workflow' => $loop->workflow,
+            'actions' => $this->describeActions($loop),
             // Observations that belong to the loop but to no occasion. A note
             // nothing can read back would repeat the bug this phase fixed.
             'notes' => $loop->notes()->limit(self::NOTE_LIMIT)->get()
@@ -77,6 +83,53 @@ class GetLoopTool extends Tool
                 'outcomes_recorded' => (int) ($outcomeCounts[$strategy->id] ?? 0),
             ])->values()->all(),
         ]);
+    }
+
+    /**
+     * The loop's actions, each with its id.
+     *
+     * Without the ids there is no way to reach an action from a conversation:
+     * every routine write is keyed to one, and the only id obtainable before
+     * this was whatever add-action had just returned. A loop whose actions were
+     * created in an earlier conversation was unreachable.
+     *
+     * `routine` is null for a loop that records nothing extra, and a list — a
+     * possibly empty one — for a loop that configures its actions. The two are
+     * different facts: "there is no routine here" against "this session has no
+     * exercises on it yet", and the web payload already separates them for the
+     * same reason.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function describeActions(Intention $loop): array
+    {
+        $configures = $loop->workflow !== null
+            && config('workflows.registry.'.$loop->workflow.'.config') !== null;
+
+        $actions = $loop->actions()
+            ->when($configures, fn ($query) => $query->with(['actionExercises.exercise']))
+            ->orderBy('id')
+            ->get();
+
+        return $actions->map(fn (Action $action): array => [
+            'action_id' => $action->id,
+            'title' => $action->title,
+            'status' => $action->status,
+            'recurrence' => $action->recurrence,
+            'scheduled_for' => $action->scheduled_for?->toIso8601String(),
+            'routine' => $configures
+                ? $action->actionExercises
+                    ->sortBy('position')
+                    ->map(fn (ActionExercise $row): array => [
+                        'action_exercise_id' => $row->id,
+                        'position' => $row->position,
+                        'exercise_id' => $row->exercise_id,
+                        'exercise' => $row->exercise?->name,
+                        'target_sets' => $row->target_sets,
+                        'target_reps' => $row->target_reps,
+                    ])->values()->all()
+                : null,
+        ])->values()->all();
     }
 
     /**

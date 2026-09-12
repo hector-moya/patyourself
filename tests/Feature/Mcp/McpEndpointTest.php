@@ -84,7 +84,7 @@ class McpEndpointTest extends TestCase
         $response->assertOk();
 
         $this->assertSame(
-            ['list-loops', 'get-loop', 'today-actions', 'pending-outcomes', 'log-outcome', 'loop-outcomes', 'loop-progress', 'create-loop', 'start-experiment', 'conclude-experiment', 'add-action', 'update-action', 'remove-action', 'update-loop', 'log-note', 'write-reflection', 'write-blob-remark'],
+            ['list-loops', 'get-loop', 'today-actions', 'pending-outcomes', 'log-outcome', 'loop-outcomes', 'loop-progress', 'create-loop', 'start-experiment', 'conclude-experiment', 'add-action', 'update-action', 'remove-action', 'update-loop', 'log-note', 'write-reflection', 'write-blob-remark', 'search-exercises', 'add-routine-exercise', 'remove-routine-exercise'],
             array_column($response->json('result.tools'), 'name'),
         );
     }
