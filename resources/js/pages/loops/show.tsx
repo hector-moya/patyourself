@@ -225,6 +225,7 @@ export default function LoopShow({
                 <StrategyTimeline
                     strategies={strategies}
                     experiments={experiments}
+                    activeVersion={activeExperiment?.version ?? null}
                 />
 
                 <section>

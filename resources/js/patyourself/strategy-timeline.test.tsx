@@ -67,6 +67,7 @@ describe('StrategyTimeline', () => {
                         change_reason: 'restrategized_on_failure',
                     }),
                 ]}
+                activeVersion={null}
             />,
         );
 
@@ -78,16 +79,25 @@ describe('StrategyTimeline', () => {
         expect(screen.getByText('“kept missing it”')).toBeInTheDocument();
     });
 
-    it('shows an empty state when there are no strategies', () => {
-        render(<StrategyTimeline strategies={[]} />);
+    /**
+     * An empty timeline is not a state to announce — a heading over nothing
+     * is a slot inviting something that does not exist yet. Rendering into a
+     * container of its own and asserting it has no child element is what
+     * turns "render the heading over an empty list" red.
+     */
+    it('renders nothing when there are no strategies', () => {
+        const { container } = render(
+            <StrategyTimeline strategies={[]} activeVersion={null} />,
+        );
 
-        expect(screen.getByText(/no strategy yet/i)).toBeInTheDocument();
+        expect(container).toBeEmptyDOMElement();
     });
 
     it('reports the day of a running experiment', () => {
         render(
             <StrategyTimeline
                 strategies={[strategy({ day_of_experiment: 3 })]}
+                activeVersion={null}
             />,
         );
 
@@ -100,6 +110,7 @@ describe('StrategyTimeline', () => {
                 strategies={[
                     strategy({ day_of_experiment: 3, planned_days: null }),
                 ]}
+                activeVersion={null}
             />,
         );
 
@@ -116,6 +127,7 @@ describe('StrategyTimeline', () => {
                 strategies={[
                     strategy({ day_of_experiment: 3, planned_days: 21 }),
                 ]}
+                activeVersion={null}
             />,
         );
 
@@ -132,6 +144,7 @@ describe('StrategyTimeline', () => {
                         verdict_note: 'the cue never fired',
                     }),
                 ]}
+                activeVersion={null}
             />,
         );
 
@@ -148,6 +161,7 @@ describe('StrategyTimeline', () => {
                     strategy({ id: 1, version: 1, outcomes_recorded: 0 }),
                     strategy({ id: 2, version: 2, outcomes_recorded: 11 }),
                 ]}
+                activeVersion={null}
             />,
         );
 
@@ -156,7 +170,9 @@ describe('StrategyTimeline', () => {
     });
 
     it('omits the evidence line when the count was not supplied', () => {
-        render(<StrategyTimeline strategies={[strategy()]} />);
+        render(
+            <StrategyTimeline strategies={[strategy()]} activeVersion={null} />,
+        );
 
         expect(screen.queryByText(/not yet tested/i)).not.toBeInTheDocument();
     });
@@ -165,6 +181,7 @@ describe('StrategyTimeline', () => {
         render(
             <StrategyTimeline
                 strategies={[strategy({ is_under_review: true })]}
+                activeVersion={null}
             />,
         );
 
@@ -172,7 +189,9 @@ describe('StrategyTimeline', () => {
     });
 
     it('heads the section as experiments, the unit of the app', () => {
-        render(<StrategyTimeline strategies={[strategy()]} />);
+        render(
+            <StrategyTimeline strategies={[strategy()]} activeVersion={null} />,
+        );
 
         expect(screen.getByText(/experiments/i)).toBeInTheDocument();
     });
@@ -192,6 +211,7 @@ describe('StrategyTimeline', () => {
                         totals: { completed: 9, failed: 13, skipped: 4 },
                     }),
                 ]}
+                activeVersion={null}
             />,
         );
 
@@ -218,6 +238,7 @@ describe('StrategyTimeline', () => {
                         totals: { completed: 0, failed: 0, skipped: 0 },
                     }),
                 ]}
+                activeVersion={null}
             />,
         );
 
@@ -251,6 +272,7 @@ describe('StrategyTimeline', () => {
                         ],
                     }),
                 ]}
+                activeVersion={null}
             />,
         );
 
@@ -281,6 +303,7 @@ describe('StrategyTimeline', () => {
                         totals: { completed: 9, failed: 1, skipped: 0 },
                     }),
                 ]}
+                activeVersion={null}
             />,
         );
 
@@ -296,6 +319,7 @@ describe('StrategyTimeline', () => {
         render(
             <StrategyTimeline
                 strategies={[strategy({ outcomes_recorded: 11 })]}
+                activeVersion={null}
             />,
         );
 

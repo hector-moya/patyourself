@@ -689,9 +689,9 @@ describe('LoopShow', () => {
                 />,
             );
 
-            expect(
-                screen.getByLabelText('What this loop records'),
-            ).toHaveValue('gym');
+            expect(screen.getByLabelText('What this loop records')).toHaveValue(
+                'gym',
+            );
         });
 
         /**
@@ -799,5 +799,71 @@ describe('LoopShow', () => {
             expect(screen.getByTestId('routine-editor-9')).toBeInTheDocument();
             expect(screen.getByText('Bench Press')).toBeInTheDocument();
         });
+    });
+
+    /**
+     * The active version is the card at the top. Drawing it again below is the
+     * duplication that made the experiment feel both prominent and missing —
+     * a version number up top, its hypothesis a screen and a half down.
+     *
+     * Killing mutation: pass every strategy through. "Lay your shoes by the
+     * door" would appear twice and the length assertion fails.
+     */
+    it('does not repeat the active version under past experiments', () => {
+        render(
+            <LoopShow
+                intention={intention()}
+                strategies={[
+                    strategy({
+                        id: 7,
+                        version: 2,
+                        status: 'active',
+                        verdict: null,
+                        approach: 'Lay your shoes by the door',
+                    }),
+                    strategy({
+                        id: 6,
+                        version: 1,
+                        status: 'superseded',
+                        verdict: 'failed',
+                        approach: 'Put the book on the pillow',
+                    }),
+                ]}
+                {...record}
+                current_version={currentVersion({ version: 2 })}
+            />,
+        );
+
+        expect(screen.getAllByText(/lay your shoes by the door/i)).toHaveLength(
+            1,
+        );
+        expect(
+            screen.getByText(/put the book on the pillow/i),
+        ).toBeInTheDocument();
+        expect(screen.getByText(/past experiments/i)).toBeInTheDocument();
+    });
+
+    /**
+     * A first experiment has no past. An empty "Past experiments (0)" heading
+     * is a slot inviting something that does not exist yet.
+     */
+    it('draws no past-experiments section on a loop’s first experiment', () => {
+        render(
+            <LoopShow
+                intention={intention()}
+                strategies={[
+                    strategy({
+                        id: 7,
+                        version: 1,
+                        status: 'active',
+                        verdict: null,
+                    }),
+                ]}
+                {...record}
+                current_version={currentVersion({ version: 1 })}
+            />,
+        );
+
+        expect(screen.queryByText(/past experiments/i)).not.toBeInTheDocument();
     });
 });

@@ -42,8 +42,19 @@ function evidence(count: number): string {
 }
 
 /**
- * The experiment ladder: every version, oldest → newest, with the evidence
- * recorded under each. Read-only — history is only ever appended to.
+ * The experiment ladder: the versions that came before this one, oldest →
+ * newest, with the evidence recorded under each. Read-only — history is only
+ * ever appended to.
+ *
+ * The active version is excluded, because `ExperimentCard` at the top of the
+ * loop screen already renders it in full. Drawing it in both places is what
+ * made the experiment read as simultaneously prominent and buried: its version
+ * number above the fold and its hypothesis a screen and a half below, among
+ * superseded versions.
+ *
+ * Renders nothing at all when the exclusion empties the list — a loop's first
+ * experiment has no past, and a heading over nothing is an empty slot
+ * inviting something that does not exist yet.
  *
  * When `experiments` is supplied the per-version totals replace the plain
  * outcome count, which is what turns a list of things tried into a comparison
@@ -53,38 +64,46 @@ function evidence(count: number): string {
 export function StrategyTimeline({
     strategies,
     experiments,
+    activeVersion,
 }: {
     strategies: StrategyData[];
     experiments?: ExperimentData[];
+    /** The version the experiment card renders. Null when there is none. */
+    activeVersion: number | null;
 }) {
+    const past =
+        activeVersion === null
+            ? strategies
+            : strategies.filter(
+                  (strategy) => strategy.version !== activeVersion,
+              );
+
+    if (past.length === 0) {
+        return null;
+    }
+
     return (
         <section>
             <SectionHeading>
-                Experiments
+                Past experiments
                 <span className="ml-1 font-normal text-muted-foreground/70 normal-case">
-                    ({strategies.length})
+                    ({past.length})
                 </span>
             </SectionHeading>
 
-            {strategies.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                    No strategy yet.
-                </p>
-            ) : (
-                <ol className="flex flex-col">
-                    {strategies.map((strategy, index) => (
-                        <TimelineNode
-                            key={strategy.id}
-                            strategy={strategy}
-                            experiment={experiments?.find(
-                                (candidate) =>
-                                    candidate.version === strategy.version,
-                            )}
-                            last={index === strategies.length - 1}
-                        />
-                    ))}
-                </ol>
-            )}
+            <ol className="flex flex-col">
+                {past.map((strategy, index) => (
+                    <TimelineNode
+                        key={strategy.id}
+                        strategy={strategy}
+                        experiment={experiments?.find(
+                            (candidate) =>
+                                candidate.version === strategy.version,
+                        )}
+                        last={index === past.length - 1}
+                    />
+                ))}
+            </ol>
         </section>
     );
 }
@@ -156,9 +175,7 @@ function TimelineNode({
                         )}
                 </p>
 
-                {experiment && (
-                    <Evidence experiment={experiment} />
-                )}
+                {experiment && <Evidence experiment={experiment} />}
 
                 {strategy.verdict_note && (
                     <p className="mt-1 text-xs text-muted-foreground/80 italic">
