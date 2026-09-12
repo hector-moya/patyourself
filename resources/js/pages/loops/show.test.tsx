@@ -436,6 +436,65 @@ describe('LoopShow', () => {
     });
 
     /**
+     * Ending an experiment before its review date is legitimate and rare. It
+     * keeps a home rather than becoming impossible — but not one that competes
+     * with the day's business.
+     *
+     * Ancestry, not presence: a collapsed `<details>` keeps its content in the
+     * DOM, so `queryByLabelText` finds the verdict in both states. Only the
+     * container distinguishes them.
+     */
+    it('keeps the verdict reachable from loop settings while the version runs', () => {
+        render(
+            <LoopShow
+                intention={intention({ strategy: activeStrategy() })}
+                strategies={[
+                    strategy({
+                        id: 7,
+                        status: 'active',
+                        verdict: null,
+                        is_under_review: false,
+                    }),
+                ]}
+                {...record}
+            />,
+        );
+
+        const option = screen.getByLabelText(/it worked/i);
+
+        expect(option.closest('[data-testid="loop-settings"]')).not.toBeNull();
+        expect(option.closest('[data-testid="experiment-card"]')).toBeNull();
+    });
+
+    /**
+     * Once the question is live it belongs on the page, not behind a tap. It
+     * must not be in both places at once.
+     */
+    it('does not also keep the verdict in settings once it is under review', () => {
+        render(
+            <LoopShow
+                intention={intention({ strategy: activeStrategy() })}
+                strategies={[
+                    strategy({
+                        id: 7,
+                        status: 'active',
+                        verdict: null,
+                        is_under_review: true,
+                    }),
+                ]}
+                {...record}
+            />,
+        );
+
+        expect(screen.getAllByLabelText(/it worked/i)).toHaveLength(1);
+        expect(
+            screen
+                .getByLabelText(/it worked/i)
+                .closest('[data-testid="experiment-card"]'),
+        ).not.toBeNull();
+    });
+
+    /**
      * Starting the next experiment supersedes the currently active one, so
      * the disclosure that leads to it only makes sense when there is an
      * active strategy to supersede.

@@ -101,6 +101,7 @@ class CompanionVocabularyTest extends TestCase
             $root.'/resources/js/patyourself/loops/action-layer.tsx',
             $root.'/resources/js/patyourself/loops/anatomy.tsx',
             $root.'/resources/js/patyourself/loops/experiment-card.tsx',
+            $root.'/resources/js/patyourself/loops/loop-settings.tsx',
         ];
     }
 

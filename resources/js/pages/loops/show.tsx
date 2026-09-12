@@ -9,8 +9,11 @@ import { ActionLayer } from '@/patyourself/loops/action-layer';
 import { Anatomy } from '@/patyourself/loops/anatomy';
 import { cadenceLabel, currentCadenceLabel } from '@/patyourself/loops/cadence';
 import { ExperimentCard } from '@/patyourself/loops/experiment-card';
+import {
+    LoopSettings,
+    type WorkflowOptionData,
+} from '@/patyourself/loops/loop-settings';
 import { NoteForm } from '@/patyourself/loops/note-form';
-import { StartExperimentForm } from '@/patyourself/loops/start-experiment-form';
 import { OutcomeHistory } from '@/patyourself/outcome-history';
 import { Button } from '@/patyourself/primitives';
 import { Reflection } from '@/patyourself/reflection';
@@ -33,12 +36,6 @@ import type {
  * loop's metadata carries, distinguishing it from one the user authored
  * directly in the app. */
 const MCP_AUTHORED_BY = 'mcp-client';
-
-/** One workflow the loop may record through, straight from the server registry. */
-export interface WorkflowOptionData {
-    name: string;
-    label: string;
-}
 
 interface LoopShowProps {
     intention: IntentionData;
@@ -237,30 +234,21 @@ export default function LoopShow({
                     />
                 </section>
 
-                <WorkflowPicker
+                <LoopSettings
                     loopId={intention.id}
-                    current={intention.workflow}
+                    workflow={intention.workflow}
                     workflows={workflows}
+                    endableExperiment={
+                        activeExperiment?.is_under_review === false
+                            ? activeExperiment
+                            : undefined
+                    }
+                    canStartNext={intention.strategy !== null}
+                    currentCadence={
+                        currentCadenceLabel(intention.active_action ?? null) ??
+                        ''
+                    }
                 />
-
-                {/* Behind a disclosure, so starting the next experiment does
-                    not compete with the record for attention — it is only
-                    possible to reach when a strategy is active to supersede. */}
-                {intention.strategy && (
-                    <details>
-                        <summary className="ds-label cursor-pointer">
-                            Start the next experiment
-                        </summary>
-                        <div className="mt-3">
-                            <StartExperimentForm
-                                loopId={intention.id}
-                                currentCadence={currentCadenceLabel(
-                                    intention.active_action ?? null,
-                                )}
-                            />
-                        </div>
-                    </details>
-                )}
 
                 <OutcomeHistory
                     outcomes={outcomes}
@@ -273,95 +261,6 @@ export default function LoopShow({
                 <LoopNotes notes={notes} />
             </div>
         </CoachLayout>
-    );
-}
-
-/**
- * What this loop records, on top of whether it happened.
- *
- * Behind a disclosure, and "Nothing extra" is the first option and the one a
- * loop already has: recording nothing extra is what almost every loop does,
- * forever, and the control must not read as a field left blank. The summary
- * line says so in plain words when nothing is set, rather than showing an
- * empty slot inviting one.
- *
- * The options come from the server registry and are never typed. A free-text
- * tag was the earlier answer and it failed silently on `Gym`, `gimnasio` or a
- * trailing space, with nothing on screen to say why — see
- * `UpdateIntentionRequest`, which validates against the same list this is
- * drawn from.
- */
-function WorkflowPicker({
-    loopId,
-    current,
-    workflows,
-}: {
-    loopId: number;
-    current: string | null;
-    workflows: WorkflowOptionData[];
-}) {
-    if (workflows.length === 0) {
-        return null;
-    }
-
-    const currentLabel =
-        workflows.find((workflow) => workflow.name === current)?.label ?? null;
-
-    return (
-        <details data-testid="workflow-picker">
-            <summary className="ds-label cursor-pointer">
-                Recording
-                <span className="ml-1 font-normal text-muted-foreground normal-case">
-                    ·{' '}
-                    {currentLabel === null
-                        ? 'nothing extra'
-                        : currentLabel.toLowerCase()}
-                </span>
-            </summary>
-
-            <Form
-                {...update.form(loopId)}
-                options={{ preserveScroll: true }}
-                className="mt-3 flex flex-col gap-2"
-            >
-                {({ processing }) => (
-                    <>
-                        <label htmlFor="loop-workflow" className="sr-only">
-                            What this loop records
-                        </label>
-                        <select
-                            id="loop-workflow"
-                            name="workflow"
-                            defaultValue={current ?? ''}
-                            className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-                        >
-                            <option value="">Nothing extra</option>
-                            {workflows.map((workflow) => (
-                                <option
-                                    key={workflow.name}
-                                    value={workflow.name}
-                                >
-                                    {workflow.label}
-                                </option>
-                            ))}
-                        </select>
-
-                        <p className="text-xs text-muted-foreground">
-                            Most loops record nothing extra — the outcome is the
-                            whole record. A workflow adds somewhere to write
-                            down what happened during an occasion. Changing this
-                            keeps everything already written.
-                        </p>
-
-                        <div className="self-start">
-                            <Button type="submit" disabled={processing}>
-                                Save
-                            </Button>
-                        </div>
-                    </>
-                )}
-            </Form>
-        </details>
     );
 }
 
