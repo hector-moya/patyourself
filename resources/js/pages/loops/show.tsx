@@ -3,11 +3,11 @@ import { ChevronLeft } from 'lucide-react';
 
 import { update } from '@/actions/App/Http/Controllers/IntentionController';
 import CoachLayout from '@/layouts/coach-layout';
-import { cn } from '@/lib/utils';
 import { BottomNav } from '@/patyourself/bottom-nav';
 import { ExperimentHeader } from '@/patyourself/experiment-header';
 import { LoopNotes } from '@/patyourself/loop-notes';
 import { ActionLayer } from '@/patyourself/loops/action-layer';
+import { Anatomy } from '@/patyourself/loops/anatomy';
 import { cadenceLabel, currentCadenceLabel } from '@/patyourself/loops/cadence';
 import { ConcludeExperimentForm } from '@/patyourself/loops/conclude-experiment-form';
 import { NoteForm } from '@/patyourself/loops/note-form';
@@ -368,115 +368,6 @@ function WorkflowPicker({
                 )}
             </Form>
         </details>
-    );
-}
-
-/**
- * Each stage carries its own accent, defined as `--stage-*` in patyourself.css.
- * The four exist in the palette and are named for exactly these stages; painting
- * the intervention point with the generic primary threw that away and made the
- * chain read as one undifferentiated list.
- */
-const STAGES = [
-    { key: 'cue', label: 'Cue', hint: 'the trigger', accent: 'cue' },
-    {
-        key: 'craving',
-        label: 'Craving',
-        hint: 'the motivation',
-        accent: 'craving',
-    },
-    {
-        key: 'response',
-        label: 'Response',
-        hint: 'the behaviour',
-        accent: 'response',
-    },
-    { key: 'reward', label: 'Reward', hint: 'the payoff', accent: 'reward' },
-] as const;
-
-function Anatomy({
-    intention,
-    interventionPoint,
-}: {
-    intention: IntentionData;
-    interventionPoint: string | null;
-}) {
-    return (
-        <section>
-            <SectionHeading>Habit anatomy</SectionHeading>
-            <ol className="relative flex flex-col gap-2">
-                {STAGES.map((stage, index) => {
-                    const acts = stage.key === interventionPoint;
-
-                    return (
-                        <li key={stage.key} className="flex gap-3">
-                            <div className="flex flex-col items-center">
-                                <span
-                                    className="flex size-7 shrink-0 items-center justify-center rounded-full border text-xs font-semibold"
-                                    style={{
-                                        borderColor: `var(--stage-${stage.accent})`,
-                                        backgroundColor: acts
-                                            ? `var(--stage-${stage.accent})`
-                                            : `var(--stage-${stage.accent}-soft)`,
-                                        color: acts
-                                            ? 'var(--stage-on-accent, #FFF8F3)'
-                                            : `var(--stage-${stage.accent})`,
-                                    }}
-                                >
-                                    {index + 1}
-                                </span>
-                                {index < STAGES.length - 1 && (
-                                    <span className="my-1 w-px flex-1 bg-border" />
-                                )}
-                            </div>
-
-                            <div
-                                className={cn(
-                                    'mb-1 flex-1 rounded-xl border p-3',
-                                    !acts && 'border-border',
-                                )}
-                                style={
-                                    acts
-                                        ? {
-                                              borderColor: `var(--stage-${stage.accent})`,
-                                              backgroundColor: `var(--stage-${stage.accent}-soft)`,
-                                          }
-                                        : undefined
-                                }
-                            >
-                                <div className="flex items-center justify-between gap-2">
-                                    <span
-                                        className="text-xs font-semibold tracking-wide uppercase"
-                                        style={{
-                                            color: `var(--stage-${stage.accent})`,
-                                        }}
-                                    >
-                                        {stage.label}
-                                        <span className="ml-1 font-normal text-muted-foreground/70 normal-case">
-                                            · {stage.hint}
-                                        </span>
-                                    </span>
-                                    {acts && (
-                                        <span
-                                            className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium"
-                                            style={{
-                                                backgroundColor: `var(--stage-${stage.accent}-soft)`,
-                                                color: `var(--stage-${stage.accent})`,
-                                            }}
-                                        >
-                                            strategy acts here
-                                        </span>
-                                    )}
-                                </div>
-                                <p className="mt-1 text-sm text-foreground">
-                                    {intention[stage.key]}
-                                </p>
-                            </div>
-                        </li>
-                    );
-                })}
-            </ol>
-        </section>
     );
 }
 
