@@ -348,22 +348,54 @@ describe('LoopShow', () => {
     });
 
     /**
-     * The active, not-yet-concluded version is the one the record can still
-     * answer a review for. `status === 'active'` alone is not enough — a
-     * `worked` verdict leaves a version active while the question is closed.
+     * The verdict is the end of an experiment's life. A running version does
+     * not put the question on the page — it waits in loop settings, which
+     * Task 4 adds.
      */
-    it('offers a verdict for the active, unconcluded version', () => {
-        const { container } = render(
+    it('does not put the verdict in the experiment card while the version is running', () => {
+        render(
             <LoopShow
                 intention={intention()}
                 strategies={[
-                    strategy({ id: 7, status: 'active', verdict: null }),
+                    strategy({
+                        id: 7,
+                        status: 'active',
+                        verdict: null,
+                        is_under_review: false,
+                    }),
                 ]}
                 {...record}
             />,
         );
 
-        expect(screen.getByLabelText(/it worked/i)).toBeInTheDocument();
+        expect(
+            screen
+                .queryByLabelText(/it worked/i)
+                ?.closest('[data-testid="experiment-card"]') ?? null,
+        ).toBeNull();
+    });
+
+    it('puts the verdict in the experiment card once the version is under review', () => {
+        const { container } = render(
+            <LoopShow
+                intention={intention()}
+                strategies={[
+                    strategy({
+                        id: 7,
+                        status: 'active',
+                        verdict: null,
+                        is_under_review: true,
+                    }),
+                ]}
+                {...record}
+            />,
+        );
+
+        expect(
+            screen
+                .getByLabelText(/it worked/i)
+                .closest('[data-testid="experiment-card"]'),
+        ).not.toBeNull();
         expect(
             container
                 .querySelector('form[action*="/verdict"]')

@@ -4,12 +4,11 @@ import { ChevronLeft } from 'lucide-react';
 import { update } from '@/actions/App/Http/Controllers/IntentionController';
 import CoachLayout from '@/layouts/coach-layout';
 import { BottomNav } from '@/patyourself/bottom-nav';
-import { ExperimentHeader } from '@/patyourself/experiment-header';
 import { LoopNotes } from '@/patyourself/loop-notes';
 import { ActionLayer } from '@/patyourself/loops/action-layer';
 import { Anatomy } from '@/patyourself/loops/anatomy';
 import { cadenceLabel, currentCadenceLabel } from '@/patyourself/loops/cadence';
-import { ConcludeExperimentForm } from '@/patyourself/loops/conclude-experiment-form';
+import { ExperimentCard } from '@/patyourself/loops/experiment-card';
 import { NoteForm } from '@/patyourself/loops/note-form';
 import { StartExperimentForm } from '@/patyourself/loops/start-experiment-form';
 import { OutcomeHistory } from '@/patyourself/outcome-history';
@@ -202,8 +201,9 @@ export default function LoopShow({
                     scrolling. The reflection follows it because reading what
                     the record shows is the point of opening this screen; the
                     anatomy sits below both because it changes rarely. */}
-                <ExperimentHeader
+                <ExperimentCard
                     current={currentVersion}
+                    activeExperiment={activeExperiment}
                     interventionPoint={
                         intention.strategy?.intervention_point ?? null
                     }
@@ -212,13 +212,6 @@ export default function LoopShow({
                         currentVersion,
                     )}
                 />
-
-                {activeExperiment && (
-                    <ConcludeExperimentForm
-                        strategyId={activeExperiment.id}
-                        isUnderReview={activeExperiment.is_under_review}
-                    />
-                )}
 
                 <Reflection reflection={reflection} />
 
