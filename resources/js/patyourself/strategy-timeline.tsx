@@ -60,6 +60,15 @@ function evidence(count: number): string {
  * outcome count, which is what turns a list of things tried into a comparison
  * between them. Logs attribute through `actions.strategy_id`, so a v1 failure
  * stays on v1 even while v2 is the active version.
+ *
+ * `TimelineNode` below still renders a day-count line for a running,
+ * unconcluded version and a "ready to conclude" badge for one under review —
+ * both describe the running version, and this exclusion is exactly what keeps
+ * the running version from ever reaching `TimelineNode` from the loop screen,
+ * because `ExperimentCard` renders it instead. Those two branches, and the
+ * tests covering them, are reachable only by a caller that passes the running
+ * version through anyway — one that does not exist yet, not evidence that
+ * either is stale.
  */
 export function StrategyTimeline({
     strategies,

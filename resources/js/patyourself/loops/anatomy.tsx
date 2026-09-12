@@ -51,6 +51,7 @@ export function Anatomy({
     return (
         <details data-testid="habit-anatomy">
             <summary className="ds-label cursor-pointer">
+                <span className="sr-only">Habit anatomy: </span>
                 <LoopChain interventionPoint={interventionPoint} />
             </summary>
 
@@ -137,7 +138,11 @@ export function Anatomy({
  * three are muted. No badge and no extra wording — the value of this line is
  * that it is one line, and anything that can wrap defeats it.
  */
-function LoopChain({ interventionPoint }: { interventionPoint: string | null }) {
+function LoopChain({
+    interventionPoint,
+}: {
+    interventionPoint: string | null;
+}) {
     return (
         <span
             data-testid="loop-chain"
@@ -147,16 +152,24 @@ function LoopChain({ interventionPoint }: { interventionPoint: string | null }) 
                 const acts = stage.key === interventionPoint;
 
                 return (
-                    <span key={stage.key} className="inline-flex items-center gap-1">
+                    <span
+                        key={stage.key}
+                        className="inline-flex items-center gap-1"
+                    >
                         {index > 0 && (
-                            <span aria-hidden="true" className="text-muted-foreground/50">
+                            <span
+                                aria-hidden="true"
+                                className="text-muted-foreground/50"
+                            >
                                 →
                             </span>
                         )}
                         <span
                             data-acting={acts ? 'true' : undefined}
                             className={cn(
-                                acts ? 'font-semibold' : 'text-muted-foreground',
+                                acts
+                                    ? 'font-semibold'
+                                    : 'text-muted-foreground',
                             )}
                             style={
                                 acts

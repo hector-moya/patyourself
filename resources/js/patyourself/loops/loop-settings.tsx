@@ -23,6 +23,7 @@ interface LoopSettingsProps {
      * under review and the card holds the question instead.
      */
     endableExperiment: StrategyData | undefined;
+    /** Whether a strategy exists to supersede. */
     canStartNext: boolean;
     currentCadence: string | null;
 }

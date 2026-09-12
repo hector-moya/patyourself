@@ -6,11 +6,13 @@ interface ExperimentCardProps {
     /** The active experiment's own record. Null between experiments. */
     current: CurrentVersionData | null;
     /**
-     * The active version that has not yet been concluded — the one the record
-     * can still answer a review for. Undefined when there is none, which
-     * includes a version concluded as `worked` and therefore still active.
+     * The version currently running, whatever its verdict. A `worked` verdict
+     * does not supersede — ConcludeExperiment is explicit that such a version
+     * keeps running — so this is the version the card is about even after it
+     * has been concluded. Undefined only between experiments, when nothing is
+     * running.
      */
-    activeExperiment: StrategyData | undefined;
+    runningExperiment: StrategyData | undefined;
     interventionPoint: string | null;
     previousRate: number | null;
 }
@@ -34,7 +36,7 @@ interface ExperimentCardProps {
  */
 export function ExperimentCard({
     current,
-    activeExperiment,
+    runningExperiment,
     interventionPoint,
     previousRate,
 }: ExperimentCardProps) {
@@ -44,7 +46,12 @@ export function ExperimentCard({
     // ExperimentHeader already reads to word the run state "Ready for a
     // verdict". When it is not live the form is not gone, it is in loop
     // settings as "End this experiment early"; rare is not forbidden.
-    const readyForVerdict = activeExperiment?.is_under_review === true;
+    //
+    // Safe now that `runningExperiment` admits a concluded version too:
+    // `Strategy::isUnderReview()` is defined as active AND not concluded AND
+    // past its review date, so a version that already carries a verdict
+    // reports `false` by construction. No extra check is needed here.
+    const readyForVerdict = runningExperiment?.is_under_review === true;
 
     return (
         <section
@@ -57,15 +64,15 @@ export function ExperimentCard({
                 previousRate={previousRate}
             />
 
-            {activeExperiment && (
+            {runningExperiment && (
                 <p className="text-sm text-foreground">
-                    {activeExperiment.approach}
+                    {runningExperiment.approach}
                 </p>
             )}
 
-            {readyForVerdict && activeExperiment && (
+            {readyForVerdict && runningExperiment && (
                 <ConcludeExperimentForm
-                    strategyId={activeExperiment.id}
+                    strategyId={runningExperiment.id}
                     isUnderReview
                 />
             )}

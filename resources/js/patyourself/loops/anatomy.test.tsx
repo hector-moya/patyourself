@@ -94,9 +94,7 @@ describe('Anatomy', () => {
     it('carries every stage’s wording once disclosed', () => {
         render(<Anatomy intention={intention()} interventionPoint="cue" />);
 
-        expect(
-            screen.getByText(/phone on the charger/i),
-        ).toBeInTheDocument();
+        expect(screen.getByText(/phone on the charger/i)).toBeInTheDocument();
         expect(screen.getByText(/wind down/i)).toBeInTheDocument();
         expect(screen.getByText(/read ten pages/i)).toBeInTheDocument();
         expect(screen.getByText(/calmer sleep/i)).toBeInTheDocument();

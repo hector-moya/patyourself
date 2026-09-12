@@ -122,13 +122,17 @@ export default function LoopShow({
     experiments = [],
     reflection = null,
 }: LoopShowProps) {
-    // The active version that has not yet been concluded — the one the record
-    // can still answer a review for. A `worked` verdict keeps a version active,
-    // so `status === 'active'` alone is not enough; only the absence of a
-    // verdict means the question is still open.
-    const activeExperiment = strategies.find(
-        (s) => s.status === 'active' && s.verdict === null,
-    );
+    // The version currently running. A `worked` verdict does not supersede —
+    // ConcludeExperiment is explicit that such a version keeps running — so
+    // "running" is status alone. This is the version the card is about, and
+    // the one past experiments must not claim.
+    const runningStrategy = strategies.find((s) => s.status === 'active');
+
+    // The running version that has not been concluded — the only one the record
+    // can still answer a review for. A `worked` verdict leaves a version active
+    // while the question is closed, so status alone is not enough here.
+    const activeExperiment =
+        runningStrategy?.verdict === null ? runningStrategy : undefined;
 
     // The raw scheduling fields are turned into a display cadence here, with
     // the same rules `currentCadenceLabel` uses for the active action below —
@@ -200,7 +204,7 @@ export default function LoopShow({
 
                 <ExperimentCard
                     current={currentVersion}
-                    activeExperiment={activeExperiment}
+                    runningExperiment={runningStrategy}
                     interventionPoint={
                         intention.strategy?.intervention_point ?? null
                     }
@@ -231,7 +235,7 @@ export default function LoopShow({
                 <StrategyTimeline
                     strategies={strategies}
                     experiments={experiments}
-                    activeVersion={activeExperiment?.version ?? null}
+                    activeVersion={runningStrategy?.version ?? null}
                 />
 
                 <OutcomeHistory
@@ -255,7 +259,7 @@ export default function LoopShow({
                             ? activeExperiment
                             : undefined
                     }
-                    canStartNext={intention.strategy !== null}
+                    canStartNext={Boolean(intention.strategy)}
                     currentCadence={currentCadenceLabel(
                         intention.active_action ?? null,
                     )}

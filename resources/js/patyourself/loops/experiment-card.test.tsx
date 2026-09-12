@@ -53,7 +53,7 @@ describe('ExperimentCard', () => {
      * inside the timeline, below the anatomy, which is why the experiment read
      * as buried while its version number sat at the top.
      *
-     * Killing mutation: drop the `{activeExperiment.approach}` paragraph. The
+     * Killing mutation: drop the `{runningExperiment.approach}` paragraph. The
      * card would still show v2 and the day count and look plausible, and this
      * assertion is the only thing that catches it.
      */
@@ -61,7 +61,7 @@ describe('ExperimentCard', () => {
         render(
             <ExperimentCard
                 current={currentVersion()}
-                activeExperiment={strategy()}
+                runningExperiment={strategy()}
                 interventionPoint="cue"
                 previousRate={null}
             />,
@@ -86,7 +86,7 @@ describe('ExperimentCard', () => {
         render(
             <ExperimentCard
                 current={currentVersion({ is_under_review: false })}
-                activeExperiment={strategy({ is_under_review: false })}
+                runningExperiment={strategy({ is_under_review: false })}
                 interventionPoint="cue"
                 previousRate={null}
             />,
@@ -103,7 +103,7 @@ describe('ExperimentCard', () => {
         render(
             <ExperimentCard
                 current={currentVersion({ is_under_review: true })}
-                activeExperiment={strategy({ id: 7, is_under_review: true })}
+                runningExperiment={strategy({ id: 7, is_under_review: true })}
                 interventionPoint="cue"
                 previousRate={null}
             />,
@@ -111,10 +111,12 @@ describe('ExperimentCard', () => {
 
         const option = screen.getByLabelText(/it worked/i);
 
-        expect(option.closest('[data-testid="experiment-card"]')).not.toBeNull();
         expect(
-            option.closest('form')?.getAttribute('action'),
-        ).toContain('/strategies/7/verdict');
+            option.closest('[data-testid="experiment-card"]'),
+        ).not.toBeNull();
+        expect(option.closest('form')?.getAttribute('action')).toContain(
+            '/strategies/7/verdict',
+        );
     });
 
     /**
@@ -126,7 +128,7 @@ describe('ExperimentCard', () => {
         render(
             <ExperimentCard
                 current={currentVersion({ is_under_review: true })}
-                activeExperiment={undefined}
+                runningExperiment={undefined}
                 interventionPoint="cue"
                 previousRate={null}
             />,
@@ -144,7 +146,7 @@ describe('ExperimentCard', () => {
         render(
             <ExperimentCard
                 current={null}
-                activeExperiment={undefined}
+                runningExperiment={undefined}
                 interventionPoint={null}
                 previousRate={null}
             />,

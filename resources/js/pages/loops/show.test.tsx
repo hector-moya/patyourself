@@ -303,7 +303,7 @@ describe('LoopShow', () => {
         const follows = (earlier: Element, later: Element) =>
             Boolean(
                 earlier.compareDocumentPosition(later) &
-                    Node.DOCUMENT_POSITION_FOLLOWING,
+                Node.DOCUMENT_POSITION_FOLLOWING,
             );
 
         expect(follows(card, actionsHeading)).toBe(true);
@@ -313,6 +313,7 @@ describe('LoopShow', () => {
         expect(follows(pastExperiments, outcomeHistory)).toBe(true);
         expect(follows(outcomeHistory, notes)).toBe(true);
         expect(follows(notes, settings)).toBe(true);
+        expect(screen.getByText(/lunch is where it goes/i)).toBeInTheDocument();
     });
 
     /**
@@ -586,6 +587,7 @@ describe('LoopShow', () => {
         expect(
             screen.queryByText(/start the next experiment/i),
         ).not.toBeInTheDocument();
+        expect(screen.queryByTestId('loop-settings')).not.toBeInTheDocument();
     });
 
     it('offers to start the next experiment behind a disclosure when a strategy is active', () => {
@@ -979,6 +981,73 @@ describe('LoopShow', () => {
             screen.getByText(/put the book on the pillow/i),
         ).toBeInTheDocument();
         expect(screen.getByText(/past experiments/i)).toBeInTheDocument();
+    });
+
+    /**
+     * Concluding does not supersede: a version concluded as `worked` stays
+     * active and keeps running. It is still the experiment the screen is
+     * about, so the card must still carry its hypothesis and past experiments
+     * must not claim it.
+     *
+     * Killing mutation: source the card's hypothesis or the timeline's
+     * exclusion from a version that requires `verdict === null`, and this
+     * goes red on both counts.
+     */
+    it('still treats a version concluded as worked as the running experiment', () => {
+        render(
+            <LoopShow
+                intention={intention()}
+                strategies={[
+                    strategy({
+                        id: 7,
+                        version: 2,
+                        status: 'active',
+                        verdict: 'worked',
+                        approach: 'Lay your shoes by the door',
+                    }),
+                    strategy({
+                        id: 6,
+                        version: 1,
+                        status: 'superseded',
+                        verdict: 'failed',
+                        approach: 'Put the book on the pillow',
+                    }),
+                ]}
+                {...record}
+                current_version={currentVersion({ version: 2 })}
+            />,
+        );
+
+        expect(
+            screen
+                .getByText(/lay your shoes by the door/i)
+                .closest('[data-testid="experiment-card"]'),
+        ).not.toBeNull();
+        expect(screen.getAllByText(/lay your shoes by the door/i)).toHaveLength(
+            1,
+        );
+        expect(
+            screen.getByText(/put the book on the pillow/i),
+        ).toBeInTheDocument();
+    });
+
+    /**
+     * The question is closed once a verdict is recorded, so neither the card
+     * nor loop settings may ask it again — even though the version is still
+     * the running one.
+     */
+    it('does not offer to end a version that already has a verdict', () => {
+        render(
+            <LoopShow
+                intention={intention({ strategy: activeStrategy() })}
+                strategies={[
+                    strategy({ id: 7, status: 'active', verdict: 'worked' }),
+                ]}
+                {...record}
+            />,
+        );
+
+        expect(screen.queryByLabelText(/it worked/i)).not.toBeInTheDocument();
     });
 
     /**

@@ -325,4 +325,42 @@ describe('StrategyTimeline', () => {
 
         expect(screen.getByText(/11 outcomes/i)).toBeInTheDocument();
     });
+
+    /**
+     * Every other render in this file passes `activeVersion={null}`, so the
+     * exclusion the prop exists for — leaving the running version out because
+     * `ExperimentCard` already renders it — had no component-level coverage.
+     *
+     * Killing mutation: ignore `activeVersion` and render every strategy
+     * regardless (e.g. hardcode the `past` filter to always keep everything).
+     * v2 would then appear alongside v1 and the length assertion fails.
+     */
+    it('excludes the version named by activeVersion and renders the rest', () => {
+        render(
+            <StrategyTimeline
+                strategies={[
+                    strategy({
+                        id: 1,
+                        version: 1,
+                        status: 'superseded',
+                        approach: 'Put the book on the pillow',
+                    }),
+                    strategy({
+                        id: 2,
+                        version: 2,
+                        status: 'active',
+                        approach: 'Lay your shoes by the door',
+                    }),
+                ]}
+                activeVersion={2}
+            />,
+        );
+
+        expect(
+            screen.getByText(/put the book on the pillow/i),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByText(/lay your shoes by the door/i),
+        ).not.toBeInTheDocument();
+    });
 });

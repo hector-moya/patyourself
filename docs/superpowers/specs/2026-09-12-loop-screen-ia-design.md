@@ -95,7 +95,7 @@ an existing bottom nav on a phone, and the obvious split violates the ruling abo
 | 5 | Reflection — what the record shows | unchanged, no longer competing at the top |
 | 6 | Past experiments | `StrategyTimeline` minus the active version; renamed |
 | 7 | Outcome history | unchanged; stays adjacent to 6 |
-| 8 | Notes — form and list under one heading | were two unheaded siblings |
+| 8 | Notes — form and list grouped into one block | were two unrelated siblings; the heading is `LoopNotes`' own rather than a new one, since that component already owns it |
 | 9 | **Loop settings** — one disclosure | collects Recording, Start the next experiment, End this experiment early |
 
 ### 4.1 The experiment card
@@ -129,8 +129,9 @@ no verdict slot.
 rate on a screen that is not `/progress`, and promoting it into a bordered card makes it louder
 than it was. This was raised and the status quo was kept: removing it is a behaviour change
 that was not asked for. Noted here so a later reader knows it was a decision rather than an
-oversight. `pages/loops/show.tsx` is not on `CompanionVocabularyTest::sourceFiles()`; `/progress`
-is likewise deliberately off it, and the reasoning is in `docs/NOTEBOOK.md` §9.
+oversight. `patyourself/experiment-header.tsx`, where the evidence line is actually rendered, is
+not on `CompanionVocabularyTest::sourceFiles()`; `/progress` is likewise deliberately off it, and
+the reasoning is in `docs/NOTEBOOK.md` §9.
 
 ### 4.2 The verdict, conditioned
 
