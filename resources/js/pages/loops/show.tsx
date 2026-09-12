@@ -9,10 +9,8 @@ import { ActionLayer } from '@/patyourself/loops/action-layer';
 import { Anatomy } from '@/patyourself/loops/anatomy';
 import { cadenceLabel, currentCadenceLabel } from '@/patyourself/loops/cadence';
 import { ExperimentCard } from '@/patyourself/loops/experiment-card';
-import {
-    LoopSettings,
-    type WorkflowOptionData,
-} from '@/patyourself/loops/loop-settings';
+import { LoopSettings } from '@/patyourself/loops/loop-settings';
+import type { WorkflowOptionData } from '@/patyourself/loops/loop-settings';
 import { NoteForm } from '@/patyourself/loops/note-form';
 import { OutcomeHistory } from '@/patyourself/outcome-history';
 import { Button } from '@/patyourself/primitives';
@@ -244,10 +242,9 @@ export default function LoopShow({
                             : undefined
                     }
                     canStartNext={intention.strategy !== null}
-                    currentCadence={
-                        currentCadenceLabel(intention.active_action ?? null) ??
-                        ''
-                    }
+                    currentCadence={currentCadenceLabel(
+                        intention.active_action ?? null,
+                    )}
                 />
 
                 <OutcomeHistory

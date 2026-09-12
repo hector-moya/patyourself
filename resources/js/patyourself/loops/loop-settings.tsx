@@ -24,7 +24,7 @@ interface LoopSettingsProps {
      */
     endableExperiment: StrategyData | undefined;
     canStartNext: boolean;
-    currentCadence: string;
+    currentCadence: string | null;
 }
 
 /**
