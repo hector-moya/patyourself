@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 
@@ -6,6 +6,7 @@ import type {
     WorkflowConfigProps,
     WorkflowRegistry,
 } from '@/patyourself/workflows';
+import type { ActionSummary } from './action-layer';
 import { ActionLayer } from './action-layer';
 
 const actions = [
@@ -17,6 +18,8 @@ const actions = [
         time: null,
         recurrence: null,
         anchor: null,
+        date: null,
+        startsAt: null,
         routine: null,
     },
 ];
@@ -73,6 +76,8 @@ describe('ActionLayer', () => {
                         time: null,
                         recurrence: null,
                         anchor: null,
+                        date: null,
+                        startsAt: null,
                         routine: null,
                     },
                 ]}
@@ -114,6 +119,8 @@ const pullDay = {
     time: '07:30',
     recurrence: 'weekly',
     anchor: null,
+    date: null,
+    startsAt: null,
     routine: [
         {
             id: 11,
@@ -291,5 +298,125 @@ describe('ActionLayer disclosure', () => {
 
         expect(screen.getByTestId('action-editor-7')).toBeVisible();
         expect(screen.getByText('Barbell Row')).toBeVisible();
+    });
+});
+
+describe('ActionEditor start date', () => {
+    const weekly: ActionSummary = {
+        id: 3,
+        title: 'Weigh in',
+        cadence: 'weekly at 07:30',
+        scheduleKind: 'clock',
+        time: '07:30',
+        recurrence: 'weekly',
+        anchor: null,
+        date: '2026-09-23',
+        startsAt: '2026-09-23T07:30:00+01:00',
+        routine: null,
+    };
+
+    async function openEditor(action: typeof weekly) {
+        const user = userEvent.setup();
+        render(<ActionLayer loopId={2} actions={[action]} />);
+        await user.click(
+            screen.getByRole('button', { name: `Edit ${action.title}` }),
+        );
+
+        return user;
+    }
+
+    it('asks for a start date on a weekly action, pre-filled from its anchor', async () => {
+        await openEditor(weekly);
+
+        const date = screen.getByLabelText('Starts on');
+
+        expect(date).toHaveAttribute('name', 'date');
+        expect(date).toHaveAttribute('type', 'date');
+        expect(date).toHaveValue('2026-09-23');
+    });
+
+    it('asks for a start date on a one-off, whose date is the event', async () => {
+        await openEditor({ ...weekly, recurrence: null, cadence: null });
+
+        expect(screen.getByLabelText('Starts on')).toBeInTheDocument();
+    });
+
+    // "Every day at 07:00" — a date names nothing, so the field is not asked
+    // for, and a save carrying no date takes the derived-anchor path.
+    it('asks for no start date on a daily action', async () => {
+        await openEditor({ ...weekly, recurrence: 'daily' });
+
+        expect(screen.queryByLabelText('Starts on')).not.toBeInTheDocument();
+    });
+
+    it('asks for no start date on a weekdays action', async () => {
+        await openEditor({ ...weekly, recurrence: 'weekdays' });
+
+        expect(screen.queryByLabelText('Starts on')).not.toBeInTheDocument();
+    });
+
+    /**
+     * Unmounting the input is the mechanism, not a side effect of one: with no
+     * date in the payload the server derives the anchor exactly as it always
+     * has.
+     */
+    it('removes the start date from the form when the recurrence stops needing one', async () => {
+        await openEditor(weekly);
+        // Scoped: the always-present "Add an action" form below has its own
+        // "How often" field, unrelated to this action's editor. `fireEvent`
+        // rather than `userEvent.selectOptions`: the latter dispatches an
+        // `input` event ahead of `change`, and that first touch on a
+        // freshly-mounted Form races Inertia's own dirty-tracking listener,
+        // which snaps the select back before `change` fires — an artifact of
+        // `act()` flushing a deferred transition mid-interaction, not a
+        // production bug.
+        const editor = within(screen.getByTestId(`action-editor-${weekly.id}`));
+
+        fireEvent.change(editor.getByLabelText('How often'), {
+            target: { value: 'daily' },
+        });
+
+        expect(screen.queryByLabelText('Starts on')).not.toBeInTheDocument();
+    });
+
+    it('asks for it again when the recurrence needs one once more', async () => {
+        await openEditor(weekly);
+        const editor = within(screen.getByTestId(`action-editor-${weekly.id}`));
+
+        fireEvent.change(editor.getByLabelText('How often'), {
+            target: { value: 'daily' },
+        });
+        fireEvent.change(editor.getByLabelText('How often'), {
+            target: { value: 'weekly' },
+        });
+
+        expect(screen.getByLabelText('Starts on')).toBeInTheDocument();
+    });
+
+    /**
+     * An Inertia <Form> renders a real <form>, so native constraint validation
+     * runs on submit. A `min` of today against a pre-filled past date would
+     * block the pure rename this editor exists to allow — the rule is the
+     * server's, and the server snaps a past date forward rather than refusing
+     * it.
+     */
+    it('puts no minimum on the date input', async () => {
+        await openEditor({ ...weekly, date: '2026-09-09' });
+
+        expect(screen.getByLabelText('Starts on')).not.toHaveAttribute('min');
+    });
+
+    it('asks for no start date on a cue-anchored action', async () => {
+        await openEditor({
+            ...weekly,
+            scheduleKind: 'anchored' as const,
+            time: null,
+            recurrence: null,
+            anchor: 'after work',
+            date: null,
+            startsAt: null,
+        });
+
+        expect(screen.queryByLabelText('Starts on')).not.toBeInTheDocument();
     });
 });

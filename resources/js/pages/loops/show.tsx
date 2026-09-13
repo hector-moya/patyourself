@@ -148,6 +148,8 @@ export default function LoopShow({
         time: action.time,
         recurrence: action.recurrence,
         anchor: action.anchor,
+        date: action.date,
+        startsAt: action.starts_at,
         routine: action.routine ?? null,
     }));
 

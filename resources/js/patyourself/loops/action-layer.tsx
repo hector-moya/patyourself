@@ -23,6 +23,15 @@ export type ActionSummary = {
     time: string | null;
     recurrence: string | null;
     anchor: string | null;
+    /** The anchor's date in the owner's zone, `YYYY-MM-DD`, pre-formatted by
+     *  the server. Required for the same reason its siblings above are: a
+     *  caller that stopped passing it would silently put the editor's date
+     *  input back on an empty default, and a save that changed only the title
+     *  would then move the series. */
+    date: string | null;
+    /** The anchor as an instant, ISO 8601 in the owner's zone. Read by
+     *  `cadenceLabel` to name a series that has not begun yet — see cadence.ts. */
+    startsAt: string | null;
     /** The action's configuration under the loop's workflow, or null when the
      *  loop has none — see `WorkflowConfig` for why the two are kept apart.
      *  Required rather than optional, for the same reason as the schedule
@@ -382,6 +391,16 @@ function ActionEditor({
         action.scheduleKind ?? 'clock',
     );
 
+    // Controlled, unlike the add-an-action form's, because it decides whether
+    // the date input is rendered at all: `daily` and `weekdays` repeat on every
+    // day they apply to, so a date names nothing there, while `weekly` picks
+    // the weekday and a one-off's date is the event itself.
+    const [recurrence, setRecurrence] = useState<string>(
+        action.recurrence ?? 'once',
+    );
+
+    const needsDate = recurrence === 'weekly' || recurrence === 'once';
+
     return (
         <Form
             {...update.form(action.id)}
@@ -442,53 +461,94 @@ function ActionEditor({
                             </div>
 
                             {kind === 'clock' ? (
-                                <div className="flex gap-3">
-                                    <div className="space-y-1">
-                                        <label
-                                            htmlFor={`action-time-${action.id}`}
-                                            className="ds-label"
-                                        >
-                                            Time
-                                        </label>
-                                        <input
-                                            id={`action-time-${action.id}`}
-                                            name="time"
-                                            type="time"
-                                            defaultValue={action.time ?? ''}
-                                            className="rounded-md border border-border bg-background px-3 py-2 text-sm"
-                                        />
-                                        {errors.time && (
-                                            <p className="text-sm text-destructive">
-                                                {errors.time}
-                                            </p>
-                                        )}
+                                <>
+                                    <div className="flex gap-3">
+                                        <div className="space-y-1">
+                                            <label
+                                                htmlFor={`action-time-${action.id}`}
+                                                className="ds-label"
+                                            >
+                                                Time
+                                            </label>
+                                            <input
+                                                id={`action-time-${action.id}`}
+                                                name="time"
+                                                type="time"
+                                                defaultValue={action.time ?? ''}
+                                                className="rounded-md border border-border bg-background px-3 py-2 text-sm"
+                                            />
+                                            {errors.time && (
+                                                <p className="text-sm text-destructive">
+                                                    {errors.time}
+                                                </p>
+                                            )}
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label
+                                                htmlFor={`action-recurrence-${action.id}`}
+                                                className="ds-label"
+                                            >
+                                                How often
+                                            </label>
+                                            <select
+                                                id={`action-recurrence-${action.id}`}
+                                                name="recurrence"
+                                                value={recurrence}
+                                                onChange={(e) =>
+                                                    setRecurrence(
+                                                        e.target.value,
+                                                    )
+                                                }
+                                                className="rounded-md border border-border bg-background px-3 py-2 text-sm"
+                                            >
+                                                <option value="once">
+                                                    Once
+                                                </option>
+                                                <option value="daily">
+                                                    Daily
+                                                </option>
+                                                <option value="weekdays">
+                                                    Weekdays
+                                                </option>
+                                                <option value="weekly">
+                                                    Weekly
+                                                </option>
+                                            </select>
+                                        </div>
                                     </div>
-                                    <div className="space-y-1">
-                                        <label
-                                            htmlFor={`action-recurrence-${action.id}`}
-                                            className="ds-label"
-                                        >
-                                            How often
-                                        </label>
-                                        <select
-                                            id={`action-recurrence-${action.id}`}
-                                            name="recurrence"
-                                            defaultValue={
-                                                action.recurrence ?? 'once'
-                                            }
-                                            className="rounded-md border border-border bg-background px-3 py-2 text-sm"
-                                        >
-                                            <option value="once">Once</option>
-                                            <option value="daily">Daily</option>
-                                            <option value="weekdays">
-                                                Weekdays
-                                            </option>
-                                            <option value="weekly">
-                                                Weekly
-                                            </option>
-                                        </select>
-                                    </div>
-                                </div>
+
+                                    {needsDate && (
+                                        <div className="space-y-1">
+                                            <label
+                                                htmlFor={`action-date-${action.id}`}
+                                                className="ds-label"
+                                            >
+                                                Starts on
+                                            </label>
+                                            {/* No `min`: an Inertia <Form> is a
+                                             *  real form, so native validation
+                                             *  runs on submit, and a minimum
+                                             *  of today against an anchor date
+                                             *  that has passed would block the
+                                             *  pure rename this form exists to
+                                             *  allow. The server snaps a past
+                                             *  date forward instead of
+                                             *  refusing it. */}
+                                            <input
+                                                id={`action-date-${action.id}`}
+                                                name="date"
+                                                type="date"
+                                                defaultValue={action.date ?? ''}
+                                                className="rounded-md border border-border bg-background px-3 py-2 text-sm"
+                                            />
+                                            {errors.date && (
+                                                <p className="text-sm text-destructive">
+                                                    {errors.date}
+                                                </p>
+                                            )}
+                                        </div>
+                                    )}
+                                </>
                             ) : (
                                 <div className="space-y-1">
                                     <label
