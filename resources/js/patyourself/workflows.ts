@@ -84,6 +84,12 @@ export interface WorkflowSpec {
     record: ComponentType<WorkflowRecordProps> | null;
 }
 
+/** A resolved configuration surface and the rows it has been given to draw. */
+export interface ActionConfigSurface {
+    Surface: ComponentType<WorkflowConfigProps>;
+    rows: WorkflowConfigRow[];
+}
+
 export type WorkflowRegistry = Record<string, WorkflowSpec>;
 
 /** Every workflow this app draws, keyed by the name stored on the loop. */
@@ -123,4 +129,42 @@ export function workflowFor(
     }
 
     return Object.hasOwn(registry, name) ? registry[name] : null;
+}
+
+/**
+ * The configuration surface this loop draws for one action, with the rows it
+ * draws, or null when it draws none.
+ *
+ * There are three ways to draw nothing and they are not the same thing: the
+ * loop names no workflow (or one this registry does not know), the workflow it
+ * names has an empty config site, or the loop does not configure actions at all
+ * and the server sent `rows: null`. All three resolve here, once.
+ *
+ * `rows: null` and `rows: []` stay distinct — "this loop has no configuration
+ * surface" against "this action's routine is empty". An empty routine still has
+ * a surface, and collapsing the two would draw an editor on a loop that has
+ * none.
+ *
+ * Returns the surface and the rows rather than a boolean because
+ * `WorkflowConfig` needs both, narrowed: a boolean return cannot tell
+ * TypeScript that `rows` is no longer null. `ActionLayer` wants only the
+ * question answered and compares the result against null.
+ *
+ * The alternative was for the slot and the action layer to each hold this
+ * condition. They would then be able to disagree, and the shape of that
+ * disagreement is an action collapsed behind a disclosure whose body is empty,
+ * with its own controls hidden inside.
+ */
+export function configSurfaceFor(
+    workflow: string | null | undefined,
+    rows: WorkflowConfigRow[] | null,
+    registry: WorkflowRegistry = WORKFLOWS,
+): ActionConfigSurface | null {
+    const spec = workflowFor(workflow, registry);
+
+    if (spec === null || spec.config === null || rows === null) {
+        return null;
+    }
+
+    return { Surface: spec.config, rows };
 }

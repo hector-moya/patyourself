@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import type { WorkflowRegistry } from './workflows';
-import { WORKFLOWS, workflowFor } from './workflows';
+import type { WorkflowConfigRow, WorkflowRegistry } from './workflows';
+import { WORKFLOWS, configSurfaceFor, workflowFor } from './workflows';
 
 function Surface() {
     return null;
@@ -15,6 +15,12 @@ const FAKE: WorkflowRegistry = {
         record: Surface,
     },
     bare: { name: 'bare', label: 'Bare', config: null, record: null },
+    configures: {
+        name: 'configures',
+        label: 'Configures',
+        config: Surface,
+        record: null,
+    },
 };
 
 describe('workflowFor', () => {
@@ -64,5 +70,65 @@ describe('workflowFor', () => {
         // they say: an unrelated key quietly added here would not be caught
         // by any of them, since none queries this exact set.
         expect(Object.keys(WORKFLOWS)).toEqual(['gym']);
+    });
+});
+
+describe('configSurfaceFor', () => {
+    const ROWS: WorkflowConfigRow[] = [
+        {
+            id: 1,
+            exercise_id: 2,
+            exercise_name: 'Barbell Row',
+            position: 1,
+            target_sets: 3,
+            target_reps: 10,
+        },
+    ];
+
+    it('resolves a registered config surface and the rows it draws', () => {
+        const surface = configSurfaceFor('configures', ROWS, FAKE);
+
+        expect(surface?.Surface).toBe(Surface);
+        expect(surface?.rows).toBe(ROWS);
+    });
+
+    it('resolves nothing when the loop names no workflow', () => {
+        expect(configSurfaceFor(null, ROWS, FAKE)).toBeNull();
+        expect(configSurfaceFor(undefined, ROWS, FAKE)).toBeNull();
+    });
+
+    it('resolves nothing for a name the registry does not know', () => {
+        expect(configSurfaceFor('gimnasio', ROWS, FAKE)).toBeNull();
+    });
+
+    // The same prototype-chain trap workflowFor guards, reached through the
+    // resolver instead. A bare lookup would return a truthy inherited value
+    // and the caller would read .config off it.
+    it('resolves nothing for an inherited property name', () => {
+        expect(configSurfaceFor('constructor', ROWS, FAKE)).toBeNull();
+        expect(configSurfaceFor('toString', ROWS, FAKE)).toBeNull();
+    });
+
+    it('resolves nothing for a workflow whose config site is empty', () => {
+        expect(configSurfaceFor('spec-fake', ROWS, FAKE)).toBeNull();
+    });
+
+    it('resolves nothing when the loop does not configure actions', () => {
+        expect(configSurfaceFor('configures', null, FAKE)).toBeNull();
+    });
+
+    // rows: [] is "this action's routine is empty", which still has a
+    // surface to draw. Only rows: null means there is no surface at all.
+    it('resolves a surface for an empty routine', () => {
+        const surface = configSurfaceFor('configures', [], FAKE);
+
+        expect(surface).not.toBeNull();
+        expect(surface?.rows).toEqual([]);
+    });
+
+    it('resolves gym against the shipped registry by default', () => {
+        expect(configSurfaceFor('gym', [])).not.toBeNull();
+        expect(configSurfaceFor('gym', null)).toBeNull();
+        expect(configSurfaceFor(null, [])).toBeNull();
     });
 });

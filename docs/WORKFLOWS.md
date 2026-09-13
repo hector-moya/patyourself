@@ -167,6 +167,14 @@ therefore never triggers the fallback — the failure then surfaces further down
 `.record` off what it thinks is a `WorkflowSpec`. `scenes.ts` records the same trap; this is the second
 registry to hold the rule.
 
+**One resolver answers "is there a configuration surface here?"** —
+`configSurfaceFor(workflow, rows, registry)` returns the resolved surface and
+its rows, or null. `WorkflowConfig` uses it to decide whether to draw, and
+`ActionLayer` uses it to decide whether the action collapses into a disclosure.
+Held in one place because two copies can disagree, and the shape of that
+disagreement is an action collapsed behind a triangle with an empty body and its
+own controls hidden inside.
+
 **Both hosts wrap the resolved surface in an error boundary whose fallback is "draw nothing".** A
 registered module that throws while rendering degrades to the plain screen instead of taking the
 verdict controls or the action layer down with it. Class components, because React exposes error

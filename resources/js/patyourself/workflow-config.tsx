@@ -24,7 +24,7 @@ import { Component } from 'react';
 import type { ReactNode } from 'react';
 
 import type { WorkflowConfigRow, WorkflowRegistry } from '@/patyourself/workflows';
-import { WORKFLOWS, workflowFor } from '@/patyourself/workflows';
+import { WORKFLOWS, configSurfaceFor } from '@/patyourself/workflows';
 
 interface WorkflowConfigSlotProps {
     /** The name stored on the loop. Null for a plain loop. */
@@ -80,17 +80,21 @@ export function WorkflowConfig({
     rows,
     registry = WORKFLOWS,
 }: WorkflowConfigSlotProps) {
-    const spec = workflowFor(workflow, registry);
+    // The same resolver `ActionLayer` asks before it chooses a row shape. Held
+    // in one place so the slot and its host cannot disagree about whether there
+    // is a surface here — a disagreement draws a collapsed action whose body is
+    // empty and whose controls are hidden inside it.
+    const surface = configSurfaceFor(workflow, rows, registry);
 
-    if (spec === null || spec.config === null || rows === null) {
+    if (surface === null) {
         return null;
     }
 
-    const Config = spec.config;
+    const Config = surface.Surface;
 
     return (
         <WorkflowConfigBoundary key={workflow}>
-            <Config actionId={actionId} rows={rows} />
+            <Config actionId={actionId} rows={surface.rows} />
         </WorkflowConfigBoundary>
     );
 }
