@@ -310,6 +310,12 @@ class IntentionScreensTest extends TestCase
                 // title-only save would post a different schedule and
                 // RescheduleAction's unchanged-schedule guard would never fire.
                 ->where('actions.0.time', '19:00')
+                // The anchor, in the two shapes the screen reads it in: the
+                // date fills the editor's input, and the instant is what
+                // cadenceLabel compares against now to tell a series that has
+                // not begun from a grid that is merely exhausted for today.
+                ->where('actions.0.date', '2026-08-25')
+                ->where('actions.0.starts_at', '2026-08-25T19:00:00+00:00')
                 ->where('actions.1.id', $anchoredAction->id)
                 ->where('actions.1.title', 'Stretch')
                 ->where('actions.1.schedule_kind', 'anchored')
@@ -317,6 +323,9 @@ class IntentionScreensTest extends TestCase
                 ->where('actions.1.recurrence', null)
                 // The anchored action has no clock time to report.
                 ->where('actions.1.time', null)
+                // A cue-anchored action has no anchor instant at all.
+                ->where('actions.1.date', null)
+                ->where('actions.1.starts_at', null)
                 ->etc()
             );
     }

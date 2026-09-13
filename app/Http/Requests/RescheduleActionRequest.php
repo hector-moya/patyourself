@@ -35,6 +35,12 @@ class RescheduleActionRequest extends FormRequest
             'title' => ['sometimes', 'string', 'max:255'],
             'description' => ['sometimes', 'nullable', 'string', 'max:2000'],
             'kind' => ['sometimes', 'in:clock,anchored'],
+            // Only `weekly` and `once` render a date input, so most saves carry
+            // none — and a save that carries none takes the derived-anchor path
+            // this endpoint has always taken. Not added to withValidator()'s
+            // "at least one field" set: `kind` already marks that a schedule was
+            // submitted, and the form always sends `kind` alongside `date`.
+            'date' => ['nullable', 'date_format:Y-m-d'],
             'time' => ['nullable', 'required_if:kind,clock', 'regex:/^([01]\d|2[0-3]):[0-5]\d$/'],
             'recurrence' => ['nullable', 'in:once,daily,weekdays,weekly'],
             'anchor' => ['nullable', 'required_if:kind,anchored', 'string', 'max:255'],

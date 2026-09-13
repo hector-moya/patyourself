@@ -210,6 +210,15 @@ class IntentionController extends Controller
                 'schedule_kind' => $action->metadata['schedule_kind'] ?? null,
                 'anchor' => $action->metadata['anchor'] ?? null,
                 'time' => $action->series_started_at?->timezone($timezone)->format('H:i'),
+                // The anchor, twice, for two different readers. `date` fills
+                // the editor's date input, which needs a Y-m-d string and must
+                // not get one from client-side date maths: parsing an ISO
+                // string in the browser's zone and reformatting is how a 23rd
+                // becomes a 22nd for anyone west of the owner's zone.
+                // `starts_at` is the instant, which is what the cadence line
+                // compares against now to decide whether the series has begun.
+                'date' => $action->series_started_at?->timezone($timezone)->format('Y-m-d'),
+                'starts_at' => $action->series_started_at?->timezone($timezone)->toIso8601String(),
                 'next_occurrence_at' => $action->nextOccurrenceAt()?->timezone($timezone)->toIso8601String(),
                 'routine' => $configuresActions
                     ? $action->actionExercises

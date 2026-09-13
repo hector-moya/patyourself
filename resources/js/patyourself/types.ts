@@ -137,6 +137,17 @@ export interface ActionRecordData {
     /** The anchor's time of day in the owner's zone, `HH:MM`. Null for a
      *  cue-anchored action, which has no clock time. */
     time: string | null;
+    /** The anchor's date in the owner's zone, `YYYY-MM-DD`. Null for a
+     *  cue-anchored action, which has no anchor at all. Pre-formatted by the
+     *  server because the editor's date input needs this exact string and
+     *  re-deriving it from an ISO instant in the browser's zone moves it a day
+     *  for anyone west of the owner. */
+    date: string | null;
+    /** The anchor as an instant, ISO 8601 in the owner's zone. The cadence line
+     *  compares it against now to tell a series that has not begun from one
+     *  whose grid is simply exhausted for today — both report no next
+     *  occurrence, and they mean opposite things. */
+    starts_at: string | null;
     /**
      * The action's configuration under the loop's workflow — for gym, its
      * routine. Null when the loop has no workflow that configures actions,

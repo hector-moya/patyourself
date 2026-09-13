@@ -234,4 +234,89 @@ class RescheduleActionWebTest extends TestCase
             ->patch(route('actions.update', $action), [])
             ->assertSessionHasErrors();
     }
+
+    public function test_owner_can_choose_the_date_the_series_starts(): void
+    {
+        $this->travelTo('2026-09-14 12:00:00');
+
+        $user = User::factory()->create(['timezone' => 'UTC']);
+        $action = $this->actionFor($user);
+
+        $this->actingAs($user)
+            ->patch("/actions/{$action->id}", [
+                'kind' => 'clock',
+                'date' => '2026-09-23',
+                'time' => '07:30',
+                'recurrence' => 'weekly',
+            ])
+            ->assertRedirect();
+
+        $this->assertSame(
+            '2026-09-23 07:30:00',
+            $action->fresh()->series_started_at->utc()->format('Y-m-d H:i:s'),
+        );
+    }
+
+    public function test_a_date_that_is_not_a_calendar_date_is_refused(): void
+    {
+        $user = User::factory()->create(['timezone' => 'UTC']);
+        $action = $this->actionFor($user);
+
+        $this->actingAs($user)
+            ->patch("/actions/{$action->id}", [
+                'kind' => 'clock',
+                'date' => '23-09-2026',
+                'time' => '07:30',
+                'recurrence' => 'weekly',
+            ])
+            ->assertSessionHasErrors('date');
+    }
+
+    /**
+     * "Start next Wednesday" must produce nothing until next Wednesday. The
+     * controller materialises after a reschedule, so this asserts the real
+     * path rather than the writer in isolation: MaterialiseOccurrences walks
+     * from the anchor to the end of the local day and therefore writes no row
+     * at all while the anchor is beyond that horizon.
+     */
+    public function test_a_future_start_date_materialises_no_occasions_yet(): void
+    {
+        $this->travelTo('2026-09-14 12:00:00');
+
+        $user = User::factory()->create(['timezone' => 'UTC']);
+        $action = $this->actionFor($user);
+
+        $this->actingAs($user)
+            ->patch("/actions/{$action->id}", [
+                'kind' => 'clock',
+                'date' => '2026-09-23',
+                'time' => '07:30',
+                'recurrence' => 'weekly',
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseMissing('occurrences', ['action_id' => $action->id]);
+    }
+
+    /**
+     * A one-off cannot be started in the past, and the refusal reaches the
+     * owner as a validation error on the field they chose it with rather than
+     * as a 500.
+     */
+    public function test_a_one_off_cannot_be_started_on_a_date_that_has_passed(): void
+    {
+        $this->travelTo('2026-09-14 12:00:00');
+
+        $user = User::factory()->create(['timezone' => 'UTC']);
+        $action = $this->actionFor($user);
+
+        $this->actingAs($user)
+            ->patch("/actions/{$action->id}", [
+                'kind' => 'clock',
+                'date' => '2026-09-10',
+                'time' => '09:00',
+                'recurrence' => 'once',
+            ])
+            ->assertSessionHasErrors('date');
+    }
 }

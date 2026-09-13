@@ -132,6 +132,8 @@ function actionRecord(
         schedule_kind: null,
         anchor: null,
         time: null,
+        date: null,
+        starts_at: null,
         ...overrides,
     };
 }
