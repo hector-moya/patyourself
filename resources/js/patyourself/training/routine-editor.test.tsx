@@ -644,4 +644,97 @@ describe('RoutineEditor', () => {
         expect(screen.queryByLabelText(/sets/i)).not.toBeInTheDocument();
         expect(screen.getByTestId('routine-row-target-9')).toHaveTextContent('3 x 10');
     });
+
+    /**
+     * The property this task exists to deliver: an edit posts in place, to
+     * that row's own route, rather than the remove-and-re-add dance that
+     * drops the exercise to the end of the routine.
+     *
+     * Killing mutation: swap the two field names (`target_sets` submitted as
+     * `target_reps` and vice versa), or point the form at
+     * `routine.destroy.form` instead of `routine.update.form`. Both survive
+     * every other test in this file — the route assertion here catches the
+     * second, the field assertion catches the first.
+     */
+    it('saving edited targets posts the new numbers to that row’s own update route', async () => {
+        const user = userEvent.setup();
+
+        render(
+            <RoutineEditor
+                actionId={4}
+                rows={[
+                    {
+                        id: 9,
+                        exercise_id: 2,
+                        exercise_name: 'Barbell Incline Bench',
+                        position: 1,
+                        target_sets: 3,
+                        target_reps: 10,
+                    },
+                ]}
+            />,
+        );
+
+        await user.click(
+            screen.getByRole('button', { name: /edit targets for barbell incline bench/i }),
+        );
+
+        const setsInput = screen.getByLabelText(/sets/i);
+        const repsInput = screen.getByLabelText(/reps/i);
+
+        await user.clear(setsInput);
+        await user.type(setsInput, '4');
+        await user.clear(repsInput);
+        await user.type(repsInput, '8');
+
+        await user.click(screen.getByRole('button', { name: /save/i }));
+
+        expect(submissions).toHaveLength(1);
+        expect(submissions[0].action).toBe(
+            '/actions/4/exercises/9?_method=PATCH',
+        );
+        expect(submissions[0].fields).toEqual({
+            target_sets: '4',
+            target_reps: '8',
+        });
+    });
+
+    /**
+     * `RoutineRow`'s own comment draws the line between `reordering` (shared,
+     * because a reorder's payload is the whole order and a per-row flag would
+     * leave a cross-row race open) and `editingTargets` (row-scoped, because
+     * an edit posts only its own two columns). This is the test that proves
+     * the row-scoped half of that claim: pressing one row's target must not
+     * open a second row's editor.
+     *
+     * Mirrors the shape of the file's existing cross-row reorder test above.
+     *
+     * Killing mutation: lift `editingTargets`/`setEditingTargets` out of
+     * `RoutineRow` into a single flag on `RoutineEditor`, the same way
+     * `reordering` is lifted. Both rows would then read the one flag, so
+     * pressing the squat row's target would also open the Barbell Row row's
+     * editor, and the second assertion below fails — verified by direct
+     * mutation and rerun, raw output captured in the task report.
+     */
+    it('opens only the pressed row’s target editor, leaving the others closed', async () => {
+        const user = userEvent.setup();
+
+        render(<RoutineEditor actionId={7} rows={THREE_ROWS} />);
+
+        const squatRow = screen.getByTestId('routine-row-30');
+        const barbellRowRow = screen.getByTestId('routine-row-10');
+
+        await user.click(
+            within(squatRow).getByRole('button', {
+                name: /edit targets for barbell back squat/i,
+            }),
+        );
+
+        expect(
+            within(squatRow).getByLabelText(/sets/i),
+        ).toBeInTheDocument();
+        expect(
+            within(barbellRowRow).queryByLabelText(/sets/i),
+        ).not.toBeInTheDocument();
+    });
 });
