@@ -166,4 +166,136 @@ class ScheduleTest extends TestCase
         $this->assertNotNull($next);
         $this->assertTrue($next->utc()->greaterThan($base));
     }
+
+    /**
+     * 2026-09-14 is a Monday and 2026-09-16 is the Wednesday after it. The
+     * weekday assertions below are self-documenting anchors, in the style the
+     * weekend-skipping test above already uses.
+     */
+    public function test_on_or_after_returns_a_candidate_that_is_already_ahead(): void
+    {
+        $now = $this->at('2026-09-14 12:00:00');
+        $candidate = $this->at('2026-09-23 07:30:00');
+
+        $result = (new Schedule)->onOrAfter($candidate, $now, Recurrence::Weekly, 'UTC');
+
+        $this->assertSame('2026-09-23 07:30:00', $result->utc()->format('Y-m-d H:i:s'));
+    }
+
+    public function test_on_or_after_walks_a_past_weekly_candidate_to_its_next_weekday(): void
+    {
+        $now = $this->at('2026-09-14 12:00:00');
+        $wednesday = $this->at('2026-09-09 07:30:00');
+        $this->assertTrue($wednesday->isWednesday());
+
+        $result = (new Schedule)->onOrAfter($wednesday, $now, Recurrence::Weekly, 'UTC');
+
+        $this->assertSame('2026-09-16 07:30:00', $result->utc()->format('Y-m-d H:i:s'));
+        $this->assertTrue($result->isWednesday());
+    }
+
+    public function test_on_or_after_walks_a_past_daily_candidate_to_the_next_day(): void
+    {
+        $now = $this->at('2026-09-14 12:00:00');
+
+        $result = (new Schedule)->onOrAfter($this->at('2026-09-10 07:00:00'), $now, Recurrence::Daily, 'UTC');
+
+        $this->assertSame('2026-09-15 07:00:00', $result->utc()->format('Y-m-d H:i:s'));
+    }
+
+    /**
+     * A one-off has no grid to walk along — its date is the whole schedule.
+     * Returned unchanged even when it has passed; refusing to *store* a past
+     * one-off is RescheduleAction's job, not this function's.
+     */
+    public function test_on_or_after_leaves_a_past_one_off_where_it_is(): void
+    {
+        $now = $this->at('2026-09-14 12:00:00');
+        $past = $this->at('2026-09-10 09:00:00');
+
+        $result = (new Schedule)->onOrAfter($past, $now, null, 'UTC');
+
+        $this->assertSame('2026-09-10 09:00:00', $result->utc()->format('Y-m-d H:i:s'));
+    }
+
+    public function test_anchor_at_returns_null_without_a_time(): void
+    {
+        $anchor = (new Schedule)->anchorAt($this->at('2026-09-14 12:00:00'), '2026-09-23', null, Recurrence::Weekly, 'UTC');
+
+        $this->assertNull($anchor);
+    }
+
+    /**
+     * The delegating branch, asserted against firstOccurrence() itself rather
+     * than against a literal, so the two cannot drift apart. Without a date,
+     * daily, weekdays, the JSON API and the MCP connector all take exactly the
+     * path they take today.
+     */
+    public function test_anchor_at_without_a_date_matches_first_occurrence(): void
+    {
+        $schedule = new Schedule;
+        $now = $this->at('2026-09-14 12:00:00');
+
+        foreach ([Recurrence::Daily, Recurrence::Weekdays, Recurrence::Weekly, null] as $recurrence) {
+            $this->assertTrue(
+                $schedule->anchorAt($now, null, '07:00', $recurrence, 'Europe/London')
+                    ->equalTo($schedule->firstOccurrence($now, '07:00', $recurrence, 'Europe/London')),
+                'anchorAt must delegate to firstOccurrence when no date is given.',
+            );
+        }
+    }
+
+    public function test_anchor_at_takes_a_future_date_and_time_as_given(): void
+    {
+        $anchor = (new Schedule)->anchorAt($this->at('2026-09-14 12:00:00'), '2026-09-23', '07:30', Recurrence::Weekly, 'UTC');
+
+        $this->assertSame('2026-09-23 07:30:00', $anchor->utc()->format('Y-m-d H:i:s'));
+    }
+
+    public function test_anchor_at_snaps_a_past_weekly_date_to_the_next_same_weekday(): void
+    {
+        $anchor = (new Schedule)->anchorAt($this->at('2026-09-14 12:00:00'), '2026-09-09', '07:30', Recurrence::Weekly, 'UTC');
+
+        $this->assertSame('2026-09-16 07:30:00', $anchor->utc()->format('Y-m-d H:i:s'));
+    }
+
+    public function test_anchor_at_moves_a_weekend_date_off_the_weekend_for_weekdays(): void
+    {
+        $saturday = $this->at('2026-09-19 00:00:00');
+        $this->assertTrue($saturday->isSaturday());
+
+        $anchor = (new Schedule)->anchorAt($this->at('2026-09-14 12:00:00'), '2026-09-19', '07:00', Recurrence::Weekdays, 'UTC');
+
+        $this->assertTrue($anchor->isMonday());
+        $this->assertSame('2026-09-21 07:00:00', $anchor->utc()->format('Y-m-d H:i:s'));
+    }
+
+    /**
+     * For daily and weekdays a date is inert: snapping a past one forward, one
+     * period at a time, arrives exactly where the derived path would have put
+     * it. That property is why a date reaching those recurrences by any route
+     * needs no validation rule to make it safe.
+     */
+    public function test_anchor_at_with_a_past_date_converges_on_first_occurrence_for_daily(): void
+    {
+        $schedule = new Schedule;
+        $now = $this->at('2026-09-14 12:00:00');
+
+        $this->assertTrue(
+            $schedule->anchorAt($now, '2026-08-01', '07:00', Recurrence::Daily, 'UTC')
+                ->equalTo($schedule->firstOccurrence($now, '07:00', Recurrence::Daily, 'UTC')),
+        );
+    }
+
+    /**
+     * The date is read in the user's zone, not the server's. 07:30 in London
+     * on a British Summer Time date is 06:30 UTC.
+     */
+    public function test_anchor_at_reads_the_date_in_the_users_zone(): void
+    {
+        $anchor = (new Schedule)->anchorAt($this->at('2026-09-14 12:00:00'), '2026-09-23', '07:30', Recurrence::Weekly, 'Europe/London');
+
+        $this->assertSame('2026-09-23 06:30:00', $anchor->utc()->format('Y-m-d H:i:s'));
+        $this->assertSame('07:30', $anchor->setTimezone('Europe/London')->format('H:i'));
+    }
 }
