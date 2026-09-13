@@ -1,5 +1,4 @@
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { ActionLayer } from './action-layer';
 
@@ -27,17 +26,10 @@ describe('ActionLayer', () => {
         ).toBeInTheDocument();
     });
 
-    /**
-     * The add form mounts only once the disclosure is opened — see
-     * ActionLayer's comment on why — so this opens it first rather than
-     * asserting on the collapsed markup.
-     */
-    it('posts a new action to the loop it belongs to', async () => {
+    it('posts a new action to the loop it belongs to', () => {
         const { container } = render(
             <ActionLayer loopId={2} actions={actions} />,
         );
-
-        await userEvent.click(screen.getByText(/add an action/i));
 
         const addForm = container.querySelector(
             'form[action*="/loops/2/actions"]',

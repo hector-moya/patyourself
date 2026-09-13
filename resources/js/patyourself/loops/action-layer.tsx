@@ -38,7 +38,6 @@ const FIELD_CLASS =
 export function ActionLayer({ loopId, actions, workflow = null }: Props) {
     const [kind, setKind] = useState<'clock' | 'anchored'>('clock');
     const [editing, setEditing] = useState<number | null>(null);
-    const [addOpen, setAddOpen] = useState(false);
 
     return (
         <div className="space-y-4">
@@ -105,144 +104,134 @@ export function ActionLayer({ loopId, actions, workflow = null }: Props) {
                 kept.
             </p>
 
-            {/* The form only mounts once opened. An action's own edit form
-             *  (below) shares this one's field labels on purpose — see
-             *  ActionEditor — so both existing at once would give
-             *  `queryByLabelText('what to do')` two matches instead of one. */}
-            <details onToggle={(e) => setAddOpen(e.currentTarget.open)}>
+            <details>
                 <summary className="ds-label cursor-pointer">
                     Add an action
                 </summary>
-                {addOpen && (
-                    <Form
-                        {...actionsRoutes.store.form(loopId)}
-                        resetOnSuccess
-                        className="space-y-3 pt-3"
-                    >
-                        {({ processing, errors }) => (
-                            <>
-                                <div className="space-y-1">
-                                    <label
-                                        htmlFor="action-title"
-                                        className="ds-label"
-                                    >
-                                        What to do
-                                    </label>
-                                    <input
-                                        id="action-title"
-                                        name="title"
-                                        className={FIELD_CLASS}
-                                    />
-                                    {errors.title && (
-                                        <p className="text-sm text-destructive">
-                                            {errors.title}
-                                        </p>
-                                    )}
-                                </div>
+                <Form
+                    {...actionsRoutes.store.form(loopId)}
+                    resetOnSuccess
+                    className="space-y-3 pt-3"
+                >
+                    {({ processing, errors }) => (
+                        <>
+                            <div className="space-y-1">
+                                <label
+                                    htmlFor="action-title"
+                                    className="ds-label"
+                                >
+                                    What to do
+                                </label>
+                                <input
+                                    id="action-title"
+                                    name="title"
+                                    className={FIELD_CLASS}
+                                />
+                                {errors.title && (
+                                    <p className="text-sm text-destructive">
+                                        {errors.title}
+                                    </p>
+                                )}
+                            </div>
 
-                                <div className="space-y-1">
-                                    <label
-                                        htmlFor="action-kind"
-                                        className="ds-label"
-                                    >
-                                        When
-                                    </label>
-                                    <select
-                                        id="action-kind"
-                                        name="kind"
-                                        value={kind}
-                                        onChange={(e) =>
-                                            setKind(
-                                                e.target.value as
-                                                    | 'clock'
-                                                    | 'anchored',
-                                            )
-                                        }
-                                        className={FIELD_CLASS}
-                                    >
-                                        <option value="clock">At a time</option>
-                                        <option value="anchored">
-                                            After something else
-                                        </option>
-                                    </select>
-                                </div>
+                            <div className="space-y-1">
+                                <label
+                                    htmlFor="action-kind"
+                                    className="ds-label"
+                                >
+                                    When
+                                </label>
+                                <select
+                                    id="action-kind"
+                                    name="kind"
+                                    value={kind}
+                                    onChange={(e) =>
+                                        setKind(
+                                            e.target.value as
+                                                | 'clock'
+                                                | 'anchored',
+                                        )
+                                    }
+                                    className={FIELD_CLASS}
+                                >
+                                    <option value="clock">At a time</option>
+                                    <option value="anchored">
+                                        After something else
+                                    </option>
+                                </select>
+                            </div>
 
-                                {kind === 'clock' ? (
-                                    <div className="flex gap-3">
-                                        <div className="space-y-1">
-                                            <label
-                                                htmlFor="action-time"
-                                                className="ds-label"
-                                            >
-                                                Time
-                                            </label>
-                                            <input
-                                                id="action-time"
-                                                name="time"
-                                                type="time"
-                                                className="rounded-md border border-border bg-background px-3 py-2 text-sm"
-                                            />
-                                            {errors.time && (
-                                                <p className="text-sm text-destructive">
-                                                    {errors.time}
-                                                </p>
-                                            )}
-                                        </div>
-                                        <div className="space-y-1">
-                                            <label
-                                                htmlFor="action-recurrence"
-                                                className="ds-label"
-                                            >
-                                                How often
-                                            </label>
-                                            <select
-                                                id="action-recurrence"
-                                                name="recurrence"
-                                                className="rounded-md border border-border bg-background px-3 py-2 text-sm"
-                                            >
-                                                <option value="once">
-                                                    Once
-                                                </option>
-                                                <option value="daily">
-                                                    Daily
-                                                </option>
-                                                <option value="weekdays">
-                                                    Weekdays
-                                                </option>
-                                                <option value="weekly">
-                                                    Weekly
-                                                </option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                ) : (
+                            {kind === 'clock' ? (
+                                <div className="flex gap-3">
                                     <div className="space-y-1">
                                         <label
-                                            htmlFor="action-anchor"
+                                            htmlFor="action-time"
                                             className="ds-label"
                                         >
-                                            After what
+                                            Time
                                         </label>
                                         <input
-                                            id="action-anchor"
-                                            name="anchor"
-                                            className={FIELD_CLASS}
+                                            id="action-time"
+                                            name="time"
+                                            type="time"
+                                            className="rounded-md border border-border bg-background px-3 py-2 text-sm"
                                         />
-                                        {errors.anchor && (
+                                        {errors.time && (
                                             <p className="text-sm text-destructive">
-                                                {errors.anchor}
+                                                {errors.time}
                                             </p>
                                         )}
                                     </div>
-                                )}
+                                    <div className="space-y-1">
+                                        <label
+                                            htmlFor="action-recurrence"
+                                            className="ds-label"
+                                        >
+                                            How often
+                                        </label>
+                                        <select
+                                            id="action-recurrence"
+                                            name="recurrence"
+                                            className="rounded-md border border-border bg-background px-3 py-2 text-sm"
+                                        >
+                                            <option value="once">Once</option>
+                                            <option value="daily">Daily</option>
+                                            <option value="weekdays">
+                                                Weekdays
+                                            </option>
+                                            <option value="weekly">
+                                                Weekly
+                                            </option>
+                                        </select>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="space-y-1">
+                                    <label
+                                        htmlFor="action-anchor"
+                                        className="ds-label"
+                                    >
+                                        After what
+                                    </label>
+                                    <input
+                                        id="action-anchor"
+                                        name="anchor"
+                                        className={FIELD_CLASS}
+                                    />
+                                    {errors.anchor && (
+                                        <p className="text-sm text-destructive">
+                                            {errors.anchor}
+                                        </p>
+                                    )}
+                                </div>
+                            )}
 
-                                <Button type="submit" disabled={processing}>
-                                    Add
-                                </Button>
-                            </>
-                        )}
-                    </Form>
-                )}
+                            <Button type="submit" disabled={processing}>
+                                Add
+                            </Button>
+                        </>
+                    )}
+                </Form>
             </details>
         </div>
     );
@@ -275,6 +264,7 @@ function ActionEditor({
             {...update.form(action.id)}
             options={{ preserveScroll: true }}
             onSuccess={onDone}
+            data-testid={`action-editor-${action.id}`}
             className="space-y-3"
         >
             {({ processing, errors }) => (

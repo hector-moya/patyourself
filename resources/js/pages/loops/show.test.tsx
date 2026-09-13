@@ -1,5 +1,5 @@
 import type * as InertiaReact from '@inertiajs/react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -778,13 +778,14 @@ describe('LoopShow', () => {
             />,
         );
 
-        expect(screen.queryByLabelText(/what to do/i)).not.toBeInTheDocument();
+        expect(screen.queryByTestId('action-editor-3')).not.toBeInTheDocument();
 
         await user.click(
             screen.getByRole('button', { name: /edit upper body 2/i }),
         );
 
-        const title = screen.getByLabelText(/what to do/i);
+        const editor = within(screen.getByTestId('action-editor-3'));
+        const title = editor.getByLabelText(/what to do/i);
 
         expect(title).toHaveValue('Upper body 2');
         expect(title.closest('form')).toHaveAttribute(
@@ -815,7 +816,38 @@ describe('LoopShow', () => {
         );
         await user.click(screen.getByRole('button', { name: /cancel/i }));
 
-        expect(screen.queryByLabelText(/what to do/i)).not.toBeInTheDocument();
+        expect(screen.queryByTestId('action-editor-3')).not.toBeInTheDocument();
+    });
+
+    /**
+     * Editing state is per action, not per layer. Two actions on a loop, press
+     * Edit on one, and only that one opens.
+     *
+     * Killing mutation: hoist the editing flag to a boolean on ActionLayer
+     * instead of holding the action's id. Both editors open and the second
+     * assertion fails.
+     */
+    it('opens only the pressed action’s editor', async () => {
+        const user = userEvent.setup();
+
+        render(
+            <LoopShow
+                intention={intention()}
+                strategies={[]}
+                {...record}
+                actions={[
+                    actionRecord({ id: 3, title: 'Upper body 2' }),
+                    actionRecord({ id: 4, title: 'Lower body 1' }),
+                ]}
+            />,
+        );
+
+        await user.click(
+            screen.getByRole('button', { name: /edit upper body 2/i }),
+        );
+
+        expect(screen.getByTestId('action-editor-3')).toBeInTheDocument();
+        expect(screen.queryByTestId('action-editor-4')).not.toBeInTheDocument();
     });
 
     describe('the workflow picker', () => {
