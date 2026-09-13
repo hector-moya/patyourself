@@ -271,10 +271,12 @@ class ScheduleTest extends TestCase
     }
 
     /**
-     * For daily and weekdays a date is inert: snapping a past one forward, one
+     * For daily and weekdays a **past** date is inert: snapping it forward, one
      * period at a time, arrives exactly where the derived path would have put
-     * it. That property is why a date reaching those recurrences by any route
-     * needs no validation rule to make it safe.
+     * it. That property is why a past date reaching those recurrences by any
+     * route needs no validation rule to make it safe.
+     *
+     * The property is one-directional, and the test below says why.
      */
     public function test_anchor_at_with_a_past_date_converges_on_first_occurrence_for_daily(): void
     {
@@ -284,6 +286,32 @@ class ScheduleTest extends TestCase
         $this->assertTrue(
             $schedule->anchorAt($now, '2026-08-01', '07:00', Recurrence::Daily, 'UTC')
                 ->equalTo($schedule->firstOccurrence($now, '07:00', Recurrence::Daily, 'UTC')),
+        );
+    }
+
+    /**
+     * A *future* date is not inert, because `onOrAfter()` returns a candidate
+     * that is already ahead untouched — by design, so a chosen start date is
+     * never pushed a period later.
+     *
+     * The editor cannot produce this: the date input unmounts for `daily` and
+     * `weekdays`, so no date is posted. A crafted request can, and what it gets
+     * is coherent rather than surprising — the series starts in January and
+     * materialises nothing until then. Recorded here because the convergence
+     * above is the stated reason for adding no validation rule, so the limit of
+     * that convergence has to be on the record too.
+     */
+    public function test_anchor_at_takes_a_future_date_on_daily_as_given(): void
+    {
+        $schedule = new Schedule;
+        $now = $this->at('2026-09-14 12:00:00');
+
+        $anchor = $schedule->anchorAt($now, '2027-01-04', '07:00', Recurrence::Daily, 'UTC');
+
+        $this->assertSame('2027-01-04 07:00:00', $anchor->utc()->format('Y-m-d H:i:s'));
+        $this->assertFalse(
+            $anchor->equalTo($schedule->firstOccurrence($now, '07:00', Recurrence::Daily, 'UTC')),
+            'A future date is deliberately not inert: it anchors where it says.',
         );
     }
 

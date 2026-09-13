@@ -29,9 +29,6 @@ export type ActionSummary = {
      *  input back on an empty default, and a save that changed only the title
      *  would then move the series. */
     date: string | null;
-    /** The anchor as an instant, ISO 8601 in the owner's zone. Read by
-     *  `cadenceLabel` to name a series that has not begun yet — see cadence.ts. */
-    startsAt: string | null;
     /** The action's configuration under the loop's workflow, or null when the
      *  loop has none — see `WorkflowConfig` for why the two are kept apart.
      *  Required rather than optional, for the same reason as the schedule

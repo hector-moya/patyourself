@@ -102,6 +102,11 @@ class CompanionVocabularyTest extends TestCase
             $root.'/resources/js/pages/loops/show.tsx',
             $root.'/resources/js/patyourself/loops/action-layer.tsx',
             $root.'/resources/js/patyourself/loops/anatomy.tsx',
+            // Not merely a formatter any more: it authors the phrase the loop
+            // screen reads a schedule out in — "weekly from 23 Sep at 07:30",
+            // "on 23 Sep at 07:30" — rather than concatenating values it was
+            // handed, so it is a place copy can now be written.
+            $root.'/resources/js/patyourself/loops/cadence.ts',
             $root.'/resources/js/patyourself/loops/experiment-card.tsx',
             $root.'/resources/js/patyourself/loops/loop-settings.tsx',
         ];

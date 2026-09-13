@@ -666,7 +666,13 @@ class SeriesAnchorTest extends TestCase
         $this->assertTrue($rescheduled->series_started_at->greaterThan(Carbon::now()));
     }
 
-    /** A one-off has no grid to snap onto, so a date that has passed is refused. */
+    /**
+     * A one-off has no grid to snap onto, so a moment that has passed is
+     * refused. The owner moved the date, so the date is what the error names.
+     *
+     * The message itself is asserted, not just the key: it is the whole of what
+     * the owner is told, and nothing else in the suite would notice it changing.
+     */
     public function test_a_one_off_cannot_be_moved_to_a_date_that_has_passed(): void
     {
         Carbon::setTestNow('2026-09-14 12:00:00');
@@ -677,11 +683,81 @@ class SeriesAnchorTest extends TestCase
             'metadata' => ['schedule_kind' => 'clock'],
         ]);
 
-        $this->expectException(ValidationException::class);
+        try {
+            app(RescheduleAction::class)->handle(
+                $action, 'clock', '2026-09-10', '09:00', 'once', null, 'UTC',
+            );
+            $this->fail('A one-off moved to a date that has passed must be refused.');
+        } catch (ValidationException $e) {
+            $this->assertSame(
+                ['date' => ['Pick a date that has not passed.']],
+                $e->errors(),
+            );
+        }
+    }
 
-        app(RescheduleAction::class)->handle(
-            $action, 'clock', '2026-09-10', '09:00', 'once', null, 'UTC',
-        );
+    /**
+     * The same refusal, reached by moving the *time* instead: a one-off
+     * anchored at 09:00 last Thursday, nudged to 10:00, still resolves to a
+     * moment that has gone, and the unchanged-schedule guard misses because the
+     * two instants differ.
+     *
+     * Refusing is right. Blaming `date` is not — the date input is pre-filled
+     * and untouched, so an error under it points at the one control the owner
+     * did not move.
+     *
+     * Killing mutation: hard-code the error key back to `date`, and this fails.
+     */
+    public function test_a_one_off_moved_to_a_time_that_has_passed_blames_the_time(): void
+    {
+        Carbon::setTestNow('2026-09-14 12:00:00');
+
+        $action = Action::factory()->create([
+            'series_started_at' => Carbon::parse('2026-09-10 09:00:00'),
+            'recurrence' => null,
+            'metadata' => ['schedule_kind' => 'clock'],
+        ]);
+
+        try {
+            app(RescheduleAction::class)->handle(
+                $action, 'clock', '2026-09-10', '10:00', 'once', null, 'UTC',
+            );
+            $this->fail('A one-off moved to a time that has passed must be refused.');
+        } catch (ValidationException $e) {
+            $this->assertSame(
+                ['time' => ['Pick a time that has not passed.']],
+                $e->errors(),
+            );
+        }
+    }
+
+    /**
+     * The date the owner's zone says it is, not the server's. 2026-09-10
+     * 23:30 UTC is still the 10th in London and already the 11th in Sydney, so
+     * a Sydney owner resubmitting their own date of 2026-09-11 has changed only
+     * the time — and must be told so.
+     */
+    public function test_the_blamed_field_is_decided_in_the_owners_zone(): void
+    {
+        Carbon::setTestNow('2026-09-14 12:00:00');
+
+        $action = Action::factory()->create([
+            'series_started_at' => Carbon::parse('2026-09-10 23:30:00'),
+            'recurrence' => null,
+            'metadata' => ['schedule_kind' => 'clock'],
+        ]);
+
+        try {
+            app(RescheduleAction::class)->handle(
+                $action, 'clock', '2026-09-11', '10:00', 'once', null, 'Australia/Sydney',
+            );
+            $this->fail('A one-off moved to a time that has passed must be refused.');
+        } catch (ValidationException $e) {
+            $this->assertSame(
+                ['time' => ['Pick a time that has not passed.']],
+                $e->errors(),
+            );
+        }
     }
 
     /**

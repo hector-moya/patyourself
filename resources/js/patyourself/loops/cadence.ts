@@ -6,11 +6,23 @@ type CadenceSource = Pick<
     'schedule_kind' | 'anchor' | 'recurrence' | 'next_occurrence_at'
 > & {
     /**
-     * The series anchor as an instant, ISO 8601. Optional because
-     * `currentCadenceLabel`'s caller reads `ActiveActionData`, which does not
-     * carry one — absent there, this behaves exactly as it did before.
+     * The series anchor as an instant, ISO 8601. Read only to tell a series
+     * that has not begun from one whose grid is exhausted for today.
+     *
+     * Optional, with `date` and `time`, because `currentCadenceLabel`'s caller
+     * reads `ActiveActionData`, which carries none of the three — absent there,
+     * this behaves exactly as it did before.
      */
     starts_at?: string | null;
+    /** The anchor's date in the owner's zone, `YYYY-MM-DD`, formatted by the
+     *  server. Displayed rather than derived from `starts_at`: re-deriving an
+     *  instant in the browser's zone moves the day for anyone west of the
+     *  owner, so a 23 Sep anchor would be named "22 Sep" beside a date input
+     *  still reading 2026-09-23. */
+    date?: string | null;
+    /** The anchor's time of day in the owner's zone, `HH:MM`, formatted by the
+     *  server for the same reason `date` is. */
+    time?: string | null;
 };
 
 /**
@@ -36,28 +48,43 @@ export function cadenceLabel(action: CadenceSource): string | null {
     // was chosen for it. The anchor is what such an action is waiting on, so
     // it is what the line names.
     //
-    // Compared as instants rather than as date strings, so the answer does not
-    // depend on the browser's zone. A *past* anchor means the series is
-    // running, and then the next occasion is the right thing to name — or
-    // nothing, for a grid already exhausted for today.
+    // The *test* is on the instant, so the answer does not depend on the
+    // browser's zone. A past anchor means the series is running, and then the
+    // next occasion is the right thing to name — or nothing, for a grid already
+    // exhausted for today. The *label* is the server's own `date` and `time`,
+    // so what it names is the day the owner picked rather than whatever day
+    // that instant falls on where the browser happens to be.
+    //
+    // All three are required: a caller carrying only the instant has nothing
+    // safe to render, so it falls through to the next-occurrence line.
     const startsAt = action.starts_at ?? null;
+    const date = action.date ?? null;
+    const time = action.time ?? null;
 
-    if (startsAt !== null && new Date(startsAt) > new Date()) {
-        const start = `from ${formatDate(startsAt)} at ${formatTime(startsAt)}`;
+    if (
+        startsAt !== null &&
+        date !== null &&
+        time !== null &&
+        new Date(startsAt) > new Date()
+    ) {
+        // A one-off is a single event, not a series, so it happens *on* its
+        // date rather than running *from* it.
+        const preposition = action.recurrence === null ? 'on' : 'from';
+        const start = `${preposition} ${formatDay(date)} at ${time}`;
 
         return action.recurrence === null ? start : `${action.recurrence} ${start}`;
     }
 
-    const time =
+    const nextTime =
         action.next_occurrence_at === null
             ? null
             : formatTime(action.next_occurrence_at);
 
-    if (action.recurrence !== null && time !== null) {
-        return `${action.recurrence} at ${time}`;
+    if (action.recurrence !== null && nextTime !== null) {
+        return `${action.recurrence} at ${nextTime}`;
     }
 
-    return action.recurrence ?? time;
+    return action.recurrence ?? nextTime;
 }
 
 /**
@@ -78,8 +105,18 @@ function formatTime(iso: string): string {
     });
 }
 
-function formatDate(iso: string): string {
-    return new Date(iso).toLocaleDateString('en-GB', {
+/**
+ * "2026-09-23" → "23 Sep".
+ *
+ * Built from the parts rather than parsed: `new Date('2026-09-23')` is read as
+ * UTC midnight and renders as the 22nd anywhere west of UTC, which is the very
+ * shift formatting the date on the server exists to avoid. `new Date(y, m, d)`
+ * is local midnight, so it renders as the same calendar day in every zone.
+ */
+function formatDay(localDate: string): string {
+    const [year, month, day] = localDate.split('-').map(Number);
+
+    return new Date(year, month - 1, day).toLocaleDateString('en-GB', {
         day: 'numeric',
         month: 'short',
     });

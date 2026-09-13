@@ -49,21 +49,33 @@ final readonly class RescheduleAction
             return $action;
         }
 
-        // A one-off is its date, and it has no grid to snap onto, so a date
+        // A one-off is its date, and it has no grid to snap onto, so a moment
         // that has passed cannot be resolved into a sensible anchor the way a
         // recurring one can. Refused rather than stored, because storing it
         // materialises an occasion for a moment that is already gone.
         //
-        // After the guard on purpose: a one-off whose date has passed must
-        // still be renameable, and a rename resubmits that same past date.
+        // After the guard on purpose: a one-off whose moment has passed must
+        // still be renameable, and a rename resubmits that same past schedule.
+        // The guard is what lets this refusal be unconditional — it fires
+        // whenever the *resolved* schedule has passed, not only when the date
+        // was the field that moved.
         //
         // Unreachable without a date — firstOccurrence() cannot return a past
         // instant — and guarded on `$date` anyway so that stays true by
         // construction rather than by argument.
         if ($date !== null && $rule === null && $scheduledFor !== null && $scheduledFor->lessThanOrEqualTo($now)) {
-            throw ValidationException::withMessages([
-                'date' => 'Pick a date that has not passed.',
-            ]);
+            // Blamed on the control the owner actually moved. Changing 09:00 to
+            // 10:00 on a one-off that was already in the past is refused
+            // correctly, but an error on `date` points at the one field they
+            // did not touch — and the date input is pre-filled, so there is
+            // nothing there for them to see wrong.
+            $keptItsDate = $action->series_started_at?->setTimezone($timezone)->format('Y-m-d') === $date;
+
+            throw ValidationException::withMessages(
+                $keptItsDate
+                    ? ['time' => 'Pick a time that has not passed.']
+                    : ['date' => 'Pick a date that has not passed.'],
+            );
         }
 
         // Dropping the abandoned grid and moving the anchor are one act.

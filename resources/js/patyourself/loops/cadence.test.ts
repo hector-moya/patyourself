@@ -10,23 +10,29 @@ const base = {
 };
 
 /**
- * The expected rendering of an instant, derived the way the suite already
- * derives it in show.test.tsx rather than hard-coded: vitest pins no TZ, so a
- * literal "23 Sep at 07:30" would pass on a UTC machine and fail everywhere
- * else. What is under test is which branch runs and how the parts are joined —
- * not whether Intl works.
+ * The expected rendering of the server's own date, derived the way the function
+ * derives it rather than hard-coded: vitest pins no TZ and no ICU version, so a
+ * literal "23 Sep" would pass on one machine and fail on another. What is under
+ * test is which branch runs and how the parts are joined.
+ *
+ * Built from the parts, exactly as `formatDay` is, because the whole point of
+ * the field is that it never goes through `new Date('2026-09-23')` — that is
+ * UTC midnight, and it renders as the 22nd west of UTC.
  */
-function renderedAs(iso: string): string {
-    const date = new Date(iso).toLocaleDateString('en-GB', {
+function renderedDay(localDate: string): string {
+    const [year, month, day] = localDate.split('-').map(Number);
+
+    return new Date(year, month - 1, day).toLocaleDateString('en-GB', {
         day: 'numeric',
         month: 'short',
     });
-    const time = new Date(iso).toLocaleTimeString('en-GB', {
+}
+
+function renderedTime(iso: string): string {
+    return new Date(iso).toLocaleTimeString('en-GB', {
         hour: '2-digit',
         minute: '2-digit',
     });
-
-    return `${date} at ${time}`;
 }
 
 describe('cadenceLabel', () => {
@@ -46,19 +52,66 @@ describe('cadenceLabel', () => {
      * was just chosen for it.
      */
     it('names the date a series has not reached yet', () => {
-        const startsAt = '2026-09-23T07:30:00Z';
-
-        expect(cadenceLabel({ ...base, starts_at: startsAt })).toBe(
-            `weekly from ${renderedAs(startsAt)}`,
-        );
+        expect(
+            cadenceLabel({
+                ...base,
+                starts_at: '2026-09-23T07:30:00Z',
+                date: '2026-09-23',
+                time: '07:30',
+            }),
+        ).toBe(`weekly from ${renderedDay('2026-09-23')} at 07:30`);
     });
 
+    /** A one-off is a single event, so it happens *on* a day rather than *from* it. */
     it('names the date alone for a one-off, whose date is the event', () => {
-        const startsAt = '2026-09-23T07:30:00Z';
+        expect(
+            cadenceLabel({
+                ...base,
+                recurrence: null,
+                starts_at: '2026-09-23T07:30:00Z',
+                date: '2026-09-23',
+                time: '07:30',
+            }),
+        ).toBe(`on ${renderedDay('2026-09-23')} at 07:30`);
+    });
+
+    /**
+     * The defect this guards: deriving the label from the instant renders the
+     * owner's 23 Sep 07:30 as "22 Sep at 02:30" on a laptop set to New York —
+     * a different day from the one in their own date input.
+     *
+     * Asserted by handing the function a `date` and `time` that do not describe
+     * `starts_at` at all. Only the server's fields can produce this string, and
+     * it is the same string in every zone: a local-midnight date renders as its
+     * own calendar day everywhere, and the time is passed through verbatim.
+     */
+    it('names the server’s own date and time rather than re-deriving the instant', () => {
+        expect(
+            cadenceLabel({
+                ...base,
+                starts_at: '2026-09-23T07:30:00Z',
+                date: '2026-12-25',
+                time: '18:45',
+            }),
+        ).toBe(`weekly from ${renderedDay('2026-12-25')} at 18:45`);
+    });
+
+    /**
+     * `currentCadenceLabel` hands this function an `ActiveActionData`, which
+     * carries none of the three fields. A caller carrying only the instant has
+     * no server-formatted day to name, so it must fall through rather than
+     * derive one.
+     */
+    it('says nothing about a start date it was given no formatted day for', () => {
+        const next = '2026-09-16T07:30:00Z';
 
         expect(
-            cadenceLabel({ ...base, recurrence: null, starts_at: startsAt }),
-        ).toBe(`from ${renderedAs(startsAt)}`);
+            cadenceLabel({
+                ...base,
+                starts_at: '2026-09-23T07:30:00Z',
+                next_occurrence_at: next,
+            }),
+        ).toBe(`weekly at ${renderedTime(next)}`);
     });
 
     /**
@@ -69,35 +122,34 @@ describe('cadenceLabel', () => {
      */
     it('says nothing about a start date the series has already passed', () => {
         expect(
-            cadenceLabel({ ...base, starts_at: '2026-09-09T07:30:00Z' }),
+            cadenceLabel({
+                ...base,
+                starts_at: '2026-09-09T07:30:00Z',
+                date: '2026-09-09',
+                time: '07:30',
+            }),
         ).toBe('weekly');
     });
 
     it('prefers the next occurrence once the series is running', () => {
         const next = '2026-09-16T07:30:00Z';
-        const time = new Date(next).toLocaleTimeString('en-GB', {
-            hour: '2-digit',
-            minute: '2-digit',
-        });
 
         expect(
             cadenceLabel({
                 ...base,
                 starts_at: '2026-09-09T07:30:00Z',
+                date: '2026-09-09',
+                time: '07:30',
                 next_occurrence_at: next,
             }),
-        ).toBe(`weekly at ${time}`);
+        ).toBe(`weekly at ${renderedTime(next)}`);
     });
 
     it('is unchanged when no start date is carried at all', () => {
         const next = '2026-09-16T07:30:00Z';
-        const time = new Date(next).toLocaleTimeString('en-GB', {
-            hour: '2-digit',
-            minute: '2-digit',
-        });
 
         expect(cadenceLabel({ ...base, next_occurrence_at: next })).toBe(
-            `weekly at ${time}`,
+            `weekly at ${renderedTime(next)}`,
         );
     });
 
@@ -111,6 +163,42 @@ describe('cadenceLabel', () => {
                 starts_at: null,
             }),
         ).toBe('after brushing my teeth');
+    });
+
+    /**
+     * Retire an action, start a revision with no revised action, and
+     * StartExperiment writes `metadata: []` — a cue-anchored kind with no
+     * phrase behind it. There is nothing to say, so the line is omitted.
+     */
+    it('says nothing about a cue-anchored action with no phrase', () => {
+        expect(
+            cadenceLabel({
+                schedule_kind: 'anchored',
+                anchor: null,
+                recurrence: 'weekly',
+                next_occurrence_at: '2026-09-16T07:30:00Z',
+                date: '2026-09-16',
+                time: '07:30',
+            }),
+        ).toBeNull();
+    });
+
+    /**
+     * The realistic state of an overdue one-off whose occasion is still
+     * unlogged: no recurrence to name, but a slot still waiting. The time is
+     * the whole answer — "once at 07:30" would invent a cadence the action
+     * does not have.
+     */
+    it('names the time alone when there is no recurrence to pair it with', () => {
+        const next = '2026-09-14T07:30:00Z';
+
+        expect(
+            cadenceLabel({
+                ...base,
+                recurrence: null,
+                next_occurrence_at: next,
+            }),
+        ).toBe(renderedTime(next));
     });
 
     // The defect this function was fixed for once already: a recurrence with

@@ -13,6 +13,7 @@ use App\Services\Authoring\AuthoredAction;
 use App\Services\Scheduling\MaterialiseOccurrences;
 use App\Services\Strategy\StrategyTransitionException;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 
@@ -27,6 +28,11 @@ class ActionController extends Controller
      * delete future occasions for a text edit. `kind` is what says a schedule
      * was actually submitted — the same rule `UpdateActionTool` applies, so the
      * app and the connector amend an action the same way.
+     *
+     * Both writes go in one transaction. `RescheduleAction` can refuse a
+     * one-off whose moment has passed, and apart, that refusal would leave the
+     * rename committed behind an error the owner reads as "nothing was saved" —
+     * Cancel would then walk away from an edit that had silently stuck.
      */
     public function update(
         RescheduleActionRequest $request,
@@ -44,21 +50,33 @@ class ActionController extends Controller
             static fn ($value): bool => $value !== null,
         );
 
-        if ($fields !== []) {
-            $action->update($fields);
-        }
+        $kind = $request->validated('kind');
+        $timezone = $request->user()->timezone ?? (string) config('app.timezone');
 
-        if ($request->validated('kind') !== null) {
-            $action = $reschedule->handle(
+        // RescheduleAction opens its own transaction; Laravel nests that as a
+        // savepoint, so this costs one outer transaction and changes nothing
+        // about the inner one.
+        $action = DB::transaction(function () use ($action, $fields, $kind, $request, $reschedule, $timezone): Action {
+            if ($fields !== []) {
+                $action->update($fields);
+            }
+
+            if ($kind === null) {
+                return $action;
+            }
+
+            return $reschedule->handle(
                 $action,
-                $request->validated('kind'),
+                $kind,
                 $request->validated('date'),
                 $request->validated('time'),
                 $request->validated('recurrence'),
                 $request->validated('anchor'),
-                $request->user()->timezone ?? (string) config('app.timezone'),
+                $timezone,
             );
+        });
 
+        if ($kind !== null) {
             // Mirrors Api\ActionController: a schedule that actually changed
             // has just purged every unlogged slot ahead of now, so without
             // this, `back()` re-renders the loop screen against an empty
@@ -66,6 +84,11 @@ class ActionController extends Controller
             // runs. Scoped to this branch on purpose — an unchanged schedule
             // (RescheduleAction's guard) purges nothing, so there is nothing
             // to rebuild and this must not run for a pure rename.
+            //
+            // Outside the transaction, and after it: materialising is a
+            // read-path write against a schedule that is already committed, and
+            // rolling it into the amendment would put occasion rows under a
+            // transaction whose job is to make the amendment all-or-nothing.
             $materialise->forLoop($action->intention);
         }
 

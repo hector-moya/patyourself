@@ -301,7 +301,8 @@ class RescheduleActionWebTest extends TestCase
     /**
      * A one-off cannot be started in the past, and the refusal reaches the
      * owner as a validation error on the field they chose it with rather than
-     * as a 500.
+     * as a 500. The message is asserted, not just the key — it is the whole of
+     * what the owner is told.
      */
     public function test_a_one_off_cannot_be_started_on_a_date_that_has_passed(): void
     {
@@ -317,6 +318,63 @@ class RescheduleActionWebTest extends TestCase
                 'time' => '09:00',
                 'recurrence' => 'once',
             ])
+            ->assertSessionHasErrors(['date' => 'Pick a date that has not passed.']);
+    }
+
+    /**
+     * Nudging a past one-off's time is refused too — the moment it resolves to
+     * has still gone — but the editor's date input is pre-filled and untouched,
+     * so the error belongs under the control that moved.
+     */
+    public function test_a_one_off_moved_to_a_time_that_has_passed_is_refused_on_the_time(): void
+    {
+        $this->travelTo('2026-09-14 12:00:00');
+
+        $user = User::factory()->create(['timezone' => 'UTC']);
+        $action = $this->actionFor($user);
+        $action->update([
+            'series_started_at' => CarbonImmutable::parse('2026-09-10 09:00:00'),
+            'recurrence' => null,
+            'metadata' => ['schedule_kind' => 'clock'],
+        ]);
+
+        $this->actingAs($user)
+            ->patch("/actions/{$action->id}", [
+                'kind' => 'clock',
+                'date' => '2026-09-10',
+                'time' => '10:00',
+                'recurrence' => 'once',
+            ])
+            ->assertSessionHasErrors(['time' => 'Pick a time that has not passed.'])
+            ->assertSessionDoesntHaveErrors('date');
+    }
+
+    /**
+     * The title write and the reschedule are one act.
+     *
+     * Apart, a save that renames *and* sets a past one-off date commits the
+     * rename, redirects back with an error, and reads to the owner as "nothing
+     * was saved" — after which Cancel walks away from an edit that silently
+     * stuck. The refusal is correct; the half-write is not.
+     */
+    public function test_a_rename_refused_for_its_schedule_is_not_kept(): void
+    {
+        $this->travelTo('2026-09-14 12:00:00');
+
+        $user = User::factory()->create(['timezone' => 'UTC']);
+        $action = $this->actionFor($user);
+        $original = $action->title;
+
+        $this->actingAs($user)
+            ->patch("/actions/{$action->id}", [
+                'title' => 'A name the owner never got to keep',
+                'kind' => 'clock',
+                'date' => '2026-09-10',
+                'time' => '09:00',
+                'recurrence' => 'once',
+            ])
             ->assertSessionHasErrors('date');
+
+        $this->assertSame($original, $action->fresh()->title);
     }
 }

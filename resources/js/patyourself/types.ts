@@ -141,12 +141,14 @@ export interface ActionRecordData {
      *  cue-anchored action, which has no anchor at all. Pre-formatted by the
      *  server because the editor's date input needs this exact string and
      *  re-deriving it from an ISO instant in the browser's zone moves it a day
-     *  for anyone west of the owner. */
+     *  for anyone west of the owner. The cadence line names this same string
+     *  for the same reason — see cadence.ts. */
     date: string | null;
     /** The anchor as an instant, ISO 8601 in the owner's zone. The cadence line
      *  compares it against now to tell a series that has not begun from one
      *  whose grid is simply exhausted for today — both report no next
-     *  occurrence, and they mean opposite things. */
+     *  occurrence, and they mean opposite things. Compared, never displayed:
+     *  `date` and `time` are what get rendered. */
     starts_at: string | null;
     /**
      * The action's configuration under the loop's workflow — for gym, its

@@ -19,7 +19,6 @@ const actions = [
         recurrence: null,
         anchor: null,
         date: null,
-        startsAt: null,
         routine: null,
     },
 ];
@@ -77,7 +76,6 @@ describe('ActionLayer', () => {
                         recurrence: null,
                         anchor: null,
                         date: null,
-                        startsAt: null,
                         routine: null,
                     },
                 ]}
@@ -111,6 +109,9 @@ const CONFIGURING: WorkflowRegistry = {
     fake: { name: 'fake', label: 'Fake', config: FakeRoutine, record: null },
 };
 
+// `time` and `date` both come off the same `series_started_at`, so a fixture
+// with one and not the other describes a state the server cannot send — and it
+// is this fixture that the only in-disclosure editor test opens on.
 const pullDay = {
     id: 7,
     title: 'Pull day',
@@ -119,8 +120,7 @@ const pullDay = {
     time: '07:30',
     recurrence: 'weekly',
     anchor: null,
-    date: null,
-    startsAt: null,
+    date: '2026-09-23',
     routine: [
         {
             id: 11,
@@ -281,6 +281,12 @@ describe('ActionLayer disclosure', () => {
         ).toBeVisible();
     });
 
+    /**
+     * The seam between this branch's two changes: the editor opened inside a
+     * disclosure must be the same editor as the one opened on a flat row,
+     * pre-filled from the action's own anchor. An empty date here is the exact
+     * shape in which a rename re-derives the anchor and moves the series.
+     */
     it('opens the editor inside the body and leaves the disclosure open', async () => {
         const user = userEvent.setup();
 
@@ -298,6 +304,10 @@ describe('ActionLayer disclosure', () => {
 
         expect(screen.getByTestId('action-editor-7')).toBeVisible();
         expect(screen.getByText('Barbell Row')).toBeVisible();
+
+        const date = screen.getByLabelText('Starts on');
+        expect(date).toBeVisible();
+        expect(date).toHaveValue('2026-09-23');
     });
 });
 
@@ -311,7 +321,6 @@ describe('ActionEditor start date', () => {
         recurrence: 'weekly',
         anchor: null,
         date: '2026-09-23',
-        startsAt: '2026-09-23T07:30:00+01:00',
         routine: null,
     };
 
@@ -365,11 +374,14 @@ describe('ActionEditor start date', () => {
         // Scoped: the always-present "Add an action" form below has its own
         // "How often" field, unrelated to this action's editor. `fireEvent`
         // rather than `userEvent.selectOptions`: the latter dispatches an
-        // `input` event ahead of `change`, and that first touch on a
-        // freshly-mounted Form races Inertia's own dirty-tracking listener,
-        // which snaps the select back before `change` fires — an artifact of
-        // `act()` flushing a deferred transition mid-interaction, not a
-        // production bug.
+        // `input` event ahead of `change`, and *any* such event races Inertia's
+        // own dirty-tracking listener, which snaps the select back to its
+        // defaults before `change` fires. `change` then recomputes dirtiness
+        // against a form that has just been reset, so it finds nothing changed
+        // and the select never escapes — repeating the interaction does not
+        // help, because every repeat starts from a pristine form again. An
+        // artifact of `act()` flushing a deferred transition mid-interaction,
+        // not a production bug.
         const editor = within(screen.getByTestId(`action-editor-${weekly.id}`));
 
         fireEvent.change(editor.getByLabelText('How often'), {
@@ -381,6 +393,8 @@ describe('ActionEditor start date', () => {
 
     it('asks for it again when the recurrence needs one once more', async () => {
         await openEditor(weekly);
+        // `fireEvent` for the reason the test above spells out — the two must
+        // be modernised together or not at all.
         const editor = within(screen.getByTestId(`action-editor-${weekly.id}`));
 
         fireEvent.change(editor.getByLabelText('How often'), {
@@ -414,7 +428,6 @@ describe('ActionEditor start date', () => {
             recurrence: null,
             anchor: 'after work',
             date: null,
-            startsAt: null,
         });
 
         expect(screen.queryByLabelText('Starts on')).not.toBeInTheDocument();

@@ -66,8 +66,18 @@ the digest cannot become a nag; back-dating an anchor is the shortest route to
 exactly that.
 
 **`once` is the exception, because it has no grid to snap onto.** A one-off is
-its date. A *changed* date in the past is refused with a validation error; an
-*unchanged* one never reaches the check, because §4's guard returns first.
+its date, and it is refused whenever the schedule it resolves to has already
+passed — not only when the *date* is the field that moved. Nudging a past
+one-off's time from 09:00 to 10:00 resolves to a moment that has still gone, and
+that is refused too.
+
+What keeps a pure rename working is not the refusal being narrow, it is §4's
+guard returning first: a save that resubmits the action's own schedule
+unchanged never reaches the check at all.
+
+The refusal names the control the owner actually moved. When the submitted date
+equals the stored anchor's date in the owner's zone, only the time can have
+moved, so the error belongs on `time`; otherwise on `date`.
 
 ## 4. Two pure functions, and a guard that becomes a convergence test
 
@@ -108,11 +118,20 @@ anchor on one would put the whole grid half a step off its own rule. Handling it
 costs one line and removes a class of question.
 
 **A property worth naming, because it is what makes the change safe:** for
-`daily` and `weekdays`, `anchorAt()` with a date converges on exactly what
-`firstOccurrence()` returns without one. Snapping a past daily date forward day
-by day *is* "that time, today or tomorrow". So a date reaching those recurrences
-by any route — a crafted request, a future form — is inert rather than
-surprising, and needs no validation rule to make it so.
+`daily` and `weekdays`, `anchorAt()` with a **past** date converges on exactly
+what `firstOccurrence()` returns without one. Snapping a past daily date forward
+day by day *is* "that time, today or tomorrow". So a past date reaching those
+recurrences by any route — a crafted request, a future form — is inert rather
+than surprising, and needs no validation rule to make it so.
+
+**The property is one-directional.** A *future* date does not converge, because
+`onOrAfter()` returns a candidate that is already ahead untouched — which is the
+whole reason it is not `nextAfter()`. `daily` with `2027-01-04 07:00` anchors on
+2027-01-04; the derived path would have said 2026-09-15. That is coherent — the
+series starts in January and materialises nothing until then — but it is not
+inert, and it still needs no rule: the date input unmounts for `daily` and
+`weekdays`, so the editor cannot produce it, and what a crafted request gets is
+exactly what it asked for. `ScheduleTest` pins both directions.
 
 ### The guard
 
@@ -162,13 +181,25 @@ After the guard, before the transaction:
 
 ```php
 if ($date !== null && $rule === null && $scheduledFor?->lessThanOrEqualTo($now)) {
-    throw ValidationException::withMessages(['date' => 'Pick a date that has not passed.']);
+    $keptItsDate = $action->series_started_at?->setTimezone($timezone)->format('Y-m-d') === $date;
+
+    throw ValidationException::withMessages(
+        $keptItsDate
+            ? ['time' => 'Pick a time that has not passed.']
+            : ['date' => 'Pick a date that has not passed.'],
+    );
 }
 ```
 
 Guarded on `$date !== null` as well as on the null recurrence, so the derived
 path — which cannot produce a past instant — is provably unreachable from here
 rather than merely unlikely to reach it.
+
+The field is chosen rather than fixed because the condition is about the
+resolved instant, not about the date: an unchanged date means the time is what
+put the one-off in the past, and an error under a pre-filled, untouched date
+input points at the one control the owner did not move. The comparison is made
+in the owner's zone, because that is the zone the date input was filled from.
 
 It lives in the writer beside the unchanged-schedule guard, for the reason §3 of
 the frozen spec gives for that one: the connector reaches this writer by another
@@ -202,19 +233,20 @@ identically to today, which is the point of the delegating branch in §4.
 
 | Field | Value | For |
 | --- | --- | --- |
-| `date` | `series_started_at` localised, `Y-m-d` | the editor's date input |
-| `starts_at` | `series_started_at` localised, ISO 8601 | the cadence line |
+| `date` | `series_started_at` localised, `Y-m-d` | the editor's date input, and the cadence line's day |
+| `starts_at` | `series_started_at` localised, ISO 8601 | the cadence line's future test |
 
 Both are formatted on the server in the user's own zone. The editor's input
 needs a `Y-m-d` string and must not get it from client-side date math: parsing
 an ISO string in the browser's zone and reformatting is how a 23rd becomes a
 22nd for anyone west of the stored zone.
 
-`ActionSummary` gains `date: string | null` and `startsAt: string | null`,
-**required rather than optional**, for the reason commit `42e486b` gives for the
-existing schedule fields: a caller that stopped passing them would silently put
-the editor back on its own defaults, and a title-only save would then reschedule
-the action.
+`ActionSummary` gains `date: string | null`, **required rather than optional**,
+for the reason commit `42e486b` gives for the existing schedule fields: a caller
+that stopped passing it would silently put the editor back on its own defaults,
+and a title-only save would then reschedule the action. It gains no `startsAt`:
+the cadence is computed in `show.tsx` from the raw action, which carries
+`starts_at` natively, so a second copy on the summary would be read by nothing.
 
 ### The cadence line
 
@@ -223,14 +255,26 @@ returns null and `cadenceLabel()` renders a bare `"weekly"`. Set a start date fo
 next Tuesday and the screen says nothing about Tuesday. The feature would look
 like it had failed.
 
-So `cadenceLabel()` learns an optional `starts_at`: when the anchor is still in
-the future, it reads **"weekly from 23 Sep at 07:30"**.
+So `cadenceLabel()` learns an optional `starts_at`, `date` and `time`: when the
+anchor is still in the future, it reads **"weekly from 23 Sep at 07:30"** — or
+**"on 23 Sep at 07:30"** for a one-off, because a single event happens *on* a
+day rather than running *from* it.
 
-The future test is an instant comparison — `new Date(starts_at) > new Date()` —
-not a date-string comparison, so it is correct whatever zone the browser is in.
-The field is optional, so `currentCadenceLabel()`'s `ActiveActionData` callers
-pass nothing and behave exactly as they do now. `IntentionResource` is not
-widened to match; it can be, when something needs it.
+**The test and the label read different fields, and that is the point.** The
+future test is an instant comparison — `new Date(starts_at) > new Date()` — so
+it is correct whatever zone the browser is in. The label is the server's own
+`date` and `time`, never `starts_at` reformatted: re-deriving the day from the
+instant renders a London owner's 23 Sep 07:30 as "22 Sep at 02:30" on a laptop
+set to New York, a different day from the one in their own date input.
+Formatting the `Y-m-d` is itself a trap — `new Date('2026-09-23')` is UTC
+midnight and renders as the 22nd west of UTC — so the day is built from the
+parts with `new Date(year, monthIndex, day)`, which is local midnight and reads
+as the same calendar date everywhere.
+
+All three fields are optional and the branch requires all three, so
+`currentCadenceLabel()`'s `ActiveActionData` callers — which carry none of
+them — pass nothing and behave exactly as they do now. `IntentionResource` is
+not widened to match; it can be, when something needs it.
 
 ## 7. The editor
 
@@ -241,11 +285,17 @@ is, so the date input can mount and unmount with it.
 EDITING, weekly                     EDITING, daily
   [ Upper body 2___________ ]         [ Weigh in_______________ ]
   ( ) At a time                       ( ) At a time
-      [2026-09-23] [07:30]                         [07:00]
-      [weekly ▾]                          [daily ▾]
+      [07:30] [weekly ▾]                  [07:00] [daily ▾]
+      Starts on
+      [2026-09-23]
   (•) After a cue [ ________ ]        (•) After a cue [ ________ ]
           Save   Cancel                       Save   Cancel
 ```
+
+The date sits on its own row *beneath* the time and the recurrence, not beside
+the time. The recurrence is what decides whether the date is asked for at all,
+so it is read first; a date above the control that governs it appears and
+disappears for no visible reason.
 
 - The date input is rendered only for `weekly` and `once`. Switching to `daily`
   unmounts it, so no `date` is posted, so the derived path runs — the unmount
@@ -274,8 +324,13 @@ copy and comments avoid `streak`, `congratulation`, `well done`,
 traps, and *endpoints* and *percentage* both trip them. Sentence case, no
 exclamation marks.
 
-The date field's label is **"Starts on"**. The validation message is
-**"Pick a date that has not passed."**
+The date field's label is **"Starts on"**. The two validation messages are
+**"Pick a date that has not passed."** on `date` and **"Pick a time that has not
+passed."** on `time`.
+
+`cadence.ts` joins the vocabulary list: before this spec it only concatenated
+values it was handed, and it now authors a user-facing phrase of its own
+("from", "on", "at").
 
 ## 8. Files
 
@@ -294,8 +349,9 @@ The date field's label is **"Starts on"**. The validation message is
 | `tests/Feature/Actions/SeriesAnchorTest.php` | ~10 `handle()` calls gain `null` |
 | `docs/NOTEBOOK.md` | §4 gains the date, the snap rule and the `once` refusal |
 
-No migration. No model change. No new file, so nothing joins the vocabulary
-list.
+No migration. No model change. No new file — but `cadence.ts` joins
+`CompanionVocabularyTest::sourceFiles()` anyway, because it stops concatenating
+what it is handed and starts authoring a phrase.
 
 ## 9. Testing
 

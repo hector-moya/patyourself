@@ -90,7 +90,7 @@ Four collaborators, each with one job.
 | Class | Job |
 | --- | --- |
 | `Scheduling\Recurrence` | The enum: `daily`, `weekdays`, `weekly`. The token `once` and `null` both map to `null` — a one-off |
-| `Scheduling\Schedule` | Pure date math. `firstOccurrence()`, `advance()`, `nextAfter()`. No database |
+| `Scheduling\Schedule` | Pure date math, no database. `firstOccurrence()` and `advance()` build a grid from `now`; `nextAfter()` steps along one; `anchorAt()` and `onOrAfter()` resolve where an edit says the series starts |
 | `Scheduling\MaterialiseOccurrences` | Walks the anchor forward and writes the occasions that walk implies |
 | `Scheduling\ReanchorsSeries` | Moves an anchor and drops the occasions belonging to the cadence being left behind |
 
@@ -139,10 +139,19 @@ mint occasions nobody was ever asked about, all unlogged, all landing on
 `/catch-up`, against the reason §5's window exists at all.
 
 **A one-off is the exception**, because it has no grid to snap onto: its date is
-the whole schedule. A *changed* date in the past is refused with a validation
-error. An *unchanged* one never reaches the refusal, because the unchanged-
-schedule guard returns first — which is what keeps a one-off whose date has
-passed renameable.
+the whole schedule. It is refused with a validation error whenever the schedule
+it resolves to has already passed — not only when the date is the field that
+moved, so nudging a past one-off's time from 09:00 to 10:00 is refused too.
+
+What keeps a one-off whose moment has passed renameable is not the refusal being
+narrow, it is the unchanged-schedule guard returning before it: a save that
+resubmits the action's own schedule never reaches the check.
+
+The refusal names the control the owner moved. An unchanged date — compared in
+the owner's zone — means only the time can have moved, so the error goes on
+`time` ("Pick a time that has not passed."); otherwise on `date` ("Pick a date
+that has not passed."). An error under a pre-filled, untouched date input would
+point at the one field the owner did not touch.
 
 The add-an-action form is deliberately still time-only. A date there would reach
 `AuthoredAction`, and through it loop creation, `StartExperiment` and the
