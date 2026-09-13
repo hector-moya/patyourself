@@ -165,7 +165,7 @@ Two host components resolve a name to a component and render it:
 | `<WorkflowConfig>` | `patyourself/loops/action-layer.tsx` (the loop screen) | `actionId`, `rows` |
 | `<WorkflowRecord>` | `pages/dashboard.tsx`, `pages/catch-up.tsx` | `occurrenceId`, `actionId`, `onOccurrenceMaterialised` |
 
-Four properties to preserve:
+Five properties to preserve:
 
 **`Object.hasOwn`, never a bare lookup.** A plain object's lookup walks the prototype chain, so a name
 like `'constructor'` or `'toString'` resolves to an inherited `Object` value that is truthy and
@@ -288,6 +288,7 @@ of those, the design is wrong, not the seam.
 | **The record slot renders outside the verdict form** | Recording is not logging | Records submitting with the verdict, joining the two |
 | **`config` keys to actions, `record` keys to occurrences** | It is the prescription/occasion line the whole notebook already draws | A prescription dated by one occasion, or a record that outlives its occasion |
 | **`rows: null` and `rows: []` stay distinct** | "No configuration surface" is not "an empty routine" | An empty editor on a loop that has no editor |
+| **`Edit` and `Retire` render outside `<summary>`** | `Retire` is a submit button inside a form, and a button inside `<summary>` submits and toggles at once | One click both retires the action and closes the row |
 
 ## 9. What a module may not say
 
@@ -318,7 +319,7 @@ resources/js/patyourself/
   workflows.ts                                the client registry, the prop contracts
   workflow-config.tsx                         the config slot + its boundary
   workflow-record.tsx                         the record slot + its boundary
-  loops/action-layer.tsx                      mounts the config slot
+  loops/action-layer.tsx                      mounts the config slot, discloses the action that has one
 resources/js/pages/dashboard.tsx              mounts the record slot
 resources/js/pages/catch-up.tsx               mounts the record slot
 

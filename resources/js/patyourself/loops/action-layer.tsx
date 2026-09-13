@@ -24,8 +24,13 @@ export type ActionSummary = {
     recurrence: string | null;
     anchor: string | null;
     /** The action's configuration under the loop's workflow, or null when the
-     *  loop has none — see `WorkflowConfig` for why the two are kept apart. */
-    routine?: WorkflowConfigRow[] | null;
+     *  loop has none — see `WorkflowConfig` for why the two are kept apart.
+     *  Required rather than optional, for the same reason as the schedule
+     *  fields above: a caller that stopped passing it would fall back to
+     *  `undefined`, and `configSurfaceFor` would then find no rows for an
+     *  action that actually has a routine — silently flattening a row that
+     *  should have collapsed, rather than merely omitting a panel. */
+    routine: WorkflowConfigRow[] | null;
 };
 
 type Props = {
@@ -100,7 +105,7 @@ export function ActionLayer({
 
                     if (collapses) {
                         return (
-                            <li key={action.id} className="space-y-2">
+                            <li key={action.id}>
                                 <details>
                                     <summary className="cursor-pointer">
                                         <ActionHeader action={action} />

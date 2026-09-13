@@ -1129,7 +1129,9 @@ describe('LoopShow', () => {
          * than the loop's own. The editor would never draw for anyone and this
          * assertion fails — verified by direct mutation and rerun.
          */
-        it('draws on a gym loop’s action, beside the action itself', () => {
+        it('opens from the action’s disclosure', async () => {
+            const user = userEvent.setup();
+
             render(
                 <LoopShow
                     intention={intention({ workflow: 'gym' })}
@@ -1154,8 +1156,12 @@ describe('LoopShow', () => {
                 />,
             );
 
-            expect(screen.getByTestId('routine-editor-9')).toBeInTheDocument();
-            expect(screen.getByText('Bench Press')).toBeInTheDocument();
+            expect(screen.getByText('Bench Press')).not.toBeVisible();
+
+            await user.click(screen.getByText('Upper A'));
+
+            expect(screen.getByTestId('routine-editor-9')).toBeVisible();
+            expect(screen.getByText('Bench Press')).toBeVisible();
         });
     });
 

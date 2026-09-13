@@ -17,6 +17,7 @@ const actions = [
         time: null,
         recurrence: null,
         anchor: null,
+        routine: null,
     },
 ];
 
@@ -72,6 +73,7 @@ describe('ActionLayer', () => {
                         time: null,
                         recurrence: null,
                         anchor: null,
+                        routine: null,
                     },
                 ]}
             />,
