@@ -755,6 +755,69 @@ describe('LoopShow', () => {
         expect(screen.queryByText(/daily at/i)).not.toBeInTheDocument();
     });
 
+    /**
+     * An action's wording and cadence were unreachable in the app — the coach
+     * could change both over MCP and the owner could change neither.
+     *
+     * Tap to edit rather than always-live inputs: a mis-tap on a phone must not
+     * silently rename an action or move its schedule.
+     *
+     * Killing mutation: render the edit form unconditionally. The first
+     * assertion fails, because the title input would exist before Edit is
+     * pressed.
+     */
+    it('edits an action only after the edit control is pressed', async () => {
+        const user = userEvent.setup();
+
+        render(
+            <LoopShow
+                intention={intention()}
+                strategies={[]}
+                {...record}
+                actions={[actionRecord({ id: 3, title: 'Upper body 2' })]}
+            />,
+        );
+
+        expect(screen.queryByLabelText(/what to do/i)).not.toBeInTheDocument();
+
+        await user.click(
+            screen.getByRole('button', { name: /edit upper body 2/i }),
+        );
+
+        const title = screen.getByLabelText(/what to do/i);
+
+        expect(title).toHaveValue('Upper body 2');
+        expect(title.closest('form')).toHaveAttribute(
+            'action',
+            expect.stringContaining('/actions/3'),
+        );
+    });
+
+    /**
+     * Cancel restores the read state without a request. Asserted because the
+     * alternative — leaving the form open — is what makes an accidental Edit
+     * press feel like a trap.
+     */
+    it('closes the action edit form on cancel', async () => {
+        const user = userEvent.setup();
+
+        render(
+            <LoopShow
+                intention={intention()}
+                strategies={[]}
+                {...record}
+                actions={[actionRecord({ id: 3, title: 'Upper body 2' })]}
+            />,
+        );
+
+        await user.click(
+            screen.getByRole('button', { name: /edit upper body 2/i }),
+        );
+        await user.click(screen.getByRole('button', { name: /cancel/i }));
+
+        expect(screen.queryByLabelText(/what to do/i)).not.toBeInTheDocument();
+    });
+
     describe('the workflow picker', () => {
         const WORKFLOWS = [{ name: 'gym', label: 'Gym' }];
 

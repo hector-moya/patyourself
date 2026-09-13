@@ -81,6 +81,7 @@ export function Button({
     onClick,
     disabled,
     type = 'button',
+    'aria-label': ariaLabel,
 }: {
     variant?: ButtonVariant;
     size?: 'sm' | 'md';
@@ -91,6 +92,7 @@ export function Button({
     onClick?: () => void;
     disabled?: boolean;
     type?: 'button' | 'submit';
+    'aria-label'?: string;
 }) {
     const cls = `py-btn py-btn--${variant} py-btn--${size}${full ? ' py-btn--full' : ''}`;
 
@@ -100,6 +102,7 @@ export function Button({
             onClick={onClick}
             disabled={disabled}
             type={type}
+            aria-label={ariaLabel}
         >
             {icon && <Icon name={icon} size={size === 'sm' ? 16 : 18} />}
             {children && <span>{children}</span>}
