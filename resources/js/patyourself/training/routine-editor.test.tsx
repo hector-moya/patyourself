@@ -1,5 +1,6 @@
 import type * as InertiaReact from '@inertiajs/react';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 /** What each submitted form actually sent: its action, method and fields. */
@@ -574,5 +575,73 @@ describe('RoutineEditor', () => {
         expect(container.textContent).not.toMatch(
             /weight|kg|personal best|record|1rm|progress|%/i,
         );
+    });
+
+    /**
+     * Changing 3 x 10 to 4 x 8 used to mean removing the exercise and adding it
+     * back, which sent it to the end of the routine. The edit is in place.
+     *
+     * Tap to edit rather than live inputs: the targets sit beside the reorder
+     * arrows on a narrow screen, and a mis-tap must not change what the routine
+     * asks for.
+     *
+     * Killing mutation: render the number inputs unconditionally. The first
+     * assertion fails.
+     */
+    it('edits a row’s targets only after the target is pressed', async () => {
+        const user = userEvent.setup();
+
+        render(
+            <RoutineEditor
+                actionId={4}
+                rows={[
+                    {
+                        id: 9,
+                        exercise_id: 2,
+                        exercise_name: 'Barbell Incline Bench',
+                        position: 1,
+                        target_sets: 3,
+                        target_reps: 10,
+                    },
+                ]}
+            />,
+        );
+
+        expect(screen.queryByLabelText(/sets/i)).not.toBeInTheDocument();
+
+        await user.click(
+            screen.getByRole('button', { name: /edit targets for barbell incline bench/i }),
+        );
+
+        expect(screen.getByLabelText(/sets/i)).toHaveValue(3);
+        expect(screen.getByLabelText(/reps/i)).toHaveValue(10);
+    });
+
+    it('closes the target editor on cancel', async () => {
+        const user = userEvent.setup();
+
+        render(
+            <RoutineEditor
+                actionId={4}
+                rows={[
+                    {
+                        id: 9,
+                        exercise_id: 2,
+                        exercise_name: 'Barbell Incline Bench',
+                        position: 1,
+                        target_sets: 3,
+                        target_reps: 10,
+                    },
+                ]}
+            />,
+        );
+
+        await user.click(
+            screen.getByRole('button', { name: /edit targets for barbell incline bench/i }),
+        );
+        await user.click(screen.getByRole('button', { name: /cancel/i }));
+
+        expect(screen.queryByLabelText(/sets/i)).not.toBeInTheDocument();
+        expect(screen.getByTestId('routine-row-target-9')).toHaveTextContent('3 x 10');
     });
 });

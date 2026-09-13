@@ -107,6 +107,11 @@ function RoutineRow({
     reordering: boolean;
     setReordering: (reordering: boolean) => void;
 }) {
+    // Scoped to this row, unlike `reordering`: an edit posts only this row's
+    // two columns, so a second row's edit cannot invalidate it — the cross-row
+    // race that forces `reordering` up to the editor does not exist here.
+    const [editingTargets, setEditingTargets] = useState(false);
+
     /** The whole order with `index` moved by one step, as ReorderRoutine wants it. */
     function move(by: -1 | 1) {
         if (reordering) {
@@ -151,12 +156,71 @@ function RoutineRow({
                 </Link>
             )}
 
-            <span
-                data-testid={`routine-row-target-${row.id}`}
-                className="shrink-0 font-mono text-xs text-muted-foreground"
-            >
-                {row.target_sets} x {row.target_reps}
-            </span>
+            {editingTargets ? (
+                <Form
+                    {...routine.update.form([actionId, row.id])}
+                    options={{ preserveScroll: true }}
+                    onSuccess={() => setEditingTargets(false)}
+                    className="flex shrink-0 items-center gap-1"
+                >
+                    {({ processing }) => (
+                        <>
+                            <label
+                                htmlFor={`target-sets-${row.id}`}
+                                className="sr-only"
+                            >
+                                Sets
+                            </label>
+                            <input
+                                id={`target-sets-${row.id}`}
+                                name="target_sets"
+                                type="number"
+                                min={1}
+                                defaultValue={row.target_sets}
+                                className="w-14 rounded-md border border-border bg-background px-1.5 py-0.5 text-xs"
+                            />
+                            <span aria-hidden="true" className="text-xs text-muted-foreground">
+                                x
+                            </span>
+                            <label
+                                htmlFor={`target-reps-${row.id}`}
+                                className="sr-only"
+                            >
+                                Reps
+                            </label>
+                            <input
+                                id={`target-reps-${row.id}`}
+                                name="target_reps"
+                                type="number"
+                                min={1}
+                                defaultValue={row.target_reps}
+                                className="w-14 rounded-md border border-border bg-background px-1.5 py-0.5 text-xs"
+                            />
+                            <Button type="submit" variant="ghost" size="sm" disabled={processing}>
+                                Save
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setEditingTargets(false)}
+                            >
+                                Cancel
+                            </Button>
+                        </>
+                    )}
+                </Form>
+            ) : (
+                <button
+                    type="button"
+                    data-testid={`routine-row-target-${row.id}`}
+                    aria-label={`Edit targets for ${row.exercise_name ?? 'this exercise'}`}
+                    onClick={() => setEditingTargets(true)}
+                    className="shrink-0 font-mono text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                >
+                    {row.target_sets} x {row.target_reps}
+                </button>
+            )}
 
             <button
                 type="button"
