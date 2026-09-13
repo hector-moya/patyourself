@@ -34,7 +34,7 @@ final readonly class RescheduleAction
         // The edit form posts title and schedule behind one Save, so the
         // schedule arrives on every save — including one that only changed the
         // title. Re-anchoring then would purge future occasions for a text
-        // edit, so a schedule that resolves to what the action already has is
+        // edit, so a schedule that describes what the action already has is
         // no reschedule at all.
         //
         // The guard lives here rather than in the client because a client that

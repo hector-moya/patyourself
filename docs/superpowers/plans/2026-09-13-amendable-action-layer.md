@@ -19,6 +19,8 @@
 - Run `npm run build` before `php artisan test` or `PwaManifestTest` skips itself and ~470 assertions vanish.
 - Baseline to hold: **1015 PHP tests / 6452 assertions, 486 JS tests, 0 TypeScript errors.** Both counts rise.
 
+> **Correction (2026-09-13):** the claim above that "the new PHP files are backend [so none needs registering]" was wrong. `CompanionVocabularyTest::sourceFiles()` is full of backend files — writers, requests, controllers, read models — and the whole point of that list is to scan the ones the feature owns. Both new Training files, `app/Actions/Training/UpdateRoutineExercise.php` and `app/Http/Requests/Training/UpdateRoutineExerciseRequest.php`, belong on it beside their siblings (`AddRoutineExercise`, `RemoveRoutineExercise`, `ReorderRoutine`, `StoreRoutineExerciseRequest`, `ReorderRoutineRequest`) and have been added there.
+
 ---
 
 ## File Structure

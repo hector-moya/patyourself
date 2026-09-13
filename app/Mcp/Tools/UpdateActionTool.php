@@ -81,9 +81,12 @@ class UpdateActionTool extends Tool
             );
         }
 
-        // A reschedule purges every unlogged slot ahead of now and re-anchors,
-        // so by construction the grid is empty here. Without rebuilding it the
-        // reply reports no next occasion for a cadence that plainly has one.
+        // A schedule that actually changed purges every unlogged slot ahead of
+        // now and re-anchors; an unchanged one is a no-op under
+        // RescheduleAction's guard and purges nothing, so the grid here is not
+        // reliably empty. Materialising is idempotent either way — without it,
+        // a genuine reschedule's reply would report no next occasion for a
+        // cadence that plainly has one.
         $materialise->forLoop($action->intention);
 
         return Response::json($this->describeAction($action->fresh(), $action->intention));

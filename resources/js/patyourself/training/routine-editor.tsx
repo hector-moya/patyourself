@@ -163,7 +163,7 @@ function RoutineRow({
                     onSuccess={() => setEditingTargets(false)}
                     className="flex shrink-0 items-center gap-1"
                 >
-                    {({ processing }) => (
+                    {({ processing, errors }) => (
                         <>
                             <label
                                 htmlFor={`target-sets-${row.id}`}
@@ -196,6 +196,11 @@ function RoutineRow({
                                 defaultValue={row.target_reps}
                                 className="w-14 rounded-md border border-border bg-background px-1.5 py-0.5 text-xs"
                             />
+                            {(errors.target_sets ?? errors.target_reps) && (
+                                <p className="text-sm text-destructive">
+                                    {errors.target_sets ?? errors.target_reps}
+                                </p>
+                            )}
                             <Button type="submit" variant="ghost" size="sm" disabled={processing}>
                                 Save
                             </Button>

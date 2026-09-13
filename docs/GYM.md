@@ -96,6 +96,7 @@ third-party export containing arbitrary prose that no vocabulary rule can constr
 | --- | --- | --- |
 | `POST actions/{action}/exercises` | `actions.exercises.store` | Add a row to the routine |
 | `PATCH actions/{action}/exercises/reorder` | `actions.exercises.reorder` | Rewrite the whole order |
+| `PATCH actions/{action}/exercises/{actionExercise}` | `actions.exercises.update` | Change one row's targets |
 | `DELETE actions/{action}/exercises/{actionExercise}` | `actions.exercises.destroy` | Drop a row |
 | `GET exercises` | `training.exercises.index` | Catalogue search, **JSON**, for the picker |
 | `POST actions/{action}/session` | `training.session.materialise` | Begin recording |
@@ -278,7 +279,7 @@ app/Services/Training/                        SessionScreen, LastPerformance, Ex
 app/Http/Controllers/Training/                Routine, Session, PerformedSet, Exercise,
                                               ExerciseCatalogue, Progression
 app/Http/Requests/Training/                   StoreRoutineExercise, StorePerformedSet,
-                                              ReorderRoutine
+                                              ReorderRoutine, UpdateRoutineExercise
 app/Mcp/Tools/                                SearchExercisesTool, AddRoutineExerciseTool,
                                               RemoveRoutineExerciseTool
 

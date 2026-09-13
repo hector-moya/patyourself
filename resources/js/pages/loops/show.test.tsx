@@ -926,6 +926,53 @@ describe('LoopShow', () => {
         expect(editor.getByLabelText(/how often/i)).toHaveValue('weekly');
     });
 
+    /**
+     * An action can carry no schedule at all: retire one, then start a
+     * revision with no revised action, and StartExperiment writes
+     * `metadata: []` with a null `series_started_at` —
+     * `action-layer.test.tsx`'s own base fixture is exactly this shape. Such
+     * an action has nothing to reschedule, so the editor must not collapse it
+     * to an empty clock form: `RescheduleActionRequest`'s
+     * `required_if:kind,clock` would then reject every save, including the
+     * pure rename this form exists to allow.
+     *
+     * Killing mutation: drop the `hasSchedule` guard in `ActionEditor` (or
+     * hardcode it to `true`) so the schedule controls render unconditionally.
+     * The second assertion fails, because the `When` select would be present.
+     */
+    it('renders no schedule controls when editing an action with no schedule', async () => {
+        const user = userEvent.setup();
+
+        render(
+            <LoopShow
+                intention={intention()}
+                strategies={[]}
+                {...record}
+                actions={[
+                    actionRecord({
+                        id: 3,
+                        title: 'Upper body 2',
+                        schedule_kind: null,
+                        time: null,
+                        recurrence: null,
+                        anchor: null,
+                    }),
+                ]}
+            />,
+        );
+
+        await user.click(
+            screen.getByRole('button', { name: /edit upper body 2/i }),
+        );
+
+        const editor = within(screen.getByTestId('action-editor-3'));
+
+        expect(editor.getByLabelText(/what to do/i)).toHaveValue(
+            'Upper body 2',
+        );
+        expect(editor.queryByLabelText(/when/i)).not.toBeInTheDocument();
+    });
+
     describe('the workflow picker', () => {
         const WORKFLOWS = [{ name: 'gym', label: 'Gym' }];
 

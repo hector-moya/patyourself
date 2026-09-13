@@ -275,6 +275,21 @@ function ActionEditor({
     action: ActionSummary;
     onDone: () => void;
 }) {
+    // An action can carry no schedule at all — retire one, start a revision
+    // with no revised action, and StartExperiment writes `metadata: []` with
+    // a null series_started_at. Such an action has nothing to reschedule, so
+    // it gets no schedule controls at all rather than controls collapsed to
+    // `clock` with an empty time: that would make `kind` the only reachable
+    // value, `time` blank, and RescheduleActionRequest's
+    // `required_if:kind,clock` would reject every save — including the pure
+    // rename this form exists to allow. Worse, if the empty time were ever
+    // accepted it would be a real schedule change the user never asked for,
+    // not the rename they came here to make.
+    const hasSchedule =
+        action.scheduleKind !== null ||
+        action.time !== null ||
+        action.anchor !== null;
+
     const [kind, setKind] = useState<'clock' | 'anchored'>(
         action.scheduleKind ?? 'clock',
     );
@@ -309,91 +324,105 @@ function ActionEditor({
                         )}
                     </div>
 
-                    <div className="space-y-1">
-                        <label
-                            htmlFor={`action-kind-${action.id}`}
-                            className="ds-label"
-                        >
-                            When
-                        </label>
-                        <select
-                            id={`action-kind-${action.id}`}
-                            name="kind"
-                            value={kind}
-                            onChange={(e) =>
-                                setKind(e.target.value as 'clock' | 'anchored')
-                            }
-                            className={FIELD_CLASS}
-                        >
-                            <option value="clock">At a time</option>
-                            <option value="anchored">
-                                After something else
-                            </option>
-                        </select>
-                    </div>
-
-                    {kind === 'clock' ? (
-                        <div className="flex gap-3">
+                    {hasSchedule && (
+                        <>
                             <div className="space-y-1">
                                 <label
-                                    htmlFor={`action-time-${action.id}`}
+                                    htmlFor={`action-kind-${action.id}`}
                                     className="ds-label"
                                 >
-                                    Time
-                                </label>
-                                <input
-                                    id={`action-time-${action.id}`}
-                                    name="time"
-                                    type="time"
-                                    defaultValue={action.time ?? ''}
-                                    className="rounded-md border border-border bg-background px-3 py-2 text-sm"
-                                />
-                                {errors.time && (
-                                    <p className="text-sm text-destructive">
-                                        {errors.time}
-                                    </p>
-                                )}
-                            </div>
-                            <div className="space-y-1">
-                                <label
-                                    htmlFor={`action-recurrence-${action.id}`}
-                                    className="ds-label"
-                                >
-                                    How often
+                                    When
                                 </label>
                                 <select
-                                    id={`action-recurrence-${action.id}`}
-                                    name="recurrence"
-                                    defaultValue={action.recurrence ?? 'once'}
-                                    className="rounded-md border border-border bg-background px-3 py-2 text-sm"
+                                    id={`action-kind-${action.id}`}
+                                    name="kind"
+                                    value={kind}
+                                    onChange={(e) =>
+                                        setKind(
+                                            e.target.value as
+                                                | 'clock'
+                                                | 'anchored',
+                                        )
+                                    }
+                                    className={FIELD_CLASS}
                                 >
-                                    <option value="once">Once</option>
-                                    <option value="daily">Daily</option>
-                                    <option value="weekdays">Weekdays</option>
-                                    <option value="weekly">Weekly</option>
+                                    <option value="clock">At a time</option>
+                                    <option value="anchored">
+                                        After something else
+                                    </option>
                                 </select>
                             </div>
-                        </div>
-                    ) : (
-                        <div className="space-y-1">
-                            <label
-                                htmlFor={`action-anchor-${action.id}`}
-                                className="ds-label"
-                            >
-                                After what
-                            </label>
-                            <input
-                                id={`action-anchor-${action.id}`}
-                                name="anchor"
-                                defaultValue={action.anchor ?? ''}
-                                className={FIELD_CLASS}
-                            />
-                            {errors.anchor && (
-                                <p className="text-sm text-destructive">
-                                    {errors.anchor}
-                                </p>
+
+                            {kind === 'clock' ? (
+                                <div className="flex gap-3">
+                                    <div className="space-y-1">
+                                        <label
+                                            htmlFor={`action-time-${action.id}`}
+                                            className="ds-label"
+                                        >
+                                            Time
+                                        </label>
+                                        <input
+                                            id={`action-time-${action.id}`}
+                                            name="time"
+                                            type="time"
+                                            defaultValue={action.time ?? ''}
+                                            className="rounded-md border border-border bg-background px-3 py-2 text-sm"
+                                        />
+                                        {errors.time && (
+                                            <p className="text-sm text-destructive">
+                                                {errors.time}
+                                            </p>
+                                        )}
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label
+                                            htmlFor={`action-recurrence-${action.id}`}
+                                            className="ds-label"
+                                        >
+                                            How often
+                                        </label>
+                                        <select
+                                            id={`action-recurrence-${action.id}`}
+                                            name="recurrence"
+                                            defaultValue={
+                                                action.recurrence ?? 'once'
+                                            }
+                                            className="rounded-md border border-border bg-background px-3 py-2 text-sm"
+                                        >
+                                            <option value="once">Once</option>
+                                            <option value="daily">Daily</option>
+                                            <option value="weekdays">
+                                                Weekdays
+                                            </option>
+                                            <option value="weekly">
+                                                Weekly
+                                            </option>
+                                        </select>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="space-y-1">
+                                    <label
+                                        htmlFor={`action-anchor-${action.id}`}
+                                        className="ds-label"
+                                    >
+                                        After what
+                                    </label>
+                                    <input
+                                        id={`action-anchor-${action.id}`}
+                                        name="anchor"
+                                        defaultValue={action.anchor ?? ''}
+                                        className={FIELD_CLASS}
+                                    />
+                                    {errors.anchor && (
+                                        <p className="text-sm text-destructive">
+                                            {errors.anchor}
+                                        </p>
+                                    )}
+                                </div>
                             )}
-                        </div>
+                        </>
                     )}
 
                     <div className="flex gap-2">

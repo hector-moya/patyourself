@@ -10,6 +10,7 @@ use App\Http\Requests\StoreActionRequest;
 use App\Models\Action;
 use App\Models\Intention;
 use App\Services\Authoring\AuthoredAction;
+use App\Services\Scheduling\MaterialiseOccurrences;
 use App\Services\Strategy\StrategyTransitionException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Gate;
@@ -27,8 +28,12 @@ class ActionController extends Controller
      * was actually submitted — the same rule `UpdateActionTool` applies, so the
      * app and the connector amend an action the same way.
      */
-    public function update(RescheduleActionRequest $request, Action $action, RescheduleAction $reschedule): RedirectResponse
-    {
+    public function update(
+        RescheduleActionRequest $request,
+        Action $action,
+        RescheduleAction $reschedule,
+        MaterialiseOccurrences $materialise,
+    ): RedirectResponse {
         Gate::authorize('update', $action);
 
         $fields = array_filter(
@@ -44,7 +49,7 @@ class ActionController extends Controller
         }
 
         if ($request->validated('kind') !== null) {
-            $reschedule->handle(
+            $action = $reschedule->handle(
                 $action,
                 $request->validated('kind'),
                 $request->validated('time'),
@@ -52,6 +57,15 @@ class ActionController extends Controller
                 $request->validated('anchor'),
                 $request->user()->timezone ?? (string) config('app.timezone'),
             );
+
+            // Mirrors Api\ActionController: a schedule that actually changed
+            // has just purged every unlogged slot ahead of now, so without
+            // this, `back()` re-renders the loop screen against an empty
+            // grid and the cadence line loses its time until FireDueActions
+            // runs. Scoped to this branch on purpose — an unchanged schedule
+            // (RescheduleAction's guard) purges nothing, so there is nothing
+            // to rebuild and this must not run for a pure rename.
+            $materialise->forLoop($action->intention);
         }
 
         return back();

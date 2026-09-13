@@ -274,6 +274,12 @@ class IntentionScreensTest extends TestCase
         $clockAction = Action::factory()->for($intention)->create([
             'title' => 'Weigh in',
             'recurrence' => 'daily',
+            // Pinned rather than left to the factory's random default: this is
+            // the field IntentionController@actionLayer serializes as `time`,
+            // and the action edit form pre-fills from it — a wrong or absent
+            // value here would make a title-only save post a different clock
+            // time and silently reschedule the action.
+            'series_started_at' => '2026-08-25 19:00:00',
         ]);
         Occurrence::factory()->create([
             'action_id' => $clockAction->id,
@@ -299,11 +305,18 @@ class IntentionScreensTest extends TestCase
                 ->where('actions.0.schedule_kind', 'clock')
                 ->where('actions.0.anchor', null)
                 ->where('actions.0.next_occurrence_at', '2026-08-26T19:00:00+00:00')
+                // Link one of the chain the action edit form relies on: the
+                // pre-filled `time` has to be the action's real anchor, or a
+                // title-only save would post a different schedule and
+                // RescheduleAction's unchanged-schedule guard would never fire.
+                ->where('actions.0.time', '19:00')
                 ->where('actions.1.id', $anchoredAction->id)
                 ->where('actions.1.title', 'Stretch')
                 ->where('actions.1.schedule_kind', 'anchored')
                 ->where('actions.1.anchor', 'after brushing my teeth')
                 ->where('actions.1.recurrence', null)
+                // The anchored action has no clock time to report.
+                ->where('actions.1.time', null)
                 ->etc()
             );
     }

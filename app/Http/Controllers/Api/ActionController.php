@@ -29,9 +29,11 @@ class ActionController extends Controller
             $request->user()->timezone ?? (string) config('app.timezone'),
         );
 
-        // The reschedule has just deleted every unlogged slot ahead of now, so
-        // the grid this reply reads is empty until it is rebuilt. Materialising
-        // is idempotent and never touches a logged occasion.
+        // A schedule that actually changed has just deleted every unlogged
+        // slot ahead of now, so the grid this reply reads is empty until it is
+        // rebuilt. An unchanged schedule (RescheduleAction's guard) purges
+        // nothing, so there is nothing to rebuild. Materialising is idempotent
+        // either way and never touches a logged occasion.
         $materialise->forLoop($action->intention);
 
         return response()->json([

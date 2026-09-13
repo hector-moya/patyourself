@@ -156,3 +156,5 @@ Baseline to hold: 1015 PHP tests / 6452 assertions, 486 JS tests, 0 TypeScript e
 - **No editing performed sets.** `RecordSet` remains the only writer of a `PerformedSet` and there is still no update path — a mistyped set stays mistyped.
 - **No reordering from the connector.**
 - Nothing on the dashboard, catch-up or session screens.
+
+> **Correction (2026-09-13):** `description` is accepted by `RescheduleActionRequest` and written by `ActionController@update`, but no UI posts it — the action editor has no description field. This is deliberate, not an oversight: the endpoint mirrors `UpdateActionTool`'s shape, which already writes `description`, so the web endpoint and the connector accept the same fields even though only the connector's caller currently has a reason to send one. Covered directly in `RescheduleActionWebTest::test_owner_can_update_the_description`, since no app-level test exercises it otherwise.

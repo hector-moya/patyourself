@@ -110,6 +110,31 @@ class RescheduleActionWebTest extends TestCase
     }
 
     /**
+     * `description` is accepted by `RescheduleActionRequest` and written by
+     * the controller, but no UI posts it — the action editor has no
+     * description field. Endpoint surface only, exercised directly rather
+     * than through the app, so a regression here would otherwise go untested.
+     *
+     * Killing mutation: drop `description` from the request's rules, or from
+     * the controller's `$fields` array. Either way the assertion fails.
+     */
+    public function test_owner_can_update_the_description(): void
+    {
+        $user = User::factory()->create();
+        $loop = Intention::factory()->for($user)->create();
+        $strategy = Strategy::factory()->for($loop)->create();
+        $action = Action::factory()->for($loop)->for($strategy)->create([
+            'description' => 'Old description',
+        ]);
+
+        $this->actingAs($user)
+            ->patch(route('actions.update', $action), ['description' => 'New description'])
+            ->assertRedirect();
+
+        $this->assertSame('New description', $action->fresh()->description);
+    }
+
+    /**
      * The edit form always posts the schedule, so a rename arrives carrying
      * one. Task 1's guard is what keeps the occasions; this asserts the two
      * work together over HTTP rather than only in the writer.
@@ -136,6 +161,57 @@ class RescheduleActionWebTest extends TestCase
                 'kind' => 'clock',
                 'time' => $action->series_started_at->setTimezone('Europe/London')->format('H:i'),
                 'recurrence' => 'daily',
+            ])
+            ->assertRedirect();
+
+        $this->assertSame('Upper body A', $action->fresh()->title);
+        $this->assertDatabaseHas('occurrences', ['id' => $occurrence->id]);
+    }
+
+    /**
+     * The whole safety claim, end to end, rather than proven piecemeal: the
+     * server sends `time`, `recurrence` and `schedule_kind` on the loop
+     * screen (`IntentionController::actionLayer`), the edit form pre-fills
+     * from exactly those fields, and `RescheduleAction`'s unchanged-schedule
+     * guard treats the resubmission as a no-op. The values below are read off
+     * the Inertia payload rather than hardcoded, so this fails if the server
+     * stops sending `time`, if the guard stops matching what the server
+     * sends, or if the two derivations of a schedule ever drift apart from
+     * each other — three distinct defects, none of which the writer-only or
+     * fixed-value tests above can catch on their own.
+     *
+     * Killing mutation: drop `time` from `actionLayer()`'s payload (Item 1),
+     * loosen `describesTheSameSchedule()` so it never matches, or change how
+     * either side formats the clock time. Any one of those either 422s the
+     * PATCH or purges the occurrence.
+     */
+    public function test_the_schedule_the_server_sends_round_trips_through_a_rename_without_losing_the_occurrence(): void
+    {
+        $user = User::factory()->create(['timezone' => 'Europe/London']);
+        $loop = Intention::factory()->for($user)->create();
+        $strategy = Strategy::factory()->for($loop)->create();
+        $action = Action::factory()->for($loop)->for($strategy)->create([
+            'title' => 'Upper body 2',
+            'recurrence' => 'daily',
+            'series_started_at' => CarbonImmutable::parse('2026-09-14 08:00:00'),
+            'metadata' => ['schedule_kind' => 'clock', 'anchor' => null],
+        ]);
+
+        $occurrence = Occurrence::factory()->for($action)->create([
+            'scheduled_for' => CarbonImmutable::now()->addDays(3),
+        ]);
+
+        $response = $this->actingAs($user)->get("/loops/{$loop->id}")->assertOk();
+
+        $payload = collect($response->viewData('page')['props']['actions'])
+            ->firstWhere('id', $action->id);
+
+        $this->actingAs($user)
+            ->patch(route('actions.update', $action), [
+                'title' => 'Upper body A',
+                'kind' => $payload['schedule_kind'],
+                'time' => $payload['time'],
+                'recurrence' => $payload['recurrence'],
             ])
             ->assertRedirect();
 
