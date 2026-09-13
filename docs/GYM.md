@@ -109,7 +109,15 @@ Four surfaces:
 
 **The routine editor** (`routine-editor.tsx`) — registered at `WORKFLOWS.gym.config`, drawn by
 `WorkflowConfig` inside the loop screen's action layer. An action's configuration belongs beside the
-action, not on a screen of its own. The catalogue picker queries `training.exercises.index` as the user
+action, not on a screen of its own.
+
+The action collapses to its title and cadence and the editor is disclosed
+behind it, so a loop with three sessions reads as three lines. The disclosure
+belongs to the action layer rather than to this file, so the second module
+inherits it; `Edit` and `Retire` sit inside the disclosed body, because a submit
+button inside `<summary>` would submit and toggle on the same click.
+
+The catalogue picker queries `training.exercises.index` as the user
 types — 876 rows cannot be a prop on the loop screen. Reordering posts the **whole** order, because
 `ReorderRoutine` refuses a payload that does not name every current row.
 

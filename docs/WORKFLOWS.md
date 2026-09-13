@@ -67,6 +67,12 @@ That line is drawn identically on both sides, and it is the same line `docs/NOTE
 between a prescription and an occasion. A configuration belongs to the action because it is part of
 the standing prescription; a record belongs to the occasion because it is a fact about that one time.
 
+The config site is *disclosed*, and the record site is not. A configuration is
+reference material read far less often than it is scrolled past, so the action
+layer collapses an action that has one; a record surface is one line that gets a
+person into the occasion, and collapsing it would put a click in front of the
+thing the screen exists for.
+
 **Either slot may be null.** A workflow that attaches nothing at a site is not a special case; it is
 an empty site.
 

@@ -2,7 +2,8 @@ import { Form } from '@inertiajs/react';
 import { useState } from 'react';
 import { Button } from '@/patyourself/primitives';
 import { WorkflowConfig } from '@/patyourself/workflow-config';
-import type { WorkflowConfigRow } from '@/patyourself/workflows';
+import type { WorkflowConfigRow, WorkflowRegistry } from '@/patyourself/workflows';
+import { WORKFLOWS, configSurfaceFor } from '@/patyourself/workflows';
 import { destroy, update } from '@/routes/actions';
 import actionsRoutes from '@/routes/loops/actions';
 
@@ -33,6 +34,10 @@ type Props = {
     /** The loop's workflow, or null for a plain loop, which draws nothing
      *  extra here. */
     workflow?: string | null;
+    /** Injectable so a test can exercise the collapsed shape without a second
+     *  module having been shipped — the same reason `WorkflowConfig` takes
+     *  one. Defaults to the registry the app actually draws. */
+    registry?: WorkflowRegistry;
 };
 
 const FIELD_CLASS =
@@ -45,68 +50,84 @@ const FIELD_CLASS =
  * occurrences, so the copy says "retire" and says the history is kept — a
  * button labelled "delete" would be describing a write that does not happen.
  */
-export function ActionLayer({ loopId, actions, workflow = null }: Props) {
+export function ActionLayer({
+    loopId,
+    actions,
+    workflow = null,
+    registry = WORKFLOWS,
+}: Props) {
     const [kind, setKind] = useState<'clock' | 'anchored'>('clock');
     const [editing, setEditing] = useState<number | null>(null);
 
     return (
         <div className="space-y-4">
             <ul className="space-y-2">
-                {actions.map((action) => (
-                    <li key={action.id} className="space-y-2">
-                        {editing === action.id ? (
-                            <ActionEditor
-                                action={action}
-                                onDone={() => setEditing(null)}
-                            />
-                        ) : (
-                            <div className="flex items-center justify-between gap-3">
-                                <span>
-                                    <span className="block">
-                                        {action.title}
-                                    </span>
-                                    {action.cadence !== null && (
-                                        <span className="block text-sm opacity-70">
-                                            {action.cadence}
-                                        </span>
-                                    )}
-                                </span>
-                                <span className="flex items-center gap-1">
-                                    <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="sm"
-                                        aria-label={`Edit ${action.title}`}
-                                        onClick={() => setEditing(action.id)}
-                                    >
-                                        Edit
-                                    </Button>
-                                    <Form {...destroy.form(action.id)}>
-                                        {({ processing }) => (
-                                            <Button
-                                                type="submit"
-                                                variant="ghost"
-                                                size="sm"
-                                                disabled={processing}
-                                            >
-                                                Retire
-                                            </Button>
-                                        )}
-                                    </Form>
-                                </span>
-                            </div>
-                        )}
+                {actions.map((action) => {
+                    const rows = action.routine ?? null;
+                    const isEditing = editing === action.id;
 
-                        {/* Draws nothing for a plain loop, which is every loop
-                         *  with no workflow — the row above then reads exactly
-                         *  as it always has. */}
+                    // The same resolver the slot itself uses. An action only
+                    // collapses when there is genuinely something behind the
+                    // triangle: a plain loop, an unknown workflow name, or a
+                    // module with no config site all keep the flat row they
+                    // have always had.
+                    const collapses =
+                        configSurfaceFor(workflow, rows, registry) !== null;
+
+                    const controls = isEditing ? (
+                        <ActionEditor
+                            action={action}
+                            onDone={() => setEditing(null)}
+                        />
+                    ) : (
+                        <ActionControls
+                            action={action}
+                            onEdit={() => setEditing(action.id)}
+                        />
+                    );
+
+                    // Draws nothing for a plain loop, which is every loop
+                    // with no workflow — the row then reads exactly as it
+                    // always has.
+                    const config = (
                         <WorkflowConfig
                             workflow={workflow}
                             actionId={action.id}
-                            rows={action.routine ?? null}
+                            rows={rows}
+                            registry={registry}
                         />
-                    </li>
-                ))}
+                    );
+
+                    if (collapses) {
+                        return (
+                            <li key={action.id} className="space-y-2">
+                                <details>
+                                    <summary className="cursor-pointer">
+                                        <ActionHeader action={action} />
+                                    </summary>
+                                    <div className="space-y-2 pt-2">
+                                        {controls}
+                                        {config}
+                                    </div>
+                                </details>
+                            </li>
+                        );
+                    }
+
+                    return (
+                        <li key={action.id} className="space-y-2">
+                            {isEditing ? (
+                                controls
+                            ) : (
+                                <div className="flex items-center justify-between gap-3">
+                                    <ActionHeader action={action} />
+                                    {controls}
+                                </div>
+                            )}
+                            {config}
+                        </li>
+                    );
+                })}
             </ul>
 
             <p className="text-sm opacity-70">
@@ -244,6 +265,68 @@ export function ActionLayer({ loopId, actions, workflow = null }: Props) {
                 </Form>
             </details>
         </div>
+    );
+}
+
+/**
+ * What an action says about itself: its title, and its cadence when it has one
+ * to name.
+ *
+ * Rendered inside `<summary>` for an action that collapses and inside the flat
+ * row for one that does not, so the two shapes cannot drift into describing an
+ * action differently.
+ */
+function ActionHeader({ action }: { action: ActionSummary }) {
+    return (
+        <span>
+            <span className="block">{action.title}</span>
+            {action.cadence !== null && (
+                <span className="block text-sm opacity-70">
+                    {action.cadence}
+                </span>
+            )}
+        </span>
+    );
+}
+
+/**
+ * The two things that can be done to an action from the layer.
+ *
+ * These live *outside* `<summary>` for a collapsing action, which is not a
+ * layout preference: `Retire` is a submit button inside a form, and a button
+ * inside `<summary>` both submits and toggles the disclosure on one click.
+ */
+function ActionControls({
+    action,
+    onEdit,
+}: {
+    action: ActionSummary;
+    onEdit: () => void;
+}) {
+    return (
+        <span className="flex items-center gap-1">
+            <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                aria-label={`Edit ${action.title}`}
+                onClick={onEdit}
+            >
+                Edit
+            </Button>
+            <Form {...destroy.form(action.id)}>
+                {({ processing }) => (
+                    <Button
+                        type="submit"
+                        variant="ghost"
+                        size="sm"
+                        disabled={processing}
+                    >
+                        Retire
+                    </Button>
+                )}
+            </Form>
+        </span>
     );
 }
 
