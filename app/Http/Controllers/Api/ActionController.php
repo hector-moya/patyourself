@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Actions\RescheduleAction;
 use App\Http\Controllers\Controller;
-use App\Http\Requests\RescheduleActionRequest;
+use App\Http\Requests\Api\RescheduleActionRequest;
 use App\Models\Action;
 use App\Services\Scheduling\MaterialiseOccurrences;
 use Illuminate\Http\JsonResponse;

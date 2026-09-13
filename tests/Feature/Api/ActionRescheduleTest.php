@@ -132,6 +132,27 @@ class ActionRescheduleTest extends TestCase
             ->assertJsonValidationErrors('time');
     }
 
+    /**
+     * This endpoint reschedules; it does not rename. A payload without a
+     * `kind` is refused rather than reaching RescheduleAction, whose `$kind`
+     * is not nullable.
+     *
+     * Killing mutation: point this controller back at the web
+     * RescheduleActionRequest, where `kind` is optional. The request then
+     * validates, `kind` resolves to null, and handle() raises a TypeError
+     * instead of this 422.
+     */
+    public function test_a_payload_without_a_kind_is_refused(): void
+    {
+        $user = User::factory()->create(['timezone' => 'UTC']);
+        $action = $this->actionFor($user);
+        Sanctum::actingAs($user);
+
+        $this->patchJson("/api/actions/{$action->id}", ['title' => 'Renamed'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('kind');
+    }
+
     protected function tearDown(): void
     {
         Carbon::setTestNow();
