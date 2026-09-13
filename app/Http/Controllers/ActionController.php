@@ -17,18 +17,42 @@ use Illuminate\Validation\ValidationException;
 
 class ActionController extends Controller
 {
+    /**
+     * Amends an action: its wording, its schedule, or both.
+     *
+     * The two halves go to different writers on purpose. A title is a plain
+     * column write; a schedule change re-anchors the series and purges the
+     * grid it abandons, so routing a rename through the rescheduler would
+     * delete future occasions for a text edit. `kind` is what says a schedule
+     * was actually submitted — the same rule `UpdateActionTool` applies, so the
+     * app and the connector amend an action the same way.
+     */
     public function update(RescheduleActionRequest $request, Action $action, RescheduleAction $reschedule): RedirectResponse
     {
         Gate::authorize('update', $action);
 
-        $reschedule->handle(
-            $action,
-            $request->validated('kind'),
-            $request->validated('time'),
-            $request->validated('recurrence'),
-            $request->validated('anchor'),
-            $request->user()->timezone ?? (string) config('app.timezone'),
+        $fields = array_filter(
+            [
+                'title' => $request->validated('title'),
+                'description' => $request->validated('description'),
+            ],
+            static fn ($value): bool => $value !== null,
         );
+
+        if ($fields !== []) {
+            $action->update($fields);
+        }
+
+        if ($request->validated('kind') !== null) {
+            $reschedule->handle(
+                $action,
+                $request->validated('kind'),
+                $request->validated('time'),
+                $request->validated('recurrence'),
+                $request->validated('anchor'),
+                $request->user()->timezone ?? (string) config('app.timezone'),
+            );
+        }
 
         return back();
     }
