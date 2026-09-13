@@ -2,7 +2,17 @@ import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { ActionLayer } from './action-layer';
 
-const actions = [{ id: 3, title: 'Weigh in', cadence: 'daily at 07:00' }];
+const actions = [
+    {
+        id: 3,
+        title: 'Weigh in',
+        cadence: 'daily at 07:00',
+        scheduleKind: null,
+        time: null,
+        recurrence: null,
+        anchor: null,
+    },
+];
 
 describe('ActionLayer', () => {
     it('lists the loop’s live actions with their cadence', () => {
@@ -47,7 +57,17 @@ describe('ActionLayer', () => {
         render(
             <ActionLayer
                 loopId={2}
-                actions={[{ id: 4, title: 'Stretch', cadence: null }]}
+                actions={[
+                    {
+                        id: 4,
+                        title: 'Stretch',
+                        cadence: null,
+                        scheduleKind: null,
+                        time: null,
+                        recurrence: null,
+                        anchor: null,
+                    },
+                ]}
             />,
         );
 

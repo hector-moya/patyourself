@@ -12,14 +12,16 @@ export type ActionSummary = {
     /** Null when the action has neither a recurrence nor a next occurrence to
      *  name — see cadenceLabel. Never a partial string like "daily at ". */
     cadence: string | null;
-    /** The four fields below are the action's schedule, raw rather than
-     *  formatted — `ActionEditor` opens on them so a save never posts a
-     *  schedule other than the one the action already has. Optional, like
-     *  `routine`, for callers (tests) that only need the read row. */
-    scheduleKind?: 'clock' | 'anchored' | null;
-    time?: string | null;
-    recurrence?: string | null;
-    anchor?: string | null;
+    /** The action's schedule, raw rather than formatted. `ActionEditor` opens
+     *  on these so a save never posts a schedule other than the one the action
+     *  already has. Required rather than optional: a caller that stopped
+     *  passing them would put the editor back on its own defaults, silently,
+     *  and a title-only save would then reschedule the action. Null is a real
+     *  value here — a cue-anchored action has no clock time. */
+    scheduleKind: 'clock' | 'anchored' | null;
+    time: string | null;
+    recurrence: string | null;
+    anchor: string | null;
     /** The action's configuration under the loop's workflow, or null when the
      *  loop has none — see `WorkflowConfig` for why the two are kept apart. */
     routine?: WorkflowConfigRow[] | null;
