@@ -17,6 +17,7 @@ use App\Services\Authoring\AuthoredStrategy;
 use App\Services\Scheduling\MaterialiseOccurrences;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\ValidationException;
 use RuntimeException;
 use Tests\TestCase;
 
@@ -207,7 +208,7 @@ class SeriesAnchorTest extends TestCase
             ->for(Intention::factory()->for($user))
             ->create(['series_started_at' => $anchor, 'recurrence' => 'daily']);
 
-        app(RescheduleAction::class)->handle($action, 'clock', '19:30', 'daily', null, 'UTC');
+        app(RescheduleAction::class)->handle($action, 'clock', null, '19:30', 'daily', null, 'UTC');
 
         $fresh = $action->fresh();
 
@@ -223,7 +224,7 @@ class SeriesAnchorTest extends TestCase
             ->for(Intention::factory()->for($user))
             ->create(['series_started_at' => $anchor, 'recurrence' => 'daily']);
 
-        app(RescheduleAction::class)->handle($action, 'anchored', null, null, 'after dinner', 'UTC');
+        app(RescheduleAction::class)->handle($action, 'anchored', null, null, null, 'after dinner', 'UTC');
 
         $fresh = $action->fresh();
 
@@ -246,7 +247,7 @@ class SeriesAnchorTest extends TestCase
             'scheduled_for' => Carbon::parse('2026-08-24 21:00:00'),
         ]);
 
-        app(RescheduleAction::class)->handle($action, 'anchored', null, null, 'after washing up', 'UTC');
+        app(RescheduleAction::class)->handle($action, 'anchored', null, null, null, 'after washing up', 'UTC');
 
         $this->assertDatabaseMissing('occurrences', ['id' => $future->id]);
     }
@@ -264,7 +265,7 @@ class SeriesAnchorTest extends TestCase
             'scheduled_for' => Carbon::parse('2026-08-24 21:00:00'),
         ]);
 
-        app(RescheduleAction::class)->handle($action, 'clock', '07:00', 'daily', null, 'UTC');
+        app(RescheduleAction::class)->handle($action, 'clock', null, '07:00', 'daily', null, 'UTC');
 
         $this->assertDatabaseMissing('occurrences', ['id' => $future->id]);
     }
@@ -282,7 +283,7 @@ class SeriesAnchorTest extends TestCase
             'scheduled_for' => Carbon::parse('2026-08-22 09:00:00'),
         ]);
 
-        app(RescheduleAction::class)->handle($action, 'clock', '07:00', 'daily', null, 'UTC');
+        app(RescheduleAction::class)->handle($action, 'clock', null, '07:00', 'daily', null, 'UTC');
 
         $this->assertDatabaseHas('occurrences', ['id' => $past->id]);
     }
@@ -301,7 +302,7 @@ class SeriesAnchorTest extends TestCase
         ]);
         ActionLog::factory()->for($action)->for($logged)->create();
 
-        app(RescheduleAction::class)->handle($action, 'clock', '07:00', 'daily', null, 'UTC');
+        app(RescheduleAction::class)->handle($action, 'clock', null, '07:00', 'daily', null, 'UTC');
 
         // The record is append-only. A future slot that already carries an
         // outcome is evidence, not a phantom.
@@ -415,7 +416,7 @@ class SeriesAnchorTest extends TestCase
         });
 
         try {
-            app(RescheduleAction::class)->handle($action, 'clock', '07:00', 'daily', null, 'UTC');
+            app(RescheduleAction::class)->handle($action, 'clock', null, '07:00', 'daily', null, 'UTC');
             $this->fail('Expected the re-anchor to throw.');
         } catch (RuntimeException) {
             // Expected.
@@ -466,6 +467,7 @@ class SeriesAnchorTest extends TestCase
         $rescheduled = app(RescheduleAction::class)->handle(
             $action,
             'clock',
+            null,
             $action->series_started_at->setTimezone('Europe/London')->format('H:i'),
             'daily',
             null,
@@ -497,9 +499,214 @@ class SeriesAnchorTest extends TestCase
             'scheduled_for' => Carbon::parse('2026-08-27 09:00:00'),
         ]);
 
-        app(RescheduleAction::class)->handle($action, 'anchored', null, null, 'after brushing my teeth', 'UTC');
+        app(RescheduleAction::class)->handle($action, 'anchored', null, null, null, 'after brushing my teeth', 'UTC');
 
         $this->assertDatabaseHas('occurrences', ['id' => $occurrence->id]);
+    }
+
+    /**
+     * 2026-09-14 is a Monday; 2026-09-09, 2026-09-16, 2026-09-23 and
+     * 2026-09-30 are the Wednesdays around it. The weekday assertions are
+     * self-documenting anchors.
+     */
+    public function test_a_future_start_date_anchors_the_series_to_it(): void
+    {
+        Carbon::setTestNow('2026-09-14 12:00:00');
+
+        $action = Action::factory()->create([
+            'series_started_at' => Carbon::parse('2026-09-14 07:00:00'),
+            'recurrence' => 'daily',
+            'metadata' => ['schedule_kind' => 'clock'],
+        ]);
+
+        $rescheduled = app(RescheduleAction::class)->handle(
+            $action, 'clock', '2026-09-23', '07:30', 'weekly', null, 'UTC',
+        );
+
+        $this->assertSame('2026-09-23 07:30:00', $rescheduled->series_started_at->utc()->format('Y-m-d H:i:s'));
+        $this->assertTrue($rescheduled->series_started_at->isWednesday());
+    }
+
+    /**
+     * A date names a day. Picking a Wednesday that has gone means the next
+     * Wednesday, not a back-dated series — which would mint occasions nobody
+     * was asked about, every one of them landing on /catch-up.
+     *
+     * Starts from a cue-anchored action so the result is observable: an action
+     * already on the same weekly grid would converge with the guard and
+     * correctly change nothing.
+     */
+    public function test_a_past_start_date_snaps_forward_onto_its_own_grid(): void
+    {
+        Carbon::setTestNow('2026-09-14 12:00:00');
+
+        $action = Action::factory()->anchored()->create();
+
+        $rescheduled = app(RescheduleAction::class)->handle(
+            $action, 'clock', '2026-09-09', '07:30', 'weekly', null, 'UTC',
+        );
+
+        $this->assertSame('2026-09-16 07:30:00', $rescheduled->series_started_at->utc()->format('Y-m-d H:i:s'));
+        $this->assertDatabaseMissing('occurrences', ['action_id' => $action->id]);
+    }
+
+    /**
+     * The guard from the frozen amendable-action-layer spec §3, re-pinned under
+     * the date branch. The edit form posts the schedule on every save, so a
+     * pure rename resubmits the action's own anchor date — which is in the past
+     * for any running weekly action.
+     *
+     * Killing mutation: drop the date branch from describesTheSameSchedule().
+     * The occurrence below is unlogged and in the future, which is exactly what
+     * purgeAbandonedOccurrences() removes.
+     */
+    public function test_resubmitting_a_past_anchor_date_unchanged_changes_nothing(): void
+    {
+        Carbon::setTestNow('2026-09-14 12:00:00');
+
+        $action = Action::factory()->create([
+            'series_started_at' => Carbon::parse('2026-09-09 07:30:00'),
+            'recurrence' => 'weekly',
+            'metadata' => ['schedule_kind' => 'clock'],
+        ]);
+
+        $occurrence = Occurrence::factory()->for($action)->create([
+            'scheduled_for' => Carbon::parse('2026-09-16 07:30:00'),
+        ]);
+
+        $rescheduled = app(RescheduleAction::class)->handle(
+            $action, 'clock', '2026-09-09', '07:30', 'weekly', null, 'UTC',
+        );
+
+        $this->assertSame('2026-09-09 07:30:00', $rescheduled->series_started_at->utc()->format('Y-m-d H:i:s'));
+        $this->assertDatabaseHas('occurrences', ['id' => $occurrence->id]);
+    }
+
+    /**
+     * Moving the start to a later date on the same weekday is a real change —
+     * skipping a week — and must not read as "unchanged".
+     *
+     * Killing mutation: compare only time, recurrence and kind, as the guard
+     * did before this branch existed. The action then keeps its old anchor and
+     * the edit silently does nothing.
+     */
+    public function test_moving_the_start_to_a_later_date_reschedules(): void
+    {
+        Carbon::setTestNow('2026-09-14 12:00:00');
+
+        $action = Action::factory()->create([
+            'series_started_at' => Carbon::parse('2026-09-09 07:30:00'),
+            'recurrence' => 'weekly',
+            'metadata' => ['schedule_kind' => 'clock'],
+        ]);
+
+        Occurrence::factory()->for($action)->create([
+            'scheduled_for' => Carbon::parse('2026-09-16 07:30:00'),
+        ]);
+
+        $rescheduled = app(RescheduleAction::class)->handle(
+            $action, 'clock', '2026-09-30', '07:30', 'weekly', null, 'UTC',
+        );
+
+        $this->assertSame('2026-09-30 07:30:00', $rescheduled->series_started_at->utc()->format('Y-m-d H:i:s'));
+        $this->assertDatabaseMissing('occurrences', ['action_id' => $action->id]);
+    }
+
+    /**
+     * Two different past Wednesdays describe the same weekly series, so moving
+     * between them changes nothing observable and must not purge and rebuild
+     * the grid.
+     *
+     * Killing mutation: compare the submitted date string against the stored
+     * anchor's date instead of comparing where the two schedules land. The
+     * dates differ, so the guard misses and the occurrence below is purged.
+     */
+    public function test_a_different_past_date_on_the_same_grid_changes_nothing(): void
+    {
+        Carbon::setTestNow('2026-09-14 12:00:00');
+
+        $action = Action::factory()->create([
+            'series_started_at' => Carbon::parse('2026-09-09 07:30:00'),
+            'recurrence' => 'weekly',
+            'metadata' => ['schedule_kind' => 'clock'],
+        ]);
+
+        $occurrence = Occurrence::factory()->for($action)->create([
+            'scheduled_for' => Carbon::parse('2026-09-16 07:30:00'),
+        ]);
+
+        $rescheduled = app(RescheduleAction::class)->handle(
+            $action, 'clock', '2026-09-02', '07:30', 'weekly', null, 'UTC',
+        );
+
+        $this->assertSame('2026-09-09 07:30:00', $rescheduled->series_started_at->utc()->format('Y-m-d H:i:s'));
+        $this->assertDatabaseHas('occurrences', ['id' => $occurrence->id]);
+    }
+
+    /**
+     * Changing only the time on an action whose anchor has passed re-anchors
+     * forward rather than leaving the series in the past. Refusing this was the
+     * alternative design and it would have rejected an ordinary edit.
+     */
+    public function test_changing_only_the_time_on_a_past_anchor_moves_it_forward(): void
+    {
+        Carbon::setTestNow('2026-09-14 12:00:00');
+
+        $action = Action::factory()->create([
+            'series_started_at' => Carbon::parse('2026-09-09 07:30:00'),
+            'recurrence' => 'weekly',
+            'metadata' => ['schedule_kind' => 'clock'],
+        ]);
+
+        $rescheduled = app(RescheduleAction::class)->handle(
+            $action, 'clock', '2026-09-09', '08:00', 'weekly', null, 'UTC',
+        );
+
+        $this->assertSame('2026-09-16 08:00:00', $rescheduled->series_started_at->utc()->format('Y-m-d H:i:s'));
+        $this->assertTrue($rescheduled->series_started_at->greaterThan(Carbon::now()));
+    }
+
+    /** A one-off has no grid to snap onto, so a date that has passed is refused. */
+    public function test_a_one_off_cannot_be_moved_to_a_date_that_has_passed(): void
+    {
+        Carbon::setTestNow('2026-09-14 12:00:00');
+
+        $action = Action::factory()->create([
+            'series_started_at' => Carbon::parse('2026-09-20 09:00:00'),
+            'recurrence' => null,
+            'metadata' => ['schedule_kind' => 'clock'],
+        ]);
+
+        $this->expectException(ValidationException::class);
+
+        app(RescheduleAction::class)->handle(
+            $action, 'clock', '2026-09-10', '09:00', 'once', null, 'UTC',
+        );
+    }
+
+    /**
+     * The refusal above sits *after* the unchanged-schedule guard, so a one-off
+     * whose date has already passed can still be renamed — the save resubmits
+     * its own date and returns before the refusal is reached.
+     *
+     * Killing mutation: move the past-date refusal above the guard. This test
+     * then throws.
+     */
+    public function test_a_one_off_resubmitting_its_own_past_date_is_a_no_op(): void
+    {
+        Carbon::setTestNow('2026-09-14 12:00:00');
+
+        $action = Action::factory()->create([
+            'series_started_at' => Carbon::parse('2026-09-10 09:00:00'),
+            'recurrence' => null,
+            'metadata' => ['schedule_kind' => 'clock'],
+        ]);
+
+        $rescheduled = app(RescheduleAction::class)->handle(
+            $action, 'clock', '2026-09-10', '09:00', 'once', null, 'UTC',
+        );
+
+        $this->assertSame('2026-09-10 09:00:00', $rescheduled->series_started_at->utc()->format('Y-m-d H:i:s'));
     }
 
     protected function tearDown(): void

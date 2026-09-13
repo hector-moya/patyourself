@@ -52,6 +52,10 @@ class ActionController extends Controller
             $action = $reschedule->handle(
                 $action,
                 $request->validated('kind'),
+                // No date yet: the edit form gains its date input in a later
+                // task, and without one the writer derives the anchor exactly
+                // as it always has.
+                null,
                 $request->validated('time'),
                 $request->validated('recurrence'),
                 $request->validated('anchor'),

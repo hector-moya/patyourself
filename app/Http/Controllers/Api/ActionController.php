@@ -23,6 +23,11 @@ class ActionController extends Controller
         $action = $reschedule->handle(
             $action,
             $request->validated('kind'),
+            // The JSON API does not accept a start date. Passing null takes
+            // the derived-anchor path, which is what this endpoint has
+            // always done. Widening it is a separate decision about a
+            // separate surface.
+            null,
             $request->validated('time'),
             $request->validated('recurrence'),
             $request->validated('anchor'),

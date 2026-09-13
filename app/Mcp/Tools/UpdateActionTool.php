@@ -74,6 +74,9 @@ class UpdateActionTool extends Tool
             $action = $reschedule->handle(
                 $action,
                 $validated['kind'],
+                // The connector does not send a start date; null takes the
+                // derived-anchor path `update-action` has always taken.
+                null,
                 $validated['time'] ?? null,
                 $validated['recurrence'] ?? null,
                 $validated['anchor'] ?? null,

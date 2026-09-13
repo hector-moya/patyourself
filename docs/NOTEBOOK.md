@@ -120,6 +120,34 @@ list permanently empty.
 `RescheduleAction` re-anchors, and the old grid and the new one do not share a phase — resuming
 would continue the cadence that was abandoned.
 
+### Choosing where the series starts
+
+`Schedule::anchorAt()` resolves the anchor an edit describes. Without a date it
+delegates to `firstOccurrence()` — the next occurrence at or after now with that
+local time — which is what `daily` and `weekdays` take, and what the JSON API
+and the MCP connector take, neither of which sends a date.
+
+With a date, **the date names a day, not an instant.** "Wednesday, weekly" means
+every Wednesday, so a date that has already passed is snapped forward onto its
+own grid by `onOrAfter()` rather than refused. That is the sibling of
+`nextAfter()`, not a wrapper: `nextAfter()` advances at least once, which would
+push every future start date one period later.
+
+**A back-dated anchor is never stored.** `MaterialiseOccurrences` walks from the
+anchor to the end of the local day, so one would not record history — it would
+mint occasions nobody was ever asked about, all unlogged, all landing on
+`/catch-up`, against the reason §5's window exists at all.
+
+**A one-off is the exception**, because it has no grid to snap onto: its date is
+the whole schedule. A *changed* date in the past is refused with a validation
+error. An *unchanged* one never reaches the refusal, because the unchanged-
+schedule guard returns first — which is what keeps a one-off whose date has
+passed renameable.
+
+The add-an-action form is deliberately still time-only. A date there would reach
+`AuthoredAction`, and through it loop creation, `StartExperiment` and the
+connector's authoring pipeline. Add an action, then edit it to set a start date.
+
 ### Anchored actions have no grid
 
 An action with `series_started_at = null` is cue-anchored: "train after work". It has no clock time,

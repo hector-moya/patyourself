@@ -8,6 +8,7 @@ use App\Services\Scheduling\Recurrence;
 use App\Services\Scheduling\Schedule;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Recomputes and persists an Action's schedule from a user edit. Clock edits
@@ -16,14 +17,18 @@ use Illuminate\Support\Facades\DB;
  */
 final readonly class RescheduleAction
 {
-    public function __construct(private ReanchorsSeries $reanchor) {}
+    public function __construct(private ReanchorsSeries $reanchor, private Schedule $schedule) {}
 
-    public function handle(Action $action, string $kind, ?string $time, ?string $recurrence, ?string $anchor, string $timezone): Action
+    public function handle(Action $action, string $kind, ?string $date, ?string $time, ?string $recurrence, ?string $anchor, string $timezone): Action
     {
+        // One clock read for the whole method: the guard, the past-date refusal
+        // and the purge must all agree about when "now" is.
+        $now = CarbonImmutable::now();
+
         $rule = $kind === 'clock' ? Recurrence::tryFromToken($recurrence) : null;
 
         $scheduledFor = $kind === 'clock'
-            ? (new Schedule)->firstOccurrence(CarbonImmutable::now(), $time, $rule, $timezone)
+            ? $this->schedule->anchorAt($now, $date, $time, $rule, $timezone)
             : null;
 
         $metadata = array_merge($action->metadata ?? [], [
@@ -40,8 +45,25 @@ final readonly class RescheduleAction
         // The guard lives here rather than in the client because a client that
         // forgot to diff would delete occasions silently, and the connector
         // reaches this writer by a different route. One place, both callers.
-        if ($this->describesTheSameSchedule($action, $kind, $time, $recurrence, $anchor, $timezone)) {
+        if ($this->describesTheSameSchedule($action, $kind, $date, $scheduledFor, $time, $recurrence, $anchor, $timezone, $now)) {
             return $action;
+        }
+
+        // A one-off is its date, and it has no grid to snap onto, so a date
+        // that has passed cannot be resolved into a sensible anchor the way a
+        // recurring one can. Refused rather than stored, because storing it
+        // materialises an occasion for a moment that is already gone.
+        //
+        // After the guard on purpose: a one-off whose date has passed must
+        // still be renameable, and a rename resubmits that same past date.
+        //
+        // Unreachable without a date — firstOccurrence() cannot return a past
+        // instant — and guarded on `$date` anyway so that stays true by
+        // construction rather than by argument.
+        if ($date !== null && $rule === null && $scheduledFor !== null && $scheduledFor->lessThanOrEqualTo($now)) {
+            throw ValidationException::withMessages([
+                'date' => 'Pick a date that has not passed.',
+            ]);
         }
 
         // Dropping the abandoned grid and moving the anchor are one act.
@@ -58,7 +80,7 @@ final readonly class RescheduleAction
         // whose write lands after the commit can still re-create old rows.
         // Closing that needs a row lock on the per-minute materialisation path,
         // which costs more than the stale slots it would prevent.
-        DB::transaction(function () use ($action, $scheduledFor, $rule, $metadata): void {
+        DB::transaction(function () use ($action, $scheduledFor, $rule, $metadata, $now): void {
             // Purges the grid the action is abandoning. Only unlogged future
             // slots go: anything already logged is evidence and the record is
             // append-only. Shared with ReanchorsSeries::forActions() rather
@@ -66,7 +88,7 @@ final readonly class RescheduleAction
             // was reversed. Unconditional, regardless of whether the action
             // carries a series anchor: a cue-anchored action can still have a
             // stray future occurrence to drop.
-            $this->reanchor->purgeAbandonedOccurrences($action, CarbonImmutable::now());
+            $this->reanchor->purgeAbandonedOccurrences($action, $now);
 
             $action->update([
                 // The anchor marks where the action's *current* cadence began, so
@@ -86,17 +108,31 @@ final readonly class RescheduleAction
     /**
      * Whether the submitted schedule describes the one the action already has.
      *
-     * Compared on the description — kind, time of day, recurrence, anchor
-     * phrase — rather than on the resolved anchor. `Schedule::firstOccurrence()`
-     * resolves relative to now, so an action anchored last week that resubmits
-     * its own time computes tomorrow's instant and would never match; the
-     * guard would then fire only for actions rescheduled minutes ago, which is
-     * the opposite of the case it exists for.
+     * Two branches, because the anchor is computed two different ways.
      *
-     * The stored anchor is localised to compare its time of day.
-     * `setTimezone()` resolves the offset in effect at that instant, so an
-     * anchor set at 17:30 in summer still reads 17:30 in winter and a daylight
-     * saving change does not read as an edit.
+     * **Without a date** the anchor is derived from `now`, so comparing
+     * resolved instants would never match: an action anchored last week that
+     * resubmits its own time computes tomorrow's instant, and the guard would
+     * then fire only for actions rescheduled minutes ago — the opposite of the
+     * case it exists for. Compared on the description instead. The stored
+     * anchor is localised to read its time of day; `setTimezone()` resolves the
+     * offset in effect at that instant, so an anchor set at 17:30 in summer
+     * still reads 17:30 in winter and a daylight saving change does not read as
+     * an edit.
+     *
+     * **With a date** the computation is absolute, so the two schedules can be
+     * compared on where they actually land: they are the same schedule when
+     * they converge on the same next occurrence. That is stricter than a date
+     * comparison in one direction and looser in the other, and both are
+     * deliberate. Moving a weekly action to the Wednesday after next is a real
+     * change even though the weekday is unchanged; moving it between two
+     * Wednesdays that have both passed is not a change at all, because both
+     * describe the same series and re-anchoring would purge and rebuild the
+     * grid for something nobody could observe.
+     *
+     * Recurrence is compared before either branch, so both sides of the
+     * convergence test walk the same grid — otherwise a weekly-to-daily change
+     * could converge by accident.
      *
      * `once` and a null recurrence are the same thing — a one-off — so the
      * submitted token goes through `Recurrence::tryFromToken()` before the
@@ -105,10 +141,13 @@ final readonly class RescheduleAction
     private function describesTheSameSchedule(
         Action $action,
         string $kind,
+        ?string $date,
+        ?CarbonImmutable $scheduledFor,
         ?string $time,
         ?string $recurrence,
         ?string $anchor,
         string $timezone,
+        CarbonImmutable $now,
     ): bool {
         $metadata = $action->metadata ?? [];
 
@@ -120,7 +159,22 @@ final readonly class RescheduleAction
             return ($metadata['anchor'] ?? null) === $anchor;
         }
 
-        return $action->series_started_at?->setTimezone($timezone)->format('H:i') === $time
-            && $action->recurrence === Recurrence::tryFromToken($recurrence)?->value;
+        $rule = Recurrence::tryFromToken($recurrence);
+
+        if ($action->recurrence !== $rule?->value) {
+            return false;
+        }
+
+        if ($date === null) {
+            return $action->series_started_at?->setTimezone($timezone)->format('H:i') === $time;
+        }
+
+        if ($action->series_started_at === null || $scheduledFor === null) {
+            return false;
+        }
+
+        return $scheduledFor->equalTo(
+            $this->schedule->onOrAfter($action->series_started_at, $now, $rule, $timezone),
+        );
     }
 }
