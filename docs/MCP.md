@@ -220,3 +220,7 @@ tests/Feature/NoLlmTest.php               keeps the model provider out
 - **Nothing surfaces `summaries` back to the coach except through `get-loop`'s loop payload**, so a
   reflection cannot be read back on its own before being replaced.
 - **No tool writes a user-scoped summary,** though `summaries.scope` supports one.
+- **No tool amends a routine row.** The connector can add and remove routine
+  rows but not change one's targets; the app can, through
+  `actions.exercises.update`. The mirror of the gap `create-loop` has with
+  `workflow`, and open for the same reason — nobody has needed it yet.

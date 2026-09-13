@@ -137,6 +137,7 @@ outside a session for that reason.
 | `AddRoutineExercise` | Appends one row. Position is computed here, never accepted from the caller |
 | `RemoveRoutineExercise` | Drops one row and renumbers the rest so the list reads 1, 2, 3 |
 | `ReorderRoutine` | Rewrites the order wholesale |
+| `UpdateRoutineExercise` | Changes one row's targets. Leaves `position` alone |
 | `RecordSet` | Writes one `PerformedSet`. The record site's only writer |
 
 Three shapes repeat, and all three are there for a reason:
@@ -271,7 +272,7 @@ app/Models/
   ActionExercise.php                          the config site
   PerformedSet.php                            the record site
 app/Actions/Training/                         AddRoutineExercise, RemoveRoutineExercise,
-                                              ReorderRoutine, RecordSet
+                                              ReorderRoutine, UpdateRoutineExercise, RecordSet
 app/Services/Training/                        SessionScreen, LastPerformance, ExerciseHistory,
                                               RoutineOrderException
 app/Http/Controllers/Training/                Routine, Session, PerformedSet, Exercise,
@@ -296,8 +297,10 @@ tests/Feature/Training/                       including GymWorkflowRegistryTest
   the catalogue or build a routine. See `docs/DEPLOY-FORGE.md` §14.
 - **No exercise images.** The source data has them; `image_path` is null on every imported row.
 - **No rep range** — `target_reps` is a single integer. See §3.
-- **No set editing or deletion.** `RecordSet` is the only writer and there is no update endpoint, which
-  is why a recorded row renders as settled in the set grid. A mistyped set stays mistyped.
+- **No performed-set editing or deletion.** `RecordSet` is the only writer of a
+  `PerformedSet` and there is no update endpoint, which is why a recorded row
+  renders as settled in the set grid. A mistyped set stays mistyped. A routine
+  row's *targets* are editable — see §6 — but what was lifted is not.
 - **`ReorderRoutine` has no MCP tool.** The connector can add and remove routine rows but not reorder
   them; reordering is a screen-only act.
 - **Nothing verifies the catalogue is seeded** beyond a manual `SELECT COUNT(*)` in the deploy

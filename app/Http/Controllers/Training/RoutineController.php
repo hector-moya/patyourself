@@ -5,9 +5,11 @@ namespace App\Http\Controllers\Training;
 use App\Actions\Training\AddRoutineExercise;
 use App\Actions\Training\RemoveRoutineExercise;
 use App\Actions\Training\ReorderRoutine;
+use App\Actions\Training\UpdateRoutineExercise;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Training\ReorderRoutineRequest;
 use App\Http\Requests\Training\StoreRoutineExerciseRequest;
+use App\Http\Requests\Training\UpdateRoutineExerciseRequest;
 use App\Models\Action;
 use App\Models\ActionExercise;
 use App\Policies\ActionPolicy;
@@ -56,6 +58,34 @@ class RoutineController extends Controller
             // rather than in a 500.
             throw ValidationException::withMessages(['order' => $e->getMessage()]);
         }
+
+        return back();
+    }
+
+    /**
+     * Changes what one row of the routine targets.
+     *
+     * The `action_id` check is the same one {@see self::destroy()} makes and
+     * for the same reason: route model binding resolves the row from the whole
+     * table, so without it, owning one action would be enough to edit another
+     * action's routine. A 404 rather than a 403 — a row that is not on this
+     * action does not exist as far as this URL is concerned.
+     */
+    public function update(
+        UpdateRoutineExerciseRequest $request,
+        Action $action,
+        ActionExercise $actionExercise,
+        UpdateRoutineExercise $update,
+    ): RedirectResponse {
+        Gate::authorize('update', $action);
+
+        abort_unless($actionExercise->action_id === $action->id, 404);
+
+        $update->handle(
+            $actionExercise,
+            $request->integer('target_sets'),
+            $request->integer('target_reps'),
+        );
 
         return back();
     }

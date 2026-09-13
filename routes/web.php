@@ -120,6 +120,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('actions.exercises.store');
     Route::patch('actions/{action}/exercises/reorder', [RoutineController::class, 'reorder'])
         ->name('actions.exercises.reorder');
+    Route::patch('actions/{action}/exercises/{actionExercise}', [RoutineController::class, 'update'])
+        ->name('actions.exercises.update');
     Route::delete('actions/{action}/exercises/{actionExercise}', [RoutineController::class, 'destroy'])
         ->name('actions.exercises.destroy');
 
