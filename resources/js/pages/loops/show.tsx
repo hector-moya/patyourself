@@ -137,11 +137,17 @@ export default function LoopShow({
     // The raw scheduling fields are turned into a display cadence here, with
     // the same rules `currentCadenceLabel` uses for the active action below —
     // one formatter, so the two never drift into disagreeing descriptions of
-    // the same kind of fact.
+    // the same kind of fact. The raw fields also pass through unformatted,
+    // alongside the cadence, so the action layer's editor can open on the
+    // action's own schedule instead of a set of defaults — see ActionEditor.
     const actionSummaries = actions.map((action) => ({
         id: action.id,
         title: action.title,
         cadence: cadenceLabel(action),
+        scheduleKind: action.schedule_kind,
+        time: action.time,
+        recurrence: action.recurrence,
+        anchor: action.anchor,
         routine: action.routine ?? null,
     }));
 

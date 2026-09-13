@@ -134,6 +134,9 @@ export interface ActionRecordData {
     recurrence: string | null;
     schedule_kind: 'clock' | 'anchored' | null;
     anchor: string | null;
+    /** The anchor's time of day in the owner's zone, `HH:MM`. Null for a
+     *  cue-anchored action, which has no clock time. */
+    time: string | null;
     /**
      * The action's configuration under the loop's workflow — for gym, its
      * routine. Null when the loop has no workflow that configures actions,

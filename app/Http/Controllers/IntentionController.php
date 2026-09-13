@@ -209,6 +209,7 @@ class IntentionController extends Controller
                 'recurrence' => $action->recurrence,
                 'schedule_kind' => $action->metadata['schedule_kind'] ?? null,
                 'anchor' => $action->metadata['anchor'] ?? null,
+                'time' => $action->series_started_at?->timezone($timezone)->format('H:i'),
                 'next_occurrence_at' => $action->nextOccurrenceAt()?->timezone($timezone)->toIso8601String(),
                 'routine' => $configuresActions
                     ? $action->actionExercises

@@ -131,6 +131,7 @@ function actionRecord(
         recurrence: null,
         schedule_kind: null,
         anchor: null,
+        time: null,
         ...overrides,
     };
 }
@@ -848,6 +849,81 @@ describe('LoopShow', () => {
 
         expect(screen.getByTestId('action-editor-3')).toBeInTheDocument();
         expect(screen.queryByTestId('action-editor-4')).not.toBeInTheDocument();
+    });
+
+    /**
+     * The form posts the schedule on every save, so a title-only edit is safe
+     * only if the schedule it posts is the one the action already has.
+     * `RescheduleAction` treats that as no reschedule and keeps the occasions;
+     * a form that posted its own defaults instead would silently move an
+     * anchored action to a clock schedule and purge them.
+     *
+     * Killing mutation: drop the defaultValue wiring and let the editor open
+     * on its own defaults. The anchored action's fields come back as clock,
+     * empty time and `once`, and all four assertions fail.
+     */
+    it('opens the editor on the action’s own schedule, not on defaults', async () => {
+        const user = userEvent.setup();
+
+        render(
+            <LoopShow
+                intention={intention()}
+                strategies={[]}
+                {...record}
+                actions={[
+                    actionRecord({
+                        id: 3,
+                        title: 'Upper body 2',
+                        schedule_kind: 'anchored',
+                        anchor: 'after work',
+                        recurrence: null,
+                        time: null,
+                    }),
+                ]}
+            />,
+        );
+
+        await user.click(
+            screen.getByRole('button', { name: /edit upper body 2/i }),
+        );
+
+        const editor = within(screen.getByTestId('action-editor-3'));
+
+        expect(editor.getByLabelText(/when/i)).toHaveValue('anchored');
+        expect(editor.getByLabelText(/after what/i)).toHaveValue('after work');
+        expect(editor.queryByLabelText(/^time$/i)).not.toBeInTheDocument();
+    });
+
+    /** Same wiring, exercised through the clock kind. */
+    it('opens the editor on the action’s own clock schedule', async () => {
+        const user = userEvent.setup();
+
+        render(
+            <LoopShow
+                intention={intention()}
+                strategies={[]}
+                {...record}
+                actions={[
+                    actionRecord({
+                        id: 3,
+                        title: 'Upper body 2',
+                        schedule_kind: 'clock',
+                        time: '17:30',
+                        recurrence: 'weekly',
+                    }),
+                ]}
+            />,
+        );
+
+        await user.click(
+            screen.getByRole('button', { name: /edit upper body 2/i }),
+        );
+
+        const editor = within(screen.getByTestId('action-editor-3'));
+
+        expect(editor.getByLabelText(/when/i)).toHaveValue('clock');
+        expect(editor.getByLabelText(/^time$/i)).toHaveValue('17:30');
+        expect(editor.getByLabelText(/how often/i)).toHaveValue('weekly');
     });
 
     describe('the workflow picker', () => {

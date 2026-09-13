@@ -12,6 +12,14 @@ export type ActionSummary = {
     /** Null when the action has neither a recurrence nor a next occurrence to
      *  name — see cadenceLabel. Never a partial string like "daily at ". */
     cadence: string | null;
+    /** The four fields below are the action's schedule, raw rather than
+     *  formatted — `ActionEditor` opens on them so a save never posts a
+     *  schedule other than the one the action already has. Optional, like
+     *  `routine`, for callers (tests) that only need the read row. */
+    scheduleKind?: 'clock' | 'anchored' | null;
+    time?: string | null;
+    recurrence?: string | null;
+    anchor?: string | null;
     /** The action's configuration under the loop's workflow, or null when the
      *  loop has none — see `WorkflowConfig` for why the two are kept apart. */
     routine?: WorkflowConfigRow[] | null;
@@ -246,6 +254,14 @@ export function ActionLayer({ loopId, actions, workflow = null }: Props) {
  * server rather than here on purpose: a diff computed in the client would
  * delete occasions the day it got the comparison wrong.
  *
+ * That safety only holds once the posted schedule is the one the guard
+ * compares against, though — so every field below is initialised from the
+ * action's own schedule, not from a fixed default. Opening on `clock`/empty
+ * fields regardless of what the action actually is would make a title-only
+ * save on an anchored, weekly action post `clock`/`once`, which is a real
+ * change: the guard would not fire, and the action's occasions would be
+ * purged. The pre-fill is what makes an unrelated edit safe, not decoration.
+ *
  * Field names are unprefixed to match `actions.update`. `StartExperimentForm`
  * asks the same questions under `action_*` names because it posts them to the
  * experiment endpoint — its markup is worth copying, its names are not.
@@ -257,7 +273,9 @@ function ActionEditor({
     action: ActionSummary;
     onDone: () => void;
 }) {
-    const [kind, setKind] = useState<'clock' | 'anchored'>('clock');
+    const [kind, setKind] = useState<'clock' | 'anchored'>(
+        action.scheduleKind ?? 'clock',
+    );
 
     return (
         <Form
@@ -325,6 +343,7 @@ function ActionEditor({
                                     id={`action-time-${action.id}`}
                                     name="time"
                                     type="time"
+                                    defaultValue={action.time ?? ''}
                                     className="rounded-md border border-border bg-background px-3 py-2 text-sm"
                                 />
                                 {errors.time && (
@@ -343,6 +362,7 @@ function ActionEditor({
                                 <select
                                     id={`action-recurrence-${action.id}`}
                                     name="recurrence"
+                                    defaultValue={action.recurrence ?? 'once'}
                                     className="rounded-md border border-border bg-background px-3 py-2 text-sm"
                                 >
                                     <option value="once">Once</option>
@@ -363,6 +383,7 @@ function ActionEditor({
                             <input
                                 id={`action-anchor-${action.id}`}
                                 name="anchor"
+                                defaultValue={action.anchor ?? ''}
                                 className={FIELD_CLASS}
                             />
                             {errors.anchor && (
