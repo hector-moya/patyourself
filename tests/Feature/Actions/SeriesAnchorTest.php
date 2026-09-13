@@ -246,7 +246,7 @@ class SeriesAnchorTest extends TestCase
             'scheduled_for' => Carbon::parse('2026-08-24 21:00:00'),
         ]);
 
-        app(RescheduleAction::class)->handle($action, 'anchored', null, null, 'after brushing my teeth', 'UTC');
+        app(RescheduleAction::class)->handle($action, 'anchored', null, null, 'after washing up', 'UTC');
 
         $this->assertDatabaseMissing('occurrences', ['id' => $future->id]);
     }
@@ -431,6 +431,75 @@ class SeriesAnchorTest extends TestCase
             '2026-08-24 09:00:00',
             $action->fresh()->series_started_at->toDateTimeString(),
         );
+    }
+
+    /**
+     * The edit form posts the schedule on every save, including a save that
+     * only changed the title. Re-anchoring then would delete occasions the
+     * user never asked to lose, so a schedule that still describes what the
+     * action already has must do nothing at all — not re-anchor, not purge.
+     *
+     * Killing mutation: drop the early return in RescheduleAction::handle().
+     * The occurrence below is unlogged and in the future, which is exactly
+     * what purgeAbandonedOccurrences() removes, so the assertion fails.
+     */
+    public function test_rescheduling_to_the_same_schedule_changes_nothing(): void
+    {
+        Carbon::setTestNow('2026-08-24 12:00:00');
+
+        $user = User::factory()->create(['timezone' => 'Europe/London']);
+        $loop = Intention::factory()->for($user)->create();
+        $strategy = Strategy::factory()->for($loop)->create();
+
+        $action = Action::factory()->for($loop)->for($strategy)->create([
+            'series_started_at' => Carbon::parse('2026-08-24 08:00:00'),
+            'recurrence' => 'daily',
+            'metadata' => ['schedule_kind' => 'clock', 'anchor' => null],
+        ]);
+
+        $occurrence = Occurrence::factory()->for($action)->create([
+            'scheduled_for' => Carbon::parse('2026-08-27 09:00:00'),
+        ]);
+
+        $anchorBefore = $action->series_started_at;
+
+        $rescheduled = app(RescheduleAction::class)->handle(
+            $action,
+            'clock',
+            $action->series_started_at->setTimezone('Europe/London')->format('H:i'),
+            'daily',
+            null,
+            'Europe/London',
+        );
+
+        $this->assertTrue(
+            $anchorBefore->equalTo($rescheduled->series_started_at),
+            'An unchanged schedule must not move the series anchor.',
+        );
+        $this->assertDatabaseHas('occurrences', ['id' => $occurrence->id]);
+    }
+
+    /**
+     * The same no-op guard applies to a cue-anchored action: resubmitting its
+     * own anchor phrase is not a reschedule, so the purge must not run.
+     *
+     * Killing mutation: drop the early return in RescheduleAction::handle().
+     * The occurrence below is unlogged and in the future, which is exactly
+     * what purgeAbandonedOccurrences() removes, so the assertion fails.
+     */
+    public function test_rescheduling_an_anchored_action_to_the_same_phrase_changes_nothing(): void
+    {
+        Carbon::setTestNow('2026-08-24 12:00:00');
+
+        $action = Action::factory()->anchored()->create();
+
+        $occurrence = Occurrence::factory()->for($action)->create([
+            'scheduled_for' => Carbon::parse('2026-08-27 09:00:00'),
+        ]);
+
+        app(RescheduleAction::class)->handle($action, 'anchored', null, null, 'after brushing my teeth', 'UTC');
+
+        $this->assertDatabaseHas('occurrences', ['id' => $occurrence->id]);
     }
 
     protected function tearDown(): void

@@ -31,6 +31,19 @@ final readonly class RescheduleAction
             'anchor' => $kind === 'anchored' ? $anchor : null,
         ]);
 
+        // The edit form posts title and schedule behind one Save, so the
+        // schedule arrives on every save — including one that only changed the
+        // title. Re-anchoring then would purge future occasions for a text
+        // edit, so a schedule that resolves to what the action already has is
+        // no reschedule at all.
+        //
+        // The guard lives here rather than in the client because a client that
+        // forgot to diff would delete occasions silently, and the connector
+        // reaches this writer by a different route. One place, both callers.
+        if ($this->describesTheSameSchedule($action, $kind, $time, $recurrence, $anchor, $timezone)) {
+            return $action;
+        }
+
         // Dropping the abandoned grid and moving the anchor are one act.
         //
         // Apart, a failing update leaves the occasions deleted and the anchor
@@ -68,5 +81,46 @@ final readonly class RescheduleAction
         });
 
         return $action->refresh();
+    }
+
+    /**
+     * Whether the submitted schedule describes the one the action already has.
+     *
+     * Compared on the description — kind, time of day, recurrence, anchor
+     * phrase — rather than on the resolved anchor. `Schedule::firstOccurrence()`
+     * resolves relative to now, so an action anchored last week that resubmits
+     * its own time computes tomorrow's instant and would never match; the
+     * guard would then fire only for actions rescheduled minutes ago, which is
+     * the opposite of the case it exists for.
+     *
+     * The stored anchor is localised to compare its time of day.
+     * `setTimezone()` resolves the offset in effect at that instant, so an
+     * anchor set at 17:30 in summer still reads 17:30 in winter and a daylight
+     * saving change does not read as an edit.
+     *
+     * `once` and a null recurrence are the same thing — a one-off — so the
+     * submitted token goes through `Recurrence::tryFromToken()` before the
+     * comparison, exactly as `handle()` does when it stores it.
+     */
+    private function describesTheSameSchedule(
+        Action $action,
+        string $kind,
+        ?string $time,
+        ?string $recurrence,
+        ?string $anchor,
+        string $timezone,
+    ): bool {
+        $metadata = $action->metadata ?? [];
+
+        if (($metadata['schedule_kind'] ?? null) !== $kind) {
+            return false;
+        }
+
+        if ($kind === 'anchored') {
+            return ($metadata['anchor'] ?? null) === $anchor;
+        }
+
+        return $action->series_started_at?->setTimezone($timezone)->format('H:i') === $time
+            && $action->recurrence === Recurrence::tryFromToken($recurrence)?->value;
     }
 }
