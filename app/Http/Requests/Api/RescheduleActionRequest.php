@@ -20,6 +20,11 @@ use Illuminate\Foundation\Http\FormRequest;
  */
 class RescheduleActionRequest extends FormRequest
 {
+    public function authorize(): bool
+    {
+        return true; // ownership is enforced in the controller via the ActionPolicy
+    }
+
     /** @return array<string, array<int, mixed>> */
     public function rules(): array
     {
