@@ -86,12 +86,23 @@ extracted rather than restated:
 
 ```ts
 // resources/js/patyourself/workflows.ts
-export function configuresActions(
+export interface ActionConfigSurface {
+    Surface: ComponentType<WorkflowConfigProps>;
+    rows: WorkflowConfigRow[];
+}
+
+export function configSurfaceFor(
     workflow: string | null | undefined,
     rows: WorkflowConfigRow[] | null,
     registry: WorkflowRegistry = WORKFLOWS,
-): boolean
+): ActionConfigSurface | null
 ```
+
+**It returns the resolved surface rather than a boolean** because `WorkflowConfig`
+needs the surface and the rows *narrowed* — a boolean return cannot tell
+TypeScript that `rows` is no longer null, so the slot would have to re-derive
+what it just asked about, or reach for non-null assertions. `ActionLayer` wants
+only the question answered and compares the result against null.
 
 `WorkflowConfig` then calls it instead of holding its own copy, so the host and
 the slot cannot drift into disagreeing about whether a surface exists — the
@@ -152,7 +163,7 @@ action in edit state at a time, as `docs/superpowers/specs/2026-09-13-amendable-
 
 | File | Change |
 | --- | --- |
-| `resources/js/patyourself/workflows.ts` | `configuresActions()` — new export |
+| `resources/js/patyourself/workflows.ts` | `configSurfaceFor()` — new export |
 | `resources/js/patyourself/workflow-config.tsx` | calls it instead of restating the condition |
 | `resources/js/patyourself/loops/action-layer.tsx` | the collapsed row, the `registry` prop |
 | `resources/js/patyourself/loops/action-layer.test.tsx` | new cases below |
@@ -188,16 +199,22 @@ renders, which is the action's own title and its cadence.
 - A loop whose workflow the client registry does not know renders flat, with its
   controls reachable, even though the server sent `rows`.
 - `rows: []` still collapses, and its body says the routine is empty.
-- `configuresActions()` directly: null name, unknown name, a registry entry with
-  a null `config`, `rows: null`, `rows: []`.
+- `configSurfaceFor()` directly: null name, unknown name, an inherited property
+  name, a registry entry with a null `config`, `rows: null`, `rows: []`.
 - Pressing `Edit` inside an open body renders the editor and leaves the
   disclosure open.
 
-**A risk to settle in the first task, not to assume.** jest-dom's `toBeVisible`
-does account for a closed `<details>` ancestor, so the assertion above is sound.
-Whether jsdom's `<summary>` click activation toggles `open` is the part to
-verify first. If it does not, the tests drive `open` on the element directly and
-say so in a comment, rather than asserting a toggle jsdom never performed.
+**The environment was probed rather than assumed**, on this branch, before the
+plan was written. All three facts the tests above rest on hold:
+
+- jest-dom's `toBeVisible()` returns false for an element inside a closed
+  `<details>`.
+- It returns **true** for content inside that `<details>`'s `<summary>`, which
+  is what lets the collapsed case assert the title and cadence are readable
+  while the routine is not.
+- jsdom's `<summary>` click activation really toggles `details.open`, so the
+  tests drive the disclosure the way a person does rather than setting `open`
+  by hand.
 
 **Verification:**
 
