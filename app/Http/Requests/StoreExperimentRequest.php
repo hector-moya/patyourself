@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Models\Strategy;
+use App\Services\Scheduling\Recurrence;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -44,7 +45,7 @@ class StoreExperimentRequest extends FormRequest
             'action_title' => ['nullable', 'required_if:cadence,change', 'string', 'max:255'],
             'action_kind' => ['nullable', 'required_if:cadence,change', 'in:clock,anchored'],
             'action_time' => ['nullable', 'required_if:action_kind,clock', 'regex:/^([01]\d|2[0-3]):[0-5]\d$/'],
-            'action_recurrence' => ['nullable', 'in:once,daily,weekdays,weekly'],
+            'action_recurrence' => ['nullable', Rule::in(Recurrence::tokens())],
             'action_anchor' => ['nullable', 'required_if:action_kind,anchored', 'string', 'max:255'],
         ];
     }

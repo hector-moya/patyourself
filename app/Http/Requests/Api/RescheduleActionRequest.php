@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests\Api;
 
+use App\Services\Scheduling\Recurrence;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 /**
  * Validating a reschedule over the JSON API.
@@ -31,7 +33,7 @@ class RescheduleActionRequest extends FormRequest
         return [
             'kind' => ['required', 'in:clock,anchored'],
             'time' => ['nullable', 'required_if:kind,clock', 'regex:/^([01]\d|2[0-3]):[0-5]\d$/'],
-            'recurrence' => ['nullable', 'in:once,daily,weekdays,weekly'],
+            'recurrence' => ['nullable', Rule::in(Recurrence::tokens())],
             'anchor' => ['nullable', 'required_if:kind,anchored', 'string', 'max:255'],
         ];
     }

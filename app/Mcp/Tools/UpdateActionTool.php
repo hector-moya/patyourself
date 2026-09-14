@@ -6,6 +6,7 @@ use App\Actions\RescheduleAction;
 use App\Concerns\DescribesActionShape;
 use App\Models\Action;
 use App\Services\Scheduling\MaterialiseOccurrences;
+use App\Services\Scheduling\Recurrence;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\JsonSchema\Types\Type;
@@ -38,7 +39,7 @@ class UpdateActionTool extends Tool
             'description' => ['nullable', 'string', 'max:2000'],
             'kind' => ['nullable', 'string', Rule::in(self::KINDS)],
             'time' => ['nullable', 'string', 'required_if:kind,clock', 'regex:'.self::TIME_PATTERN],
-            'recurrence' => ['nullable', 'string', Rule::in(self::RECURRENCES)],
+            'recurrence' => ['nullable', 'string', Rule::in(Recurrence::tokens())],
             'anchor' => ['nullable', 'string', 'max:250', 'required_if:kind,anchored'],
         ]);
 

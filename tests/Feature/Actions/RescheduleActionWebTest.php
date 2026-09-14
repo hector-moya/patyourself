@@ -377,4 +377,32 @@ class RescheduleActionWebTest extends TestCase
 
         $this->assertSame($original, $action->fresh()->title);
     }
+
+    /**
+     * The vocabulary test proves the token is accepted. This proves it lands:
+     * a monthly series anchored on the 31st keeps that day, and materialises
+     * nothing before the date the owner chose.
+     */
+    public function test_owner_can_start_a_monthly_series_on_a_chosen_day(): void
+    {
+        $this->travelTo('2026-09-14 12:00:00');
+
+        $user = User::factory()->create(['timezone' => 'UTC']);
+        $action = $this->actionFor($user);
+
+        $this->actingAs($user)
+            ->patch("/actions/{$action->id}", [
+                'kind' => 'clock',
+                'date' => '2026-10-31',
+                'time' => '09:00',
+                'recurrence' => 'monthly',
+            ])
+            ->assertRedirect();
+
+        $action->refresh();
+
+        $this->assertSame('monthly', $action->recurrence);
+        $this->assertSame('2026-10-31 09:00:00', $action->series_started_at->utc()->format('Y-m-d H:i:s'));
+        $this->assertDatabaseMissing('occurrences', ['action_id' => $action->id]);
+    }
 }

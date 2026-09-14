@@ -7,6 +7,7 @@ use App\Concerns\DescribesActionShape;
 use App\Models\Intention;
 use App\Services\Authoring\AuthoredAction;
 use App\Services\Scheduling\MaterialiseOccurrences;
+use App\Services\Scheduling\Recurrence;
 use App\Services\Strategy\StrategyTransitionException;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\JsonSchema\Types\Type;
@@ -40,7 +41,7 @@ class AddActionTool extends Tool
             'description' => ['nullable', 'string', 'max:2000'],
             'kind' => ['required', 'string', Rule::in(self::KINDS)],
             'time' => ['nullable', 'string', 'required_if:kind,clock', 'regex:'.self::TIME_PATTERN],
-            'recurrence' => ['nullable', 'string', Rule::in(self::RECURRENCES)],
+            'recurrence' => ['nullable', 'string', Rule::in(Recurrence::tokens())],
             'anchor' => ['nullable', 'string', 'max:250', 'required_if:kind,anchored'],
         ]);
 

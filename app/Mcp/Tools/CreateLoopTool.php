@@ -7,6 +7,7 @@ use App\Models\Intention;
 use App\Models\Strategy;
 use App\Services\Authoring\AuthoredIntention;
 use App\Services\Authoring\AuthoringException;
+use App\Services\Scheduling\Recurrence;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\JsonSchema\Types\Type;
 use Illuminate\Validation\Rule;
@@ -26,8 +27,6 @@ class CreateLoopTool extends Tool
     public const PROMPT_VERSION = 'mcp@1';
 
     private const KINDS = ['clock', 'anchored'];
-
-    private const RECURRENCES = ['once', 'daily', 'weekdays', 'weekly'];
 
     /**
      * The client authors the structure; this only validates and persists. No
@@ -61,7 +60,7 @@ class CreateLoopTool extends Tool
             'action.description' => ['nullable', 'string', 'max:1000'],
             'action.kind' => ['required_with:action', 'string', Rule::in(self::KINDS)],
             'action.time' => [Rule::requiredIf(fn (): bool => $kind === 'clock'), 'nullable', 'date_format:H:i'],
-            'action.recurrence' => [Rule::requiredIf(fn (): bool => $kind === 'clock'), 'nullable', 'string', Rule::in(self::RECURRENCES)],
+            'action.recurrence' => [Rule::requiredIf(fn (): bool => $kind === 'clock'), 'nullable', 'string', Rule::in(Recurrence::tokens())],
             'action.anchor' => [Rule::requiredIf(fn (): bool => $kind === 'anchored'), 'nullable', 'string', 'max:255'],
         ]);
 
@@ -177,7 +176,7 @@ class CreateLoopTool extends Tool
                     ->required(),
                 'time' => $schema->string()->description('HH:MM local time. Required when kind is clock.'),
                 'recurrence' => $schema->string()
-                    ->enum(self::RECURRENCES)
+                    ->enum(Recurrence::tokens())
                     ->description('Required when kind is clock.'),
                 'anchor' => $schema->string()->description('The routine to hang off. Required when kind is anchored.'),
             ])->description('Optional first action. Omit it and the user schedules one in the app.'),

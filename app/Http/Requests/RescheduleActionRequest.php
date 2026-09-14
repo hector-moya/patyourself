@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests;
 
+use App\Services\Scheduling\Recurrence;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
 class RescheduleActionRequest extends FormRequest
@@ -42,7 +44,7 @@ class RescheduleActionRequest extends FormRequest
             // submitted, and the form always sends `kind` alongside `date`.
             'date' => ['nullable', 'date_format:Y-m-d'],
             'time' => ['nullable', 'required_if:kind,clock', 'regex:/^([01]\d|2[0-3]):[0-5]\d$/'],
-            'recurrence' => ['nullable', 'in:once,daily,weekdays,weekly'],
+            'recurrence' => ['nullable', Rule::in(Recurrence::tokens())],
             'anchor' => ['nullable', 'required_if:kind,anchored', 'string', 'max:255'],
         ];
     }

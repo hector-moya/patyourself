@@ -4,6 +4,7 @@ namespace App\Services\Authoring;
 
 use App\Actions\PersistAuthoredIntention;
 use App\Actions\StartExperiment;
+use App\Services\Scheduling\Recurrence;
 
 /**
  * The concrete, schedulable action authored alongside a strategy: what to do
@@ -16,8 +17,6 @@ use App\Actions\StartExperiment;
 final readonly class AuthoredAction
 {
     private const KINDS = ['clock', 'anchored'];
-
-    private const RECURRENCES = ['once', 'daily', 'weekdays', 'weekly'];
 
     public function __construct(
         public string $title,
@@ -65,7 +64,7 @@ final readonly class AuthoredAction
             }
 
             $recurrence = is_string($schedule['recurrence'] ?? null) ? trim($schedule['recurrence']) : 'once';
-            if (! in_array($recurrence, self::RECURRENCES, true)) {
+            if (! in_array($recurrence, Recurrence::tokens(), true)) {
                 throw AuthoringException::emptyResponse();
             }
         } else {

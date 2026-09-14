@@ -5,6 +5,7 @@ namespace App\Concerns;
 use App\Models\Action;
 use App\Models\Intention;
 use App\Services\Authoring\AuthoredAction;
+use App\Services\Scheduling\Recurrence;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\JsonSchema\Types\Type;
 
@@ -18,9 +19,6 @@ trait DescribesActionShape
 {
     /** @var list<string> */
     public const KINDS = ['clock', 'anchored'];
-
-    /** @var list<string> */
-    public const RECURRENCES = ['once', 'daily', 'weekdays', 'weekly'];
 
     /** A 24-hour local time. Mirrors AuthoredAction's own guard. */
     public const TIME_PATTERN = '/^([01]\d|2[0-3]):[0-5]\d$/';
@@ -60,7 +58,7 @@ trait DescribesActionShape
             'time' => $schema->string()
                 ->description('Local time as HH:MM. Required when kind is clock.'),
             'recurrence' => $schema->string()
-                ->enum(self::RECURRENCES)
+                ->enum(Recurrence::tokens())
                 ->description('How often a clock action repeats. Defaults to once.'),
             'anchor' => $schema->string()
                 ->description('The cue phrase, e.g. "after serving the first plate". Required when kind is anchored.'),
