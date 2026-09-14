@@ -195,6 +195,37 @@ class ReanchorsSeriesTest extends TestCase
         $this->assertTrue($action->refresh()->series_started_at->equalTo($expected));
     }
 
+    /**
+     * A timezone change must not cost a monthly action its day of the month.
+     * The owner changed where they live, not when they want to do the thing.
+     * `now` sits inside a February, so nextAfter() alone would clamp the
+     * rebased anchor onto the 28th and, because the monthly grid is computed
+     * from the anchor's day, every later month would silently become the
+     * 28th too. forActions() must use nextAnchorAfter() instead, which walks
+     * past the clamped February and lands back on the 31st in March.
+     */
+    public function test_a_timezone_change_keeps_a_monthly_action_on_its_day(): void
+    {
+        Carbon::setTestNow('2026-02-20 12:00:00');
+
+        $user = User::factory()->create(['timezone' => 'Australia/Brisbane']);
+        $loop = Intention::factory()->for($user)->create();
+        $action = Action::factory()->for($loop, 'intention')->create([
+            'metadata' => ['schedule_kind' => 'clock'],
+            'recurrence' => 'monthly',
+            // 07:00 Australia/Brisbane (no DST, UTC+10) on the 31st.
+            'series_started_at' => Carbon::parse('2026-01-31 07:00:00', 'Australia/Brisbane')->utc(),
+            'status' => Action::STATUS_ACTIVE,
+        ]);
+
+        app(ReanchorsSeries::class)->forActions(collect([$action]), 'Australia/Brisbane', 'Europe/London');
+
+        $next = $action->refresh()->series_started_at->setTimezone('Europe/London');
+
+        $this->assertSame('31', $next->format('j'));
+        $this->assertTrue($next->isFuture());
+    }
+
     protected function tearDown(): void
     {
         Carbon::setTestNow();

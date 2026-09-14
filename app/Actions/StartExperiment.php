@@ -200,7 +200,11 @@ final class StartExperiment
         // action a date in the past, and materialisation would turn that into an
         // unlogged occasion behind now — a miss the user never had the chance to
         // avoid. UpdateIntention::reanchorStaleActions() re-anchors the same way.
-        return $schedule->nextAfter($priorAnchor, $now, $recurrence, $timezone)
+        //
+        // nextAnchorAfter() rather than nextAfter(): this result is *stored*
+        // as the new anchor, and for monthly a clamped slot stored as an
+        // anchor makes the clamp permanent.
+        return $schedule->nextAnchorAfter($priorAnchor, $now, $recurrence, $timezone)
             ?? $schedule->firstOccurrence(
                 $now,
                 $priorAnchor->setTimezone($timezone)->format('H:i'),

@@ -48,7 +48,11 @@ final readonly class ReanchorsSeries
                 // returns null for a one-off, which firstOccurrence() handles.
                 // Both now see the rebased anchor, so an already-stale
                 // recurring action moves with the rest — see rebase().
-                $next = $this->schedule->nextAfter($anchor, $now, $recurrence, $toTimezone)
+                //
+                // nextAnchorAfter() rather than nextAfter(): this result is
+                // *stored* as the new anchor, and for monthly a clamped slot
+                // stored as an anchor makes the clamp permanent.
+                $next = $this->schedule->nextAnchorAfter($anchor, $now, $recurrence, $toTimezone)
                     ?? $this->schedule->firstOccurrence(
                         $now,
                         $anchor->format('H:i'),

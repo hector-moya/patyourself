@@ -435,4 +435,82 @@ class ScheduleTest extends TestCase
         $this->assertTrue($fromItsOwnAnchor->equalTo($fromAnUnrelatedOne));
         $this->assertSame('2026-06-15 08:00:00', $fromItsOwnAnchor->utc()->format('Y-m-d H:i:s'));
     }
+
+    /**
+     * The defect Task 2's review found. nextAfter() is right to return the
+     * clamped slot — it is genuinely the next occasion — but a caller that
+     * *persists* it as the anchor makes the clamp permanent, because the grid
+     * is computed from the anchor's day of the month.
+     *
+     * Killing mutation: have nextAnchorAfter() simply return nextAfter()'s
+     * answer. The assertion below then reads 2026-02-28.
+     */
+    public function test_a_monthly_anchor_never_lands_on_a_clamped_slot(): void
+    {
+        $schedule = new Schedule;
+        $anchor = $this->at('2026-01-31 09:00:00');
+
+        $next = $schedule->nextAnchorAfter($anchor, $this->at('2026-02-20 12:00:00'), Recurrence::Monthly, 'UTC');
+
+        $this->assertSame('2026-03-31 09:00:00', $next->utc()->format('Y-m-d H:i:s'));
+    }
+
+    public function test_a_monthly_anchor_that_does_not_clamp_is_the_next_occasion(): void
+    {
+        $schedule = new Schedule;
+        $anchor = $this->at('2026-01-15 09:00:00');
+
+        $next = $schedule->nextAnchorAfter($anchor, $this->at('2026-01-20 12:00:00'), Recurrence::Monthly, 'UTC');
+
+        $this->assertSame('2026-02-15 09:00:00', $next->utc()->format('Y-m-d H:i:s'));
+    }
+
+    /**
+     * Only monthly has a day of the month to lose, so every other cadence must
+     * get exactly what nextAfter() says — asserted against nextAfter() itself
+     * so the two cannot drift apart.
+     */
+    public function test_every_other_cadence_re_anchors_exactly_as_it_always_did(): void
+    {
+        $schedule = new Schedule;
+        $anchor = $this->at('2026-01-31 09:00:00');
+        $now = $this->at('2026-02-20 12:00:00');
+
+        foreach ([Recurrence::Daily, Recurrence::Weekdays, Recurrence::Weekly, Recurrence::Fortnightly] as $recurrence) {
+            $this->assertTrue(
+                $schedule->nextAnchorAfter($anchor, $now, $recurrence, 'UTC')
+                    ->equalTo($schedule->nextAfter($anchor, $now, $recurrence, 'UTC')),
+                "{$recurrence->value} must re-anchor exactly as nextAfter() says.",
+            );
+        }
+    }
+
+    /** A one-off has no next slot, and its callers fall back to firstOccurrence(). */
+    public function test_a_one_off_has_no_next_anchor(): void
+    {
+        $next = (new Schedule)->nextAnchorAfter(
+            $this->at('2026-01-31 09:00:00'),
+            $this->at('2026-02-20 12:00:00'),
+            null,
+            'UTC',
+        );
+
+        $this->assertNull($next);
+    }
+
+    /** The day of the month is read in the owner's zone, as the grid maths is. */
+    public function test_a_monthly_anchor_is_clamp_checked_in_the_owners_zone(): void
+    {
+        // 2026-01-31 12:30 UTC is 2026-01-31 23:30 in Sydney — the 31st there.
+        $anchor = $this->at('2026-01-31 12:30:00');
+
+        $next = (new Schedule)->nextAnchorAfter(
+            $anchor,
+            $this->at('2026-02-20 12:00:00'),
+            Recurrence::Monthly,
+            'Australia/Sydney',
+        );
+
+        $this->assertSame('31', $next->setTimezone('Australia/Sydney')->format('j'));
+    }
 }

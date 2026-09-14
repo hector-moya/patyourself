@@ -97,6 +97,22 @@ and ignores `$anchor`, which is correct rather than an oversight.
 So `$anchor` is a parameter every caller passes and one arm reads. That
 asymmetry is deliberate and is worth a comment at the `match`.
 
+### A clamped slot must never become the anchor
+
+`ReanchorsSeries` and `StartExperiment` both **persist** the result of
+`nextAfter()` as the new `series_started_at` — one on a timezone change, the
+other on a strategy revision, neither because the owner picked a new day.
+
+`nextAfter()` is right to return February's clamped 28th; it genuinely is the
+next occasion. But storing it as an anchor makes the clamp permanent, because
+the grid is computed from the anchor's day. That is this section's corruption
+arriving by a different route.
+
+`Schedule::nextAnchorAfter()` is what those two callers use instead: for monthly
+it walks on to the next month that can hold the day the owner chose, giving up
+that one occasion rather than the cadence. It is identical to `nextAfter()` for
+every other cadence, because only monthly has a day of the month to lose.
+
 ### The two callers
 
 | Caller | Passes as `$anchor` |

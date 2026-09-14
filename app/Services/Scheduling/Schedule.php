@@ -121,6 +121,41 @@ final readonly class Schedule
     }
 
     /**
+     * The next slot that is safe to **persist** as a series anchor.
+     *
+     * Identical to nextAfter() for every cadence but monthly, and the
+     * distinction exists only because the anchor is doing two jobs at once: it
+     * says when the series starts, and for monthly it also carries the day of
+     * the month the whole grid is computed from.
+     *
+     * nextAfter() is right to return February's clamped 28th — it genuinely is
+     * the next occasion. But a caller that stores it makes the clamp permanent:
+     * every later month becomes the 28th, which is the corruption
+     * {@see self::advance()} exists to prevent, arriving by a different route.
+     *
+     * So a monthly anchor walks on to the next month that can hold the day the
+     * owner chose, giving up that one occasion rather than the cadence. It
+     * terminates after at most one extra step: no two consecutive months are
+     * both too short for the same day.
+     */
+    public function nextAnchorAfter(CarbonImmutable $anchor, CarbonImmutable $now, ?Recurrence $recurrence, string $timezone): ?CarbonImmutable
+    {
+        $next = $this->nextAfter($anchor, $now, $recurrence, $timezone);
+
+        if ($next === null || $recurrence !== Recurrence::Monthly) {
+            return $next;
+        }
+
+        $day = $anchor->setTimezone($timezone)->day;
+
+        while ($next !== null && $next->setTimezone($timezone)->day !== $day) {
+            $next = $this->advance($next, $recurrence, $timezone, $anchor);
+        }
+
+        return $next;
+    }
+
+    /**
      * The candidate itself when it is already ahead of `now`, otherwise the
      * first slot of its own grid that is.
      *
