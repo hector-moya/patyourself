@@ -110,6 +110,15 @@ weekday.
   and leaves an already-logged occasion exactly as it is.
 - **Bounded** — `MAX_SLOTS_PER_ACTION = 1000` per pass, so a very old anchor cannot run away.
 
+**Monthly is anchored, not stepped.** Every other rule advances by an exact
+duration, so stepping from the last slot and walking from the anchor agree. A
+month is not a duration: stepping pairwise takes an action anchored on the 31st
+to February's 28th and then leaves it there permanently. `Schedule::advance()`
+therefore takes the anchor and computes monthly from it — clamping to the last
+day of a short month and returning to the 31st in the next long one. `weekdays`
+stays pairwise on purpose, because "the anchor plus n weekdays" is business-day
+counting rather than calendar counting.
+
 Two details that look like details and are not:
 
 **The horizon is the end of the user's local day, not `now`.** The today list splits into due-now and

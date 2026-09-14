@@ -109,13 +109,18 @@ final readonly class MaterialiseOccurrences
         $horizon = CarbonImmutable::now($timezone)->endOfDay()->utc();
         $recurrence = Recurrence::tryFromToken($action->recurrence);
 
+        $anchor = $action->series_started_at->toImmutable();
+
         $slots = [];
-        $slot = $action->series_started_at->toImmutable();
+        $slot = $anchor;
 
         while ($slot->lessThanOrEqualTo($horizon) && count($slots) < self::MAX_SLOTS_PER_ACTION) {
             $slots[] = $slot->utc()->toDateTimeString();
 
-            $next = $this->schedule->advance($slot, $recurrence, $timezone);
+            // The anchor goes with every step, not just the first: monthly is
+            // defined relative to it, so a walk that forgot it after the first
+            // step would drift off the day of the month it started on.
+            $next = $this->schedule->advance($slot, $recurrence, $timezone, $anchor);
 
             // A one-off has no next slot: it produces exactly its anchor.
             if ($next === null) {

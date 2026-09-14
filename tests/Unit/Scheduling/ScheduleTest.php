@@ -56,10 +56,10 @@ class ScheduleTest extends TestCase
         $schedule = new Schedule;
         $current = $this->at('2026-06-12 11:00:00'); // Fri 07:00 EDT
 
-        $this->assertSame('2026-06-13 11:00:00', $schedule->advance($current, Recurrence::Daily, 'America/New_York')->utc()->format('Y-m-d H:i:s'));
-        $this->assertSame('2026-06-15 11:00:00', $schedule->advance($current, Recurrence::Weekdays, 'America/New_York')->utc()->format('Y-m-d H:i:s'));
-        $this->assertSame('2026-06-19 11:00:00', $schedule->advance($current, Recurrence::Weekly, 'America/New_York')->utc()->format('Y-m-d H:i:s'));
-        $this->assertNull($schedule->advance($current, null, 'America/New_York'));
+        $this->assertSame('2026-06-13 11:00:00', $schedule->advance($current, Recurrence::Daily, 'America/New_York', $current)->utc()->format('Y-m-d H:i:s'));
+        $this->assertSame('2026-06-15 11:00:00', $schedule->advance($current, Recurrence::Weekdays, 'America/New_York', $current)->utc()->format('Y-m-d H:i:s'));
+        $this->assertSame('2026-06-19 11:00:00', $schedule->advance($current, Recurrence::Weekly, 'America/New_York', $current)->utc()->format('Y-m-d H:i:s'));
+        $this->assertNull($schedule->advance($current, null, 'America/New_York', $current));
     }
 
     public function test_next_after_takes_one_step_for_a_fresh_base(): void
@@ -121,7 +121,7 @@ class ScheduleTest extends TestCase
         // 07:00 in New York on Sat 2026-03-07 (EST, UTC-5) == 12:00 UTC.
         $current = $this->at('2026-03-07 12:00:00');
 
-        $next = (new Schedule)->advance($current, Recurrence::Daily, 'America/New_York');
+        $next = (new Schedule)->advance($current, Recurrence::Daily, 'America/New_York', $current);
 
         // Sun 2026-03-08 is EDT (UTC-4): 07:00 local == 11:00 UTC (UTC shifts, local holds).
         $this->assertSame('2026-03-08 11:00:00', $next->utc()->format('Y-m-d H:i:s'));
@@ -133,7 +133,7 @@ class ScheduleTest extends TestCase
         // 07:00 in New York on Sat 2026-10-31 (EDT, UTC-4) == 11:00 UTC.
         $current = $this->at('2026-10-31 11:00:00');
 
-        $next = (new Schedule)->advance($current, Recurrence::Daily, 'America/New_York');
+        $next = (new Schedule)->advance($current, Recurrence::Daily, 'America/New_York', $current);
 
         // Sun 2026-11-01 is EST (UTC-5): 07:00 local == 12:00 UTC.
         $this->assertSame('2026-11-01 12:00:00', $next->utc()->format('Y-m-d H:i:s'));
@@ -161,7 +161,7 @@ class ScheduleTest extends TestCase
         // a brittle exact value, since gap resolution is Carbon-version dependent.
         $base = $this->at('2026-03-07 07:30:00');
 
-        $next = (new Schedule)->advance($base, Recurrence::Daily, 'America/New_York');
+        $next = (new Schedule)->advance($base, Recurrence::Daily, 'America/New_York', $base);
 
         $this->assertNotNull($next);
         $this->assertTrue($next->utc()->greaterThan($base));
@@ -325,5 +325,114 @@ class ScheduleTest extends TestCase
 
         $this->assertSame('2026-09-23 06:30:00', $anchor->utc()->format('Y-m-d H:i:s'));
         $this->assertSame('07:30', $anchor->setTimezone('Europe/London')->format('H:i'));
+    }
+
+    /**
+     * The defect anchor-relative monthly exists to prevent. Stepping from the
+     * previous slot, an action anchored on the 31st reaches Feb 28 and then
+     * never leaves the 28th: the action has silently changed what it means.
+     *
+     * Killing mutation: compute from `$current` instead of `$anchor`. March
+     * then lands on the 28th.
+     */
+    public function test_monthly_recovers_the_day_of_the_month_after_a_short_one(): void
+    {
+        $schedule = new Schedule;
+        $anchor = $this->at('2026-01-31 09:00:00');
+
+        $february = $schedule->advance($anchor, Recurrence::Monthly, 'UTC', $anchor);
+        $this->assertSame('2026-02-28 09:00:00', $february->utc()->format('Y-m-d H:i:s'));
+
+        $march = $schedule->advance($february, Recurrence::Monthly, 'UTC', $anchor);
+        $this->assertSame('2026-03-31 09:00:00', $march->utc()->format('Y-m-d H:i:s'));
+
+        $april = $schedule->advance($march, Recurrence::Monthly, 'UTC', $anchor);
+        $this->assertSame('2026-04-30 09:00:00', $april->utc()->format('Y-m-d H:i:s'));
+    }
+
+    public function test_monthly_clamps_a_thirtieth_into_february_and_recovers(): void
+    {
+        $schedule = new Schedule;
+        $anchor = $this->at('2026-01-30 09:00:00');
+
+        $february = $schedule->advance($anchor, Recurrence::Monthly, 'UTC', $anchor);
+        $this->assertSame('2026-02-28 09:00:00', $february->utc()->format('Y-m-d H:i:s'));
+
+        $march = $schedule->advance($february, Recurrence::Monthly, 'UTC', $anchor);
+        $this->assertSame('2026-03-30 09:00:00', $march->utc()->format('Y-m-d H:i:s'));
+    }
+
+    public function test_monthly_is_unremarkable_for_a_day_every_month_has(): void
+    {
+        $schedule = new Schedule;
+        $anchor = $this->at('2026-01-15 09:00:00');
+
+        $this->assertSame(
+            '2026-02-15 09:00:00',
+            $schedule->advance($anchor, Recurrence::Monthly, 'UTC', $anchor)->utc()->format('Y-m-d H:i:s'),
+        );
+    }
+
+    /** February gains a day in a leap year, and the clamp has to notice. */
+    public function test_monthly_clamps_to_the_twenty_ninth_in_a_leap_year(): void
+    {
+        $schedule = new Schedule;
+        $anchor = $this->at('2028-01-31 09:00:00');
+        $this->assertTrue($anchor->addMonthsNoOverflow(1)->isLeapYear());
+
+        $this->assertSame(
+            '2028-02-29 09:00:00',
+            $schedule->advance($anchor, Recurrence::Monthly, 'UTC', $anchor)->utc()->format('Y-m-d H:i:s'),
+        );
+    }
+
+    /**
+     * The day of the month is a fact about the owner's calendar, not the
+     * server's. 23:30 on the 31st in Sydney is the 31st there and the 31st
+     * *or* the 30th in UTC depending on the season — reading it in UTC would
+     * anchor the series to the wrong day.
+     */
+    public function test_monthly_reads_the_day_of_the_month_in_the_owners_zone(): void
+    {
+        $schedule = new Schedule;
+        // 2026-01-31 23:30 in Sydney is 2026-01-31 12:30 UTC.
+        $anchor = $this->at('2026-01-31 12:30:00');
+        $this->assertSame('31', $anchor->setTimezone('Australia/Sydney')->format('j'));
+
+        $next = $schedule->advance($anchor, Recurrence::Monthly, 'Australia/Sydney', $anchor);
+
+        $this->assertSame('28', $next->setTimezone('Australia/Sydney')->format('j'));
+        $this->assertSame('23:30', $next->setTimezone('Australia/Sydney')->format('H:i'));
+    }
+
+    public function test_fortnightly_steps_two_weeks_and_keeps_its_weekday(): void
+    {
+        $schedule = new Schedule;
+        $tuesday = $this->at('2026-09-15 07:30:00');
+        $this->assertTrue($tuesday->isTuesday());
+
+        $next = $schedule->advance($tuesday, Recurrence::Fortnightly, 'UTC', $tuesday);
+
+        $this->assertSame('2026-09-29 07:30:00', $next->utc()->format('Y-m-d H:i:s'));
+        $this->assertTrue($next->isTuesday());
+    }
+
+    /**
+     * Weekdays is deliberately pairwise: "the anchor plus n weekdays" is
+     * business-day counting, not calendar counting, and would need a different
+     * computation from every other arm. Asserted by handing it an anchor that
+     * has nothing to do with the slot and getting the same answer.
+     */
+    public function test_weekdays_ignores_the_anchor(): void
+    {
+        $schedule = new Schedule;
+        $friday = $this->at('2026-06-12 08:00:00');
+        $this->assertTrue($friday->isFriday());
+
+        $fromItsOwnAnchor = $schedule->advance($friday, Recurrence::Weekdays, 'UTC', $friday);
+        $fromAnUnrelatedOne = $schedule->advance($friday, Recurrence::Weekdays, 'UTC', $this->at('2019-03-07 04:00:00'));
+
+        $this->assertTrue($fromItsOwnAnchor->equalTo($fromAnUnrelatedOne));
+        $this->assertSame('2026-06-15 08:00:00', $fromItsOwnAnchor->utc()->format('Y-m-d H:i:s'));
     }
 }

@@ -9,7 +9,9 @@ use Carbon\CarbonImmutable;
  * Pure schedule math for action triggers. Turns an authored local time-of-day +
  * recurrence into the first UTC fire time, and rolls a recurring action forward
  * to its next fire time. Stored datetimes are UTC; the user's IANA timezone
- * localises them. SP2's trigger engine reuses advance() after firing.
+ * localises them. `MaterialiseOccurrences` walks a grid with advance(); the
+ * trigger engine only fires the occasions that walk already wrote, and never
+ * reaches this class.
  */
 final readonly class Schedule
 {
@@ -41,9 +43,21 @@ final readonly class Schedule
 
     /**
      * The next fire time after a recurring action fires, in UTC. Null for a
-     * one-off (no recurrence). Weekday math is evaluated in the user's timezone.
+     * one-off (no recurrence). Weekday and monthly maths are evaluated in the
+     * user's timezone.
+     *
+     * `$anchor` is where the action's current cadence began, and **only the
+     * monthly arm reads it**. That asymmetry is deliberate. Daily, weekly and
+     * fortnightly step by exact durations, so walking from the anchor and
+     * stepping from the last slot agree exactly; months are not a duration, so
+     * for monthly they do not — see nextMonthly(). Weekdays must stay pairwise
+     * because "the anchor plus n weekdays" is business-day counting rather
+     * than calendar counting.
+     *
+     * It is non-nullable and undefaulted so that a caller cannot quietly omit
+     * it and get a monthly series that drifts off its own day of the month.
      */
-    public function advance(CarbonImmutable $current, ?Recurrence $recurrence, string $timezone): ?CarbonImmutable
+    public function advance(CarbonImmutable $current, ?Recurrence $recurrence, string $timezone, CarbonImmutable $anchor): ?CarbonImmutable
     {
         $local = $current->setTimezone($timezone);
 
@@ -51,8 +65,32 @@ final readonly class Schedule
             Recurrence::Daily => $local->addDay()->utc(),
             Recurrence::Weekdays => $this->skipWeekend($local->addDay())->utc(),
             Recurrence::Weekly => $local->addWeek()->utc(),
+            Recurrence::Fortnightly => $local->addWeeks(2)->utc(),
+            Recurrence::Monthly => $this->nextMonthly($local, $anchor->setTimezone($timezone)),
             null => null,
         };
+    }
+
+    /**
+     * The monthly slot after `$local`, keeping the anchor's day of the month.
+     *
+     * Computed from the anchor rather than from the previous slot, because a
+     * month is not a duration. Stepping pairwise with addMonthNoOverflow()
+     * takes an action anchored on the 31st to Feb 28 and then leaves it on the
+     * 28th forever — one short February and the action has silently changed
+     * what it means. Anchored arithmetic clamps in a short month and returns
+     * to the 31st in the next long one.
+     *
+     * The step count is derived from the calendar fields rather than from
+     * Carbon's diffInMonths(), which counts *complete* months: Jan 31 to Feb 28
+     * is zero complete months while being unambiguously one step of this grid.
+     */
+    private function nextMonthly(CarbonImmutable $local, CarbonImmutable $anchorLocal): CarbonImmutable
+    {
+        $elapsed = ($local->year - $anchorLocal->year) * 12
+            + ($local->month - $anchorLocal->month);
+
+        return $anchorLocal->addMonthsNoOverflow($elapsed + 1)->utc();
     }
 
     /**
@@ -71,7 +109,12 @@ final readonly class Schedule
         $next = $from;
 
         do {
-            $next = $this->advance($next, $recurrence, $timezone);
+            // `$from` is the series anchor at every call site — onOrAfter()
+            // passes the candidate anchor, ReanchorsSeries the action's, and
+            // StartExperiment the prior one — so it is what monthly needs.
+            // Threading a separate parameter through here would add a way to
+            // get that wrong without adding a case it gets right.
+            $next = $this->advance($next, $recurrence, $timezone, $from);
         } while ($next !== null && $next->lessThanOrEqualTo($now));
 
         return $next;

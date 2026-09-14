@@ -5,8 +5,10 @@ namespace Tests\Feature\Scheduling;
 use App\Models\Action;
 use App\Models\Intention;
 use App\Models\Occurrence;
+use App\Models\Strategy;
 use App\Models\User;
 use App\Services\Scheduling\MaterialiseOccurrences;
+use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Tests\TestCase;
@@ -281,5 +283,36 @@ class MaterialiseOccurrencesTest extends TestCase
 
         $this->assertSame(0, $service->forUser($user));
         $this->assertSame($first, Occurrence::query()->count());
+    }
+
+    /**
+     * The unit test proves one step; this proves the walk. MaterialiseOccurrences
+     * calls advance() repeatedly from the anchor, so a monthly action anchored
+     * on the 31st must still be on the 31st in March — which it is only if the
+     * anchor reaches advance() on every step, not just the first.
+     */
+    public function test_a_monthly_action_anchored_on_the_thirty_first_keeps_that_day(): void
+    {
+        $this->travelTo('2026-04-01 12:00:00');
+
+        $user = User::factory()->create(['timezone' => 'UTC']);
+        $loop = Intention::factory()->for($user)->create(['status' => Intention::STATUS_ACTIVE]);
+        $strategy = Strategy::factory()->for($loop)->create();
+        $action = Action::factory()->for($loop)->for($strategy)->create([
+            'series_started_at' => CarbonImmutable::parse('2026-01-31 09:00:00'),
+            'recurrence' => 'monthly',
+            'metadata' => ['schedule_kind' => 'clock'],
+        ]);
+
+        app(MaterialiseOccurrences::class)->forLoop($loop);
+
+        $this->assertDatabaseHas('occurrences', [
+            'action_id' => $action->id,
+            'scheduled_for' => '2026-03-31 09:00:00',
+        ]);
+        $this->assertDatabaseMissing('occurrences', [
+            'action_id' => $action->id,
+            'scheduled_for' => '2026-03-28 09:00:00',
+        ]);
     }
 }
