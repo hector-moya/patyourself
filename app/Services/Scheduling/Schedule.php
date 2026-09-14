@@ -148,7 +148,10 @@ final readonly class Schedule
 
         $day = $anchor->setTimezone($timezone)->day;
 
-        while ($next !== null && $next->setTimezone($timezone)->day !== $day) {
+        // advance() returns null only for a null recurrence, and by here the
+        // recurrence is Monthly — so the walk cannot fall out of the grid, and
+        // a null check would imply a case that does not exist.
+        while ($next->setTimezone($timezone)->day !== $day) {
             $next = $this->advance($next, $recurrence, $timezone, $anchor);
         }
 
@@ -169,6 +172,11 @@ final readonly class Schedule
      * to walk along — its date is the whole schedule — and refusing to store a
      * past one is {@see RescheduleAction}'s decision, not this
      * function's.
+     *
+     * **A result that gets stored must go through
+     * {@see self::anchorOnOrAfter()} instead**, for the reason
+     * {@see self::nextAnchorAfter()} records: this one answers "which slot",
+     * and for monthly the answer can be a clamped one.
      */
     public function onOrAfter(CarbonImmutable $candidate, CarbonImmutable $now, ?Recurrence $recurrence, string $timezone): CarbonImmutable
     {
@@ -179,6 +187,33 @@ final readonly class Schedule
         // nextAfter() returns null only for a null recurrence, which the guard
         // above has already returned on.
         return $this->nextAfter($candidate, $now, $recurrence, $timezone) ?? $candidate;
+    }
+
+    /**
+     * The candidate resolved the way {@see self::onOrAfter()} resolves it, but
+     * onto a slot that is safe to **persist** as a series anchor.
+     *
+     * The same distinction {@see self::nextAnchorAfter()} draws, one layer up.
+     * onOrAfter() is the right answer to "which occasion does this chosen date
+     * fall on"; it is the wrong answer to "what should be written to
+     * `series_started_at`", because for monthly that occasion may be a clamped
+     * one. An owner who picks the 31st during a February gets February's 28th
+     * stored, and every later month is then the 28th — the action quietly means
+     * something other than what they chose.
+     *
+     * A candidate already ahead of `now` is returned untouched, exactly as in
+     * onOrAfter(): it is the day the owner named, and no grid has been walked
+     * to reach it, so there is nothing to clamp.
+     */
+    public function anchorOnOrAfter(CarbonImmutable $candidate, CarbonImmutable $now, ?Recurrence $recurrence, string $timezone): CarbonImmutable
+    {
+        if ($recurrence === null || $candidate->greaterThan($now)) {
+            return $candidate;
+        }
+
+        // nextAnchorAfter() returns null only for a null recurrence, which the
+        // guard above has already returned on.
+        return $this->nextAnchorAfter($candidate, $now, $recurrence, $timezone) ?? $candidate;
     }
 
     /**
@@ -198,6 +233,12 @@ final readonly class Schedule
      * where it lies would be worse than refusing it: MaterialiseOccurrences
      * walks from the anchor to the end of the local day, so a back-dated anchor
      * does not record history, it mints occasions nobody was ever asked about.
+     *
+     * The snap goes through {@see self::anchorOnOrAfter()} rather than
+     * onOrAfter(), because this result *is* the stored anchor: `RescheduleAction`
+     * writes it straight into `series_started_at`. Landing it on a clamped slot
+     * would move a monthly action off the day of the month its owner chose, for
+     * good — which is what that method exists to prevent.
      *
      * The weekend bump firstOccurrence() applies is kept here. No form sends a
      * date alongside `weekdays`, but advance() never produces a weekend slot,
@@ -227,7 +268,7 @@ final readonly class Schedule
             $candidate = $this->skipWeekend($candidate);
         }
 
-        return $this->onOrAfter($candidate, $now, $recurrence, $timezone)->utc();
+        return $this->anchorOnOrAfter($candidate, $now, $recurrence, $timezone)->utc();
     }
 
     private function skipWeekend(CarbonImmutable $date): CarbonImmutable

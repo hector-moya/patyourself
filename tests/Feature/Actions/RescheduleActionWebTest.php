@@ -405,4 +405,70 @@ class RescheduleActionWebTest extends TestCase
         $this->assertSame('2026-10-31 09:00:00', $action->series_started_at->utc()->format('Y-m-d H:i:s'));
         $this->assertDatabaseMissing('occurrences', ['action_id' => $action->id]);
     }
+
+    /**
+     * The test above picks a *future* 31st, which `anchorOnOrAfter()` returns
+     * untouched — so it never reaches the walk. This one picks a past 31st
+     * during a short month, which is the ordinary case: a day-31 anchor
+     * resubmitted or newly chosen while February is running.
+     *
+     * The walked slot is what gets written to `series_started_at`, and for
+     * monthly the anchor carries the day of the month the whole grid is
+     * computed from. February's 28th would make every later month the 28th.
+     *
+     * Killing mutation: resolve anchorAt() through onOrAfter() instead of
+     * anchorOnOrAfter(). The anchor below becomes 2026-02-28.
+     */
+    public function test_a_past_start_date_on_the_thirty_first_anchors_on_a_thirty_first(): void
+    {
+        $this->travelTo('2026-02-10 12:00:00');
+
+        $user = User::factory()->create(['timezone' => 'UTC']);
+        $action = $this->actionFor($user);
+
+        $this->actingAs($user)
+            ->patch("/actions/{$action->id}", [
+                'kind' => 'clock',
+                'date' => '2026-01-31',
+                'time' => '07:30',
+                'recurrence' => 'monthly',
+            ])
+            ->assertRedirect();
+
+        $action->refresh();
+
+        $this->assertSame('31', $action->series_started_at->format('j'));
+        $this->assertSame('2026-03-31 07:30:00', $action->series_started_at->utc()->format('Y-m-d H:i:s'));
+    }
+
+    /**
+     * The same defect before the series has run once: today *is* the 31st, the
+     * chosen time has already gone by, and the next month cannot hold the day.
+     * The owner picks the 31st and must not be given the 28th — nothing has
+     * happened yet that could explain the change to them.
+     *
+     * March rather than February is the point: one occasion is given up, the
+     * cadence is not.
+     */
+    public function test_choosing_the_thirty_first_today_still_anchors_on_a_thirty_first(): void
+    {
+        $this->travelTo('2026-01-31 09:00:00');
+
+        $user = User::factory()->create(['timezone' => 'UTC']);
+        $action = $this->actionFor($user);
+
+        $this->actingAs($user)
+            ->patch("/actions/{$action->id}", [
+                'kind' => 'clock',
+                'date' => '2026-01-31',
+                'time' => '07:00',
+                'recurrence' => 'monthly',
+            ])
+            ->assertRedirect();
+
+        $action->refresh();
+
+        $this->assertSame('31', $action->series_started_at->format('j'));
+        $this->assertSame('2026-03-31 07:00:00', $action->series_started_at->utc()->format('Y-m-d H:i:s'));
+    }
 }

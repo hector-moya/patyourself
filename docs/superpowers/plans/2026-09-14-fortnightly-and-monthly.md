@@ -535,6 +535,8 @@ anchor Jan 31, re-anchored on 20 Feb
 
 Only two call sites persist an anchor this way. `UpdateIntention::reanchorStaleActions()` looks like a third but delegates to `ReanchorsSeries::forActions()`, so fixing that one covers it.
 
+> **Correction (2026-09-14, the branch's final review).** "Only two call sites" is wrong — there are three, and the third is the action editor, the route the owner actually drives. `Schedule::anchorAt()` resolves a chosen start date through `onOrAfter()` and `RescheduleAction` writes that result into `series_started_at`, so a monthly action anchored on the 31st and edited during a short month was stored on the 28th. The count was taken over callers of `nextAfter()` rather than over writers of `series_started_at`, which is exactly how the editor was missed. Fixed with `Schedule::anchorOnOrAfter()`, which `anchorAt()` **and** `RescheduleAction::describesTheSameSchedule()` both call — they have to move together, or the unchanged-schedule guard stops firing and a rename purges the action's future occasions.
+
 **Files:**
 - Modify: `app/Services/Scheduling/Schedule.php`
 - Modify: `app/Services/Scheduling/ReanchorsSeries.php:51`

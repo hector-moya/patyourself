@@ -12,7 +12,10 @@ use App\Models\Intention;
 use App\Models\Occurrence;
 use App\Models\Strategy;
 use App\Models\User;
+use App\Services\Scheduling\Recurrence;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\JsonSchema\JsonSchemaTypeFactory;
+use Illuminate\JsonSchema\Serializer;
 use Laravel\Mcp\Server\Testing\TestResponse;
 use Tests\TestCase;
 
@@ -154,6 +157,72 @@ class ActionCrudToolsTest extends TestCase
         }
 
         $this->assertSame(['Lunch', 'Dinner'], $loop->actions()->orderBy('id')->pluck('title')->all());
+    }
+
+    /**
+     * The connector authors actions the same way the web form does, so a
+     * cadence one offers and the other refuses is a real gap — and the two
+     * tools spell the vocabulary in two places each: a validation rule, and the
+     * enum `DescribesActionShape` advertises. A tool that quietly stopped
+     * listing `monthly` would simply never be handed it.
+     */
+    public function test_add_action_accepts_either_of_the_longer_cadences(): void
+    {
+        $user = User::factory()->create(['timezone' => 'UTC']);
+        $loop = $this->loop($user);
+
+        foreach (['fortnightly', 'monthly'] as $token) {
+            $response = PatYourSelfServer::actingAs($user)->tool(AddActionTool::class, [
+                'intention_id' => $loop->id,
+                'title' => "Deep clean, {$token}",
+                'kind' => 'clock',
+                'time' => '10:00',
+                'recurrence' => $token,
+            ]);
+
+            $response->assertOk();
+
+            $payload = $this->payload($response);
+
+            $this->assertSame($token, $payload['recurrence']);
+            $this->assertSame($token, Action::findOrFail($payload['action_id'])->recurrence);
+        }
+    }
+
+    public function test_update_action_accepts_either_of_the_longer_cadences(): void
+    {
+        $user = User::factory()->create(['timezone' => 'UTC']);
+
+        foreach (['fortnightly', 'monthly'] as $token) {
+            $action = $this->existingAction($user);
+
+            PatYourSelfServer::actingAs($user)->tool(UpdateActionTool::class, [
+                'action_id' => $action->id,
+                'kind' => 'clock',
+                'time' => '10:00',
+                'recurrence' => $token,
+            ])->assertOk();
+
+            $this->assertSame($token, $action->fresh()->recurrence);
+        }
+    }
+
+    /**
+     * Both tools take their schedule schema from `DescribesActionShape`, so
+     * this is the assertion that keeps that shared enum derived from the enum
+     * rather than written out again.
+     */
+    public function test_both_tools_advertise_the_whole_recurrence_vocabulary(): void
+    {
+        foreach ([AddActionTool::class, UpdateActionTool::class] as $tool) {
+            $schema = (new $tool)->schema(new JsonSchemaTypeFactory);
+
+            $this->assertSame(
+                Recurrence::tokens(),
+                Serializer::serialize($schema['recurrence'])['enum'],
+                "{$tool} no longer advertises the whole recurrence vocabulary.",
+            );
+        }
     }
 
     public function test_add_action_rejects_a_malformed_time(): void

@@ -8,7 +8,10 @@ use App\Models\Action;
 use App\Models\Intention;
 use App\Models\Strategy;
 use App\Models\User;
+use App\Services\Scheduling\Recurrence;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\JsonSchema\JsonSchemaTypeFactory;
+use Illuminate\JsonSchema\Serializer;
 use Laravel\Mcp\Server\Testing\TestResponse;
 use Tests\TestCase;
 
@@ -112,6 +115,47 @@ class CreateLoopToolTest extends TestCase
         $this->assertSame('Read ten pages', $action->title);
         $this->assertSame('daily', $action->recurrence);
         $this->assertSame(Action::STATUS_ACTIVE, $action->status);
+    }
+
+    /**
+     * The connector is a first-class authoring surface, so a cadence the web
+     * form offers and this tool refuses is a real gap. Both halves are checked
+     * because they are separately spelled: the validation rule decides what is
+     * accepted, and the advertised enum decides what a client is ever told to
+     * ask for — a tool that quietly stopped listing `monthly` would simply
+     * never be handed it.
+     */
+    public function test_creates_a_first_action_on_either_of_the_longer_cadences(): void
+    {
+        foreach (['fortnightly', 'monthly'] as $token) {
+            $user = User::factory()->create(['timezone' => 'UTC']);
+
+            $response = PatYourSelfServer::actingAs($user)
+                ->tool(CreateLoopTool::class, $this->arguments([
+                    'action' => [
+                        'title' => 'Read ten pages',
+                        'kind' => 'clock',
+                        'time' => '21:30',
+                        'recurrence' => $token,
+                    ],
+                ]));
+
+            $response->assertOk();
+
+            $intention = Intention::findOrFail($this->payload($response)['loop_id']);
+
+            $this->assertSame($token, $intention->actions()->sole()->recurrence);
+        }
+    }
+
+    public function test_advertises_the_whole_recurrence_vocabulary(): void
+    {
+        $schema = (new CreateLoopTool)->schema(new JsonSchemaTypeFactory);
+
+        $this->assertSame(
+            Recurrence::tokens(),
+            Serializer::serialize($schema['action'])['properties']['recurrence']['enum'],
+        );
     }
 
     public function test_creates_no_action_when_the_block_is_absent(): void

@@ -2,9 +2,10 @@
  * The recurrences a person can choose, and which of them ask for a start date.
  *
  * Mirrored from `App\Services\Scheduling\Recurrence` on the server, not shared
- * with it — the same arrangement the workflow registries use, and with the same
- * caveat: nothing enforces that the two agree. A cadence added on the server
- * and missing here is simply never offered.
+ * with it: the enum is PHP and this ships to the browser. A cadence added on
+ * the server and missing here would simply never be offered, so the mirror is
+ * held in place by a test — `RecurrenceVocabularyTest` reads this file and
+ * asserts the values against `Recurrence::tokens()`, in this order.
  *
  * `once` leads: shortest commitment first.
  */

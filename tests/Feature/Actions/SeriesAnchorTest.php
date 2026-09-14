@@ -785,6 +785,71 @@ class SeriesAnchorTest extends TestCase
         $this->assertSame('2026-09-10 09:00:00', $rescheduled->series_started_at->utc()->format('Y-m-d H:i:s'));
     }
 
+    /**
+     * The guard and the anchor resolver have to resolve through the *same*
+     * function, and monthly is where that stops being free.
+     *
+     * A monthly action anchored on the 31st, renamed during a February: the
+     * form resubmits the action's own date, `anchorAt()` walks it to March's
+     * 31st (a clamped 28th must never be stored), and the guard must walk the
+     * stored anchor exactly as far. Resolve one side through `onOrAfter()` and
+     * the other through `anchorOnOrAfter()` and the two disagree by a month —
+     * the guard misses, and a rename purges the grid.
+     *
+     * Killing mutation: compare against `onOrAfter()` in
+     * describesTheSameSchedule(). The occurrence below is unlogged and in the
+     * future, which is exactly what purgeAbandonedOccurrences() removes.
+     */
+    public function test_renaming_a_monthly_action_anchored_on_the_thirty_first_changes_nothing(): void
+    {
+        Carbon::setTestNow('2026-02-10 12:00:00');
+
+        $action = Action::factory()->create([
+            'series_started_at' => Carbon::parse('2026-01-31 07:30:00'),
+            'recurrence' => 'monthly',
+            'metadata' => ['schedule_kind' => 'clock'],
+        ]);
+
+        // February's clamped slot — the occasion the grid really produces, and
+        // the one a spurious re-anchor would take with it.
+        $occurrence = Occurrence::factory()->for($action)->create([
+            'scheduled_for' => Carbon::parse('2026-02-28 07:30:00'),
+        ]);
+
+        $rescheduled = app(RescheduleAction::class)->handle(
+            $action, 'clock', '2026-01-31', '07:30', 'monthly', null, 'UTC',
+        );
+
+        $this->assertSame('2026-01-31 07:30:00', $rescheduled->series_started_at->utc()->format('Y-m-d H:i:s'));
+        $this->assertDatabaseHas('occurrences', ['id' => $occurrence->id]);
+    }
+
+    /**
+     * The same action, with the time genuinely moved: this *is* a reschedule,
+     * and the anchor it lands on must still be a 31st. February's 28th stored
+     * here would make every later month the 28th — the owner nudged 07:30 to
+     * 08:00 and lost the day of the month they chose.
+     *
+     * For a day-31 anchor the short months are five in twelve, so this is an
+     * ordinary edit rather than an edge case.
+     */
+    public function test_moving_the_time_of_a_monthly_action_keeps_its_day_of_the_month(): void
+    {
+        Carbon::setTestNow('2026-02-10 12:00:00');
+
+        $action = Action::factory()->create([
+            'series_started_at' => Carbon::parse('2026-01-31 07:30:00'),
+            'recurrence' => 'monthly',
+            'metadata' => ['schedule_kind' => 'clock'],
+        ]);
+
+        $rescheduled = app(RescheduleAction::class)->handle(
+            $action, 'clock', '2026-01-31', '08:00', 'monthly', null, 'UTC',
+        );
+
+        $this->assertSame('2026-03-31 08:00:00', $rescheduled->series_started_at->utc()->format('Y-m-d H:i:s'));
+    }
+
     protected function tearDown(): void
     {
         Carbon::setTestNow();

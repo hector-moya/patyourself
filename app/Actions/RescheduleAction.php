@@ -142,6 +142,14 @@ final readonly class RescheduleAction
      * describe the same series and re-anchoring would purge and rebuild the
      * grid for something nobody could observe.
      *
+     * Both sides of that convergence test must resolve through the *same*
+     * function, and it has to be the one `anchorAt()` uses —
+     * `Schedule::anchorOnOrAfter()`. Compare a stored anchor through
+     * `onOrAfter()` against a submitted one through `anchorOnOrAfter()` and a
+     * monthly action anchored on the 31st stops matching itself during a short
+     * month: the left side says March's 31st, the right side February's 28th,
+     * the guard misses, and a pure rename purges the action's future occasions.
+     *
      * Recurrence is compared before either branch, so both sides of the
      * convergence test walk the same grid — otherwise a weekly-to-daily change
      * could converge by accident.
@@ -186,7 +194,7 @@ final readonly class RescheduleAction
         }
 
         return $scheduledFor->equalTo(
-            $this->schedule->onOrAfter($action->series_started_at, $now, $rule, $timezone),
+            $this->schedule->anchorOnOrAfter($action->series_started_at, $now, $rule, $timezone),
         );
     }
 }

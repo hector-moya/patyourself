@@ -388,21 +388,31 @@ class ScheduleTest extends TestCase
 
     /**
      * The day of the month is a fact about the owner's calendar, not the
-     * server's. 23:30 on the 31st in Sydney is the 31st there and the 31st
-     * *or* the 30th in UTC depending on the season — reading it in UTC would
-     * anchor the series to the wrong day.
+     * server's.
+     *
+     * The anchor is deliberately one whose two calendars disagree about both
+     * the day *and* the month: 2026-02-28 13:30 UTC is 2026-03-01 00:30 in
+     * Sydney — the 1st of March there, the 28th of February here. An anchor
+     * whose two dates happen to coincide would pass whether the maths read the
+     * owner's zone or the server's, which is no assertion at all.
+     *
+     * Killing mutation: drop the `setTimezone($timezone)` round trip from
+     * advance(). The step is then computed in UTC and lands on 2026-03-29
+     * 00:30 Sydney instead of 2026-04-01 00:30.
      */
     public function test_monthly_reads_the_day_of_the_month_in_the_owners_zone(): void
     {
         $schedule = new Schedule;
-        // 2026-01-31 23:30 in Sydney is 2026-01-31 12:30 UTC.
-        $anchor = $this->at('2026-01-31 12:30:00');
-        $this->assertSame('31', $anchor->setTimezone('Australia/Sydney')->format('j'));
+        $anchor = $this->at('2026-02-28 13:30:00');
+        $this->assertSame('1', $anchor->setTimezone('Australia/Sydney')->format('j'));
+        $this->assertSame('28', $anchor->format('j')); // the same instant, in UTC
 
         $next = $schedule->advance($anchor, Recurrence::Monthly, 'Australia/Sydney', $anchor);
 
-        $this->assertSame('28', $next->setTimezone('Australia/Sydney')->format('j'));
-        $this->assertSame('23:30', $next->setTimezone('Australia/Sydney')->format('H:i'));
+        $this->assertSame(
+            '2026-04-01 00:30',
+            $next->setTimezone('Australia/Sydney')->format('Y-m-d H:i'),
+        );
     }
 
     public function test_fortnightly_steps_two_weeks_and_keeps_its_weekday(): void
@@ -498,19 +508,128 @@ class ScheduleTest extends TestCase
         $this->assertNull($next);
     }
 
-    /** The day of the month is read in the owner's zone, as the grid maths is. */
+    /**
+     * The day of the month is read in the owner's zone, as the grid maths is.
+     *
+     * New York rather than Sydney, and 20:00 rather than 23:30, so that the two
+     * calendars disagree in the direction that makes the check observable:
+     * 2026-02-01 01:00 UTC is 2026-01-31 20:00 in New York. The owner's day is
+     * the 31st, the server's is the 1st — and the 1st is a day February can
+     * hold, so a clamp check run in UTC is satisfied by February's clamped slot
+     * and stops there.
+     *
+     * Killing mutation: read `$anchor->day` and `$next->day` in
+     * nextAnchorAfter() instead of localising first. The answer becomes
+     * 2026-02-28 20:00 New York — the clamped slot this method exists to walk
+     * past — rather than 2026-03-31 20:00.
+     */
     public function test_a_monthly_anchor_is_clamp_checked_in_the_owners_zone(): void
     {
-        // 2026-01-31 12:30 UTC is 2026-01-31 23:30 in Sydney — the 31st there.
-        $anchor = $this->at('2026-01-31 12:30:00');
+        $anchor = $this->at('2026-02-01 01:00:00');
+        $this->assertSame('31', $anchor->setTimezone('America/New_York')->format('j'));
+        $this->assertSame('1', $anchor->format('j')); // the same instant, in UTC
 
         $next = (new Schedule)->nextAnchorAfter(
             $anchor,
             $this->at('2026-02-20 12:00:00'),
             Recurrence::Monthly,
-            'Australia/Sydney',
+            'America/New_York',
         );
 
-        $this->assertSame('31', $next->setTimezone('Australia/Sydney')->format('j'));
+        $this->assertSame(
+            '2026-03-31 20:00',
+            $next->setTimezone('America/New_York')->format('Y-m-d H:i'),
+        );
+    }
+
+    /**
+     * The year term in nextMonthly()'s elapsed-months count.
+     *
+     * Killing mutation: drop the `* 12`. December to January is then counted as
+     * −11 months rather than one, and the walk lands back in February 2026.
+     */
+    public function test_monthly_crosses_a_year_boundary(): void
+    {
+        $schedule = new Schedule;
+        $anchor = $this->at('2026-12-31 09:00:00');
+
+        $next = $schedule->advance($anchor, Recurrence::Monthly, 'UTC', $anchor);
+
+        $this->assertSame('2027-01-31 09:00:00', $next->utc()->format('Y-m-d H:i:s'));
+    }
+
+    /**
+     * onOrAfter() is right to hand back February's clamped slot: it answers
+     * "which occasion does this date fall on", and that genuinely is the one.
+     * Pinned so the difference from anchorOnOrAfter() below is a documented
+     * distinction rather than an accident of which one a caller reached for.
+     */
+    public function test_on_or_after_walks_a_past_monthly_candidate_onto_its_clamped_slot(): void
+    {
+        $result = (new Schedule)->onOrAfter(
+            $this->at('2026-01-31 07:30:00'),
+            $this->at('2026-02-10 12:00:00'),
+            Recurrence::Monthly,
+            'UTC',
+        );
+
+        $this->assertSame('2026-02-28 07:30:00', $result->utc()->format('Y-m-d H:i:s'));
+    }
+
+    /**
+     * The same candidate, resolved for storage. `anchorAt()` writes this
+     * straight into `series_started_at`, so a clamped answer would move the
+     * series off the day of the month its owner chose permanently.
+     *
+     * Killing mutation: have anchorOnOrAfter() delegate to onOrAfter(). The
+     * assertion below then reads 2026-02-28.
+     */
+    public function test_an_anchor_resolved_from_a_past_monthly_date_skips_the_clamped_slot(): void
+    {
+        $result = (new Schedule)->anchorOnOrAfter(
+            $this->at('2026-01-31 07:30:00'),
+            $this->at('2026-02-10 12:00:00'),
+            Recurrence::Monthly,
+            'UTC',
+        );
+
+        $this->assertSame('2026-03-31 07:30:00', $result->utc()->format('Y-m-d H:i:s'));
+    }
+
+    /**
+     * A candidate already ahead of `now` is the day the owner named, reached
+     * without walking a grid, so there is nothing to clamp and nothing to skip.
+     */
+    public function test_anchor_on_or_after_returns_a_future_candidate_untouched(): void
+    {
+        $result = (new Schedule)->anchorOnOrAfter(
+            $this->at('2026-10-31 07:30:00'),
+            $this->at('2026-09-14 12:00:00'),
+            Recurrence::Monthly,
+            'UTC',
+        );
+
+        $this->assertSame('2026-10-31 07:30:00', $result->utc()->format('Y-m-d H:i:s'));
+    }
+
+    /**
+     * Only monthly has a day of the month to lose, so every other cadence must
+     * resolve exactly as onOrAfter() resolves it — asserted against onOrAfter()
+     * itself so the two cannot drift apart. The one-off is included because a
+     * null recurrence returns the candidate untouched in both.
+     */
+    public function test_anchor_on_or_after_matches_on_or_after_for_every_other_cadence(): void
+    {
+        $schedule = new Schedule;
+        $candidate = $this->at('2026-01-31 07:30:00');
+        $now = $this->at('2026-02-10 12:00:00');
+
+        foreach ([Recurrence::Daily, Recurrence::Weekdays, Recurrence::Weekly, Recurrence::Fortnightly, null] as $recurrence) {
+            $this->assertTrue(
+                $schedule->anchorOnOrAfter($candidate, $now, $recurrence, 'UTC')
+                    ->equalTo($schedule->onOrAfter($candidate, $now, $recurrence, 'UTC')),
+                ($recurrence?->value ?? 'once').' must resolve exactly as onOrAfter() says.',
+            );
+        }
     }
 }

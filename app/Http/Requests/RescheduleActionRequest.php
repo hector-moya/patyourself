@@ -37,9 +37,10 @@ class RescheduleActionRequest extends FormRequest
             'title' => ['sometimes', 'string', 'max:255'],
             'description' => ['sometimes', 'nullable', 'string', 'max:2000'],
             'kind' => ['sometimes', 'in:clock,anchored'],
-            // Only `weekly` and `once` render a date input, so most saves carry
-            // none — and a save that carries none takes the derived-anchor path
-            // this endpoint has always taken. Not added to withValidator()'s
+            // Only the cadences a day means something to render a date input —
+            // `once`, `weekly`, `fortnightly` and `monthly`, per
+            // `recurrences.ts` — so a save can still carry none, and one that
+            // does takes the derived-anchor path this endpoint has always taken. Not added to withValidator()'s
             // "at least one field" set: `kind` already marks that a schedule was
             // submitted, and the form always sends `kind` alongside `date`.
             'date' => ['nullable', 'date_format:Y-m-d'],

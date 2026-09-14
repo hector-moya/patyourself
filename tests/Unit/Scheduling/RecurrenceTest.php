@@ -56,10 +56,17 @@ class RecurrenceTest extends TestCase
         $this->assertSame(array_values(array_unique($tokens)), $tokens);
     }
 
-    public function test_once_is_still_a_one_off_rather_than_a_case(): void
+    /**
+     * The order is what three select controls render in, and `once` leads on
+     * purpose — shortest commitment first. `RecurrenceVocabularyTest` holds the
+     * client's mirrored list to this same order, so it is asserted here once
+     * rather than described in each place that depends on it.
+     */
+    public function test_the_vocabulary_reads_shortest_commitment_first(): void
     {
-        $this->assertNull(Recurrence::tryFromToken('once'));
-        $this->assertNull(Recurrence::tryFromToken(null));
-        $this->assertNull(Recurrence::tryFromToken('fortnight'));
+        $this->assertSame(
+            ['once', 'daily', 'weekdays', 'weekly', 'fortnightly', 'monthly'],
+            Recurrence::tokens(),
+        );
     }
 }

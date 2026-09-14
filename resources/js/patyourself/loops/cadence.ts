@@ -35,7 +35,8 @@ type CadenceSource = Pick<
  * null whenever the occurrence grid has nothing left to report (a
  * cue-anchored action has no grid, and a clock action's grid only extends to
  * the end of the local day), and that is a legitimate state, not a gap to
- * paper over.
+ * paper over — but a recurring action still knows what time it runs at, so the
+ * anchor's own time stands in rather than leaving the cadence unqualified.
  */
 export function cadenceLabel(action: CadenceSource): string | null {
     if (action.schedule_kind === 'anchored') {
@@ -80,11 +81,21 @@ export function cadenceLabel(action: CadenceSource): string | null {
             ? null
             : formatTime(action.next_occurrence_at);
 
-    if (action.recurrence !== null && nextTime !== null) {
-        return `${action.recurrence} at ${nextTime}`;
+    if (action.recurrence !== null) {
+        // The grid only reaches the end of the local day, so a running series
+        // has no slot to name on any day its cadence does not land on — six
+        // days in seven for weekly, twenty-nine in thirty for monthly. The
+        // anchor's time of day is still the time the cadence runs at, and
+        // naming it is the difference between "monthly at 07:30" and a bare
+        // "monthly", which says nothing about when.
+        const at = nextTime ?? time;
+
+        return at === null ? action.recurrence : `${action.recurrence} at ${at}`;
     }
 
-    return action.recurrence ?? nextTime;
+    // A one-off whose occasion has gone has nothing left to report, and a time
+    // on its own would name a cadence that no longer exists.
+    return nextTime;
 }
 
 /**

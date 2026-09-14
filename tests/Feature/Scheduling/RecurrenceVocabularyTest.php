@@ -75,6 +75,43 @@ class RecurrenceVocabularyTest extends TestCase
         }
     }
 
+    /**
+     * The client's list is the one surface that cannot derive from the enum —
+     * it ships to the browser, and `Recurrence` does not. So it is mirrored by
+     * hand, and this is what keeps the mirror honest.
+     *
+     * Read from the source file rather than from a build artefact, the way
+     * `CompanionVocabularyTest` reads the TypeScript it scans: the file is the
+     * thing a future edit changes, and no bundle needs to exist for this to
+     * fail.
+     *
+     * Order is asserted, not just membership. The three select controls render
+     * the list as written, so a reordering is a change to what every authoring
+     * screen offers — and `once` leading is a deliberate choice, shortest
+     * commitment first.
+     */
+    public function test_the_clients_list_offers_exactly_the_servers_vocabulary(): void
+    {
+        $path = dirname(__DIR__, 3).'/resources/js/patyourself/loops/recurrences.ts';
+        $this->assertFileExists($path);
+
+        $source = (string) file_get_contents($path);
+
+        $this->assertSame(
+            1,
+            preg_match('/export const RECURRENCES[^=]*=\s*\[(.*?)\];/s', $source, $matches),
+            'recurrences.ts no longer exports a RECURRENCES array this test can read.',
+        );
+
+        preg_match_all("/value:\s*'([^']+)'/", $matches[1], $found);
+
+        $this->assertSame(
+            Recurrence::tokens(),
+            $found[1],
+            'recurrences.ts and Recurrence::tokens() no longer agree.',
+        );
+    }
+
     public function test_the_authoring_layer_accepts_the_two_new_cadences(): void
     {
         foreach (['fortnightly', 'monthly'] as $token) {

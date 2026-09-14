@@ -237,12 +237,12 @@ export function ActionLayer({
                                             name="recurrence"
                                             className="rounded-md border border-border bg-background px-3 py-2 text-sm"
                                         >
-                                            {RECURRENCES.map((recurrence) => (
+                                            {RECURRENCES.map((option) => (
                                                 <option
-                                                    key={recurrence.value}
-                                                    value={recurrence.value}
+                                                    key={option.value}
+                                                    value={option.value}
                                                 >
-                                                    {recurrence.label}
+                                                    {option.label}
                                                 </option>
                                             ))}
                                         </select>
@@ -390,9 +390,9 @@ function ActionEditor({
     );
 
     // Controlled, unlike the add-an-action form's, because it decides whether
-    // the date input is rendered at all: `daily` and `weekdays` repeat on every
-    // day they apply to, so a date names nothing there, while `weekly` picks
-    // the weekday and a one-off's date is the event itself.
+    // the date input is rendered at all. Which cadences that is, and why, is
+    // `recurrences.ts`'s ruling — restating it here would be a second copy to
+    // keep in agreement.
     const [recurrence, setRecurrence] = useState<string>(
         action.recurrence ?? 'once',
     );
@@ -499,12 +499,12 @@ function ActionEditor({
                                                 }
                                                 className="rounded-md border border-border bg-background px-3 py-2 text-sm"
                                             >
-                                                {RECURRENCES.map((recurrence) => (
+                                                {RECURRENCES.map((option) => (
                                                     <option
-                                                        key={recurrence.value}
-                                                        value={recurrence.value}
+                                                        key={option.value}
+                                                        value={option.value}
                                                     >
-                                                        {recurrence.label}
+                                                        {option.label}
                                                     </option>
                                                 ))}
                                             </select>

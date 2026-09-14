@@ -113,7 +113,28 @@ it walks on to the next month that can hold the day the owner chose, giving up
 that one occasion rather than the cadence. It is identical to `nextAfter()` for
 every other cadence, because only monthly has a day of the month to lose.
 
-### The two callers
+> **Correction (2026-09-14).** "`ReanchorsSeries` and `StartExperiment` both" is
+> wrong: there are **three** writers of `series_started_at`, not two, and the
+> third is the one the owner actually drives. `Schedule::anchorAt()` resolves a
+> chosen start date through `onOrAfter()` and `RescheduleAction` writes that
+> result straight into the column, so a monthly action anchored on the 31st and
+> edited during a short month was stored on the 28th — and so was one whose
+> owner picked the 31st before the series had run at all.
+>
+> The list was drawn up by searching for callers of `nextAfter()` rather than
+> for writers of `series_started_at`, which is why the action editor was missed.
+>
+> `Schedule::anchorOnOrAfter()` is the fix: `onOrAfter()`'s answer, walked on to
+> a slot safe to persist, exactly as `nextAnchorAfter()` is `nextAfter()`'s.
+> **`RescheduleAction::describesTheSameSchedule()` must call the same function**
+> — the unchanged-schedule guard works only because both sides resolve
+> identically, and leaving one side on `onOrAfter()` makes a pure rename purge a
+> monthly action's future occasions during every short month.
+
+### The two callers of `advance()`
+
+This table is about `advance()`'s new `$anchor` parameter, not about who
+persists an anchor — a distinction the correction above turns on.
 
 | Caller | Passes as `$anchor` |
 | --- | --- |
@@ -161,10 +182,23 @@ it:
 public static function tokens(): array
 ```
 
-The client keeps its own list, because the two registries cannot share code —
-the same arrangement `docs/WORKFLOWS.md` §3 describes for workflows, and the same
-caveat applies: nothing enforces that they agree. One exported const feeds all
-three selects, so the client side is at least spelled once.
+The client keeps its own list, because the enum is PHP and the selects ship to
+the browser. One exported const feeds all three selects, so the client side is
+at least spelled once.
+
+> **Correction (2026-09-14).** The workflow registries were cited here as the
+> precedent for leaving the two lists unchecked. They are not one:
+> `workflows.ts` maps names to React *components*, which cannot cross the wire,
+> while this is `{value, label}` data — and `IntentionController` already sends
+> the workflow *label* list down as a prop, with a comment saying a second
+> client-side copy "could only ever drift out of agreement".
+>
+> Restructuring the recurrence list into a prop is a larger change than it is
+> worth. The gap is closed cheaply instead:
+> `RecurrenceVocabularyTest::test_the_clients_list_offers_exactly_the_servers_vocabulary`
+> reads `recurrences.ts` and asserts its values against `Recurrence::tokens()`,
+> in the same order — the mechanism `CompanionVocabularyTest` already uses to
+> scan TypeScript from PHP.
 
 This consolidation is in scope because it is what makes the change safe, not
 because the duplication is untidy. It is the difference between "add two cases"
@@ -198,12 +232,27 @@ grids through `onOrAfter()`; the unchanged-schedule guard compares where two
 schedules land, and both new cadences land somewhere; the one-off refusal is
 unreachable for a non-null recurrence.
 
+> **Correction (2026-09-14).** "Everything downstream already works" is false
+> for monthly, for the reason §2's correction records: `onOrAfter()`'s answer is
+> the right occasion and the wrong anchor. Both the snap and the guard now go
+> through `anchorOnOrAfter()`, and they have to move together — see §2.
+
 ## 5. Copy
 
 `fortnightly` and `monthly` read correctly through the existing formatter with
 no special case: `cadenceLabel` prints the token, giving "fortnightly at 07:30"
 and "monthly from 23 Sep at 07:30". The selects say **Fortnightly** and
 **Monthly**.
+
+> **Correction (2026-09-14).** Not quite: the "at 07:30" half came from
+> `next_occurrence_at`, and the grid only reaches the end of the local day. A
+> running monthly action therefore read as the bare word "monthly" on
+> twenty-nine days in thirty — and the "from 23 Sep" line only applies before
+> the series has begun. `cadenceLabel` now falls back to the anchor's own time,
+> so a recurring action with no slot left today reads "monthly at 07:30". A
+> one-off is unchanged: its occasion has gone and there is no cadence to
+> qualify. Naming the *day* of a monthly action ("on the 31st") is a copy
+> decision for the owner, not this wave.
 
 `action-layer.tsx` and `cadence.ts` are on
 `CompanionVocabularyTest::sourceFiles()`, so all new copy and comments avoid
@@ -312,9 +361,9 @@ every `ORDER BY` a tiebreaker.
   it be a validated enum rather than a parsed expression.
 - **No end date.** A series runs until the action is retired.
 - **`weekdays` does not become anchor-relative**, per §2.
-- **Nothing enforces that the server and client lists agree.** Same open gap
-  `docs/WORKFLOWS.md` §11 records for the workflow registries, now with a
-  second instance. Worth one test, not in this spec.
+- ~~**Nothing enforces that the server and client lists agree.**~~ *Closed
+  2026-09-14, during this branch's final review: a PHP test reads
+  `recurrences.ts` and holds it to `Recurrence::tokens()`. See §3's correction.*
 - **The recurrence-switch pre-fill**, recorded during the previous spec's review:
   switching a long-running `daily` action to `weekly` pre-fills "Starts on" with
   a months-old anchor date. It affects the new cadences identically. Any fix must

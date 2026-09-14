@@ -89,15 +89,22 @@ Four collaborators, each with one job.
 
 | Class | Job |
 | --- | --- |
-| `Scheduling\Recurrence` | The enum: `daily`, `weekdays`, `weekly`. The token `once` and `null` both map to `null` — a one-off |
-| `Scheduling\Schedule` | Pure date math, no database. `firstOccurrence()` and `advance()` build a grid from `now`; `nextAfter()` steps along one; `anchorAt()` and `onOrAfter()` resolve where an edit says the series starts |
+| `Scheduling\Recurrence` | The enum: `daily`, `weekdays`, `weekly`, `fortnightly`, `monthly`. The token `once` and `null` both map to `null` — a one-off. `tokens()` is the one vocabulary every validation surface derives from |
+| `Scheduling\Schedule` | Pure date math, no database. `firstOccurrence()` and `advance()` build a grid from `now`; `nextAfter()` steps along one; `anchorAt()` and `onOrAfter()` resolve where an edit says the series starts. `nextAnchorAfter()` and `anchorOnOrAfter()` are the siblings of those last two that a **stored** anchor must go through — a clamped slot must never become the anchor |
 | `Scheduling\MaterialiseOccurrences` | Walks the anchor forward and writes the occasions that walk implies |
 | `Scheduling\ReanchorsSeries` | Moves an anchor and drops the occasions belonging to the cadence being left behind |
 
-**Stored datetimes are UTC; the user's IANA timezone localises them.** Weekday and weekly math is
-evaluated in the user's zone, which is why `Schedule::advance()` round-trips through
-`setTimezone($timezone)` — it preserves wall-clock time and so stays DST-correct and keeps weekly's
-weekday.
+**Stored datetimes are UTC; the user's IANA timezone localises them.** Weekday, weekly and monthly
+math is evaluated in the user's zone, which is why `Schedule::advance()` round-trips through
+`setTimezone($timezone)` — it preserves wall-clock time and so stays DST-correct, keeps weekly's
+weekday, and reads monthly's day of the month off the owner's calendar rather than the server's.
+A 20:00 anchor on the 31st in New York is the 1st in UTC, and the 1st is a day February can hold.
+
+**A timezone move leaves a future-dated action's anchor exactly where it was**, by design:
+`TimezoneController` re-anchors only actions whose anchor has already passed, so one the user
+scheduled ahead stays as they scheduled it. That has always meant its local time of day shifts with
+the move; for monthly it means its day of the month can shift too, because the day is read in the
+new zone. The alternative — rewriting a date the user chose — is the worse of the two.
 
 ### Materialising
 
@@ -138,9 +145,24 @@ and the MCP connector take, neither of which sends a date.
 
 With a date, **the date names a day, not an instant.** "Wednesday, weekly" means
 every Wednesday, so a date that has already passed is snapped forward onto its
-own grid by `onOrAfter()` rather than refused. That is the sibling of
-`nextAfter()`, not a wrapper: `nextAfter()` advances at least once, which would
-push every future start date one period later.
+own grid rather than refused. `onOrAfter()` is the sibling of `nextAfter()`, not
+a wrapper: `nextAfter()` advances at least once, which would push every future
+start date one period later.
+
+**A clamped slot must never become the anchor.** The anchor does two jobs for
+monthly — it says when the series starts, and it carries the day of the month
+the whole grid is computed from — so storing February's 28th makes every later
+month the 28th, permanently. Anything whose result is *persisted* therefore goes
+through `anchorOnOrAfter()` (here) or `nextAnchorAfter()` (`ReanchorsSeries` on a
+timezone change, `StartExperiment` on a revision), which walk on to the next
+month that can hold the day the owner chose: one occasion given up rather than
+the cadence. For every other rule they are `onOrAfter()` and `nextAfter()`
+exactly, because only monthly has a day of the month to lose.
+
+Both sides of the unchanged-schedule guard resolve through `anchorOnOrAfter()`
+for that reason. Resolve one side through `onOrAfter()` and a monthly action
+anchored on the 31st stops matching itself during a short month — and then a
+rename purges its future occasions.
 
 **A back-dated anchor is never stored.** `MaterialiseOccurrences` walks from the
 anchor to the end of the local day, so one would not record history — it would

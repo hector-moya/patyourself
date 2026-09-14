@@ -117,8 +117,8 @@ describe('cadenceLabel', () => {
     /**
      * An anchor in the past means the series is running, so its next occasion
      * is the useful fact — not the day it started. With no occasion left in
-     * today's grid there is genuinely nothing to name, and a bare "weekly" is
-     * the correct answer rather than a gap to paper over.
+     * today's grid the start date is not what stands in: the anchor's time of
+     * day is, because that is still the time the cadence runs at.
      */
     it('says nothing about a start date the series has already passed', () => {
         expect(
@@ -128,7 +128,67 @@ describe('cadenceLabel', () => {
                 date: '2026-09-09',
                 time: '07:30',
             }),
-        ).toBe('weekly');
+        ).toBe('weekly at 07:30');
+    });
+
+    /**
+     * The grid reaches the end of the local day and no further, so a running
+     * monthly action has no slot to name on twenty-nine days in thirty, and a
+     * weekly one on six in seven. A bare "monthly" names the cadence while
+     * saying nothing about when it happens.
+     *
+     * The time is the server's own `time`, passed through verbatim rather than
+     * derived from an instant, so the string is the same in every zone — the
+     * same reason the start-date line reads it.
+     */
+    it.each(['weekly', 'fortnightly', 'monthly'])(
+        'names the time a running %s action runs at when its grid has no slot left',
+        (recurrence) => {
+            expect(
+                cadenceLabel({
+                    ...base,
+                    recurrence,
+                    starts_at: '2026-08-31T07:30:00Z',
+                    date: '2026-08-31',
+                    time: '07:30',
+                }),
+            ).toBe(`${recurrence} at 07:30`);
+        },
+    );
+
+    /**
+     * The next occurrence still wins where there is one: it is the nearer fact,
+     * and it is the one that moves.
+     */
+    it('prefers the next occurrence to the anchor time', () => {
+        const next = '2026-09-14T18:45:00Z';
+
+        expect(
+            cadenceLabel({
+                ...base,
+                recurrence: 'monthly',
+                starts_at: '2026-08-31T07:30:00Z',
+                date: '2026-08-31',
+                time: '07:30',
+                next_occurrence_at: next,
+            }),
+        ).toBe(`monthly at ${renderedTime(next)}`);
+    });
+
+    /**
+     * A one-off keeps its old answer. Its occasion has gone, so there is no
+     * cadence left to qualify, and a bare time would name one it never had.
+     */
+    it('says nothing for a one-off whose occasion has gone', () => {
+        expect(
+            cadenceLabel({
+                ...base,
+                recurrence: null,
+                starts_at: '2026-09-09T07:30:00Z',
+                date: '2026-09-09',
+                time: '07:30',
+            }),
+        ).toBeNull();
     });
 
     it('prefers the next occurrence once the series is running', () => {
@@ -203,11 +263,16 @@ describe('cadenceLabel', () => {
 
     // The defect this function was fixed for once already: a recurrence with
     // no time left to report must not render as a dangling "weekly at ".
+    // `base` carries neither a next occurrence nor an anchor time, so both
+    // sources of a time are absent and the bare cadence is all there is.
     it('renders no dangling cadence when there is nothing to name', () => {
         expect(cadenceLabel({ ...base, starts_at: null })).toBe('weekly');
         expect(
             cadenceLabel({ ...base, recurrence: null, starts_at: null }),
         ).toBeNull();
+        expect(cadenceLabel({ ...base, starts_at: null, time: null })).toBe(
+            'weekly',
+        );
     });
 
     it.each(['fortnightly', 'monthly'])(
