@@ -18,6 +18,48 @@ class RecurrenceTest extends TestCase
     {
         $this->assertNull(Recurrence::tryFromToken('once'));
         $this->assertNull(Recurrence::tryFromToken(null));
-        $this->assertNull(Recurrence::tryFromToken('fortnightly'));
+        $this->assertNull(Recurrence::tryFromToken('fortnight'));
+    }
+
+    public function test_the_two_longer_cadences_map_from_their_tokens(): void
+    {
+        $this->assertSame(Recurrence::Fortnightly, Recurrence::tryFromToken('fortnightly'));
+        $this->assertSame(Recurrence::Monthly, Recurrence::tryFromToken('monthly'));
+    }
+
+    /**
+     * `once` is not a case — it maps to a null recurrence, which is what a
+     * one-off is — but it is part of the vocabulary a person chooses from, so
+     * it belongs in the list the validation surfaces derive from.
+     */
+    public function test_the_vocabulary_is_once_plus_every_case(): void
+    {
+        $tokens = Recurrence::tokens();
+
+        $this->assertContains('once', $tokens);
+
+        foreach (Recurrence::cases() as $case) {
+            $this->assertContains($case->value, $tokens, "{$case->value} is missing from the vocabulary.");
+        }
+
+        $this->assertCount(count(Recurrence::cases()) + 1, $tokens);
+    }
+
+    /**
+     * The vocabulary is what every request class validates against, so a
+     * duplicate would show up as a repeated option in three select controls.
+     */
+    public function test_the_vocabulary_has_no_duplicates(): void
+    {
+        $tokens = Recurrence::tokens();
+
+        $this->assertSame(array_values(array_unique($tokens)), $tokens);
+    }
+
+    public function test_once_is_still_a_one_off_rather_than_a_case(): void
+    {
+        $this->assertNull(Recurrence::tryFromToken('once'));
+        $this->assertNull(Recurrence::tryFromToken(null));
+        $this->assertNull(Recurrence::tryFromToken('fortnight'));
     }
 }
