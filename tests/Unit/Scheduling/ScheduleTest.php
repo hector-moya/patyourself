@@ -545,8 +545,16 @@ class ScheduleTest extends TestCase
     /**
      * The year term in nextMonthly()'s elapsed-months count.
      *
-     * Killing mutation: drop the `* 12`. December to January is then counted as
-     * −11 months rather than one, and the walk lands back in February 2026.
+     * The first step (Dec 31 -> Jan 31) is pinned because it is a good year
+     * boundary to read, but it does not discriminate this mutation: `$current`
+     * equals `$anchor`, so the year term is multiplied by zero either way.
+     *
+     * The second step is what kills it. `$current` (2027-01-31) is a year
+     * after `$anchor` (2026-12-31), so elapsed is normally
+     * (2027-2026)*12 + (1-12) = 1, landing on 2027-02-28.
+     *
+     * Killing mutation: drop the `* 12`. Elapsed becomes
+     * (2027-2026) + (1-12) = -10, and the walk lands back in March 2026.
      */
     public function test_monthly_crosses_a_year_boundary(): void
     {
@@ -556,6 +564,10 @@ class ScheduleTest extends TestCase
         $next = $schedule->advance($anchor, Recurrence::Monthly, 'UTC', $anchor);
 
         $this->assertSame('2027-01-31 09:00:00', $next->utc()->format('Y-m-d H:i:s'));
+
+        $next = $schedule->advance($next, Recurrence::Monthly, 'UTC', $anchor);
+
+        $this->assertSame('2027-02-28 09:00:00', $next->utc()->format('Y-m-d H:i:s'));
     }
 
     /**
