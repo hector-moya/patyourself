@@ -519,7 +519,248 @@ walk already wrote."
 
 ---
 
-### Task 3: Seven validation surfaces, one list
+### Task 3: A clamped slot must never become the anchor
+
+**Added after Task 2's review, which found this. It is not in the spec** — the spec's §2 only ruled on how the grid is *walked*, and missed that two callers **persist** a walked slot as the new `series_started_at`.
+
+For monthly that is the same corruption by another route. `nextAfter()` correctly returns February's clamped 28th; storing it as the anchor makes every later month the 28th, because the grid is computed from the anchor's day. Neither trigger involves the owner choosing a new day — one is a timezone change, the other a strategy revision — and both call sites' own docblocks claim they "preserve the phase for a recurring cadence".
+
+**The ruling** (the owner's, taken after Task 2): when re-anchoring monthly, do not land on a clamped slot. Move on to the next month that can hold the anchor's day, losing that one occasion rather than the cadence.
+
+```
+anchor Jan 31, re-anchored on 20 Feb
+  before:  -> Feb 28,  then Mar 28, Apr 28   the 31st is gone
+  after:   -> Mar 31,  then Apr 30, May 31   February's occasion is skipped
+```
+
+Only two call sites persist an anchor this way. `UpdateIntention::reanchorStaleActions()` looks like a third but delegates to `ReanchorsSeries::forActions()`, so fixing that one covers it.
+
+**Files:**
+- Modify: `app/Services/Scheduling/Schedule.php`
+- Modify: `app/Services/Scheduling/ReanchorsSeries.php:51`
+- Modify: `app/Actions/StartExperiment.php:203`
+- Test: `tests/Unit/Scheduling/ScheduleTest.php`, `tests/Unit/Scheduling/ReanchorsSeriesTest.php`
+
+**Interfaces:**
+- Consumes: `Schedule::nextAfter()`, `Schedule::advance()` (with the `$anchor` from Task 2), `Recurrence::Monthly`.
+- Produces:
+  ```php
+  public function nextAnchorAfter(CarbonImmutable $anchor, CarbonImmutable $now, ?Recurrence $recurrence, string $timezone): ?CarbonImmutable
+  ```
+  Nothing later in this plan calls it.
+
+- [ ] **Step 1: Write the failing tests**
+
+Append to `tests/Unit/Scheduling/ScheduleTest.php`:
+
+```php
+    /**
+     * The defect Task 2's review found. nextAfter() is right to return the
+     * clamped slot — it is genuinely the next occasion — but a caller that
+     * *persists* it as the anchor makes the clamp permanent, because the grid
+     * is computed from the anchor's day of the month.
+     *
+     * Killing mutation: have nextAnchorAfter() simply return nextAfter()'s
+     * answer. The assertion below then reads 2026-02-28.
+     */
+    public function test_a_monthly_anchor_never_lands_on_a_clamped_slot(): void
+    {
+        $schedule = new Schedule;
+        $anchor = $this->at('2026-01-31 09:00:00');
+
+        $next = $schedule->nextAnchorAfter($anchor, $this->at('2026-02-20 12:00:00'), Recurrence::Monthly, 'UTC');
+
+        $this->assertSame('2026-03-31 09:00:00', $next->utc()->format('Y-m-d H:i:s'));
+    }
+
+    public function test_a_monthly_anchor_that_does_not_clamp_is_the_next_occasion(): void
+    {
+        $schedule = new Schedule;
+        $anchor = $this->at('2026-01-15 09:00:00');
+
+        $next = $schedule->nextAnchorAfter($anchor, $this->at('2026-01-20 12:00:00'), Recurrence::Monthly, 'UTC');
+
+        $this->assertSame('2026-02-15 09:00:00', $next->utc()->format('Y-m-d H:i:s'));
+    }
+
+    /**
+     * Only monthly has a day of the month to lose, so every other cadence must
+     * get exactly what nextAfter() says — asserted against nextAfter() itself
+     * so the two cannot drift apart.
+     */
+    public function test_every_other_cadence_re_anchors_exactly_as_it_always_did(): void
+    {
+        $schedule = new Schedule;
+        $anchor = $this->at('2026-01-31 09:00:00');
+        $now = $this->at('2026-02-20 12:00:00');
+
+        foreach ([Recurrence::Daily, Recurrence::Weekdays, Recurrence::Weekly, Recurrence::Fortnightly] as $recurrence) {
+            $this->assertTrue(
+                $schedule->nextAnchorAfter($anchor, $now, $recurrence, 'UTC')
+                    ->equalTo($schedule->nextAfter($anchor, $now, $recurrence, 'UTC')),
+                "{$recurrence->value} must re-anchor exactly as nextAfter() says.",
+            );
+        }
+    }
+
+    /** A one-off has no next slot, and its callers fall back to firstOccurrence(). */
+    public function test_a_one_off_has_no_next_anchor(): void
+    {
+        $next = (new Schedule)->nextAnchorAfter(
+            $this->at('2026-01-31 09:00:00'),
+            $this->at('2026-02-20 12:00:00'),
+            null,
+            'UTC',
+        );
+
+        $this->assertNull($next);
+    }
+
+    /** The day of the month is read in the owner's zone, as the grid maths is. */
+    public function test_a_monthly_anchor_is_clamp_checked_in_the_owners_zone(): void
+    {
+        // 2026-01-31 12:30 UTC is 2026-01-31 23:30 in Sydney — the 31st there.
+        $anchor = $this->at('2026-01-31 12:30:00');
+
+        $next = (new Schedule)->nextAnchorAfter(
+            $anchor,
+            $this->at('2026-02-20 12:00:00'),
+            Recurrence::Monthly,
+            'Australia/Sydney',
+        );
+
+        $this->assertSame('31', $next->setTimezone('Australia/Sydney')->format('j'));
+    }
+```
+
+Then the caller-level case, appended to `tests/Unit/Scheduling/ReanchorsSeriesTest.php`. **Read that file first** and match how it builds its actions and invokes `forActions()` — it is an existing suite with its own fixture idiom, and this case must use it rather than inventing one:
+
+```php
+    /**
+     * A timezone change must not cost a monthly action its day of the month.
+     * The owner changed where they live, not when they want to do the thing.
+     */
+    public function test_a_timezone_change_keeps_a_monthly_action_on_its_day(): void
+    {
+        // Build a monthly action anchored on the 31st, with `now` inside a
+        // February so the next occasion would clamp, then re-anchor it.
+        // Assert the stored series_started_at is still a 31st.
+    }
+```
+
+Write that test out fully against the file's own idiom — the comment above is the intent, not a placeholder to leave in.
+
+- [ ] **Step 2: Run the tests to verify they fail**
+
+Run: `php artisan test --compact --filter="ScheduleTest|ReanchorsSeriesTest"`
+Expected: FAIL — `nextAnchorAfter()` does not exist.
+
+- [ ] **Step 3: Implement**
+
+In `app/Services/Scheduling/Schedule.php`, after `nextAfter()`:
+
+```php
+    /**
+     * The next slot that is safe to **persist** as a series anchor.
+     *
+     * Identical to nextAfter() for every cadence but monthly, and the
+     * distinction exists only because the anchor is doing two jobs at once: it
+     * says when the series starts, and for monthly it also carries the day of
+     * the month the whole grid is computed from.
+     *
+     * nextAfter() is right to return February's clamped 28th — it genuinely is
+     * the next occasion. But a caller that stores it makes the clamp permanent:
+     * every later month becomes the 28th, which is the corruption
+     * {@see self::advance()} exists to prevent, arriving by a different route.
+     *
+     * So a monthly anchor walks on to the next month that can hold the day the
+     * owner chose, giving up that one occasion rather than the cadence. It
+     * terminates after at most one extra step: no two consecutive months are
+     * both too short for the same day.
+     */
+    public function nextAnchorAfter(CarbonImmutable $anchor, CarbonImmutable $now, ?Recurrence $recurrence, string $timezone): ?CarbonImmutable
+    {
+        $next = $this->nextAfter($anchor, $now, $recurrence, $timezone);
+
+        if ($next === null || $recurrence !== Recurrence::Monthly) {
+            return $next;
+        }
+
+        $day = $anchor->setTimezone($timezone)->day;
+
+        while ($next !== null && $next->setTimezone($timezone)->day !== $day) {
+            $next = $this->advance($next, $recurrence, $timezone, $anchor);
+        }
+
+        return $next;
+    }
+```
+
+- [ ] **Step 4: Point the two callers at it**
+
+`app/Services/Scheduling/ReanchorsSeries.php:51` — change `nextAfter` to `nextAnchorAfter`, and extend the comment above it:
+
+```php
+                // nextAnchorAfter() rather than nextAfter(): this result is
+                // *stored* as the new anchor, and for monthly a clamped slot
+                // stored as an anchor makes the clamp permanent.
+```
+
+`app/Actions/StartExperiment.php:203` — the same change and the same note.
+
+- [ ] **Step 5: Run the tests to verify they pass**
+
+Run: `php artisan test --compact --filter="ScheduleTest|ReanchorsSeriesTest|StartExperiment|UpdateIntention|Timezone"`
+Expected: PASS — the new cases plus every pre-existing one in those suites, which pin the non-monthly re-anchor behaviour that must not move.
+
+- [ ] **Step 6: Record it in the spec**
+
+This ruling is not in `docs/superpowers/specs/2026-09-14-fortnightly-and-monthly-design.md`. Add it to §2, after the "Weekdays must stay pairwise" subsection:
+
+```markdown
+### A clamped slot must never become the anchor
+
+`ReanchorsSeries` and `StartExperiment` both **persist** the result of
+`nextAfter()` as the new `series_started_at` — one on a timezone change, the
+other on a strategy revision, neither because the owner picked a new day.
+
+`nextAfter()` is right to return February's clamped 28th; it genuinely is the
+next occasion. But storing it as an anchor makes the clamp permanent, because
+the grid is computed from the anchor's day. That is this section's corruption
+arriving by a different route.
+
+`Schedule::nextAnchorAfter()` is what those two callers use instead: for monthly
+it walks on to the next month that can hold the day the owner chose, giving up
+that one occasion rather than the cadence. It is identical to `nextAfter()` for
+every other cadence, because only monthly has a day of the month to lose.
+```
+
+- [ ] **Step 7: Format, verify and commit**
+
+```bash
+vendor/bin/pint --dirty --format agent
+npm run build
+php artisan test --compact
+```
+
+```bash
+git add app/Services/Scheduling/Schedule.php app/Services/Scheduling/ReanchorsSeries.php app/Actions/StartExperiment.php tests/Unit/Scheduling docs/superpowers/specs/2026-09-14-fortnightly-and-monthly-design.md
+git commit -m "fix(scheduling): never persist a clamped slot as a monthly anchor
+
+Two callers store nextAfter()'s result as the new series_started_at — a
+timezone change and a strategy revision, neither of which is the owner
+choosing a new day. For monthly that stored February's clamped 28th and
+made every later month the 28th: the same corruption anchored arithmetic
+was added to prevent, arriving by a different route.
+
+nextAnchorAfter() walks on to the next month that can hold the day the
+owner chose, giving up that one occasion rather than the cadence. Every
+other cadence is untouched, because only monthly has a day to lose."
+```
+
+---
+
+### Task 4: Seven validation surfaces, one list
 
 A batch of mechanical edits with one new test. Each site currently restates the vocabulary; each derives it instead.
 
@@ -733,7 +974,7 @@ the cadence nobody has thought of yet."
 
 ---
 
-### Task 4: The client offers them, and asks for a date
+### Task 5: The client offers them, and asks for a date
 
 **Files:**
 - Create: `resources/js/patyourself/loops/recurrences.ts`
