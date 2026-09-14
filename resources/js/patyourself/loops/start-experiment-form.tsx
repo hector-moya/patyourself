@@ -1,5 +1,6 @@
 import { Form } from '@inertiajs/react';
 import { useState } from 'react';
+import { RECURRENCES } from '@/patyourself/loops/recurrences';
 import { Button } from '@/patyourself/primitives';
 import experiments from '@/routes/loops/experiments';
 
@@ -224,14 +225,14 @@ export function StartExperimentForm({ loopId, currentCadence }: Props) {
                                             name="action_recurrence"
                                             className="rounded-md border border-border bg-background px-3 py-2 text-sm"
                                         >
-                                            <option value="once">Once</option>
-                                            <option value="daily">Daily</option>
-                                            <option value="weekdays">
-                                                Weekdays
-                                            </option>
-                                            <option value="weekly">
-                                                Weekly
-                                            </option>
+                                            {RECURRENCES.map((recurrence) => (
+                                                <option
+                                                    key={recurrence.value}
+                                                    value={recurrence.value}
+                                                >
+                                                    {recurrence.label}
+                                                </option>
+                                            ))}
                                         </select>
                                     </div>
                                 </div>

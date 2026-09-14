@@ -102,6 +102,9 @@ class CompanionVocabularyTest extends TestCase
             $root.'/resources/js/pages/loops/show.tsx',
             $root.'/resources/js/patyourself/loops/action-layer.tsx',
             $root.'/resources/js/patyourself/loops/anatomy.tsx',
+            // The labels three select controls render, so it is where a
+            // cadence gets its user-facing name.
+            $root.'/resources/js/patyourself/loops/recurrences.ts',
             // Not merely a formatter any more: it authors the phrase the loop
             // screen reads a schedule out in — "weekly from 23 Sep at 07:30",
             // "on 23 Sep at 07:30" — rather than concatenating values it was

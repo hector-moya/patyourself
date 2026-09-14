@@ -313,29 +313,32 @@ describe('ActionLayer disclosure', () => {
     });
 });
 
+// Shared by 'ActionEditor start date' and 'ActionEditor longer cadences'
+// below: one fixture and one way to reach the editor, so a cadence added to
+// one suite cannot describe a different action shape from the other.
+const weekly: ActionSummary = {
+    id: 3,
+    title: 'Weigh in',
+    cadence: 'weekly at 07:30',
+    scheduleKind: 'clock',
+    time: '07:30',
+    recurrence: 'weekly',
+    anchor: null,
+    date: '2026-09-23',
+    routine: null,
+};
+
+async function openEditor(action: typeof weekly) {
+    const user = userEvent.setup();
+    render(<ActionLayer loopId={2} actions={[action]} />);
+    await user.click(
+        screen.getByRole('button', { name: `Edit ${action.title}` }),
+    );
+
+    return user;
+}
+
 describe('ActionEditor start date', () => {
-    const weekly: ActionSummary = {
-        id: 3,
-        title: 'Weigh in',
-        cadence: 'weekly at 07:30',
-        scheduleKind: 'clock',
-        time: '07:30',
-        recurrence: 'weekly',
-        anchor: null,
-        date: '2026-09-23',
-        routine: null,
-    };
-
-    async function openEditor(action: typeof weekly) {
-        const user = userEvent.setup();
-        render(<ActionLayer loopId={2} actions={[action]} />);
-        await user.click(
-            screen.getByRole('button', { name: `Edit ${action.title}` }),
-        );
-
-        return user;
-    }
-
     it('asks for a start date on a weekly action, pre-filled from its anchor', async () => {
         await openEditor(weekly);
 
@@ -430,6 +433,54 @@ describe('ActionEditor start date', () => {
             recurrence: null,
             anchor: 'after work',
             date: null,
+        });
+
+        expect(screen.queryByLabelText('Starts on')).not.toBeInTheDocument();
+    });
+});
+
+describe('ActionEditor longer cadences', () => {
+    it.each(['fortnightly', 'monthly'])(
+        'asks for a start date on a %s action, which names a day',
+        async (recurrence) => {
+            await openEditor({ ...weekly, recurrence });
+
+            expect(screen.getByLabelText('Starts on')).toBeInTheDocument();
+        },
+    );
+
+    it('offers every cadence, longest commitment last', async () => {
+        await openEditor(weekly);
+
+        // Scoped for the same reason the tests above are: the always-present
+        // "Add an action" form has its own "How often" select.
+        const editor = within(screen.getByTestId(`action-editor-${weekly.id}`));
+        const select = editor.getByLabelText('How often');
+        const offered = Array.from(
+            select.querySelectorAll('option'),
+        ).map((option) => option.value);
+
+        expect(offered).toEqual([
+            'once',
+            'daily',
+            'weekdays',
+            'weekly',
+            'fortnightly',
+            'monthly',
+        ]);
+    });
+
+    it('switches from monthly to daily and drops the start date', async () => {
+        await openEditor({ ...weekly, recurrence: 'monthly' });
+
+        expect(screen.getByLabelText('Starts on')).toBeInTheDocument();
+
+        // Scoped, and `fireEvent` rather than `userEvent.selectOptions`, for
+        // the reason recorded above in 'ActionEditor start date'.
+        const editor = within(screen.getByTestId(`action-editor-${weekly.id}`));
+
+        fireEvent.change(editor.getByLabelText('How often'), {
+            target: { value: 'daily' },
         });
 
         expect(screen.queryByLabelText('Starts on')).not.toBeInTheDocument();

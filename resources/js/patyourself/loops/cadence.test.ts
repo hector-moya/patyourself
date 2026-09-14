@@ -209,4 +209,19 @@ describe('cadenceLabel', () => {
             cadenceLabel({ ...base, recurrence: null, starts_at: null }),
         ).toBeNull();
     });
+
+    it.each(['fortnightly', 'monthly'])(
+        'reads a %s cadence out with no special case',
+        (recurrence) => {
+            const next = '2026-09-16T07:30:00Z';
+            const time = new Date(next).toLocaleTimeString('en-GB', {
+                hour: '2-digit',
+                minute: '2-digit',
+            });
+
+            expect(
+                cadenceLabel({ ...base, recurrence, next_occurrence_at: next }),
+            ).toBe(`${recurrence} at ${time}`);
+        },
+    );
 });
