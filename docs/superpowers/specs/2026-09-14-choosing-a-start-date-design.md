@@ -227,6 +227,15 @@ assert today's derived-date behaviour and must keep asserting exactly that.
 separate surface, recorded here rather than taken. With null they behave
 identically to today, which is the point of the delegating branch in §4.
 
+**Neither needs a transaction wrapper today, and that is the same reason.**
+`handle()`'s past-one-off throw only fires when `$date` is not null; with it
+always null here the throw cannot land after a partial write. `update-action`'s
+title write (committed just before this call) is safe unwrapped for exactly
+that reason, and the JSON API writes nothing alongside the reschedule so there
+is no half-write to protect against either way. Widening either surface to
+accept a start date reintroduces the throw and means adding the wrapper
+`ActionController@update` already carries.
+
 ## 6. What the screen sends and shows
 
 `IntentionController::actionLayer()` gains two fields per action:

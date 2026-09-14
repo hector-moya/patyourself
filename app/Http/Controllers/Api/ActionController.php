@@ -27,6 +27,10 @@ class ActionController extends Controller
             // the derived-anchor path, which is what this endpoint has
             // always done. Widening it is a separate decision about a
             // separate surface.
+            //
+            // It is also why this call needs no transaction: nothing else is
+            // written here, and null keeps handle()'s past-one-off throw
+            // unreachable.
             null,
             $request->validated('time'),
             $request->validated('recurrence'),

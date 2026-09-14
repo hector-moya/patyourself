@@ -284,8 +284,10 @@ describe('ActionLayer disclosure', () => {
     /**
      * The seam between this branch's two changes: the editor opened inside a
      * disclosure must be the same editor as the one opened on a flat row,
-     * pre-filled from the action's own anchor. An empty date here is the exact
-     * shape in which a rename re-derives the anchor and moves the series.
+     * pre-filled from the action's own anchor. An empty date here drops the
+     * owner's chosen start date, so a later save that does change the
+     * schedule would re-derive the anchor from now instead of honouring the
+     * date they picked.
      */
     it('opens the editor inside the body and leaves the disclosure open', async () => {
         const user = userEvent.setup();

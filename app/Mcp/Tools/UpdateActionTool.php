@@ -75,7 +75,10 @@ class UpdateActionTool extends Tool
                 $action,
                 $validated['kind'],
                 // The connector does not send a start date; null takes the
-                // derived-anchor path `update-action` has always taken.
+                // derived-anchor path `update-action` has always taken. It
+                // also keeps the title write above safe without a
+                // transaction — the throw stays unreachable, so it can never
+                // land after the title is already committed.
                 null,
                 $validated['time'] ?? null,
                 $validated['recurrence'] ?? null,
