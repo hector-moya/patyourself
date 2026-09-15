@@ -250,17 +250,49 @@ export interface LoopStreak {
     length: number;
 }
 
-/** One active loop's metric card on the progress index (mirrors ProgressController@index). */
+/**
+ * One active loop's metric card on the progress index (mirrors
+ * ProgressController@index).
+ *
+ * The figures are the *running version's*, not the loop's whole lifetime —
+ * which is what makes `previous_version` a fair comparison rather than one
+ * against a number that already contains it. A loop between experiments has
+ * no version to be about, so `version` is null and the figures fall back to
+ * the lifetime record.
+ */
 export interface LoopProgressCard {
     id: number;
     title: string;
     type: string;
+    /** The running version, or null between experiments. */
+    version: number | null;
+    day_of_experiment: number | null;
     streak: LoopStreak;
     completion_rate: number | null; // 0–100, null when no decided logs
     totals: { completed: number; failed: number; skipped: number };
     recent: OutcomeMark[]; // oldest → newest, max 10
+    /**
+     * The last version before this one that produced a decision, and the rate
+     * it held at. Null for a first version, and for one whose predecessors
+     * were replaced before anything was logged against them.
+     */
+    previous_version: { version: number; rate: number } | null;
     last_logged_at: string | null;
     summary_excerpt: string | null;
+}
+
+/**
+ * What the whole record adds up to, for the line at the top of the screen.
+ * Counts only loops that have decided something — a loop with nothing logged
+ * has neither held nor failed anything.
+ */
+export interface ProgressSummary {
+    held: number;
+    decided: number;
+    skipped: number;
+    versions_running: number;
+    /** Running versions beating the one they replaced. Counted, not assumed. */
+    versions_ahead: number;
 }
 
 /** The same metric block on the detail screen (no index-only excerpt). */

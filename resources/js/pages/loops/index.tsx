@@ -3,6 +3,7 @@ import type { CSSProperties, FormEvent } from 'react';
 import { Fragment, useState } from 'react';
 
 import CoachLayout from '@/layouts/coach-layout';
+import { cn } from '@/lib/utils';
 import { BottomNav } from '@/patyourself/bottom-nav';
 import { Icon } from '@/patyourself/primitives';
 import type { ActiveStrategySummary, IntentionData } from '@/patyourself/types';
@@ -194,7 +195,7 @@ function FilterChip({
             href={href}
             preserveScroll
             aria-pressed={active}
-            className={`py-chip py-chip--btn${active ? 'is-active' : ''}`}
+            className={cn('py-chip py-chip--btn', active && 'is-active')}
         >
             {label}
         </Link>
@@ -220,7 +221,7 @@ function LoopCard({ loop }: { loop: IntentionData }) {
     return (
         <Link
             href={`/loops/${loop.id}`}
-            className={`l-card${quiet ? 'is-quiet' : ''}`}
+            className={cn('l-card', quiet && 'is-quiet')}
             style={
                 acts === null
                     ? undefined

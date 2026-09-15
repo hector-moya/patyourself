@@ -6,13 +6,23 @@ use App\Models\ActionLog;
 use App\Models\Intention;
 use App\Models\Strategy;
 use App\Services\Strategy\OutcomeStreak;
+use Illuminate\Support\Collection;
 
 /**
- * Read-side aggregation for one loop's progress card. Pure: no writes, no model
- * calls. Streak delegates to OutcomeStreak (the active-strategy leading run);
- * rate and totals span the loop's whole lifetime so they survive strategy
- * revisions. `skipped` outcomes are neutral — excluded from the rate, kept in
- * the recent strip. The caller eager-loads `activeStrategy` and `actionLogs`.
+ * Read-side aggregation for one loop's progress. Pure: no writes, no model
+ * calls. Streak delegates to OutcomeStreak (the active-strategy leading run).
+ *
+ * Two scopes, and picking the wrong one is the mistake this class exists to
+ * prevent. {@see forLoop()} spans the loop's whole lifetime, so it survives
+ * strategy revisions — right for "how is this loop going overall".
+ * {@see forCurrentVersion()} covers only the running version, which is what
+ * any figure set against an earlier version has to be, or the comparison is
+ * partly against itself. {@see previousDecidedVersion()} supplies the other
+ * side of that comparison.
+ *
+ * `skipped` outcomes are neutral throughout — excluded from every rate, kept
+ * in the recent strip. The caller eager-loads `activeStrategy` and
+ * `actionLogs`.
  */
 final class LoopProgress
 {
@@ -41,20 +51,11 @@ final class LoopProgress
             ? [null, 0]
             : $this->streak->forStrategy($loop->activeStrategy);
 
-        // The newest 10 logs, re-ordered oldest → newest so the strip reads left-to-right.
-        $recent = $logs
-            ->sortByDesc('logged_at')
-            ->take(10)
-            ->reverse()
-            ->pluck('outcome')
-            ->values()
-            ->all();
-
         return [
             'streak' => ['outcome' => $outcome, 'length' => $length],
             'completion_rate' => $decided === 0 ? null : (int) round($completed / $decided * 100),
             'totals' => ['completed' => $completed, 'failed' => $failed, 'skipped' => $skipped],
-            'recent' => $recent,
+            'recent' => $this->strip($logs),
             'last_logged_at' => $logs->max('logged_at')?->toIso8601String(),
         ];
     }
@@ -82,6 +83,7 @@ final class LoopProgress
      *   streak: array{outcome: ?string, length: int},
      *   completion_rate: ?int,
      *   totals: array{completed: int, failed: int, skipped: int},
+     *   recent: list<string>,
      *   last_logged_at: ?string,
      * }|null  Null when the loop has no active version — a perfectly good state.
      */
@@ -114,8 +116,88 @@ final class LoopProgress
             'streak' => ['outcome' => $outcome, 'length' => $length],
             'completion_rate' => $decided === 0 ? null : (int) round($completed / $decided * 100),
             'totals' => ['completed' => $completed, 'failed' => $failed, 'skipped' => $skipped],
+            // Scoped to this version like everything else in this block. The
+            // whole-loop strip in forLoop() would run back across the
+            // revision, so the marks and the rate beside them would be
+            // counting different things.
+            'recent' => $this->strip($logs),
             'last_logged_at' => $logs->max('logged_at')?->toIso8601String(),
         ];
+    }
+
+    /**
+     * The version immediately before the running one that produced a decision,
+     * and the rate it held at.
+     *
+     * Only a version that was actually tested can be compared against — one
+     * that was replaced before anything was logged has no rate, and skipping
+     * over it finds the last version that does. Null when there is no such
+     * version, and the caller then says nothing rather than rendering a
+     * comparison against zero.
+     *
+     * `skipped` is excluded from the denominator here exactly as it is
+     * everywhere else: the occasion never happened, so it decided nothing.
+     *
+     * @return array{version: int, rate: int}|null
+     */
+    public function previousDecidedVersion(Intention $loop): ?array
+    {
+        $strategy = $loop->activeStrategy;
+
+        if (! $strategy instanceof Strategy) {
+            return null;
+        }
+
+        $earlier = $loop->strategies()
+            ->where('version', '<', $strategy->version)
+            ->orderByDesc('version')
+            ->get(['id', 'version']);
+
+        if ($earlier->isEmpty()) {
+            return null;
+        }
+
+        $totals = ActionLog::query()
+            ->join('actions', 'actions.id', '=', 'action_logs.action_id')
+            ->whereIn('actions.strategy_id', $earlier->pluck('id'))
+            ->whereIn('action_logs.outcome', [ActionLog::OUTCOME_COMPLETED, ActionLog::OUTCOME_FAILED])
+            ->get(['action_logs.outcome', 'actions.strategy_id'])
+            ->groupBy('strategy_id');
+
+        foreach ($earlier as $version) {
+            $logs = $totals->get($version->id);
+
+            if ($logs === null || $logs->isEmpty()) {
+                continue;
+            }
+
+            $completed = $logs->where('outcome', ActionLog::OUTCOME_COMPLETED)->count();
+
+            return [
+                'version' => $version->version,
+                'rate' => (int) round($completed / $logs->count() * 100),
+            ];
+        }
+
+        return null;
+    }
+
+    /**
+     * The newest ten outcomes, re-ordered oldest → newest so the strip reads
+     * left to right.
+     *
+     * @param  Collection<int, ActionLog>  $logs
+     * @return list<string>
+     */
+    private function strip(Collection $logs): array
+    {
+        return $logs
+            ->sortByDesc('logged_at')
+            ->take(10)
+            ->reverse()
+            ->pluck('outcome')
+            ->values()
+            ->all();
     }
 
     /**

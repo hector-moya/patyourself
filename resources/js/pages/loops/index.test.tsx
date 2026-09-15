@@ -198,6 +198,13 @@ describe('LoopsIndex', () => {
             );
         });
 
+        /**
+         * `toHaveClass`, not `toContain` on the className string. The chip was
+         * briefly rendering `py-chip--btnis-active` — a concatenation that lost
+         * its separating space and styled nothing — and a substring assertion
+         * passes on that happily, because the broken class still *contains*
+         * "is-active".
+         */
         it('marks the current status chip as active and leaves the others inactive', () => {
             render(
                 <LoopsIndex
@@ -206,15 +213,16 @@ describe('LoopsIndex', () => {
                 />,
             );
 
+            expect(screen.getByRole('link', { name: 'paused' })).toHaveClass(
+                'py-chip',
+                'is-active',
+            );
             expect(
-                screen.getByRole('link', { name: 'paused' }).className,
-            ).toContain('is-active');
-            expect(
-                screen.getByRole('link', { name: 'active' }).className,
-            ).not.toContain('is-active');
-            expect(
-                screen.getByRole('link', { name: 'All' }).className,
-            ).not.toContain('is-active');
+                screen.getByRole('link', { name: 'active' }),
+            ).not.toHaveClass('is-active');
+            expect(screen.getByRole('link', { name: 'All' })).not.toHaveClass(
+                'is-active',
+            );
         });
 
         it('marks "All" active when no status filter is set', () => {
@@ -222,9 +230,10 @@ describe('LoopsIndex', () => {
                 <LoopsIndex intentions={[intention()]} filters={noFilters} />,
             );
 
-            expect(
-                screen.getByRole('link', { name: 'All' }).className,
-            ).toContain('is-active');
+            expect(screen.getByRole('link', { name: 'All' })).toHaveClass(
+                'py-chip',
+                'is-active',
+            );
         });
     });
 
@@ -283,6 +292,31 @@ describe('LoopsIndex', () => {
          * headings that say which is which rather than listed flat, where
          * position alone would imply a ranking.
          */
+        /** Same lost-space trap as the filter chip: `l-cardis-quiet` styled nothing. */
+        it('draws a loop that is not running back, with a class that parses', () => {
+            const { container } = render(
+                <LoopsIndex
+                    intentions={[intention({ status: 'paused' })]}
+                    filters={noFilters}
+                />,
+            );
+
+            expect(container.querySelector('.l-card')).toHaveClass('is-quiet');
+        });
+
+        it('leaves a running loop unmarked', () => {
+            const { container } = render(
+                <LoopsIndex
+                    intentions={[intention({ status: 'active' })]}
+                    filters={noFilters}
+                />,
+            );
+
+            expect(container.querySelector('.l-card')).not.toHaveClass(
+                'is-quiet',
+            );
+        });
+
         it('groups what is running apart from what is not', () => {
             render(
                 <LoopsIndex

@@ -402,6 +402,44 @@ describe('Dashboard', () => {
         ).not.toBeInTheDocument();
     });
 
+    /**
+     * A picked chip has to look picked — it is the only feedback that the
+     * reason was taken. The class was briefly `t-rpy-chip--cue`, a
+     * concatenation that lost its separating space, so the chip styled nothing
+     * while the form behaved perfectly. Asserted per class, not as a substring
+     * of className, because the broken string still contains the fragment.
+     */
+    it('marks the chosen reason chip with classes that parse', () => {
+        renderDashboard({ occasions: [occasion()] });
+
+        fireEvent.click(screen.getByRole('button', { name: /did not hold/i }));
+
+        const chip = screen.getByRole('button', { name: 'Too tired' });
+
+        expect(chip).toHaveClass('t-r');
+        expect(chip).not.toHaveClass('on');
+
+        fireEvent.click(chip);
+
+        expect(chip).toHaveClass('py-chip', 't-r', 'py-chip--cue', 'on');
+    });
+
+    it('marks the chosen outcome chip with classes that parse', () => {
+        renderDashboard({ occasions: [occasion()] });
+
+        const chip = screen.getByRole('button', { name: 'Did it' });
+
+        fireEvent.click(chip);
+
+        expect(chip).toHaveClass(
+            'py-chip',
+            't-v',
+            'py-chip--reward',
+            'on',
+            'on--did',
+        );
+    });
+
     it('holds the press shut until a failure has a reason', () => {
         renderDashboard({ occasions: [occasion()] });
 

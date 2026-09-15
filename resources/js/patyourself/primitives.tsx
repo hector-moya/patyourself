@@ -7,6 +7,7 @@
 import {
     Anchor,
     ArrowUp,
+    ArrowUpRight,
     Bell,
     Check,
     Footprints,
@@ -21,6 +22,7 @@ import {
     Sun,
     TrendingDown,
     TrendingUp,
+    X,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { CSSProperties, ReactNode } from 'react';
@@ -28,6 +30,7 @@ import type { CSSProperties, ReactNode } from 'react';
 const ICONS: Record<string, LucideIcon> = {
     anchor: Anchor,
     'arrow-up': ArrowUp,
+    'arrow-up-right': ArrowUpRight,
     bell: Bell,
     check: Check,
     footprints: Footprints,
@@ -42,6 +45,7 @@ const ICONS: Record<string, LucideIcon> = {
     sun: Sun,
     'trending-down': TrendingDown,
     'trending-up': TrendingUp,
+    x: X,
 };
 
 export function Icon({

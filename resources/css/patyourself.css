@@ -791,6 +791,60 @@
 .l-sech{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--fg-muted);margin:26px 0 12px;font-family:var(--font-sans);}
 .l-sech:first-of-type{margin-top:0;}
 
+/* ============================================================
+   PROGRESS — the record, read-only. Leans on the Today shell above.
+   ============================================================ */
+
+/* the one top-level answer */
+.p-lede{margin:0 0 6px;font-family:var(--font-display);font-size:22px;font-weight:700;letter-spacing:-.02em;line-height:1.3;color:var(--fg);text-wrap:pretty;}
+.p-lede b{color:var(--fg);border-bottom:2px solid var(--reward);padding-bottom:1px;font-weight:700;}
+.p-prov{margin:0 0 24px;font-family:var(--font-mono);font-size:11px;letter-spacing:.06em;color:var(--fg-muted);font-variant-numeric:tabular-nums;}
+.p-den{color:var(--fg-muted);font-weight:400;}
+
+/* cards */
+.p-grid{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:1fr;gap:12px;}
+.p-card{display:flex;flex-direction:column;gap:12px;width:100%;text-align:left;font-family:inherit;cursor:pointer;background:var(--card);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow-sm);padding:16px;transition:box-shadow var(--dur-base) var(--ease-out),background var(--dur-base) var(--ease-out);}
+.p-card:hover{box-shadow:var(--shadow-md);background:var(--card-2);}
+.p-card:focus-visible{outline:2px solid var(--primary);outline-offset:2px;}
+.p-card.is-quiet{background:var(--bg-sunk);box-shadow:none;}
+
+.p-top{display:flex;align-items:flex-start;gap:12px;}
+.p-title{flex:1;min-width:0;margin:0;font-family:var(--font-display);font-size:18px;font-weight:700;letter-spacing:-.015em;line-height:1.2;color:var(--fg);text-wrap:pretty;}
+.p-open{flex:0 0 auto;color:var(--fg-muted);display:inline-flex;padding-top:2px;}
+.p-card:hover .p-open{color:var(--primary);}
+.p-meta{margin:0;font-family:var(--font-mono);font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--fg-muted);}
+
+/* the strip — one cell is one occasion, the same unit as the count below it */
+.p-strip{display:flex;flex-direction:column;gap:6px;}
+.p-cells{display:flex;align-items:stretch;gap:5px;}
+.p-cell{flex:1;min-width:0;height:28px;border-radius:5px;background:var(--bg-sunk);border:1px solid var(--border);display:grid;place-items:center;color:var(--fg-muted);}
+.p-cell--held{background:var(--reward);border-color:var(--reward);color:var(--on-primary);}
+.p-cell--failed{background:var(--cue-soft);border-color:var(--cue);color:var(--cue);}
+.p-cell--skipped{background:none;border-style:dashed;}
+.p-dot{width:11px;height:11px;border-radius:50%;background:currentColor;}
+.p-dash{width:11px;height:1.5px;background:currentColor;}
+.p-ends{display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--fg-muted);}
+
+/* the read line: what the strip adds up to, and against what */
+.p-read{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;border-top:1px solid var(--border);padding-top:12px;}
+.p-rate{font-family:var(--font-mono);font-size:22px;font-weight:700;color:var(--fg);letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1;}
+.p-of{font-size:13px;color:var(--fg-body);}
+.p-vs{width:100%;margin:0;font-family:var(--font-mono);font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--fg-muted);}
+.p-vs em{font-style:normal;color:var(--fg-body);font-weight:700;}
+
+.p-say{margin:0;font-size:14px;line-height:1.5;color:var(--fg-body);text-wrap:pretty;display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.p-none{margin:0;font-size:14px;line-height:1.5;color:var(--fg-body);}
+.p-none span{display:block;margin-top:4px;font-family:var(--font-mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--fg-muted);}
+
+.p-sech{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--fg-muted);margin:26px 0 12px;font-family:var(--font-sans);}
+.p-sech:first-of-type{margin-top:0;}
+.p-legend{display:flex;flex-wrap:wrap;gap:8px 16px;margin:20px 0 0;padding-top:16px;border-top:1px solid var(--border);}
+.p-legend span{display:inline-flex;align-items:center;gap:7px;font-family:var(--font-mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--fg-muted);}
+.p-legend i{width:12px;height:12px;border-radius:4px;border:1px solid var(--border);background:var(--bg-sunk);flex:0 0 12px;}
+.p-legend i.held{background:var(--reward);border-color:var(--reward);}
+.p-legend i.failed{background:var(--cue-soft);border-color:var(--cue);}
+.p-legend i.skipped{background:none;border-style:dashed;}
+
 /* ---- desktop: the design's `.t-frame--desk` column, at the app's `lg` ---- */
 @media (min-width:1024px){
   .t-head{padding:28px 32px 22px;}
@@ -815,4 +869,14 @@
   .l-card{padding:20px;border-radius:22px;}
   .l-title{font-size:20px;}
   .l-approach{font-size:15px;}
+
+  .p-lede{font-size:28px;max-width:26ch;}
+  .p-prov{font-size:12px;}
+  .p-grid{grid-template-columns:1fr 1fr;gap:16px;}
+  .p-card{padding:20px;border-radius:22px;}
+  .p-title{font-size:20px;}
+  .p-cells{gap:6px;}
+  .p-cell{height:32px;}
+  .p-rate{font-size:26px;}
+  .p-say{font-size:15px;}
 }

@@ -147,13 +147,65 @@ class LoopProgressToolTest extends TestCase
             PatYourSelfServer::actingAs($user)->tool(LoopProgressTool::class, ['intention_id' => $loop->id]),
         )['current_version'];
 
+        // `recent` joined this block when the progress screen started drawing
+        // the strip per version rather than per loop. The `lifetime` block
+        // beside it has always carried one, so the two now answer the same
+        // questions in the same shape instead of differing by a key.
         $this->assertSame([
             'version', 'started_at', 'day_of_experiment', 'planned_days', 'is_under_review',
-            'verdict', 'streak', 'completion_rate', 'totals', 'last_logged_at',
+            'verdict', 'streak', 'completion_rate', 'totals', 'recent', 'last_logged_at',
         ], array_keys($block));
         // Open-ended: never a countdown, never a zero-day experiment.
         $this->assertNull($block['planned_days']);
         $this->assertFalse($block['is_under_review']);
+    }
+
+    /**
+     * The two blocks differ, and that is the point of sending both. The
+     * lifetime strip runs back across every revision; the current-version one
+     * starts where the running version did. A coach reading `current_version`
+     * to judge whether this intervention is working must not be handed marks
+     * the version it replaced produced.
+     */
+    public function test_the_current_version_strip_stops_at_the_version_it_belongs_to(): void
+    {
+        $user = User::factory()->create(['timezone' => 'UTC']);
+        $loop = Intention::factory()->for($user)->create();
+
+        $first = Strategy::factory()->for($loop)->create([
+            'version' => 1,
+            'status' => Strategy::STATUS_SUPERSEDED,
+        ]);
+        $second = Strategy::factory()->for($loop)->create([
+            'version' => 2,
+            'status' => Strategy::STATUS_ACTIVE,
+        ]);
+
+        // Pinned: the factory scatters `logged_at` at random, and both strips
+        // are ordered by it. Left to chance the lifetime assertion below passes
+        // or fails on the draw.
+        $firstAction = Action::factory()->for($loop)->for($first)->create();
+        ActionLog::factory()->for($firstAction)->for($user)->create([
+            'outcome' => ActionLog::OUTCOME_FAILED,
+            'logged_at' => now()->subDays(3),
+        ]);
+        ActionLog::factory()->for($firstAction)->for($user)->create([
+            'outcome' => ActionLog::OUTCOME_FAILED,
+            'logged_at' => now()->subDays(2),
+        ]);
+
+        $secondAction = Action::factory()->for($loop)->for($second)->create();
+        ActionLog::factory()->for($secondAction)->for($user)->create([
+            'outcome' => ActionLog::OUTCOME_COMPLETED,
+            'logged_at' => now()->subDay(),
+        ]);
+
+        $payload = $this->payload(
+            PatYourSelfServer::actingAs($user)->tool(LoopProgressTool::class, ['intention_id' => $loop->id]),
+        );
+
+        $this->assertSame(['completed'], $payload['current_version']['recent']);
+        $this->assertSame(['failed', 'failed', 'completed'], $payload['lifetime']['recent']);
     }
 
     public function test_rejects_another_users_loop(): void

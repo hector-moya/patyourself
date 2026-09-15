@@ -2,6 +2,7 @@ import { Form, Link } from '@inertiajs/react';
 import { useState } from 'react';
 
 import CoachLayout from '@/layouts/coach-layout';
+import { cn } from '@/lib/utils';
 import { BottomNav } from '@/patyourself/bottom-nav';
 import { Companion } from '@/patyourself/companion';
 import type { CompanionData } from '@/patyourself/companion';
@@ -471,11 +472,14 @@ function OpenSlot({
                                     key={option.value}
                                     type="button"
                                     aria-pressed={outcome === option.value}
-                                    className={`py-chip py-chip--btn t-v${
-                                        outcome === option.value
-                                            ? ` ${option.chip} on on--${option.tone}`
-                                            : ''
-                                    }`}
+                                    className={cn(
+                                        'py-chip py-chip--btn t-v',
+                                        outcome === option.value && [
+                                            option.chip,
+                                            'on',
+                                            `on--${option.tone}`,
+                                        ],
+                                    )}
                                     onClick={() => {
                                         setOutcome(option.value);
 
@@ -499,11 +503,11 @@ function OpenSlot({
                                             key={option}
                                             type="button"
                                             aria-pressed={reason === option}
-                                            className={`py-chip py-chip--btn t-r${
-                                                reason === option
-                                                    ? 'py-chip--cue on'
-                                                    : ''
-                                            }`}
+                                            className={cn(
+                                                'py-chip py-chip--btn t-r',
+                                                reason === option &&
+                                                    'py-chip--cue on',
+                                            )}
                                             onClick={() => setReason(option)}
                                         >
                                             {option}
