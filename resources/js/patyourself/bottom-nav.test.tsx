@@ -67,4 +67,29 @@ describe('BottomNav', () => {
             'page',
         );
     });
+
+    /**
+     * Blob was reachable only from the small corner on Today, which renders
+     * nothing at all until the first outcome — so before that there was no door
+     * to it anywhere on a phone. The tab is that door.
+     */
+    it('renders the Companion tab', () => {
+        page.url = '/dashboard';
+        render(<BottomNav />);
+
+        expect(screen.getByText('Companion').closest('a')).toHaveAttribute(
+            'href',
+            '/companion',
+        );
+    });
+
+    it('marks the Companion tab active on its own screen', () => {
+        page.url = '/companion';
+        render(<BottomNav />);
+
+        expect(screen.getByText('Companion').closest('a')).toHaveAttribute(
+            'aria-current',
+            'page',
+        );
+    });
 });

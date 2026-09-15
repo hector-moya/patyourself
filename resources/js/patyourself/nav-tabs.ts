@@ -1,8 +1,8 @@
 /**
  * The app's primary navigation, shared by the mobile bottom-nav and the
  * desktop side rail so both stay in lockstep. Each tab links one of the app's
- * top-level screens (Today, Loops, Progress, Inbox); the loop-detail screen
- * nests under its list, so a tab stays active for its whole section.
+ * top-level screens (Today, Loops, Companion, Progress, Inbox); the loop-detail
+ * screen nests under its list, so a tab stays active for its whole section.
  */
 export interface NavTab {
     label: string;
@@ -28,6 +28,18 @@ export const NAV_TABS: NavTab[] = [
         icon: 'git-branch',
         href: '/loops',
         match: ['/loops'],
+    },
+    {
+        // Blob's own screen. A door in the nav rather than only the small
+        // corner on Today: the corner is how Blob reacts to an outcome just
+        // recorded, which is not the same as being able to go and see it.
+        //
+        // Carries no badge and no count, like every tab that is not Inbox —
+        // Blob is something to visit, never something owed.
+        label: 'Companion',
+        icon: 'sprout',
+        href: '/companion',
+        match: ['/companion'],
     },
     {
         label: 'Progress',

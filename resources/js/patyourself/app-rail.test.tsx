@@ -33,6 +33,10 @@ describe('AppRail', () => {
             'href',
             '/loops',
         );
+        expect(screen.getByText('Companion').closest('a')).toHaveAttribute(
+            'href',
+            '/companion',
+        );
         expect(screen.getByText('Progress').closest('a')).toHaveAttribute(
             'href',
             '/progress',
@@ -40,6 +44,32 @@ describe('AppRail', () => {
         expect(screen.getByText('Inbox').closest('a')).toHaveAttribute(
             'href',
             '/inbox',
+        );
+    });
+
+    /**
+     * Blob was reachable only from the small corner on Today, which renders
+     * nothing at all until the first outcome — so before that there was no door
+     * to it anywhere in the app. The tab is that door.
+     */
+    it('marks the Companion tab active on its own screen', () => {
+        page.url = '/companion';
+        render(<AppRail />);
+
+        expect(screen.getByText('Companion').closest('a')).toHaveAttribute(
+            'aria-current',
+            'page',
+        );
+    });
+
+    /** Blob is somewhere to visit, never something owed. Inbox alone counts. */
+    it('hangs no badge on the Companion tab', () => {
+        page.url = '/companion';
+        page.props.unread_notifications_count = 3;
+        render(<AppRail />);
+
+        expect(screen.getByText('Companion').closest('a')).not.toContainElement(
+            screen.getByTestId('rail-inbox-badge'),
         );
     });
 
