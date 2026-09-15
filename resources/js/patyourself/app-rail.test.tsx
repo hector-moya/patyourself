@@ -73,6 +73,30 @@ describe('AppRail', () => {
         );
     });
 
+    /**
+     * The rail's Settings link and the bottom bar's Settings tab are one
+     * definition placed twice. Asserted here so the rail's footer cannot drift
+     * back to its own hardcoded href.
+     */
+    it('points Settings at the same destination the tab bar uses', () => {
+        render(<AppRail />);
+
+        expect(screen.getByText('Settings').closest('a')).toHaveAttribute(
+            'href',
+            '/settings/profile',
+        );
+    });
+
+    it('marks Settings active anywhere in the settings section', () => {
+        page.url = '/settings/notifications';
+        render(<AppRail />);
+
+        expect(screen.getByText('Settings').closest('a')).toHaveAttribute(
+            'aria-current',
+            'page',
+        );
+    });
+
     it('marks the active tab from the current path, including nested routes', () => {
         page.url = '/progress/7';
         render(<AppRail />);

@@ -56,6 +56,25 @@ export const NAV_TABS: NavTab[] = [
     },
 ];
 
+/**
+ * Settings — reachable from every viewport, but not one of the primary tabs.
+ *
+ * Kept out of NAV_TABS because the two navigation surfaces place it
+ * differently: the rail sets it below a rule at the foot, away from the five
+ * screens the app is actually about, while the bottom bar has no foot to put
+ * it in and carries it as the last tab. Defined once here so the destination
+ * and its active-matching cannot drift between them.
+ *
+ * `/settings` itself redirects to the profile page, so the match list covers
+ * every screen the settings shell owns.
+ */
+export const SETTINGS_TAB: NavTab = {
+    label: 'Settings',
+    icon: 'settings',
+    href: '/settings/profile',
+    match: ['/settings'],
+};
+
 /** Whether `tab` owns the current `path` (exact match or a nested route). */
 export function isTabActive(tab: NavTab, path: string): boolean {
     return tab.match.some((m) => path === m || path.startsWith(`${m}/`));

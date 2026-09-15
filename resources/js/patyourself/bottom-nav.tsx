@@ -8,7 +8,7 @@
 import { Link, usePage } from '@inertiajs/react';
 
 import { cn } from '@/lib/utils';
-import { NAV_TABS, isTabActive } from './nav-tabs';
+import { NAV_TABS, SETTINGS_TAB, isTabActive } from './nav-tabs';
 import { Icon } from './primitives';
 
 export function BottomNav() {
@@ -16,9 +16,14 @@ export function BottomNav() {
     const path = url.split('?')[0];
     const unread = props.unread_notifications_count ?? 0;
 
+    // Settings last. The rail can tuck it into a footer below a rule; a tab bar
+    // has no such place, and leaving it out altogether — which it was — made
+    // settings unreachable on a phone entirely.
+    const tabs = [...NAV_TABS, SETTINGS_TAB];
+
     return (
         <>
-            {NAV_TABS.map((tab) => {
+            {tabs.map((tab) => {
                 const active = isTabActive(tab, path);
                 const showBadge = !!tab.showUnreadBadge && unread > 0;
 
@@ -27,7 +32,11 @@ export function BottomNav() {
                         key={tab.href}
                         href={tab.href}
                         className={cn(
-                            'flex flex-1 flex-col items-center justify-center gap-0.5 text-xs font-medium transition-colors',
+                            // 10.5px and min-w-0, because the bar carries six
+                            // tabs: at 390px that is 65px each, and "Companion"
+                            // at the previous 12px wrapped onto a second line
+                            // and shunted the whole row taller.
+                            'flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-[10.5px] font-semibold transition-colors',
                             active
                                 ? 'text-primary'
                                 : 'text-muted-foreground hover:text-foreground',
@@ -48,7 +57,7 @@ export function BottomNav() {
                                 </span>
                             )}
                         </span>
-                        <span>{tab.label}</span>
+                        <span className="max-w-full truncate">{tab.label}</span>
                     </Link>
                 );
             })}

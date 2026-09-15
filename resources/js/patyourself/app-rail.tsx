@@ -9,11 +9,10 @@
  * `nav-tabs`.
  */
 import { Link, usePage } from '@inertiajs/react';
-import { Settings } from 'lucide-react';
 
 import AppLogoIcon from '@/components/app-logo-icon';
 import { cn } from '@/lib/utils';
-import { NAV_TABS, isTabActive } from './nav-tabs';
+import { NAV_TABS, SETTINGS_TAB, isTabActive } from './nav-tabs';
 import { Icon } from './primitives';
 
 export function AppRail() {
@@ -80,13 +79,25 @@ export function AppRail() {
                 })}
             </nav>
 
+            {/* Below a rule, away from the five screens the app is about — but
+                the same tab definition the bottom bar carries as its last tab,
+                so the two cannot drift on where Settings goes or when it reads
+                as current. */}
             <div className="mt-auto border-t border-border pt-2">
                 <Link
-                    href="/settings/profile"
-                    className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold text-foreground/65 transition-colors hover:bg-card hover:text-foreground"
+                    href={SETTINGS_TAB.href}
+                    aria-current={
+                        isTabActive(SETTINGS_TAB, path) ? 'page' : undefined
+                    }
+                    className={cn(
+                        'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors',
+                        isTabActive(SETTINGS_TAB, path)
+                            ? 'bg-accent text-primary'
+                            : 'text-foreground/65 hover:bg-card hover:text-foreground',
+                    )}
                 >
-                    <Settings className="size-[18px]" strokeWidth={2} />
-                    <span>Settings</span>
+                    <Icon name={SETTINGS_TAB.icon} size={18} />
+                    <span>{SETTINGS_TAB.label}</span>
                 </Link>
             </div>
         </aside>

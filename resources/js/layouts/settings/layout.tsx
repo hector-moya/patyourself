@@ -1,10 +1,10 @@
 import { Link } from '@inertiajs/react';
 import type { PropsWithChildren } from 'react';
-import Heading from '@/components/heading';
-import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
+
 import { useCurrentUrl } from '@/hooks/use-current-url';
+import CoachLayout from '@/layouts/coach-layout';
 import { cn, toUrl } from '@/lib/utils';
+import { BottomNav } from '@/patyourself/bottom-nav';
 import { edit as editAppearance } from '@/routes/appearance';
 import { edit as editNotifications } from '@/routes/notifications';
 import { edit } from '@/routes/profile';
@@ -46,51 +46,78 @@ const sidebarNavItems: NavItem[] = [
     },
 ];
 
+/**
+ * The settings shell — the app's one shell, with a settings nav inside it.
+ *
+ * Settings used to resolve to `[AppLayout, SettingsLayout]`, and AppLayout is
+ * the Laravel starter kit's: its own sidebar listing Dashboard, Repository and
+ * Documentation, and on a phone a hamburger that opened that sidebar over the
+ * page. So walking into settings replaced the whole app — the five screens
+ * disappeared and were replaced by links to someone else's scaffolding, with no
+ * way back except the browser.
+ *
+ * Now it renders {@link CoachLayout} like every other screen, which is what
+ * keeps the rail, the tab bar and the way back present throughout. The section
+ * list below is settings' own navigation and nothing more.
+ *
+ * `breadcrumbs` arrives from each page's `Page.layout` object, which AppLayout
+ * used to consume. It is accepted and ignored rather than removed from the
+ * pages: this shell states where you are in its header, and a breadcrumb trail
+ * one level deep says nothing the heading does not.
+ */
 export default function SettingsLayout({ children }: PropsWithChildren) {
     const { isCurrentOrParentUrl } = useCurrentUrl();
 
     return (
-        <div className="px-4 py-6">
-            <Heading
-                title="Settings"
-                description="Manage your profile and account settings"
-            />
-
-            <div className="flex flex-col lg:flex-row lg:space-x-12">
-                <aside className="w-full max-w-xl lg:w-48">
-                    <nav
-                        className="flex flex-col space-y-1 space-x-0"
-                        aria-label="Settings"
-                    >
-                        {sidebarNavItems.map((item, index) => (
-                            <Button
-                                key={`${toUrl(item.href)}-${index}`}
-                                size="sm"
-                                variant="ghost"
-                                asChild
-                                className={cn('w-full justify-start', {
-                                    'bg-muted': isCurrentOrParentUrl(item.href),
-                                })}
+        <CoachLayout
+            title="Settings"
+            header={
+                <div className="t-head">
+                    <div>
+                        <p className="t-date">Your account</p>
+                        <h1 className="t-day">Settings</h1>
+                    </div>
+                </div>
+            }
+            flush
+            bottomNav={<BottomNav />}
+        >
+            <div className="t-body">
+                <div className="t-col t-col--wide">
+                    <div className="flex flex-col gap-8 lg:flex-row lg:gap-12">
+                        <aside className="lg:w-48 lg:shrink-0">
+                            <nav
+                                className="flex flex-col gap-0.5"
+                                aria-label="Settings"
                             >
-                                <Link href={item.href}>
-                                    {item.icon && (
-                                        <item.icon className="h-4 w-4" />
-                                    )}
-                                    {item.title}
-                                </Link>
-                            </Button>
-                        ))}
-                    </nav>
-                </aside>
+                                {sidebarNavItems.map((item, index) => (
+                                    <Link
+                                        key={`${toUrl(item.href)}-${index}`}
+                                        href={item.href}
+                                        aria-current={
+                                            isCurrentOrParentUrl(item.href)
+                                                ? 'page'
+                                                : undefined
+                                        }
+                                        className={cn(
+                                            'rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                                            isCurrentOrParentUrl(item.href)
+                                                ? 'bg-accent text-primary'
+                                                : 'text-foreground/70 hover:bg-card hover:text-foreground',
+                                        )}
+                                    >
+                                        {item.title}
+                                    </Link>
+                                ))}
+                            </nav>
+                        </aside>
 
-                <Separator className="my-6 lg:hidden" />
-
-                <div className="flex-1 md:max-w-2xl">
-                    <section className="max-w-xl space-y-12">
-                        {children}
-                    </section>
+                        <section className="min-w-0 flex-1 space-y-12 lg:max-w-2xl">
+                            {children}
+                        </section>
+                    </div>
                 </div>
             </div>
-        </div>
+        </CoachLayout>
     );
 }

@@ -92,4 +92,39 @@ describe('BottomNav', () => {
             'page',
         );
     });
+
+    /**
+     * The rail keeps Settings in a footer below a rule; a tab bar has no
+     * footer, and leaving it out left settings unreachable on a phone
+     * altogether — there was no door to it anywhere below `lg`.
+     */
+    it('carries Settings as the last tab', () => {
+        page.url = '/dashboard';
+        render(<BottomNav />);
+
+        const tabs = screen.getAllByRole('link');
+
+        expect(tabs.at(-1)).toHaveTextContent('Settings');
+        expect(tabs.at(-1)).toHaveAttribute('href', '/settings/profile');
+    });
+
+    /** Every settings screen is under /settings, not just the profile page. */
+    it('marks Settings active anywhere in the settings section', () => {
+        page.url = '/settings/notifications';
+        render(<BottomNav />);
+
+        expect(screen.getByText('Settings').closest('a')).toHaveAttribute(
+            'aria-current',
+            'page',
+        );
+    });
+
+    it('leaves Settings inactive elsewhere', () => {
+        page.url = '/dashboard';
+        render(<BottomNav />);
+
+        expect(screen.getByText('Settings').closest('a')).not.toHaveAttribute(
+            'aria-current',
+        );
+    });
 });
