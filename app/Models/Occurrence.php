@@ -53,6 +53,19 @@ class Occurrence extends Model
     }
 
     /**
+     * Occasions that already carry their outcome — the exact complement of
+     * {@see unlogged()}, written against the same relation so the two halves
+     * of a day can never both claim the same occasion.
+     *
+     * @param  Builder<Occurrence>  $query
+     */
+    #[Scope]
+    protected function logged(Builder $query): void
+    {
+        $query->whereHas('log');
+    }
+
+    /**
      * Occasions whose cue has not been delivered. `fired_at` is the trigger
      * engine's idempotency guard: a null here is the only thing that lets an
      * occasion fire, and stamping it is what makes a repeated or overlapping

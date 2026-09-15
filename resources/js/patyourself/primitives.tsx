@@ -5,14 +5,17 @@
  * design used.
  */
 import {
+    Anchor,
     ArrowUp,
     Bell,
     Check,
     Footprints,
     GitBranch,
+    History,
     MessageCircle,
     Minus,
     Moon,
+    Search,
     ShieldCheck,
     Sun,
     TrendingDown,
@@ -22,14 +25,17 @@ import type { LucideIcon } from 'lucide-react';
 import type { CSSProperties, ReactNode } from 'react';
 
 const ICONS: Record<string, LucideIcon> = {
+    anchor: Anchor,
     'arrow-up': ArrowUp,
     bell: Bell,
     check: Check,
     footprints: Footprints,
     'git-branch': GitBranch,
+    history: History,
     'message-circle': MessageCircle,
     minus: Minus,
     moon: Moon,
+    search: Search,
     'shield-check': ShieldCheck,
     sun: Sun,
     'trending-down': TrendingDown,

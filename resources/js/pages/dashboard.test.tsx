@@ -50,7 +50,7 @@ import { companion, noCompanion } from '@/patyourself/companion.fixture';
 import type * as WorkflowRecordModule from '@/patyourself/workflow-record';
 
 import Dashboard from './dashboard';
-import type {ReadyForVerdictData, TodaysOccasionData} from './dashboard';
+import type { ReadyForVerdictData, TodaysOccasionData } from './dashboard';
 
 function occasion(
     overrides: Partial<TodaysOccasionData> = {},
@@ -65,6 +65,8 @@ function occasion(
         description: null,
         due: 'due_now',
         scheduled_for: '2026-08-27T12:30:00+00:00',
+        strategy: null,
+        outcome: null,
         ...overrides,
     };
 }
@@ -83,16 +85,24 @@ function verdict(
     };
 }
 
-function renderDashboard(props: Partial<React.ComponentProps<typeof Dashboard>> = {}) {
+function renderDashboard(
+    props: Partial<React.ComponentProps<typeof Dashboard>> = {},
+) {
     return render(
         <Dashboard
             today="2026-08-27"
+            now="2026-08-27T12:41:00+00:00"
             occasions={[]}
             ready_for_verdict={[]}
             companion={noCompanion()}
             {...props}
         />,
     );
+}
+
+/** Opens a collapsed slot by pressing its row. */
+function openSlot(title: string) {
+    fireEvent.click(screen.getByText(title));
 }
 
 // The one test below pins the wall clock (Blob's ambient reads it by
@@ -109,7 +119,12 @@ describe('Dashboard', () => {
         expect(screen.getByText(/thursday 27 august/i)).toBeInTheDocument();
     });
 
-    it('separates what is due now from what is later today', () => {
+    /**
+     * The hour that has come and gone unanswered is the question; everything
+     * else is a row on the rail. The screen opens on that one so the common
+     * case — logging what just happened — takes no taps at all.
+     */
+    it('opens on the occasion whose hour has come', () => {
         renderDashboard({
             occasions: [
                 occasion({ due: 'due_now', title: 'Lunch without bread' }),
@@ -122,20 +137,138 @@ describe('Dashboard', () => {
             ],
         });
 
-        expect(screen.getByText(/due now/i)).toBeInTheDocument();
-        expect(screen.getByText(/later today/i)).toBeInTheDocument();
+        expect(screen.getByText('Due now')).toBeInTheDocument();
+        expect(screen.getByTestId('occasion-form-7')).toBeInTheDocument();
+        // The later one is still a row, not a second open question.
+        expect(screen.queryByTestId('occasion-form-8')).not.toBeInTheDocument();
+        expect(screen.getByText('Reading')).toBeInTheDocument();
     });
 
     /**
-     * An empty section is omitted, not rendered with a zero. A count anywhere on
-     * this screen would score one day against another.
+     * With several hours already past, only the nearest is the thing being
+     * asked. The earlier ones are still open — they say so, and stay one tap
+     * away — but the screen does not ask three questions at once.
      */
-    it('omits a section with nothing in it', () => {
-        renderDashboard({ occasions: [occasion({ due: 'due_now' })] });
+    it('treats an earlier unanswered hour as still open, not as the question', () => {
+        renderDashboard({
+            occasions: [
+                occasion({
+                    action_id: 5,
+                    occurrence_id: 40,
+                    title: 'Breakfast pause',
+                    scheduled_for: '2026-08-27T07:00:00+00:00',
+                }),
+                occasion({ title: 'Lunch without bread' }),
+            ],
+        });
 
-        expect(screen.getByText(/due now/i)).toBeInTheDocument();
-        expect(screen.queryByText(/later today/i)).not.toBeInTheDocument();
-        expect(screen.queryByText(/when the cue comes/i)).not.toBeInTheDocument();
+        expect(
+            screen.getByText(/still open · tap to record/i),
+        ).toBeInTheDocument();
+        expect(screen.getByTestId('occasion-form-7')).toBeInTheDocument();
+        expect(screen.queryByTestId('occasion-form-5')).not.toBeInTheDocument();
+    });
+
+    /**
+     * The rule is what makes the rail a day rather than a list: it says where
+     * you are in it. It falls between the hour just gone and the next one due.
+     */
+    it('draws the now rule between what has passed and what is still ahead', () => {
+        const { container } = renderDashboard({
+            occasions: [
+                occasion({
+                    action_id: 5,
+                    occurrence_id: 40,
+                    scheduled_for: '2026-08-27T09:00:00+00:00',
+                }),
+                occasion({
+                    action_id: 8,
+                    occurrence_id: 43,
+                    due: 'upcoming',
+                    scheduled_for: '2026-08-27T21:00:00+00:00',
+                }),
+            ],
+        });
+
+        const rows = [...container.querySelectorAll('.t-tl > li')];
+
+        expect(rows.map((row) => row.getAttribute('data-testid'))).toEqual([
+            'occasion-5',
+            'now-rule',
+            'occasion-8',
+        ]);
+    });
+
+    /**
+     * A cue-anchored occasion has no hour, so it cannot be placed by the clock
+     * and sits after everything that can. The rule still belongs in front of
+     * it: "whenever the cue comes" is ahead of now, not behind it.
+     */
+    it('keeps the now rule ahead of occasions with no hour at all', () => {
+        const { container } = renderDashboard({
+            occasions: [
+                occasion({
+                    action_id: 5,
+                    occurrence_id: 40,
+                    scheduled_for: '2026-08-27T09:00:00+00:00',
+                }),
+                occasion({
+                    action_id: 9,
+                    occurrence_id: null,
+                    due: 'anchored',
+                    scheduled_for: null,
+                }),
+            ],
+        });
+
+        const rows = [...container.querySelectorAll('.t-tl > li')];
+
+        expect(rows.map((row) => row.getAttribute('data-testid'))).toEqual([
+            'occasion-5',
+            'now-rule',
+            'occasion-9',
+        ]);
+    });
+
+    it('drops the now rule to the foot of a day with nothing left ahead', () => {
+        const { container } = renderDashboard({
+            occasions: [
+                occasion({ scheduled_for: '2026-08-27T09:00:00+00:00' }),
+            ],
+        });
+
+        const rows = [...container.querySelectorAll('.t-tl > li')];
+
+        expect(rows.map((row) => row.getAttribute('data-testid'))).toEqual([
+            'occasion-7',
+            'now-rule',
+        ]);
+    });
+
+    /**
+     * An answered occasion stays on the rail carrying what was recorded. The
+     * day is the unit here: a timeline that dropped its answered hours would
+     * read as emptier the more of it you had dealt with. It states the outcome
+     * and asks nothing further.
+     */
+    it('keeps an answered occasion on the rail without asking again', () => {
+        renderDashboard({
+            occasions: [occasion({ outcome: 'completed' })],
+        });
+
+        expect(screen.getByText(/logged · did it/i)).toBeInTheDocument();
+        expect(screen.queryByTestId('occasion-form-7')).not.toBeInTheDocument();
+    });
+
+    it('counts both halves of the day, and only today', () => {
+        renderDashboard({
+            occasions: [
+                occasion({ outcome: 'completed' }),
+                occasion({ action_id: 8, occurrence_id: 43, title: 'Reading' }),
+            ],
+        });
+
+        expect(screen.getByText('1 recorded · 1 left')).toBeInTheDocument();
     });
 
     /**
@@ -157,6 +290,8 @@ describe('Dashboard', () => {
             occasions: [occasion({ occurrence_id: null, due: 'anchored' })],
         });
 
+        openSlot('Lunch without bread');
+
         expect(screen.getByTestId('occasion-form-7')).toHaveAttribute(
             'action',
             '/actions/7/logs',
@@ -172,10 +307,10 @@ describe('Dashboard', () => {
      * not fall back to the action route's own live slot, which can resolve
      * to a different occasion entirely from the one just recorded against.
      *
-     * Named killing mutation: in `OccasionRow`, drop the `occurrenceId`
-     * state and pass `logEndpoint(occasion.action_id, occasion.occurrence_id)`
-     * instead — reading the stale prop straight through. This test then posts
-     * to `/actions/7/logs` and fails.
+     * Named killing mutation: in `OpenSlot`, drop the `occurrenceId` state and
+     * pass `logEndpoint(occasion.action_id, occasion.occurrence_id)` instead —
+     * reading the stale prop straight through. This test then posts to
+     * `/actions/7/logs` and fails.
      */
     it('follows a workflow surface that materialises an occasion, not the stale server prop', () => {
         renderDashboard({
@@ -187,6 +322,8 @@ describe('Dashboard', () => {
                 }),
             ],
         });
+
+        openSlot('Lunch without bread');
 
         expect(screen.getByTestId('occasion-form-7')).toHaveAttribute(
             'action',
@@ -209,31 +346,121 @@ describe('Dashboard', () => {
     });
 
     /**
-     * A failed outcome carries the user's own words — the same rule the tool
-     * boundary enforces. The field appears only for that outcome.
+     * Which version the occasion is testing, at the point of being asked. A
+     * loop with no running experiment logs just the same, and shows no chip
+     * rather than an empty one.
      */
-    it('asks for a reason only when the strategy did not hold', () => {
+    it('names the version an open occasion is testing', () => {
+        renderDashboard({
+            occasions: [occasion({ strategy: 'v2 · after breakfast' })],
+        });
+
+        expect(screen.getByText('v2 · after breakfast')).toBeInTheDocument();
+    });
+
+    it('shows no version chip for a loop with no running experiment', () => {
+        const { container } = renderDashboard({
+            occasions: [occasion({ strategy: null })],
+        });
+
+        expect(container.querySelector('.t-chipq')).toBeNull();
+    });
+
+    /**
+     * A failed outcome carries a reason — the same rule the tool boundary
+     * enforces. The chips appear only for that outcome, and the press stays
+     * shut until one is picked: a failure logged without a reason is an
+     * outcome nobody can learn from.
+     */
+    it('asks what got in the way only when the strategy did not hold', () => {
         renderDashboard({ occasions: [occasion()] });
 
+        // Exact text throughout: the hint beside the press reads "Pick what
+        // got in the way." while the chips are unanswered, so a loose match
+        // here passes on the hint alone and stops proving the chips exist.
         expect(
-            screen.queryByLabelText(/what happened, in your words/i),
+            screen.queryByText('What got in the way?'),
         ).not.toBeInTheDocument();
 
-        fireEvent.click(screen.getByText(/did not hold/i));
+        fireEvent.click(screen.getByRole('button', { name: /did not hold/i }));
 
+        expect(screen.getByText('What got in the way?')).toBeInTheDocument();
         expect(
-            screen.getByLabelText(/what happened, in your words/i),
+            screen.getByRole('button', { name: 'Forgot in the moment' }),
         ).toBeInTheDocument();
     });
 
     it('asks for no reason when the occasion never happened', () => {
         renderDashboard({ occasions: [occasion()] });
 
-        fireEvent.click(screen.getByText(/never happened/i));
+        fireEvent.click(
+            screen.getByRole('button', { name: /never happened/i }),
+        );
 
         expect(
-            screen.queryByLabelText(/what happened, in your words/i),
+            screen.queryByText('What got in the way?'),
         ).not.toBeInTheDocument();
+    });
+
+    it('holds the press shut until a failure has a reason', () => {
+        renderDashboard({ occasions: [occasion()] });
+
+        const press = screen.getByRole('button', { name: 'Log it' });
+
+        expect(press).toBeDisabled();
+
+        fireEvent.click(screen.getByRole('button', { name: /did not hold/i }));
+
+        expect(press).toBeDisabled();
+
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Forgot in the moment' }),
+        );
+
+        expect(press).toBeEnabled();
+    });
+
+    /**
+     * An outcome that needs no reason is one tap from logged. The mutation this
+     * kills: requiring a reason for every outcome, which would put a chip list
+     * in front of "Did it".
+     */
+    it('opens the press as soon as a plain outcome is picked', () => {
+        renderDashboard({ occasions: [occasion()] });
+
+        fireEvent.click(screen.getByRole('button', { name: 'Did it' }));
+
+        expect(screen.getByRole('button', { name: 'Log it' })).toBeEnabled();
+    });
+
+    /**
+     * The chip and the note travel as the one `reason` the server stores.
+     * Splitting them would leave the note unreadable everywhere the reason is
+     * shown back — the record keeps one field, not two.
+     */
+    it('sends the chip and the note as a single reason', () => {
+        const { container } = renderDashboard({ occasions: [occasion()] });
+
+        fireEvent.click(screen.getByRole('button', { name: /did not hold/i }));
+        fireEvent.click(screen.getByRole('button', { name: 'Too tired' }));
+        fireEvent.change(screen.getByLabelText(/add a note, in your words/i), {
+            target: { value: 'Back-to-back meetings' },
+        });
+
+        expect(container.querySelector('input[name="reason"]')).toHaveValue(
+            'Too tired — Back-to-back meetings',
+        );
+    });
+
+    it('sends the chip alone when no note is written', () => {
+        const { container } = renderDashboard({ occasions: [occasion()] });
+
+        fireEvent.click(screen.getByRole('button', { name: /did not hold/i }));
+        fireEvent.click(screen.getByRole('button', { name: 'Chose not to' }));
+
+        expect(container.querySelector('input[name="reason"]')).toHaveValue(
+            'Chose not to',
+        );
     });
 
     /**
@@ -296,7 +523,8 @@ describe('Dashboard', () => {
 
     /**
      * A day with nothing scheduled is a normal day. The empty state says so and
-     * offers nothing to catch up on.
+     * offers nothing to catch up on — and there is no tally either, because
+     * "0 recorded · 0 left" is a score for a day that was never played.
      */
     it('states an empty day as a fact, not a backlog', () => {
         renderDashboard();
@@ -305,6 +533,16 @@ describe('Dashboard', () => {
         expect(
             screen.queryByText(/behind|missed|overdue|catch up/i),
         ).not.toBeInTheDocument();
+        expect(screen.queryByText(/recorded ·/i)).not.toBeInTheDocument();
+    });
+
+    /** A day fully answered says so once, and asks for nothing further. */
+    it('closes a day where everything has an answer', () => {
+        renderDashboard({ occasions: [occasion({ outcome: 'completed' })] });
+
+        expect(
+            screen.getByText(/everything today has an answer/i),
+        ).toBeInTheDocument();
     });
 
     /**
@@ -318,7 +556,9 @@ describe('Dashboard', () => {
         });
 
         expect(
-            container.querySelector('.blob-anim')?.getAttribute('data-animation'),
+            container
+                .querySelector('.blob-anim')
+                ?.getAttribute('data-animation'),
         ).toBe('notice');
     });
 
@@ -337,7 +577,9 @@ describe('Dashboard', () => {
         });
 
         expect(
-            container.querySelector('.blob-anim')?.getAttribute('data-animation'),
+            container
+                .querySelector('.blob-anim')
+                ?.getAttribute('data-animation'),
         ).toBe('idle');
     });
 
@@ -365,6 +607,8 @@ describe('Dashboard', () => {
             occasions: [occasion({ workflow: 'constructor' })],
         });
 
-        expect(screen.getByLabelText('Did it')).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: 'Did it' }),
+        ).toBeInTheDocument();
     });
 });

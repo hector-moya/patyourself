@@ -1,8 +1,8 @@
 import { Link, router } from '@inertiajs/react';
-import { useState } from 'react';
+import type { CSSProperties, FormEvent } from 'react';
+import { Fragment, useState } from 'react';
 
 import CoachLayout from '@/layouts/coach-layout';
-import { cn } from '@/lib/utils';
 import { BottomNav } from '@/patyourself/bottom-nav';
 import { Icon } from '@/patyourself/primitives';
 import type { ActiveStrategySummary, IntentionData } from '@/patyourself/types';
@@ -14,53 +14,101 @@ interface LoopsIndexProps {
 
 const STATUSES = ['active', 'paused', 'completed', 'archived'] as const;
 
+/** The chain, in order, and the token each stage paints with. */
+const STAGES = ['cue', 'craving', 'response', 'reward'] as const;
+
 /**
- * Loops list — every loop the user is working, status at a glance, each tapping
- * through to its detail screen. Active loops surface first (ordered server-side).
+ * Loops list — every loop the user is working, each one carrying its chain, the
+ * intervention currently running on it, and what that intervention has come to.
+ *
+ * Grouped by whether the loop is running rather than listed flat: a paused loop
+ * is not a worse active one, and the two answer different questions. Active
+ * loops surface first within the list (ordered server-side).
  */
 export default function LoopsIndex({ intentions, filters }: LoopsIndexProps) {
-    const activeCount = intentions.filter(
-        (loop) => loop.status === 'active',
-    ).length;
+    const active = intentions.filter((loop) => loop.status === 'active');
+    const rest = intentions.filter((loop) => loop.status !== 'active');
     const filtering = filters.status !== null || filters.q !== null;
 
     return (
-        <CoachLayout title="Loops" bottomNav={<BottomNav />} wide>
-            <FilterBar filters={filters} />
-            {intentions.length === 0 ? (
-                filtering ? (
-                    <NoMatches />
-                ) : (
-                    <EmptyState />
-                )
-            ) : (
-                <>
-                    <div className="mb-3 flex items-baseline justify-between gap-3">
-                        <p className="text-sm text-muted-foreground">
+        <CoachLayout
+            title="Loops"
+            // Header slot, so the count stays put while the grid scrolls — the
+            // same arrangement the Today screen uses.
+            header={
+                <div className="t-head">
+                    <div>
+                        <p className="t-date">Your record</p>
+                        <h1 className="t-day">Loops</h1>
+                    </div>
+                    {intentions.length > 0 && (
+                        <p className="t-tally">
                             {intentions.length}{' '}
                             {intentions.length === 1 ? 'loop' : 'loops'}
-                            {activeCount > 0 && ` · ${activeCount} active`}
+                            {active.length > 0 && ` · ${active.length} active`}
                         </p>
-                        {/* Plain text, no count and no badge. An unlogged
-                            occasion never expires, so surfacing a number here
-                            would turn the record into a scoreboard. */}
-                        <Link
-                            href="/catch-up"
-                            className="shrink-0 text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
-                        >
-                            Catch up
-                        </Link>
-                    </div>
-                    <ul className="grid grid-cols-1 gap-2 md:grid-cols-2 md:gap-3">
-                        {intentions.map((loop) => (
-                            <li key={loop.id}>
-                                <LoopRow loop={loop} />
-                            </li>
-                        ))}
-                    </ul>
-                </>
-            )}
+                    )}
+                </div>
+            }
+            flush
+            bottomNav={<BottomNav />}
+        >
+            <div className="t-body">
+                <div className="t-col t-col--wide">
+                    <FilterBar filters={filters} />
+
+                    {intentions.length === 0 ? (
+                        filtering ? (
+                            <NoMatches />
+                        ) : (
+                            <EmptyState />
+                        )
+                    ) : (
+                        <>
+                            <div className="l-tally">
+                                <p>Ordered by what is running</p>
+                                {/* Plain link, no count and no badge. An
+                                    unlogged occasion never expires, so a number
+                                    here would turn the record into a
+                                    scoreboard. */}
+                                <Link
+                                    href="/catch-up"
+                                    className="py-btn py-btn--secondary py-btn--sm"
+                                >
+                                    <Icon name="history" size={16} />
+                                    Catch up
+                                </Link>
+                            </div>
+
+                            {active.length > 0 && (
+                                <>
+                                    <h2 className="l-sech">Running now</h2>
+                                    <LoopGrid loops={active} />
+                                </>
+                            )}
+                            {rest.length > 0 && (
+                                <>
+                                    <h2 className="l-sech">Not running</h2>
+                                    <LoopGrid loops={rest} />
+                                </>
+                            )}
+                        </>
+                    )}
+                </div>
+            </div>
         </CoachLayout>
+    );
+}
+
+function LoopGrid({ loops }: { loops: IntentionData[] }) {
+    return (
+        <ul className="l-grid">
+            {loops.map((loop) => (
+                <li key={loop.id}>
+                    <LoopCard loop={loop} />
+                </li>
+            ))}
+        </ul>
     );
 }
 
@@ -71,7 +119,7 @@ export default function LoopsIndex({ intentions, filters }: LoopsIndexProps) {
 function FilterBar({ filters }: { filters: LoopsIndexProps['filters'] }) {
     const [term, setTerm] = useState(filters.q ?? '');
 
-    const submit = (event: React.FormEvent) => {
+    const submit = (event: FormEvent) => {
         event.preventDefault();
         router.get(
             '/loops',
@@ -84,18 +132,20 @@ function FilterBar({ filters }: { filters: LoopsIndexProps['filters'] }) {
     };
 
     return (
-        <div className="mb-3 flex flex-col gap-2">
+        <div className="l-tools">
             <form onSubmit={submit}>
-                <input
-                    type="search"
-                    value={term}
-                    onChange={(event) => setTerm(event.target.value)}
-                    placeholder="Search the title or the chain"
-                    aria-label="Search loops"
-                    className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-                />
+                <label className="l-search">
+                    <Icon name="search" size={17} />
+                    <input
+                        type="search"
+                        value={term}
+                        onChange={(event) => setTerm(event.target.value)}
+                        placeholder="Search the title or the chain"
+                        aria-label="Search loops"
+                    />
+                </label>
             </form>
-            <div className="flex flex-wrap gap-1.5">
+            <div className="l-filters">
                 <FilterChip
                     label="All"
                     href={hrefFor(null, filters.q)}
@@ -143,68 +193,88 @@ function FilterChip({
         <Link
             href={href}
             preserveScroll
-            className={cn(
-                'rounded-full border px-2.5 py-1 text-xs capitalize transition-colors',
-                active
-                    ? 'border-foreground/30 bg-accent text-foreground'
-                    : 'border-border text-muted-foreground hover:text-foreground',
-            )}
+            aria-pressed={active}
+            className={`py-chip py-chip--btn${active ? 'is-active' : ''}`}
         >
             {label}
         </Link>
     );
 }
 
-function LoopRow({ loop }: { loop: IntentionData }) {
-    const build = loop.type === 'build';
-    const tactic = loop.strategy?.approach ?? loop.response;
+/**
+ * One loop, at a glance: what it is called, whether it is running, the chain it
+ * describes, and the approach currently being tried on it.
+ *
+ * The card is bordered in the accent of the stage the running strategy
+ * intervenes on, and the same stage is underlined in the chain — so the colour
+ * is never decoration, it always names the same thing twice. A loop with no
+ * running experiment has no accent and takes the plain border; there is no
+ * stage to point at, and picking one anyway would be a claim the record does
+ * not make.
+ */
+function LoopCard({ loop }: { loop: IntentionData }) {
+    const strategy = loop.strategy ?? null;
+    const acts = strategy?.intervention_point ?? null;
+    const quiet = loop.status !== 'active';
 
     return (
         <Link
             href={`/loops/${loop.id}`}
-            className="flex items-center gap-3 rounded-xl border border-border bg-card p-3 transition-colors hover:border-foreground/20 hover:bg-accent/40"
+            className={`l-card${quiet ? 'is-quiet' : ''}`}
+            style={
+                acts === null
+                    ? undefined
+                    : ({
+                          '--accent-line': `var(--${acts})`,
+                      } as CSSProperties)
+            }
         >
-            <span
-                className={cn(
-                    'flex size-9 shrink-0 items-center justify-center rounded-lg',
-                    build
-                        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                        : 'bg-rose-500/10 text-rose-600 dark:text-rose-400',
-                )}
-                aria-hidden="true"
-            >
-                <Icon
-                    name={build ? 'trending-up' : 'trending-down'}
-                    size={18}
-                />
-            </span>
+            <div className="l-top">
+                <h3 className="l-title">{loop.title}</h3>
+                <span className={`l-status is-${loop.status}`}>
+                    <i />
+                    {loop.status}
+                </span>
+            </div>
 
-            <span className="min-w-0 flex-1">
-                <span className="flex items-center gap-2">
-                    <span className="truncate font-semibold text-foreground">
-                        {loop.title}
+            <Chain acts={acts} />
+
+            <p className="l-approach">{strategy?.approach ?? loop.response}</p>
+
+            <p data-testid={`loop-experiment-${loop.id}`} className="l-meta">
+                {loop.type} · {experimentState(strategy)}
+            </p>
+
+            {strategy?.is_under_review && (
+                <div className="l-verdict">
+                    <p>This version has run its course. Did it hold?</p>
+                    {/* Not a nested control — the whole card is the link, and a
+                        button inside an anchor is neither valid nor reachable
+                        by keyboard. It names where the card goes. */}
+                    <span className="py-btn py-btn--secondary py-btn--sm">
+                        Give it a verdict
                     </span>
-                    {loop.strategy && (
-                        <span className="shrink-0 rounded border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground capitalize">
-                            {loop.strategy.intervention_point}
-                        </span>
-                    )}
-                </span>
-                <span className="mt-0.5 block truncate text-sm text-muted-foreground">
-                    {tactic}
-                </span>
-                {/* The experiment's state, so the list answers "what am I
-                    running" without opening anything. */}
-                <span
-                    data-testid={`loop-experiment-${loop.id}`}
-                    className="mt-0.5 block font-mono text-[10px] tracking-wide text-muted-foreground uppercase"
-                >
-                    {experimentState(loop.strategy ?? null)}
-                </span>
-            </span>
-
-            <StatusPill status={loop.status} />
+                </div>
+            )}
         </Link>
+    );
+}
+
+/** Cue → craving → response → reward, with the acting stage picked out. */
+function Chain({ acts }: { acts: string | null }) {
+    return (
+        <p className="l-chain">
+            {STAGES.map((stage, index) => (
+                <Fragment key={stage}>
+                    {index > 0 && <s aria-hidden="true">→</s>}
+                    {stage === acts ? (
+                        <b className="capitalize">{stage}</b>
+                    ) : (
+                        <span className="capitalize">{stage}</span>
+                    )}
+                </Fragment>
+            ))}
+        </p>
     );
 }
 
@@ -230,31 +300,9 @@ function experimentState(strategy: ActiveStrategySummary | null): string {
         : `v${strategy.version} · day ${strategy.day_of_experiment} of ${strategy.planned_days}`;
 }
 
-const STATUS_DOT: Record<string, string> = {
-    active: 'bg-emerald-500',
-    paused: 'bg-amber-500',
-    completed: 'bg-sky-500',
-    archived: 'bg-zinc-400',
-};
-
-function StatusPill({ status }: { status: string }) {
-    return (
-        <span className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground capitalize">
-            <span
-                className={cn(
-                    'size-2 rounded-full',
-                    STATUS_DOT[status] ?? 'bg-zinc-400',
-                )}
-                aria-hidden="true"
-            />
-            {status}
-        </span>
-    );
-}
-
 function EmptyState() {
     return (
-        <div className="flex flex-1 flex-col items-center justify-center gap-2 text-center">
+        <div className="flex flex-1 flex-col items-center justify-center gap-2 py-12 text-center">
             <h2 className="text-lg font-semibold text-foreground">
                 No loops yet
             </h2>
@@ -268,10 +316,8 @@ function EmptyState() {
 
 function NoMatches() {
     return (
-        <div className="flex flex-1 flex-col items-center justify-center gap-2 text-center">
-            <p className="text-sm text-muted-foreground">
-                No loops match that.
-            </p>
+        <div className="flex flex-1 flex-col items-center justify-center gap-2 py-12 text-center">
+            <p className="t-done">No loops match that.</p>
             <Link
                 href="/loops"
                 className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"

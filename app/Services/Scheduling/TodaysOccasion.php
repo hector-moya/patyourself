@@ -3,6 +3,7 @@
 namespace App\Services\Scheduling;
 
 use App\Models\Action;
+use App\Models\ActionLog;
 use App\Models\Occurrence;
 use Carbon\CarbonImmutable;
 
@@ -37,5 +38,15 @@ final readonly class TodaysOccasion
         public ?Occurrence $occurrence,
         public ?CarbonImmutable $scheduledFor,
         public string $due,
+        /**
+         * The outcome already recorded against this occasion, or null while it
+         * is still open.
+         *
+         * Only ever set by {@see TodaysOccasions::recordedToday()}. The lists
+         * {@see TodaysOccasions::for()} returns are unlogged by definition, so
+         * everything the digest and the today-actions tool see keeps the null
+         * this defaults to and cannot start carrying one by accident.
+         */
+        public ?ActionLog $log = null,
     ) {}
 }

@@ -631,3 +631,188 @@
    renderer, and easing next to frame-swapped pixel art reads as lag. */
 .pixel-button:active{filter:brightness(0.88) saturate(1.05);}
 .pixel-button:focus-visible{outline:2px solid #F3E3C8;outline-offset:2px;}
+
+/* ============================================================
+   TODAY — the daily timeline
+   ============================================================
+   Ported from the Today design. Only the screen's own blocks live here:
+   the frame, the side rail and the bottom bar are CoachLayout's, and the
+   design's `.t-frame--desk` canvas variants are folded into one `lg`
+   media query at the end of the section instead.
+
+   Card radii are written as the design's own px values rather than
+   `var(--radius-md)`. The token above says 16px, but app.css re-points
+   `--radius-md`/`--radius-lg` at the shadcn scale (10px/12px) further
+   down the cascade, and these cards were drawn on the wider curve.
+   ============================================================ */
+
+/* ---- header ---- */
+/* Sits outside the scroll area, so it is opaque rather than translucent —
+   nothing ever passes under it to be seen through. */
+.t-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;padding:20px 16px 16px;border-bottom:1px solid var(--border);background:var(--bg);}
+.t-date{font-family:var(--font-mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--fg-muted);margin:0 0 6px;}
+.t-day{font-family:var(--font-display);font-weight:700;letter-spacing:-.02em;font-size:26px;line-height:1.1;color:var(--fg);margin:0;}
+.t-tally{font-family:var(--font-mono);font-size:12px;color:var(--fg-muted);white-space:nowrap;font-variant-numeric:tabular-nums;margin:0;}
+/* The tally and Blob share the header's trailing edge. Blob is optional —
+   it renders nothing before the first outcome — so this is a flex row and
+   not a two-column grid, which would hold an empty cell open for it. */
+.t-headside{display:flex;align-items:center;gap:12px;padding-bottom:3px;}
+
+/* ---- the column the screen lives in ---- */
+.t-body{padding:18px 16px 28px;}
+.t-col{margin-inline:auto;}
+
+/* ---- timeline ---- */
+.t-tl{position:relative;list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px;}
+.t-tl::before{content:"";position:absolute;left:58px;top:10px;bottom:10px;width:1px;background:var(--border);}
+.t-slot{position:relative;display:grid;grid-template-columns:52px 1fr;gap:26px;padding:10px 0;}
+.t-when{font-family:var(--font-mono);font-size:12px;color:var(--fg-muted);text-align:right;padding-top:3px;font-variant-numeric:tabular-nums;}
+.t-when small{display:block;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--fg-faint);}
+.t-when .py-icon{display:inline-flex;}
+.t-dot{position:absolute;left:54px;top:10px;width:9px;height:9px;border-radius:50%;background:var(--bg);border:1.5px solid var(--border-strong);}
+
+.t-row{background:none;border:0;padding:0;margin:0;font-family:inherit;text-align:left;cursor:pointer;width:100%;display:block;color:inherit;}
+.t-row:focus-visible{outline:2px solid var(--primary);outline-offset:3px;border-radius:var(--radius-xs);}
+/* `display:block` because the collapsed row renders these as spans — a button
+   may only contain phrasing content, so the design's paragraphs cannot survive
+   inside one. The open card still uses a real heading. */
+.t-title{display:block;font-size:15px;font-weight:600;line-height:1.35;color:var(--fg);margin:0;text-wrap:pretty;}
+.t-loop{display:block;font-size:13px;color:var(--fg-muted);margin:3px 0 0;}
+
+/* "Past" and "logged" are carried by title weight and dot fill, never by
+   wrapper opacity — dimming the slot drags the small print under 4.5:1. */
+.t-slot.is-past .t-title{font-weight:500;color:var(--fg-body);}
+.t-tag{display:inline-block;font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;margin-top:6px;}
+.t-tag--open{color:var(--fg-muted);}
+.t-tag--done{color:var(--fg-muted);}
+.t-tag--miss{color:var(--fg-body);font-weight:700;}
+.t-slot.is-past .t-dot{border-color:var(--primary);}
+.t-slot.is-logged .t-dot{background:var(--success);border-color:var(--success);}
+.t-slot.is-logged .t-title{font-weight:500;color:var(--fg-muted);}
+.t-slot.is-logged .t-loop{color:var(--fg-muted);}
+
+/* now rule */
+.t-nowrow{position:relative;display:grid;grid-template-columns:52px 1fr;gap:26px;align-items:center;padding:8px 0;}
+.t-nowrow .t-dot{background:var(--primary);border-color:var(--primary);top:50%;margin-top:-4.5px;box-shadow:0 0 0 4px var(--primary-soft);}
+.t-nowtime{font-family:var(--font-mono);font-size:12px;font-weight:700;color:var(--primary);text-align:right;font-variant-numeric:tabular-nums;}
+.t-nowline{height:1px;background:var(--primary);opacity:.42;}
+
+/* ---- the open slot ---- */
+.t-card{background:var(--card);border:1px solid var(--response);border-radius:16px;box-shadow:var(--shadow-sm);padding:16px 16px 14px;margin:-6px 0;}
+.t-slot.is-open .t-dot{background:var(--response);border-color:var(--response);}
+.t-eyebrow{font-family:var(--font-mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--response);margin:0 0 8px;}
+.t-card .t-title{font-size:18px;font-weight:700;letter-spacing:-.01em;}
+.t-meta{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:10px;}
+.t-chipq{font-family:var(--font-mono);font-size:11px;color:var(--fg-muted);background:var(--bg-sunk);border:1px solid var(--border);border-radius:var(--radius-pill);padding:3px 9px;}
+.t-link{font-size:13px;color:var(--fg-muted);border-bottom:1px solid var(--border-strong);padding-bottom:1px;}
+.t-link:hover{color:var(--fg);border-color:var(--fg-muted);}
+
+.t-ask{font-size:13px;color:var(--fg-muted);margin:16px 0 8px;}
+.t-verdicts{display:flex;flex-wrap:wrap;gap:8px;}
+/* py-chip, at a 44px touch target */
+.t-v{height:44px;padding:0 16px;font-size:var(--text-base);}
+.t-v i{width:8px;height:8px;border-radius:50%;background:var(--border-strong);flex:0 0 8px;}
+.t-v.on{color:var(--fg);}
+.t-v.on--did{border-color:var(--reward);}
+.t-v.on--did i{background:var(--reward);}
+.t-v.on--hold{border-color:var(--cue);}
+.t-v.on--hold i{background:var(--cue);}
+.t-v.on--never{border-color:var(--fg-faint);background:var(--bg-sunk);}
+.t-v.on--never i{background:var(--fg-faint);}
+
+.t-why{margin-top:14px;border-top:1px solid var(--border);padding-top:14px;}
+.t-whyq{font-size:13px;color:var(--fg-body);margin:0 0 9px;}
+.t-reasons{display:flex;flex-wrap:wrap;gap:7px;}
+.t-r{height:36px;color:var(--fg-muted);}
+.t-r:hover{color:var(--fg);}
+.t-r.on{color:var(--fg);border-color:var(--cue);}
+.t-note{margin-top:10px;width:100%;resize:none;font-family:inherit;font-size:14px;line-height:1.5;color:var(--fg);background:var(--bg-sunk);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;}
+.t-note::placeholder{color:var(--fg-faint);}
+.t-note:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px var(--focus);}
+.t-err{margin:8px 0 0;font-size:12px;color:var(--danger);}
+
+.t-confirm{display:flex;align-items:center;gap:14px;margin-top:16px;padding-top:14px;border-top:1px solid var(--border);}
+.t-hint{font-size:12px;color:var(--fg-muted);}
+
+/* ---- verdicts-ready + heading ---- */
+.t-sec{margin-top:34px;}
+.t-sech{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--fg-muted);margin:0 0 12px;font-family:var(--font-sans);}
+.t-exp{border:1px solid var(--craving);border-radius:16px;background:var(--card);padding:14px 16px;display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;}
+.t-exp p{margin:0;font-size:15px;font-weight:600;color:var(--fg);flex:1 1 180px;}
+.t-exp span{font-family:var(--font-mono);font-size:11px;color:var(--fg-muted);}
+.t-exp .py-btn{margin-left:auto;}
+.t-done{margin:30px 0 0;font-size:13px;color:var(--fg-faint);text-align:center;}
+
+/* ============================================================
+   LOOPS — the record, leaning on the Today shell above
+   ============================================================ */
+
+/* filter strip */
+.l-tools{display:flex;flex-direction:column;gap:10px;margin-bottom:18px;}
+.l-search{display:flex;align-items:center;gap:9px;height:44px;padding:0 14px;border-radius:var(--radius-pill);background:var(--card);border:1px solid var(--border-strong);box-shadow:var(--shadow-xs);color:var(--fg-muted);}
+.l-search input{flex:1;min-width:0;border:0;background:none;outline:none;font-family:var(--font-sans);font-size:var(--text-base);color:var(--fg);}
+.l-search input::placeholder{color:var(--fg-muted);}
+.l-search:focus-within{border-color:var(--primary);box-shadow:0 0 0 3px var(--focus);}
+.l-filters{display:flex;flex-wrap:wrap;gap:7px;}
+.l-filters .py-chip{height:34px;padding:0 14px;text-transform:capitalize;}
+
+.l-tally{display:flex;align-items:center;gap:12px;margin:0 0 14px;}
+.l-tally p{margin:0;font-family:var(--font-mono);font-size:12px;color:var(--fg-muted);font-variant-numeric:tabular-nums;}
+.l-tally .py-btn{margin-left:auto;}
+
+/* the grid */
+.l-grid{list-style:none;margin:0 0 4px;padding:0;display:grid;grid-template-columns:1fr;gap:12px;}
+
+.l-card{display:flex;flex-direction:column;gap:10px;width:100%;text-align:left;font-family:inherit;cursor:pointer;background:var(--card);border:1px solid var(--accent-line,var(--border));border-radius:16px;box-shadow:var(--shadow-sm);padding:16px;transition:box-shadow var(--dur-base) var(--ease-out),background var(--dur-base) var(--ease-out);}
+.l-card:hover{box-shadow:var(--shadow-md);background:var(--card-2);}
+.l-card:focus-visible{outline:2px solid var(--primary);outline-offset:2px;}
+.l-card.is-quiet{border-color:var(--border);box-shadow:none;background:var(--bg-sunk);}
+
+.l-top{display:flex;align-items:flex-start;gap:12px;}
+.l-title{flex:1;min-width:0;margin:0;font-family:var(--font-display);font-size:18px;font-weight:700;letter-spacing:-.015em;line-height:1.2;color:var(--fg);text-wrap:pretty;}
+.l-card.is-quiet .l-title{color:var(--fg-body);font-weight:600;}
+.l-status{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--fg-muted);padding-top:4px;}
+.l-status i{width:7px;height:7px;border-radius:50%;background:var(--fg-faint);}
+.l-status.is-active i{background:var(--reward);}
+.l-status.is-paused i{background:var(--warning);}
+.l-status.is-completed i{background:var(--cue);}
+
+/* the chain — the loop's identity, acting stage underlined in its own accent */
+.l-chain{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:12px;color:var(--fg-muted);margin:0;}
+.l-chain b{color:var(--fg);font-weight:700;padding-bottom:1px;border-bottom:2px solid var(--accent-line,var(--fg));}
+.l-chain s{text-decoration:none;color:var(--fg-faint);}
+
+.l-approach{margin:0;font-size:14px;line-height:1.5;color:var(--fg-body);text-wrap:pretty;display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.l-meta{margin:0;font-family:var(--font-mono);font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--fg-muted);}
+
+.l-verdict{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;border-top:1px solid var(--border);padding-top:12px;margin-top:2px;}
+.l-verdict p{margin:0;flex:1 1 150px;font-size:13px;color:var(--fg-body);}
+
+.l-sech{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--fg-muted);margin:26px 0 12px;font-family:var(--font-sans);}
+.l-sech:first-of-type{margin-top:0;}
+
+/* ---- desktop: the design's `.t-frame--desk` column, at the app's `lg` ---- */
+@media (min-width:1024px){
+  .t-head{padding:28px 32px 22px;}
+  .t-date{font-size:12px;}
+  .t-day{font-size:34px;}
+  .t-tally{font-size:13px;}
+  .t-body{padding:28px 32px 48px;}
+  .t-col{max-width:760px;}
+  .t-col--wide{max-width:1000px;}
+
+  .t-tl::before{left:66px;}
+  .t-slot{grid-template-columns:60px 1fr;gap:30px;padding:12px 0;}
+  .t-when{font-size:13px;}
+  .t-dot{left:62px;top:13px;}
+  .t-title{font-size:17px;}
+  .t-loop{font-size:14px;}
+  .t-nowrow{grid-template-columns:60px 1fr;gap:30px;}
+  .t-card{padding:20px 22px 18px;border-radius:22px;}
+  .t-card .t-title{font-size:22px;font-family:var(--font-display);}
+
+  .l-grid{grid-template-columns:1fr 1fr;gap:16px;}
+  .l-card{padding:20px;border-radius:22px;}
+  .l-title{font-size:20px;}
+  .l-approach{font-size:15px;}
+}

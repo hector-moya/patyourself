@@ -167,7 +167,10 @@ describe('LoopsIndex', () => {
 
             const chip = screen.getByRole('link', { name: 'paused' });
 
-            expect(chip).toHaveAttribute('href', '/loops?status=paused&q=kettle');
+            expect(chip).toHaveAttribute(
+                'href',
+                '/loops?status=paused&q=kettle',
+            );
         });
 
         it('preserves the current status filter when searching', () => {
@@ -181,12 +184,17 @@ describe('LoopsIndex', () => {
             fireEvent.change(screen.getByLabelText('Search loops'), {
                 target: { value: 'kettle' },
             });
-            fireEvent.submit(screen.getByLabelText('Search loops').closest('form')!);
+            fireEvent.submit(
+                screen.getByLabelText('Search loops').closest('form')!,
+            );
 
             expect(routerGetMock).toHaveBeenCalledWith(
                 '/loops',
                 { status: 'paused', q: 'kettle' },
-                expect.objectContaining({ preserveState: true, preserveScroll: true }),
+                expect.objectContaining({
+                    preserveState: true,
+                    preserveScroll: true,
+                }),
             );
         });
 
@@ -198,15 +206,15 @@ describe('LoopsIndex', () => {
                 />,
             );
 
-            expect(screen.getByRole('link', { name: 'paused' }).className).toContain(
-                'bg-accent',
-            );
-            expect(screen.getByRole('link', { name: 'active' }).className).not.toContain(
-                'bg-accent',
-            );
-            expect(screen.getByRole('link', { name: 'All' }).className).not.toContain(
-                'bg-accent',
-            );
+            expect(
+                screen.getByRole('link', { name: 'paused' }).className,
+            ).toContain('is-active');
+            expect(
+                screen.getByRole('link', { name: 'active' }).className,
+            ).not.toContain('is-active');
+            expect(
+                screen.getByRole('link', { name: 'All' }).className,
+            ).not.toContain('is-active');
         });
 
         it('marks "All" active when no status filter is set', () => {
@@ -214,9 +222,96 @@ describe('LoopsIndex', () => {
                 <LoopsIndex intentions={[intention()]} filters={noFilters} />,
             );
 
-            expect(screen.getByRole('link', { name: 'All' }).className).toContain(
-                'bg-accent',
+            expect(
+                screen.getByRole('link', { name: 'All' }).className,
+            ).toContain('is-active');
+        });
+    });
+
+    describe('the card', () => {
+        /**
+         * The colour is never decoration. The card's border and the underlined
+         * word in the chain are the same stage, taken from the running
+         * strategy's intervention point — so a glance at the border and a read
+         * of the chain can never disagree.
+         */
+        it('paints the card in the stage its strategy acts on', () => {
+            const { container } = render(
+                <LoopsIndex
+                    intentions={[
+                        intention({
+                            strategy: strategy({
+                                intervention_point: 'craving',
+                            }),
+                        }),
+                    ]}
+                    filters={noFilters}
+                />,
             );
+
+            const card = container.querySelector('.l-card') as HTMLElement;
+
+            expect(card.style.getPropertyValue('--accent-line')).toBe(
+                'var(--craving)',
+            );
+            expect(card.querySelector('.l-chain b')).toHaveTextContent(
+                /craving/i,
+            );
+        });
+
+        /**
+         * A loop with no running experiment has no stage to point at. Picking
+         * one anyway would be a claim the record does not make, so the card
+         * takes the plain border and the chain underlines nothing.
+         */
+        it('gives a loop with no experiment no accent at all', () => {
+            const { container } = render(
+                <LoopsIndex
+                    intentions={[intention({ strategy: null })]}
+                    filters={noFilters}
+                />,
+            );
+
+            const card = container.querySelector('.l-card') as HTMLElement;
+
+            expect(card.style.getPropertyValue('--accent-line')).toBe('');
+            expect(card.querySelector('.l-chain b')).toBeNull();
+        });
+
+        /**
+         * A paused loop is not a worse active one. The two are grouped under
+         * headings that say which is which rather than listed flat, where
+         * position alone would imply a ranking.
+         */
+        it('groups what is running apart from what is not', () => {
+            render(
+                <LoopsIndex
+                    intentions={[
+                        intention({ id: 1, status: 'active' }),
+                        intention({
+                            id: 2,
+                            status: 'paused',
+                            title: 'Weigh in',
+                        }),
+                    ]}
+                    filters={noFilters}
+                />,
+            );
+
+            expect(screen.getByText('Running now')).toBeInTheDocument();
+            expect(screen.getByText('Not running')).toBeInTheDocument();
+        });
+
+        it('omits the "not running" heading when everything is running', () => {
+            render(
+                <LoopsIndex
+                    intentions={[intention({ status: 'active' })]}
+                    filters={noFilters}
+                />,
+            );
+
+            expect(screen.getByText('Running now')).toBeInTheDocument();
+            expect(screen.queryByText('Not running')).not.toBeInTheDocument();
         });
     });
 
@@ -244,7 +339,9 @@ describe('LoopsIndex', () => {
                 />,
             );
 
-            expect(screen.getByText('No loops match that.')).toBeInTheDocument();
+            expect(
+                screen.getByText('No loops match that.'),
+            ).toBeInTheDocument();
             expect(screen.queryByText('No loops yet')).not.toBeInTheDocument();
         });
 
@@ -256,7 +353,9 @@ describe('LoopsIndex', () => {
                 />,
             );
 
-            expect(screen.getByText('No loops match that.')).toBeInTheDocument();
+            expect(
+                screen.getByText('No loops match that.'),
+            ).toBeInTheDocument();
             expect(screen.queryByText('No loops yet')).not.toBeInTheDocument();
         });
     });
