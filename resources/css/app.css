@@ -24,6 +24,11 @@
         'Noto Color Emoji';
     --font-display: 'Bricolage Grotesque', ui-sans-serif, system-ui, sans-serif;
     --font-mono: 'Space Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+    /* The bitmap face, and the one place it is allowed: inside Blob's two
+       panels on /companion. Falls back to the mono stack rather than to sans,
+       because a proportional face in a 10px uppercase rail loses the grid the
+       pixel art sets. */
+    --font-pixel: 'Silkscreen', 'Space Mono', ui-monospace, monospace;
 
     /* Radius scale */
     --radius-lg: var(--radius);

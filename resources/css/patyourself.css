@@ -64,6 +64,11 @@
   --font-display: "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
   --font-sans:    "Hanken Grotesk", ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-mono:    "Space Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  /* The bitmap face, and the one place it is allowed: inside Blob's two
+     panels. It falls back to the mono stack rather than to sans, because a
+     proportional face in a 10px uppercase rail loses the grid the pixel art
+     sets — see the COMPANION section at the foot of this file. */
+  --font-pixel:   "Silkscreen", "Space Mono", ui-monospace, monospace;
 
   --text-xs:0.75rem; --text-sm:0.875rem; --text-base:1rem; --text-md:1.125rem;
   --text-lg:1.375rem; --text-xl:1.75rem; --text-2xl:2.25rem; --text-3xl:3rem;
@@ -1005,4 +1010,94 @@
   .d-prov{font-size:11px;}
   .d-maincol .d-sec{margin-top:30px;}
   .d-aside .d-sec:first-child{margin-top:30px;}
+}
+
+/* ============================================================
+   COMPANION — Blob's two panels
+   ------------------------------------------------------------
+   The pixel surface used to stop at the room and hand the record
+   back to the notebook, which left a sprite sheet and a column of
+   Hanken Grotesk sharing one screen and agreeing on nothing. Both
+   halves sit in the same wood now: the frame is still the app's
+   own `.pixel-frame` nine-slice above, and everything here is what
+   goes inside one.
+
+   Colours are literal hex and do not follow the theme. These two
+   panels are a world rather than a notebook — the wood is the same
+   wood at midnight as at noon, and a dark-mode variant of a plank
+   is a plank that stopped being a plank. Same reasoning as Blob's
+   own body colour in blob-renderer.tsx.
+   ============================================================ */
+
+/* The board inside the frame.
+
+   `background-clip` is the load-bearing one: the frame is drawn as a
+   border-image, so by default this colour would paint the border box as well
+   and fill in every transparent pixel around the panel art's corner ornaments
+   with a dark square. Clipped to the padding box it stops where the wood
+   starts, which is what the preview got for free by painting an inner div.
+
+   `line-height` is restored because `.pixel-frame` zeroes it for a panel that
+   wraps nothing but an svg, and these two hold real type as well. */
+.c-wrap{display:grid;gap:18px;}
+.c-panel{background:#241C15;background-clip:padding-box;line-height:normal;min-width:0;}
+
+/* ---- the room card ---- */
+/* Where Blob is, and when. Both facts are already drawn — the backdrop is the
+   place and the wash is the hour — and this bar only names them. */
+.c-place{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#181209;border-bottom:2px solid #0F0C09;padding:7px 10px;font-family:var(--font-pixel);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:#E9D5A8;}
+.c-place b{display:inline-flex;align-items:center;gap:7px;font-weight:400;color:#F2E3BF;}
+.c-place time{color:#C9AE7E;font-variant-numeric:tabular-nums;}
+
+/* The scene, and the one thing allowed to sit on top of it. */
+.c-stage{position:relative;}
+.c-scene{cursor:pointer;}
+
+/* Blob's own line, relayed verbatim: a bubble over the scene rather than a
+   caption under it, because it is Blob talking, and type set below the picture
+   reads as the app narrating Blob instead.
+
+   Anchored top-left of a scene whose only occupant stands centre and low, so an
+   ordinary remark clears Blob without anything having to measure it. A very
+   long one will not, which is what the × is for. */
+.c-said{position:absolute;left:4%;top:5%;max-width:78%;margin:0;z-index:2;display:flex;align-items:flex-start;gap:8px;background:rgba(245,230,196,.94);color:#2A2118;border:3px solid #1B1510;box-shadow:4px 4px 0 rgba(15,12,9,.35);padding:9px 9px 9px 11px;font-size:12px;line-height:1.45;text-wrap:pretty;}
+.c-saidx{flex:none;width:18px;height:18px;margin-top:-1px;padding:0;border:0;background:none;color:#6A5A44;font-family:var(--font-pixel);font-size:11px;line-height:18px;text-align:center;cursor:pointer;}
+.c-saidx:hover{color:#1B1510;background:rgba(27,21,16,.1);}
+.c-saidx:focus-visible{outline:2px solid #1B1510;outline-offset:1px;}
+
+/* The plinth. The buttons sit on the card that holds the world rather than
+   floating under it: what they act on is inside this frame and nothing else.
+   The pixel face is scoped to here rather than written into `.pixel-button`,
+   which stays a plain wooden button anything else could reuse. */
+.c-plinth{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:10px;background:#181209;border-top:2px solid #0F0C09;padding:11px 10px;}
+.c-plinth .pixel-button{font-family:var(--font-pixel);font-weight:400;font-size:11px;letter-spacing:.04em;color:#F7EBD2;}
+
+/* ---- the record, in the same wood ---- */
+.c-ribbon{display:flex;align-items:center;justify-content:space-between;gap:8px;background:#181209;border-bottom:2px solid #0F0C09;padding:10px;font-family:var(--font-pixel);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#F2E3BF;}
+.c-ribbon span{color:#A58D64;white-space:nowrap;font-variant-numeric:tabular-nums;}
+.c-log{list-style:none;margin:0;padding:2px 0;}
+.c-entry{display:grid;grid-template-columns:22px minmax(0,1fr);gap:11px;padding:13px 12px;}
+.c-entry+.c-entry{border-top:2px dotted #3D3124;}
+.c-entry>i{display:block;margin-top:3px;}
+.c-etop{display:flex;align-items:baseline;justify-content:space-between;gap:10px;}
+.c-ename{font-family:var(--font-pixel);font-size:12px;letter-spacing:.02em;color:#F7EBD2;}
+.c-edate{font-family:var(--font-mono);font-size:10.5px;letter-spacing:.06em;white-space:nowrap;color:#C0A574;font-variant-numeric:tabular-nums;}
+.c-ebody{margin:5px 0 0;font-size:13.5px;line-height:1.5;color:#E6D8BC;text-wrap:pretty;}
+/* The newest line is marked, never scored: it says which one arrived last and
+   stops there — no count, no rank, nothing about what comes after it. */
+.c-entry.is-new .c-ename{color:#FFD9A8;}
+.c-newtag{margin-left:8px;padding:2px 5px;font-family:var(--font-pixel);font-size:9px;font-style:normal;letter-spacing:.06em;text-transform:uppercase;color:#1B1510;background:#E9B96B;}
+.c-first{margin:0;padding:12px;border-top:2px dotted #3D3124;font-family:var(--font-pixel);font-size:9.5px;line-height:1.7;letter-spacing:.04em;text-transform:uppercase;color:#A58D64;}
+
+@media (min-width:1024px){
+  /* Room left, record right — the record is the other half of the screen
+     rather than a footnote to the room.
+
+     `start`, not `stretch`: the design's desk canvas was a fixed 860px tall,
+     so there the record scrolled inside its own frame to match the room. This
+     app scrolls the page instead, and stretching here would only pad whichever
+     panel is shorter with a band of bare board — the room's, and it grows with
+     every line the record gains. Each panel ends where its own contents do. */
+  .c-wrap{grid-template-columns:minmax(0,1.14fr) minmax(330px,.86fr);gap:22px;align-items:start;}
+  .c-said{max-width:62%;font-size:12.5px;}
 }

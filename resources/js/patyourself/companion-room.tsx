@@ -228,6 +228,7 @@ export function CompanionRoom({
     frame,
     hour = new Date().getHours(),
     className = '',
+    onPoke,
 }: {
     companion: CompanionData;
     animation: AnimationName;
@@ -235,6 +236,15 @@ export function CompanionRoom({
     /** Overridable so the room can be tested at a fixed time of day. */
     hour?: number;
     className?: string;
+    /**
+     * Fired when the scene itself is tapped, if the screen wants that.
+     *
+     * An affordance and never the only way in — reaching Blob by touching it
+     * is the obvious gesture and the reason this exists, but the scene stays a
+     * `role="img"`, so whatever the caller passes here must also be on a real
+     * button somewhere on the screen. /companion's Poke is that button.
+     */
+    onPoke?: () => void;
 }) {
     if (!companion.features.includes('blob')) {
         return null;
@@ -263,6 +273,7 @@ export function CompanionRoom({
             aria-label={`${describe(companion)}, ${indoors ? 'at home' : 'outside'}`}
             data-part-of-day={part}
             data-scene={scene.name}
+            onClick={onPoke}
             className={['blob-room', className].filter(Boolean).join(' ')}
         >
             {!indoors && (

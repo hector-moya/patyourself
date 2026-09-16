@@ -1,5 +1,8 @@
+import { useEffect, useState } from 'react';
+
 import { useSpriteClock } from '@/hooks/use-sprite-clock';
 import CoachLayout from '@/layouts/coach-layout';
+import { cn } from '@/lib/utils';
 import { BottomNav } from '@/patyourself/bottom-nav';
 import {
     actionsFor,
@@ -10,8 +13,11 @@ import type {
     CompanionData,
     CompanionUnlockData,
 } from '@/patyourself/companion';
+import type { AnimationName } from '@/patyourself/companion-animations';
+import { CompanionGlyph } from '@/patyourself/companion-glyph';
 import { CompanionRoom } from '@/patyourself/companion-room';
-import { SectionHeading } from '@/patyourself/strategy-timeline';
+import { partOfDay } from '@/patyourself/part-of-day';
+import { sceneFor } from '@/patyourself/scenes';
 
 interface CompanionPageProps {
     companion: CompanionData;
@@ -26,7 +32,7 @@ interface CompanionPageProps {
 }
 
 /**
- * Blob's screen: the room, two things you can do to Blob, and a plain list of
+ * Blob's screen: the room, the things you can do to Blob, and a plain list of
  * what it has and when each part arrived.
  *
  * The list is history. There are no locked slots, no count of what is left and
@@ -34,16 +40,28 @@ interface CompanionPageProps {
  * happened it becomes a checklist, and a checklist is a thing to be behind on.
  * Only ever show what has happened.
  *
+ * Two panels in the same wood, and that is the whole layout. The pixel surface
+ * holds the record as well as the room now, which is what stops the sprite art
+ * and the notebook type talking past each other: inside these two frames the
+ * art sets the rules, and everything outside them is the notebook it always
+ * was. The record is not a footnote to the room — it is the other half of the
+ * screen, and on a desktop it stands beside it rather than under it.
+ *
  * The clock lives here rather than inside the drawing because the buttons need
- * to reach it. Everything on this screen reads the same two numbers.
+ * to reach it. Everything on this screen reads the same two numbers, and the
+ * same hour: the room's light, what Blob is doing at rest, and the line naming
+ * the part of day are one reading of one clock, never three.
  */
 export default function CompanionPage({
     companion,
     remark = null,
 }: CompanionPageProps) {
+    const now = useMinute();
+    const hour = now.getHours();
+
     const { animation, frame, react } = useSpriteClock(
-        ambientFor(companion),
-        selfStartedFor(companion),
+        ambientFor(companion, hour),
+        selfStartedFor(companion, hour),
     );
     const nothingYet = companion.unlocks.length === 0;
 
@@ -53,111 +71,245 @@ export default function CompanionPage({
     // the remark: `nothingYet` and the controller's `stageIndex() === 0` are
     // two independent expressions of the same fact, identical today only
     // because nothing enforces that they agree. If they ever diverged, a
-    // remark nested inside the `nothingYet` branch would have already been
-    // burned into the session by the controller and then never drawn — the
-    // exact failure `test_before_blob_exists_no_remark_is_drawn` exists to
-    // prevent, just reached from the other side.
-    const showRoomCluster = !nothingYet || remark !== null;
-
-    return (
-        <CoachLayout title="Blob" bottomNav={<BottomNav />}>
-            <div className="flex flex-col gap-8">
-                {nothingYet && (
-                    // Stated as a fact about the record, with nothing to act
-                    // on and nothing owed. Not an empty slot, and no empty
-                    // room either — there is nobody to put in it yet.
+    // remark reachable only through the `!nothingYet` branch would have
+    // already been burned into the session by the controller and then never
+    // drawn — the exact failure `test_before_blob_exists_no_remark_is_drawn`
+    // exists to prevent, just reached from the other side. So this branch
+    // relays it too, as plain type: there is no scene here to put a bubble on.
+    if (nothingYet) {
+        return (
+            <CoachLayout title="Blob" bottomNav={<BottomNav />}>
+                <div className="flex flex-col items-center gap-4">
+                    {/* Stated as a fact about the record, with nothing to act
+                        on and nothing owed. Not an empty slot, and no empty
+                        room either — there is nobody to put in it yet. */}
                     <p className="py-8 text-center text-sm text-muted-foreground">
                         Blob turns up once there is something in the record. Log
                         an outcome — any outcome — and it arrives.
                     </p>
-                )}
 
-                {showRoomCluster && (
-                    <div className="flex flex-col items-center gap-4">
-                        {!nothingYet && (
-                            <div className="pixel-frame w-full max-w-md">
-                                <CompanionRoom
-                                    companion={companion}
-                                    animation={animation}
-                                    frame={frame}
-                                />
-                            </div>
-                        )}
+                    {remark !== null && (
+                        <p
+                            data-testid="companion-remark"
+                            className="max-w-md text-center text-sm text-balance text-muted-foreground"
+                        >
+                            {remark}
+                        </p>
+                    )}
+                </div>
+            </CoachLayout>
+        );
+    }
 
-                        {remark !== null && (
-                            <p
-                                data-testid="companion-remark"
-                                className="max-w-md text-center text-sm text-balance text-muted-foreground"
-                            >
-                                {remark}
-                            </p>
-                        )}
-
-                        {/* Never disabled, never on a timer, never counted:
-                            pressing one is not progress, none of them touch
-                            anything the resolver reads, and Blob never asks to
-                            be pressed.
-
-                            Which ones are here is a different question from
-                            whether they work, and it is `actionsFor`'s — the
-                            two done to Blob are always present, and one that
-                            asks Blob to use an ability appears only once the
-                            ladder has announced it, absent until then rather
-                            than greyed. */}
-                        {!nothingYet && (
-                            <div className="flex flex-wrap justify-center gap-2">
-                                {actionsFor(companion).map((action) => (
-                                    <button
-                                        key={action.animation}
-                                        type="button"
-                                        className="pixel-button"
-                                        onClick={() => react(action.animation)}
-                                    >
-                                        {action.label}
-                                    </button>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                )}
-
-                {!nothingYet && (
-                    <section>
-                        <SectionHeading>What has happened</SectionHeading>
-                        <ul className="divide-y divide-border">
-                            {/* Newest first: the most recent thing is the thing
-                                being read, and the beginning stays at the end
-                                where it belongs. */}
-                            {[...companion.unlocks]
-                                .reverse()
-                                .map((unlock, index) => (
-                                    <UnlockRow
-                                        key={`${unlock.kind}-${unlock.name}-${index}`}
-                                        unlock={unlock}
-                                    />
-                                ))}
-                        </ul>
-                    </section>
-                )}
+    return (
+        <CoachLayout title="Blob" bottomNav={<BottomNav />} wide>
+            <div className="c-wrap">
+                <RoomCard
+                    companion={companion}
+                    animation={animation}
+                    frame={frame}
+                    hour={hour}
+                    now={now}
+                    remark={remark}
+                    onReact={react}
+                />
+                <Record companion={companion} />
             </div>
         </CoachLayout>
     );
 }
 
-function UnlockRow({ unlock }: { unlock: CompanionUnlockData }) {
+/**
+ * The room, its plinth of buttons and Blob's own line, in one frame.
+ *
+ * The buttons sit on the card that holds the world rather than floating under
+ * it, because what they act on is inside the frame and nothing else. Same
+ * reason the remark is a bubble over the scene: it is Blob talking, and a
+ * caption set below the picture reads as the app narrating Blob instead.
+ */
+function RoomCard({
+    companion,
+    animation,
+    frame,
+    hour,
+    now,
+    remark,
+    onReact,
+}: {
+    companion: CompanionData;
+    animation: AnimationName;
+    frame: number;
+    hour: number;
+    now: Date;
+    remark: string | null;
+    onReact: (name: AnimationName) => void;
+}) {
+    const [said, setSaid] = useState(true);
+    const part = partOfDay(hour, companion.room);
+
     return (
-        <li className="py-3">
-            <div className="flex items-baseline justify-between gap-3">
-                <span className="text-sm text-foreground">{label(unlock)}</span>
-                <span className="shrink-0 font-mono text-xs text-muted-foreground">
-                    {formatDay(unlock.unlocked_at)}
-                </span>
+        <section className="pixel-frame c-panel">
+            {/* Where Blob is, and when — the one thing this screen never
+                said. Both are already true of the drawing; naming them is
+                what makes the light read as deliberate rather than broken. */}
+            <div className="c-place">
+                <b>
+                    <CompanionGlyph kind="body" size={14} />
+                    the {sceneFor(companion.scene).name}
+                </b>
+                <time dateTime={now.toISOString()}>
+                    {part} ·{' '}
+                    {now.toLocaleTimeString('en-GB', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                    })}
+                </time>
             </div>
-            <p className="mt-1 text-sm text-muted-foreground">
-                {unlock.message}
-            </p>
+
+            <div className="c-stage">
+                {remark !== null && said && (
+                    <p data-testid="companion-remark" className="c-said">
+                        {remark}
+                        <button
+                            type="button"
+                            className="c-saidx"
+                            onClick={() => setSaid(false)}
+                            aria-label="Dismiss what Blob said"
+                        >
+                            ×
+                        </button>
+                    </p>
+                )}
+
+                <CompanionRoom
+                    companion={companion}
+                    animation={animation}
+                    frame={frame}
+                    hour={hour}
+                    className="c-scene"
+                    onPoke={() => onReact('notice')}
+                />
+            </div>
+
+            {/* Never disabled, never on a timer, never counted: pressing one
+                is not progress, none of them touch anything the resolver
+                reads, and Blob never asks to be pressed.
+
+                Which ones are here is a different question from whether they
+                work, and it is `actionsFor`'s — the two done to Blob are
+                always present, and one that asks Blob to use an ability
+                appears only once the ladder has announced it, absent until
+                then rather than greyed.
+
+                Poke is the odd one out and deliberately last: it is what the
+                scene itself does when tapped, kept as a button so the same
+                thing is reachable from a keyboard. */}
+            <div className="c-plinth">
+                {actionsFor(companion).map((action) => (
+                    <button
+                        key={action.animation}
+                        type="button"
+                        className="pixel-button"
+                        onClick={() => onReact(action.animation)}
+                    >
+                        {action.label}
+                    </button>
+                ))}
+                <button
+                    type="button"
+                    className="pixel-button"
+                    onClick={() => onReact('notice')}
+                >
+                    Poke
+                </button>
+            </div>
+        </section>
+    );
+}
+
+/** The record, in the same wood as the room it belongs to. */
+function Record({ companion }: { companion: CompanionData }) {
+    // Newest first: the most recent thing is the thing being read, and the
+    // beginning stays at the end where it belongs.
+    const entries = [...companion.unlocks].reverse();
+    const began = formatDay(entries[entries.length - 1].unlocked_at);
+
+    return (
+        <section className="pixel-frame c-panel c-record">
+            <div className="c-ribbon">
+                What has happened
+                {began !== '' && <span>since {began}</span>}
+            </div>
+
+            <ul className="c-log">
+                {entries.map((unlock, index) => (
+                    <UnlockRow
+                        key={`${unlock.kind}-${unlock.name}-${index}`}
+                        unlock={unlock}
+                        newest={index === 0}
+                    />
+                ))}
+            </ul>
+
+            {/* A statement about the record rather than a preview of one:
+                everything Blob has is on this list, and there is no line here
+                for what is not. */}
+            <p className="c-first">that is the whole of it, so far</p>
+        </section>
+    );
+}
+
+function UnlockRow({
+    unlock,
+    newest,
+}: {
+    unlock: CompanionUnlockData;
+    newest: boolean;
+}) {
+    // `cn` rather than a template literal: prettier's tailwind plugin
+    // normalises the string inside one and eats the leading space, which
+    // silently ships `class="c-entryis-new"` — the marker welded onto the
+    // layout class, so the row loses its grid with the suite still green.
+    return (
+        <li className={cn('c-entry', newest && 'is-new')}>
+            <i>
+                <CompanionGlyph kind={unlock.kind} />
+            </i>
+            <div>
+                <div className="c-etop">
+                    <span className="c-ename">
+                        {label(unlock)}
+                        {newest && <em className="c-newtag">newest</em>}
+                    </span>
+                    <span className="c-edate">
+                        {formatDay(unlock.unlocked_at)}
+                    </span>
+                </div>
+                <p className="c-ebody">{unlock.message}</p>
+            </div>
         </li>
     );
+}
+
+/**
+ * The wall clock behind the place bar, re-read every half minute.
+ *
+ * Its own interval rather than the sprite clock's: that one stops when the tab
+ * is hidden and holds frame 0 under reduced motion, and a time of day that
+ * quietly froze at whatever it was when you last looked is worse than no time
+ * at all. The same value feeds the light and the ambient, so all three still
+ * turn over together.
+ */
+function useMinute(): Date {
+    const [now, setNow] = useState(() => new Date());
+
+    useEffect(() => {
+        const id = window.setInterval(() => setNow(new Date()), 30_000);
+
+        return () => window.clearInterval(id);
+    }, []);
+
+    return now;
 }
 
 /** "scarf", or "scarf (coral)" once a type has been recoloured. */

@@ -1,6 +1,6 @@
 import type * as InertiaReact from '@inertiajs/react';
 import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const page = { url: '/companion', props: { unread_notifications_count: 0 } };
 vi.mock('@inertiajs/react', async (importOriginal) => {
@@ -16,6 +16,13 @@ import {
 } from '@/patyourself/companion.fixture';
 
 import CompanionPage from './companion';
+
+// A few cases below pin the wall clock, which the place bar and the ambient
+// both read. Restored here rather than in each one, so a failing assertion
+// cannot leave `Date` faked for everything that follows it.
+afterEach(() => {
+    vi.useRealTimers();
+});
 
 describe('Companion screen', () => {
     /**
@@ -123,6 +130,199 @@ describe('Companion screen', () => {
         );
 
         expect(screen.getByText('scarf (coral)')).toBeInTheDocument();
+    });
+
+    /**
+     * Where Blob is and when — two facts the drawing already carried and the
+     * screen never said out loud. Both come off the same hour the room lights
+     * itself by, which is the point: a bar reading "day" over a night-lit
+     * forest would be two clocks, and two clocks is how the light starts
+     * looking broken rather than deliberate.
+     */
+    describe('the place bar', () => {
+        it('names where Blob is and what part of the day it is', () => {
+            vi.useFakeTimers({ toFake: ['Date'] });
+            vi.setSystemTime(new Date('2026-09-11T19:30:00'));
+
+            render(
+                <CompanionPage companion={companion({ scene: 'forest' })} />,
+            );
+
+            expect(screen.getByText('the forest')).toBeInTheDocument();
+            expect(screen.getByText('dusk · 19:30')).toBeInTheDocument();
+        });
+
+        it('reads the same hour the room and the ambient do', () => {
+            vi.useFakeTimers({ toFake: ['Date'] });
+            vi.setSystemTime(new Date('2026-09-11T22:00:00'));
+
+            const { container } = render(
+                <CompanionPage companion={companion()} />,
+            );
+
+            expect(screen.getByText('night · 22:00')).toBeInTheDocument();
+            expect(
+                container
+                    .querySelector('.blob-room')
+                    ?.getAttribute('data-part-of-day'),
+            ).toBe('night');
+            expect(
+                container
+                    .querySelector('.blob-anim')
+                    ?.getAttribute('data-animation'),
+            ).toBe('sleep');
+        });
+    });
+
+    describe('what Blob has to say', () => {
+        /** Blob talking, over the scene — not the app captioning the picture. */
+        it('puts it on the scene, and lets it be put away', () => {
+            const { container } = render(
+                <CompanionPage
+                    companion={companion()}
+                    remark="Blob watched the grass move for a while."
+                />,
+            );
+
+            expect(container.querySelector('.c-stage .c-said')).not.toBeNull();
+
+            fireEvent.click(screen.getByRole('button', { name: /dismiss/i }));
+
+            expect(screen.queryByTestId('companion-remark')).toBeNull();
+        });
+
+        /**
+         * The one case the bubble cannot cover: before Blob exists there is no
+         * scene to hang it on, and the line still has to be relayed. The
+         * server decides whether there is one, not this screen — see the note
+         * on `nothingYet` in the page.
+         */
+        it('still relays it before Blob exists, as plain type', () => {
+            render(
+                <CompanionPage
+                    companion={noCompanion()}
+                    remark="Blob is nearly here."
+                />,
+            );
+
+            expect(screen.getByTestId('companion-remark')).toBeInTheDocument();
+            expect(
+                screen.queryByRole('button', { name: /dismiss/i }),
+            ).toBeNull();
+        });
+    });
+
+    describe('poking Blob', () => {
+        it('reacts when the scene itself is touched', () => {
+            const { container } = render(
+                <CompanionPage companion={companion()} />,
+            );
+
+            fireEvent.click(container.querySelector('.blob-room') as Element);
+
+            expect(
+                container
+                    .querySelector('.blob-anim')
+                    ?.getAttribute('data-animation'),
+            ).toBe('notice');
+        });
+
+        /** The same reaction on a real button, so it is reachable by keyboard. */
+        it('offers the same thing as a button', () => {
+            const { container } = render(
+                <CompanionPage companion={companion()} />,
+            );
+
+            fireEvent.click(screen.getByRole('button', { name: /poke/i }));
+
+            expect(
+                container
+                    .querySelector('.blob-anim')
+                    ?.getAttribute('data-animation'),
+            ).toBe('notice');
+        });
+    });
+
+    describe('the record', () => {
+        it('says when it began, and marks only the newest arrival', () => {
+            render(
+                <CompanionPage
+                    companion={companion({
+                        features: ['blob', 'legs'],
+                        unlocks: [
+                            unlock({
+                                unlocked_at: '2026-08-20T09:00:00+00:00',
+                            }),
+                            unlock({
+                                name: 'legs',
+                                message: 'Blob has legs now.',
+                                unlocked_at: '2026-08-27T09:00:00+00:00',
+                            }),
+                        ],
+                    })}
+                />,
+            );
+
+            expect(screen.getByText('since 20 Aug 2026')).toBeInTheDocument();
+            expect(screen.getAllByText('newest')).toHaveLength(1);
+            expect(screen.getAllByRole('listitem')[0]).toHaveTextContent(
+                'legs',
+            );
+
+            // `toHaveClass`, which splits on whitespace, and never
+            // `toContain` — the failure this guards is a marker class
+            // concatenated onto the layout class with no space between
+            // them, and a substring check passes on exactly that.
+            const [newest, older] = screen.getAllByRole('listitem');
+
+            expect(newest).toHaveClass('c-entry', 'is-new');
+            expect(older).toHaveClass('c-entry');
+            expect(older).not.toHaveClass('is-new');
+        });
+
+        it('marks each line with the kind of thing that arrived', () => {
+            const { container } = render(
+                <CompanionPage
+                    companion={companion({
+                        items: [{ type: 'shoes', variant: null }],
+                        abilities: ['wave'],
+                        unlocks: [
+                            unlock(),
+                            unlock({
+                                kind: 'ability',
+                                name: 'wave',
+                                message: 'Blob can wave.',
+                            }),
+                            unlock({
+                                kind: 'item',
+                                name: 'shoes',
+                                message: 'Blob has shoes now.',
+                            }),
+                        ],
+                    })}
+                />,
+            );
+
+            const kinds = [
+                ...container.querySelectorAll('.c-log .companion-glyph'),
+            ].map((glyph) => glyph.getAttribute('data-glyph'));
+
+            expect(kinds).toEqual(['item', 'ability', 'body']);
+        });
+
+        /** No dangling "since" when the record carries no date to name. */
+        it('says nothing about when it began if nothing is dated', () => {
+            render(
+                <CompanionPage
+                    companion={companion({
+                        unlocks: [unlock({ unlocked_at: null })],
+                        latest_unlock: unlock({ unlocked_at: null }),
+                    })}
+                />,
+            );
+
+            expect(screen.queryByText(/^since/i)).toBeNull();
+        });
     });
 
     describe('pet and play', () => {

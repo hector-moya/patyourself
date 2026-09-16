@@ -84,6 +84,12 @@ export default defineConfig({
                 bunny('Instrument Sans', {
                     weights: [400, 500, 600],
                 }),
+                // The bitmap face behind `--font-pixel`. Self-hosted like the
+                // rest: Blob's panels are the one pixel surface in the app and
+                // a fallback mono face there breaks the grid the art sets.
+                bunny('Silkscreen', {
+                    weights: [400, 700],
+                }),
             ],
         }),
         inertia(),
