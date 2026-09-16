@@ -845,6 +845,117 @@
 .p-legend i.failed{background:var(--cue-soft);border-color:var(--cue);}
 .p-legend i.skipped{background:none;border-style:dashed;}
 
+/* ============================================================
+   THE RECORD — one loop's occasions, read-only. Leans on the Today shell.
+   ============================================================ */
+
+/* ---- top bar: where you came from, what you are looking at ---- */
+.d-top{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--border);background:var(--bg);}
+.d-back{display:inline-flex;align-items:center;gap:4px;flex:0 0 auto;height:36px;padding:0 10px 0 6px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--card);color:var(--fg-muted);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;}
+.d-back:hover{color:var(--fg);border-color:var(--border-strong);}
+.d-id{flex:1;min-width:0;}
+.d-title{margin:0;font-family:var(--font-display);font-size:17px;font-weight:700;letter-spacing:-.02em;line-height:1.2;color:var(--fg);text-wrap:pretty;}
+.d-meta{margin:2px 0 0;font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--fg-muted);}
+.d-loop{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--fg-muted);border-bottom:1px solid var(--border-strong);padding-bottom:1px;}
+.d-loop:hover{color:var(--fg);}
+
+/* ---- the grid: the reading on the right, the record on the left ---- */
+.d-grid{display:grid;grid-template-columns:1fr;gap:0;}
+.d-aside{display:flex;flex-direction:column;}
+
+/* ---- the count, and the strip it is made of ---- */
+.d-eyebrow{margin:0 0 8px;font-family:var(--font-mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--fg-muted);}
+.d-count{margin:0 0 14px;font-size:15px;color:var(--fg-body);display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;}
+.d-count b{font-family:var(--font-mono);font-size:32px;font-weight:700;letter-spacing:-.03em;color:var(--fg);line-height:1;font-variant-numeric:tabular-nums;}
+.d-count b span{color:var(--fg-muted);font-weight:400;}
+.d-cread{color:var(--fg-body);}
+.d-strip{display:flex;flex-direction:column;gap:6px;}
+.d-cells{display:flex;gap:5px;}
+.d-cell{flex:1;min-width:0;height:28px;border-radius:5px;background:var(--bg-sunk);border:1px solid var(--border);display:grid;place-items:center;color:var(--fg-muted);}
+.d-cell--held{background:var(--reward);border-color:var(--reward);color:var(--on-primary);}
+.d-cell--failed{background:var(--cue-soft);border-color:var(--cue);color:var(--cue);}
+.d-cell--skipped{background:none;border-style:dashed;}
+.d-dot{width:11px;height:11px;border-radius:50%;background:currentColor;}
+.d-dash{width:11px;height:1.5px;background:currentColor;}
+.d-ends{display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--fg-muted);}
+.d-prov{margin:12px 0 0;font-family:var(--font-mono);font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--fg-muted);font-variant-numeric:tabular-nums;line-height:1.7;}
+.d-action{display:flex;align-items:center;gap:7px;margin:14px 0 0;padding-top:12px;border-top:1px solid var(--border);font-size:13px;color:var(--fg-body);}
+.d-action .py-icon{color:var(--fg-muted);}
+
+/* ---- sections ---- */
+.d-sec{margin-top:30px;}
+.d-sech{margin:0 0 12px;font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--fg-muted);}
+.d-of{font-weight:400;color:var(--fg-faint);letter-spacing:.06em;}
+.d-tabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;}
+.d-tab{height:32px;font-size:12px;color:var(--fg-body);}
+.d-tab:hover{color:var(--fg);}
+.d-tab.is-active{color:var(--fg);border-color:var(--cue);}
+
+/* ---- the cuts: held of decided, one bar per group ---- */
+.d-bars{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:9px;}
+.d-bars li{display:grid;grid-template-columns:1fr 84px 42px;align-items:center;gap:10px;}
+.d-bname{font-size:13px;color:var(--fg-body);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.d-btrack{height:8px;border-radius:99px;background:var(--bg-sunk);border:1px solid var(--border);overflow:hidden;display:block;}
+.d-btrack i{display:block;height:100%;background:var(--reward);}
+.d-bnum{font-family:var(--font-mono);font-size:11px;color:var(--fg-muted);text-align:right;font-variant-numeric:tabular-nums;}
+/* A group that has never once held is the finding. Full-strength ink, not a
+   warning colour — it is a fact about the record, not an alarm. */
+.d-bars li.is-none .d-bname{color:var(--fg);}
+.d-bars li.is-none .d-bnum{color:var(--fg);font-weight:700;}
+.d-note{margin:12px 0 0;font-size:13px;line-height:1.5;color:var(--fg-body);text-wrap:pretty;}
+.d-note span{display:block;margin-top:4px;font-family:var(--font-mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--fg-muted);}
+
+/* ---- the words, verbatim ---- */
+.d-quotes{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px;}
+.d-quotes li{border-left:2px solid var(--craving);padding-left:12px;}
+.d-quotes p{margin:0;font-size:14px;line-height:1.5;color:var(--fg-body);font-style:italic;text-wrap:pretty;}
+.d-quotes span{display:block;margin-top:4px;font-family:var(--font-mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--fg-muted);}
+.d-more{display:inline-block;margin-top:12px;font-size:12px;color:var(--fg-muted);border-bottom:1px solid var(--border-strong);}
+.d-more:hover{color:var(--fg);}
+.d-refl{margin:0;font-size:15px;line-height:1.6;color:var(--fg);text-wrap:pretty;white-space:pre-line;}
+
+/* ---- the chronology ---- */
+.d-rows{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;}
+.d-row{padding:14px 0;border-top:1px solid var(--border);}
+.d-row:first-child{border-top:0;padding-top:0;}
+.d-when{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin:0;font-family:var(--font-mono);font-size:11px;letter-spacing:.06em;color:var(--fg-muted);}
+.d-when span{font-size:10px;color:var(--fg-faint);letter-spacing:.1em;text-transform:uppercase;}
+.d-verdict{margin:5px 0 0;font-size:15px;font-weight:600;color:var(--fg);}
+.d-verdict em{font-style:normal;font-weight:400;color:var(--fg-muted);}
+.d-verdict.is-held::before,.d-verdict.is-failed::before,.d-verdict.is-skipped::before{content:"";display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:8px;vertical-align:1px;background:var(--reward);}
+.d-verdict.is-failed::before{background:var(--cue);}
+.d-verdict.is-skipped{color:var(--fg-muted);font-weight:500;}
+.d-verdict.is-skipped::before{background:none;border:1px dashed var(--border-strong);}
+.d-quote{margin:7px 0 0;font-size:14px;line-height:1.5;font-style:italic;color:var(--fg-body);text-wrap:pretty;}
+.d-ctx{margin:6px 0 0;font-size:13px;line-height:1.5;color:var(--fg-body);text-wrap:pretty;}
+.d-fields{margin:5px 0 0;font-family:var(--font-mono);font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--fg-muted);}
+.d-row--note .d-body{margin:5px 0 0;font-size:14px;line-height:1.55;color:var(--fg-body);border-left:2px solid var(--border-strong);padding-left:11px;text-wrap:pretty;}
+.d-showing{margin:14px 0 0;font-family:var(--font-mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--fg-muted);}
+.d-showing a{color:var(--fg-muted);border-bottom:1px solid var(--border-strong);}
+.d-showing a:hover{color:var(--fg);}
+.d-empty{margin:0;font-size:14px;color:var(--fg-muted);}
+
+/* ---- the one thing you can do here ---- */
+.d-add{margin-top:22px;padding-top:18px;border-top:1px solid var(--border);display:flex;flex-direction:column;align-items:flex-start;gap:10px;}
+.d-addlab{font-size:13px;color:var(--fg-body);}
+.d-input{width:100%;resize:none;font-family:inherit;font-size:14px;line-height:1.5;color:var(--fg);background:var(--bg-sunk);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;}
+.d-input::placeholder{color:var(--fg-faint);}
+.d-input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px var(--focus);}
+
+/* ---- two destinations on one card ----
+   The card carries two real links: the title opens the loop, the footer opens
+   its record. Nesting one anchor inside another is invalid — browsers unnest
+   them and the inner link stops working — so the title is a normal link whose
+   ::after is stretched over the whole card, and the record link is lifted above
+   it. Both are reachable by keyboard, and neither needs a click handler that
+   swallows the other's event. */
+.l-card{position:relative;}
+.l-open::after{content:"";position:absolute;inset:0;border-radius:inherit;}
+.l-open:focus-visible::after{outline:2px solid var(--primary);outline-offset:2px;}
+.l-record{position:relative;z-index:1;align-self:flex-start;display:inline-flex;align-items:center;gap:6px;font-family:var(--font-mono);font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--fg-muted);border-bottom:1px solid var(--border-strong);padding-bottom:1px;}
+.l-record:hover{color:var(--fg);}
+.l-foot{display:flex;border-top:1px solid var(--border);margin-top:2px;padding-top:11px;}
+
 /* ---- desktop: the design's `.t-frame--desk` column, at the app's `lg` ---- */
 @media (min-width:1024px){
   .t-head{padding:28px 32px 22px;}
@@ -879,4 +990,19 @@
   .p-cell{height:32px;}
   .p-rate{font-size:26px;}
   .p-say{font-size:15px;}
+
+  .d-top{padding:18px 32px;}
+  .d-title{font-size:22px;}
+  .d-meta{font-size:11px;}
+  /* Header and chronology stack in the left column; the reading sits beside
+     them and runs the full height of both. */
+  .d-grid{grid-template-columns:minmax(0,1fr) 370px;grid-template-areas:"head side" "main side";column-gap:44px;max-width:1080px;margin-inline:auto;}
+  .d-headcol{grid-area:head;}
+  .d-aside{grid-area:side;}
+  .d-maincol{grid-area:main;}
+  .d-count b{font-size:38px;}
+  .d-cell{height:32px;}
+  .d-prov{font-size:11px;}
+  .d-maincol .d-sec{margin-top:30px;}
+  .d-aside .d-sec:first-child{margin-top:30px;}
 }

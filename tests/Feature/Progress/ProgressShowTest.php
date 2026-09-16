@@ -37,7 +37,7 @@ class ProgressShowTest extends TestCase
 
         $this->actingAs($user)
             ->get("/progress/{$loop->id}")
-            ->assertRedirect("/loops/{$loop->id}");
+            ->assertRedirect("/loops/{$loop->id}/record");
     }
 
     /**
@@ -51,7 +51,7 @@ class ProgressShowTest extends TestCase
 
         $this->actingAs($user)
             ->get("/progress/{$loop->id}")
-            ->assertRedirect("/loops/{$loop->id}");
+            ->assertRedirect("/loops/{$loop->id}/record");
     }
 
     /**

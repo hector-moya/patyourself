@@ -4,17 +4,13 @@ import { ChevronLeft } from 'lucide-react';
 import { update } from '@/actions/App/Http/Controllers/IntentionController';
 import CoachLayout from '@/layouts/coach-layout';
 import { BottomNav } from '@/patyourself/bottom-nav';
-import { LoopNotes } from '@/patyourself/loop-notes';
 import { ActionLayer } from '@/patyourself/loops/action-layer';
 import { Anatomy } from '@/patyourself/loops/anatomy';
 import { cadenceLabel, currentCadenceLabel } from '@/patyourself/loops/cadence';
 import { ExperimentCard } from '@/patyourself/loops/experiment-card';
 import { LoopSettings } from '@/patyourself/loops/loop-settings';
 import type { WorkflowOptionData } from '@/patyourself/loops/loop-settings';
-import { NoteForm } from '@/patyourself/loops/note-form';
-import { OutcomeHistory } from '@/patyourself/outcome-history';
 import { Button } from '@/patyourself/primitives';
-import { Reflection } from '@/patyourself/reflection';
 import {
     SectionHeading,
     StrategyTimeline,
@@ -24,9 +20,6 @@ import type {
     CurrentVersionData,
     ExperimentData,
     IntentionData,
-    NoteData,
-    OutcomeEntryData,
-    ReflectionData,
     StrategyData,
 } from '@/patyourself/types';
 
@@ -38,10 +31,12 @@ const MCP_AUTHORED_BY = 'mcp-client';
 interface LoopShowProps {
     intention: IntentionData;
     strategies: StrategyData[];
-    outcomes: OutcomeEntryData[];
+    /**
+     * How many occasions the record holds. The only number this page carries
+     * about what happened, and it is here to label the door rather than to be
+     * read — everything it counts lives on `/loops/{loop}/record`.
+     */
     outcomes_total: number;
-    showing_all_history: boolean;
-    notes: NoteData[];
     /** Every live (non-archived) action on the loop, for the action layer. */
     actions: ActionRecordData[];
     /**
@@ -55,8 +50,6 @@ interface LoopShowProps {
     current_version?: CurrentVersionData | null;
     /** One rung per version, oldest first. */
     experiments?: ExperimentData[];
-    /** The loop's rolling narrative, written through write-reflection. */
-    reflection?: ReflectionData | null;
 }
 
 /**
@@ -112,15 +105,11 @@ function previousVersionRate(
 export default function LoopShow({
     intention,
     strategies,
-    outcomes,
     outcomes_total: outcomesTotal,
-    showing_all_history: showingAllHistory,
-    notes,
     actions,
     workflows = [],
     current_version: currentVersion = null,
     experiments = [],
-    reflection = null,
 }: LoopShowProps) {
     // The version currently running. A `worked` verdict does not supersede —
     // ConcludeExperiment is explicit that such a version keeps running — so
@@ -237,25 +226,18 @@ export default function LoopShow({
                     }
                 />
 
-                <Reflection reflection={reflection} />
-
+                {/* The timeline stays: a ladder of versions is a statement of
+                    what was tried, which is what this page is for. What those
+                    versions produced — the outcomes, the words written at the
+                    time, the reflection, the notes — moved to the record, and
+                    this is the one link across. */}
                 <StrategyTimeline
                     strategies={strategies}
                     experiments={experiments}
                     activeVersion={runningStrategy?.version ?? null}
                 />
 
-                <OutcomeHistory
-                    outcomes={outcomes}
-                    total={outcomesTotal}
-                    showingAll={showingAllHistory}
-                    loopId={intention.id}
-                />
-
-                <section data-testid="notes" className="flex flex-col gap-6">
-                    <NoteForm loopId={intention.id} />
-                    <LoopNotes notes={notes} />
-                </section>
+                <RecordLink loopId={intention.id} total={outcomesTotal} />
 
                 <LoopSettings
                     loopId={intention.id}
@@ -273,6 +255,30 @@ export default function LoopShow({
                 />
             </div>
         </CoachLayout>
+    );
+}
+
+/**
+ * The way across to what happened.
+ *
+ * This page answers "what is this loop and what am I trying"; the record
+ * answers "what came of it". Keeping one door here rather than a summary of the
+ * record is the point of having split them — a count on this page would be the
+ * first duplicated fact, and the two would drift.
+ */
+function RecordLink({ loopId, total }: { loopId: number; total: number }) {
+    return (
+        <section>
+            <SectionHeading>The record</SectionHeading>
+            <Link
+                href={`/loops/${loopId}/record`}
+                className="inline-flex items-center gap-2 text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground"
+            >
+                {total === 0
+                    ? 'Nothing logged yet'
+                    : `Every occasion, the cuts and the reading (${total})`}
+            </Link>
+        </section>
     );
 }
 

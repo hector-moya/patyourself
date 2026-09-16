@@ -27,9 +27,11 @@ export function ProgressCard({ loop }: { loop: LoopProgressCard }) {
 
     return (
         <Link
-            // Straight to the lab record. /progress/{id} still resolves, but it
-            // is now a redirect, and there is no reason to spend a round trip.
-            href={`/loops/${loop.id}`}
+            // The record, not the loop. Everything on this card is a count of
+            // what happened, so the card opens the page that explains those
+            // counts rather than the page describing what the loop is.
+            href={`/loops/${loop.id}/record`}
+            aria-label={`${loop.title} — the record`}
             // `cn`, not a template literal: the separating space in
             // `${cond ? ' is-quiet' : ''}` is invisible, and losing it yields
             // `p-cardis-quiet` — a class that matches nothing, on a card that
@@ -41,7 +43,7 @@ export function ProgressCard({ loop }: { loop: LoopProgressCard }) {
                 which takes flow content. */}
             <div className="p-top">
                 <h3 className="p-title">{loop.title}</h3>
-                <span className="p-open" aria-hidden="true">
+                <span className="p-open" aria-hidden="true" title="The record">
                     <Icon name="arrow-up-right" size={18} />
                 </span>
             </div>

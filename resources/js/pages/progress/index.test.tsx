@@ -58,12 +58,17 @@ describe('ProgressIndex', () => {
         expect(screen.getByTestId('outcome-strip')).toBeInTheDocument();
     });
 
-    it('links a card to its detail screen', () => {
+    /**
+     * The card opens the record, not the loop. Everything on it is a count of
+     * what happened, so it leads to the page that explains those counts rather
+     * than to the one describing what the loop is.
+     */
+    it('opens the record, not the loop', () => {
         renderProgress([card({ id: 7 })]);
 
         expect(screen.getByText('Morning walk').closest('a')).toHaveAttribute(
             'href',
-            '/loops/7',
+            '/loops/7/record',
         );
     });
 

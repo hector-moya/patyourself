@@ -297,3 +297,71 @@ export interface ProgressSummary {
 
 /** The same metric block on the detail screen (no index-only excerpt). */
 export type LoopProgressDetail = Omit<LoopProgressCard, 'summary_excerpt'>;
+
+/**
+ * One loop's record — mirrors LoopRecordController.
+ *
+ * Only what happened. What the loop *is* — the chain, the strategy, the
+ * schedule, the versions — stays on the loop page, and nothing appears on both.
+ */
+export interface RecordLoopData {
+    id: number;
+    title: string;
+    type: string;
+    /** Null between experiments. */
+    version: number | null;
+    day_of_experiment: number | null;
+    /** What the record is a record of. Null if the loop has no live action. */
+    action_title: string | null;
+}
+
+/** One row of one cut: how many of this group's decided occasions held. */
+export interface RecordCutRow {
+    name: string;
+    held: number;
+    decided: number;
+}
+
+/**
+ * One way of slicing the record. Every cut covers the same decided occasions —
+ * skips are in none of them, and anything with no context recorded lands in an
+ * explicit "Not recorded" row rather than being dropped.
+ */
+export interface RecordCutData {
+    key: string;
+    label: string;
+    rows: RecordCutRow[];
+}
+
+/** A miss, in the words written at the time. Never edited. */
+export interface RecordReasonData {
+    id: number;
+    reason: string;
+    occurred_at: string;
+}
+
+/** One occasion on the chronology, dated by when it happened. */
+export interface RecordOccasionEntry {
+    kind: 'occasion';
+    id: number;
+    occurred_at: string;
+    logged_at: string;
+    /** True when the occasion was answered on a later day than it happened. */
+    logged_later: boolean;
+    action_title: string;
+    outcome: LogOutcome | string;
+    reason: string | null;
+    context: string | null;
+    context_fields: OutcomeContextFields | null;
+    strategy_version: number | null;
+}
+
+/** A note, interleaved into the chronology by date. */
+export interface RecordNoteEntry {
+    kind: 'note';
+    id: number;
+    occurred_at: string;
+    body: string;
+}
+
+export type RecordEntry = RecordOccasionEntry | RecordNoteEntry;

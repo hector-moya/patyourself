@@ -8,6 +8,7 @@ use App\Http\Controllers\ExperimentController;
 use App\Http\Controllers\ExportController;
 use App\Http\Controllers\InboxController;
 use App\Http\Controllers\IntentionController;
+use App\Http\Controllers\LoopRecordController;
 use App\Http\Controllers\NotebookController;
 use App\Http\Controllers\NoteController;
 use App\Http\Controllers\OccurrenceLogController;
@@ -38,6 +39,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('loops', IntentionController::class)
         ->parameters(['loops' => 'intention'])
         ->only(['index', 'show', 'store', 'update', 'destroy']);
+
+    // What happened, as against what the loop is. Nested under the loop rather
+    // than under progress because it is about one loop and is reached from the
+    // loops list as often as from a progress card — a `/progress/…` URL would
+    // be lying about half its visitors.
+    Route::get('loops/{intention}/record', LoopRecordController::class)
+        ->name('loops.record');
 
     // Answering the review the dashboard already surfaces. Keyed on the strategy
     // version, because the version is what carries the verdict.
@@ -148,16 +156,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // The progress dashboard: active-loop metric cards (index) and a per-loop
     // drill-in (detail). Read-only aggregation over the loop's own data.
     Route::get('progress', [ProgressController::class, 'index'])->name('progress');
-    // The per-loop drill-in folded into the lab record, which now carries the
-    // experiment, its evidence and the reflection on one screen. The route name
-    // survives so nothing that generates the URL breaks and no bookmark 404s.
+    // The per-loop drill-in, which for a while folded into the loop page and
+    // now has a screen of its own again. The route name survives so nothing
+    // that generates the URL breaks and no bookmark 404s — and it points at the
+    // record, which is what this URL always meant.
     Route::get('progress/{intention}', function (Intention $intention) {
         // Authorized here rather than left to the redirect target. Without it a
-        // stranger's loop answers 302 instead of 403 — the lab record still
+        // stranger's loop answers 302 instead of 403 — the record still
         // refuses them, but the refusal should happen at the door.
         Gate::authorize('view', $intention);
 
-        return redirect()->route('loops.show', $intention);
+        return redirect()->route('loops.record', $intention);
     })->name('progress.show');
 
     // The record, in full, in the user's hands. Read-only by design — see

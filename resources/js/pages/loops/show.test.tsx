@@ -43,12 +43,13 @@ function intention(overrides: Partial<IntentionData> = {}): IntentionData {
     };
 }
 
-/** The record props every render needs; individual tests override what they care about. */
+/**
+ * What the loop page still carries about what happened: a count, to label the
+ * door across to the record. The outcomes, the notes and the reflection moved
+ * to `/loops/{loop}/record` and are asserted there.
+ */
 const record = {
-    outcomes: [],
     outcomes_total: 0,
-    showing_all_history: false,
-    notes: [],
     actions: [],
 };
 
@@ -285,22 +286,14 @@ describe('LoopShow', () => {
                 actions={[actionRecord()]}
                 current_version={currentVersion({ version: 2 })}
                 experiments={[]}
-                reflection={{
-                    content: 'Lunch is where it goes.',
-                    window_start: '2026-08-13T00:00:00+00:00',
-                    window_end: '2026-08-27T00:00:00+00:00',
-                    events_count: 28,
-                }}
             />,
         );
 
         const card = screen.getByTestId('experiment-card');
         const actionsHeading = screen.getByText(/^actions$/i);
         const anatomy = screen.getByTestId('habit-anatomy');
-        const reflectionHeading = screen.getByText(/what the record shows/i);
         const pastExperiments = screen.getByText(/past experiments/i);
-        const outcomeHistory = screen.getByText(/outcome history/i);
-        const notes = screen.getByTestId('notes');
+        const recordHeading = screen.getByText(/^the record$/i);
         const settings = screen.getByTestId('loop-settings');
 
         const follows = (earlier: Element, later: Element) =>
@@ -311,12 +304,49 @@ describe('LoopShow', () => {
 
         expect(follows(card, actionsHeading)).toBe(true);
         expect(follows(actionsHeading, anatomy)).toBe(true);
-        expect(follows(anatomy, reflectionHeading)).toBe(true);
-        expect(follows(reflectionHeading, pastExperiments)).toBe(true);
-        expect(follows(pastExperiments, outcomeHistory)).toBe(true);
-        expect(follows(outcomeHistory, notes)).toBe(true);
-        expect(follows(notes, settings)).toBe(true);
-        expect(screen.getByText(/lunch is where it goes/i)).toBeInTheDocument();
+        expect(follows(anatomy, pastExperiments)).toBe(true);
+        expect(follows(pastExperiments, recordHeading)).toBe(true);
+        expect(follows(recordHeading, settings)).toBe(true);
+    });
+
+    /**
+     * The split is by tense: this page states what the loop *is*, the record
+     * reports what *happened*. Nothing appears on both, so the loop page shows
+     * no outcomes, no reflection and no notes — only the one door across.
+     *
+     * Named killing mutation: re-render `OutcomeHistory` or `Reflection` here.
+     * Either puts a second copy of a fact on screen, and the two screens can
+     * then disagree.
+     */
+    it('reports nothing about what happened beyond the way to it', () => {
+        render(
+            <LoopShow
+                intention={intention()}
+                strategies={[]}
+                {...record}
+                outcomes_total={20}
+            />,
+        );
+
+        const door = screen.getByRole('link', { name: /every occasion/i });
+
+        expect(door).toHaveAttribute('href', '/loops/1/record');
+        expect(door).toHaveTextContent('20');
+        expect(screen.queryByText(/outcome history/i)).toBeNull();
+        expect(screen.queryByText(/no reflection written yet/i)).toBeNull();
+        expect(
+            screen.queryByPlaceholderText(/something you noticed/i),
+        ).toBeNull();
+    });
+
+    it('says plainly when the record is empty rather than counting zero', () => {
+        render(
+            <LoopShow intention={intention()} strategies={[]} {...record} />,
+        );
+
+        expect(
+            screen.getByRole('link', { name: /nothing logged yet/i }),
+        ).toHaveAttribute('href', '/loops/1/record');
     });
 
     /**
@@ -334,19 +364,6 @@ describe('LoopShow', () => {
      * Killing mutation: drop the wrapping section, or move either child out
      * of it.
      */
-    it('keeps the note form and its notes in one block', () => {
-        render(
-            <LoopShow intention={intention()} strategies={[]} {...record} />,
-        );
-
-        const block = screen.getByTestId('notes');
-
-        expect(block).toContainElement(
-            screen.getByPlaceholderText('Something you noticed'),
-        );
-        expect(block).toContainElement(screen.getByText(/^notes$/i));
-    });
-
     /**
      * The comparison is against the version immediately before this one, not
      * the loop's lifetime and not its oldest experiment.
@@ -420,14 +437,13 @@ describe('LoopShow', () => {
                 {...record}
                 current_version={null}
                 experiments={[]}
-                reflection={null}
             />,
         );
 
+        // The reflection half of this assertion moved with the reflection —
+        // "no reflection written yet" is now the record page's line, and is
+        // asserted in loops/record.test.tsx.
         expect(screen.getByText(/logging continues/i)).toBeInTheDocument();
-        expect(
-            screen.getByText(/no reflection written yet/i),
-        ).toBeInTheDocument();
     });
 
     /**
@@ -689,16 +705,6 @@ describe('LoopShow', () => {
 
         expect(
             screen.getByLabelText(/^keep the current cadence$/i),
-        ).toBeInTheDocument();
-    });
-
-    it('mounts the note form above the notes list', () => {
-        render(
-            <LoopShow intention={intention()} strategies={[]} {...record} />,
-        );
-
-        expect(
-            screen.getByPlaceholderText(/something you noticed/i),
         ).toBeInTheDocument();
     });
 

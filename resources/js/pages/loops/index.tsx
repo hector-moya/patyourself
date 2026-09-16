@@ -8,9 +8,17 @@ import { BottomNav } from '@/patyourself/bottom-nav';
 import { Icon } from '@/patyourself/primitives';
 import type { ActiveStrategySummary, IntentionData } from '@/patyourself/types';
 
+/** How much one loop's record adds up to. `decided` excludes skips. */
+interface RecordCount {
+    held: number;
+    decided: number;
+}
+
 interface LoopsIndexProps {
     intentions: IntentionData[];
     filters: { status: string | null; q: string | null };
+    /** Keyed by loop id. A loop with nothing decided is simply absent. */
+    records?: Record<number, RecordCount>;
 }
 
 const STATUSES = ['active', 'paused', 'completed', 'archived'] as const;
@@ -26,7 +34,11 @@ const STAGES = ['cue', 'craving', 'response', 'reward'] as const;
  * is not a worse active one, and the two answer different questions. Active
  * loops surface first within the list (ordered server-side).
  */
-export default function LoopsIndex({ intentions, filters }: LoopsIndexProps) {
+export default function LoopsIndex({
+    intentions,
+    filters,
+    records = {},
+}: LoopsIndexProps) {
     const active = intentions.filter((loop) => loop.status === 'active');
     const rest = intentions.filter((loop) => loop.status !== 'active');
     const filtering = filters.status !== null || filters.q !== null;
@@ -84,13 +96,16 @@ export default function LoopsIndex({ intentions, filters }: LoopsIndexProps) {
                             {active.length > 0 && (
                                 <>
                                     <h2 className="l-sech">Running now</h2>
-                                    <LoopGrid loops={active} />
+                                    <LoopGrid
+                                        loops={active}
+                                        records={records}
+                                    />
                                 </>
                             )}
                             {rest.length > 0 && (
                                 <>
                                     <h2 className="l-sech">Not running</h2>
-                                    <LoopGrid loops={rest} />
+                                    <LoopGrid loops={rest} records={records} />
                                 </>
                             )}
                         </>
@@ -101,12 +116,18 @@ export default function LoopsIndex({ intentions, filters }: LoopsIndexProps) {
     );
 }
 
-function LoopGrid({ loops }: { loops: IntentionData[] }) {
+function LoopGrid({
+    loops,
+    records,
+}: {
+    loops: IntentionData[];
+    records: Record<number, RecordCount>;
+}) {
     return (
         <ul className="l-grid">
             {loops.map((loop) => (
                 <li key={loop.id}>
-                    <LoopCard loop={loop} />
+                    <LoopCard loop={loop} record={records[loop.id]} />
                 </li>
             ))}
         </ul>
@@ -213,14 +234,24 @@ function FilterChip({
  * stage to point at, and picking one anyway would be a claim the record does
  * not make.
  */
-function LoopCard({ loop }: { loop: IntentionData }) {
+function LoopCard({
+    loop,
+    record,
+}: {
+    loop: IntentionData;
+    record?: RecordCount;
+}) {
     const strategy = loop.strategy ?? null;
     const acts = strategy?.intervention_point ?? null;
     const quiet = loop.status !== 'active';
 
     return (
-        <Link
-            href={`/loops/${loop.id}`}
+        // A div, not a link. The card has two destinations — what the loop is,
+        // and what its record shows — and an anchor cannot contain another
+        // anchor. The title's link is stretched across the card instead (see
+        // `.l-open::after`), so the whole card still opens the loop while the
+        // footer link stays a real, separately focusable link.
+        <div
             className={cn('l-card', quiet && 'is-quiet')}
             style={
                 acts === null
@@ -231,7 +262,11 @@ function LoopCard({ loop }: { loop: IntentionData }) {
             }
         >
             <div className="l-top">
-                <h3 className="l-title">{loop.title}</h3>
+                <h3 className="l-title">
+                    <Link href={`/loops/${loop.id}`} className="l-open">
+                        {loop.title}
+                    </Link>
+                </h3>
                 <span className={`l-status is-${loop.status}`}>
                     <i />
                     {loop.status}
@@ -249,16 +284,32 @@ function LoopCard({ loop }: { loop: IntentionData }) {
             {strategy?.is_under_review && (
                 <div className="l-verdict">
                     <p>This version has run its course. Did it hold?</p>
-                    {/* Not a nested control — the whole card is the link, and a
-                        button inside an anchor is neither valid nor reachable
-                        by keyboard. It names where the card goes. */}
+                    {/* Not a control — the card's own link leads to the verdict
+                        form. It names where the card goes. */}
                     <span className="py-btn py-btn--secondary py-btn--sm">
                         Give it a verdict
                     </span>
                 </div>
             )}
-        </Link>
+
+            <div className="l-foot">
+                <Link
+                    href={`/loops/${loop.id}/record`}
+                    className="l-record"
+                    aria-label={`The record for ${loop.title}`}
+                >
+                    The record · {recordCount(record)}
+                </Link>
+            </div>
+        </div>
     );
+}
+
+/** "12 of 20 held", or the plain truth when there is nothing to count. */
+function recordCount(record?: RecordCount): string {
+    return record === undefined || record.decided === 0
+        ? 'nothing logged yet'
+        : `${record.held} of ${record.decided} held`;
 }
 
 /** Cue → craving → response → reward, with the acting stage picked out. */
