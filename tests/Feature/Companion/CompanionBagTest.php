@@ -57,10 +57,17 @@ class CompanionBagTest extends TestCase
         $this->assertSame(5, $bag['capacity']);
         $this->assertSame(0, $bag['held']);
         $this->assertSame([], $bag['items']);
-        $this->assertSame([], $bag['nodes']);
         $this->assertSame([], $bag['skills']);
         $this->assertSame([], $bag['recipes']);
         $this->assertSame('Blob', $bag['name']);
+
+        // The world is the exception, and deliberately so: both nodes are
+        // visible in the scene from the start, unmet and unusable. A node
+        // standing in the clearing is a thing that is there, not a preview of
+        // something you have not done.
+        $this->assertSame(['reeds', 'deadfall'], array_column($bag['nodes'], 'node'));
+        $this->assertSame([false, false], array_column($bag['nodes'], 'met'));
+        $this->assertSame([0, 0], array_column($bag['nodes'], 'available'));
 
         // And no row was written just by looking.
         $this->assertDatabaseCount('companions', 0);
@@ -156,13 +163,26 @@ class CompanionBagTest extends TestCase
 
         $bag = $this->bag($user);
 
-        $this->assertSame([[
-            'node' => 'reeds',
-            'label' => 'the reeds',
-            'available' => 4,
-            'skill' => 'gather-fibre',
-            'known' => true,
-        ]], $bag['nodes']);
+        $this->assertSame([
+            [
+                'node' => 'reeds',
+                'label' => 'the reeds',
+                'available' => 4,
+                'skill' => 'gather-fibre',
+                'met' => true,
+                'known' => true,
+            ],
+            // Standing there the whole time, unmet: the clearing does not
+            // appear one node at a time.
+            [
+                'node' => 'deadfall',
+                'label' => 'the fallen branches',
+                'available' => 0,
+                'skill' => 'gather-wood',
+                'met' => false,
+                'known' => false,
+            ],
+        ], $bag['nodes']);
     }
 
     /** Only what is held, and what it costs the bag to hold it. */
@@ -286,7 +306,9 @@ class CompanionBagTest extends TestCase
         $bag = $this->bag($user);
 
         $this->assertSame([], $bag['items']);
-        $this->assertSame([], $bag['nodes']);
         $this->assertSame([], $bag['skills']);
+        // The world is everyone's; what has been done to it is not.
+        $this->assertSame([false, false], array_column($bag['nodes'], 'met'));
+        $this->assertSame([0, 0], array_column($bag['nodes'], 'available'));
     }
 }

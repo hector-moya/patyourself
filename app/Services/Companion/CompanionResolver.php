@@ -58,7 +58,7 @@ final readonly class CompanionResolver
     {
         $logs = $this->logMoments($user);
         $insights = $this->insightMoments($user);
-        $name = $this->nameFor($user);
+        $name = Companion::nameFor($user);
 
         $unlocks = [];
 
@@ -114,24 +114,6 @@ final readonly class CompanionResolver
             (string) config('companion.scene_override', ''),
             $name,
         );
-    }
-
-    /**
-     * What this user calls their companion, or "Blob" when they never said.
-     *
-     * Queried rather than read off `$user->companion`: Eloquent caches a
-     * lazily-loaded relation on the model instance, null included, so a user
-     * object asked for its companion before the row existed answers null for
-     * the rest of the request. Here that would render an established,
-     * deliberately renamed companion as "Blob" on the request that named it.
-     */
-    private function nameFor(User $user): string
-    {
-        $name = trim((string) Companion::query()
-            ->where('user_id', $user->id)
-            ->value('name'));
-
-        return $name === '' ? Companion::DEFAULT_NAME : $name;
     }
 
     /**

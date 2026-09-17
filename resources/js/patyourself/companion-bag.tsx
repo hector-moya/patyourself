@@ -30,14 +30,24 @@ import * as Dialog from '@radix-ui/react-dialog';
 
 import type { CompanionBagData } from '@/patyourself/companion';
 import { name as renameRoute } from '@/routes/companion';
+import { store as buildRoute } from '@/routes/companion/build';
+import { store as learnRoute } from '@/routes/companion/skills';
 
 export function CompanionBag({
     bag,
     open,
+    said = null,
     onOpenChange,
 }: {
     bag: CompanionBagData;
     open: boolean;
+    /**
+     * What the last press did, when this is the surface that can be seen.
+     *
+     * The room's own bubble is behind the overlay while the bag is up, so a
+     * refusal shown only there would be a button that appears to do nothing.
+     */
+    said?: string | null;
     onOpenChange: (open: boolean) => void;
 }) {
     return (
@@ -69,6 +79,8 @@ export function CompanionBag({
                             ×
                         </Dialog.Close>
                     </div>
+
+                    {said !== null && <p className="c-bagsaid">{said}</p>}
 
                     <Held bag={bag} />
                     <Build recipes={bag.recipes} />
@@ -126,11 +138,35 @@ function Build({ recipes }: { recipes: CompanionBagData['recipes'] }) {
                 {recipes.map((recipe) => (
                     <li key={recipe.item} className="c-bagrow">
                         <span>{recipe.label}</span>
-                        <span className="c-bagprice">
-                            {Object.entries(recipe.recipe)
-                                .map(([item, count]) => `${count} ${item}`)
-                                .join(', ')}
-                        </span>
+                        <Form
+                            {...buildRoute.form()}
+                            options={{ preserveScroll: true }}
+                            className="c-bagbuy"
+                        >
+                            {({ processing }) => (
+                                <>
+                                    <input
+                                        type="hidden"
+                                        name="item"
+                                        value={recipe.item}
+                                    />
+                                    <button
+                                        type="submit"
+                                        className="pixel-button"
+                                        disabled={
+                                            processing || !recipe.buildable
+                                        }
+                                    >
+                                        {Object.entries(recipe.recipe)
+                                            .map(
+                                                ([item, count]) =>
+                                                    `${count} ${item}`,
+                                            )
+                                            .join(', ')}
+                                    </button>
+                                </>
+                            )}
+                        </Form>
                     </li>
                 ))}
             </ul>
@@ -163,9 +199,35 @@ function Skills({ bag }: { bag: CompanionBagData }) {
                         {skill.known ? (
                             <span className="c-bagknown">known</span>
                         ) : (
-                            <span className="c-bagprice">
-                                {skill.price} xp
-                            </span>
+                            <Form
+                                {...learnRoute.form()}
+                                options={{ preserveScroll: true }}
+                                className="c-bagbuy"
+                            >
+                                {({ processing }) => (
+                                    <>
+                                        <input
+                                            type="hidden"
+                                            name="skill"
+                                            value={skill.skill}
+                                        />
+                                        {/* Listed with its price whether or
+                                            not it can be paid. The BUTTON is
+                                            disabled, never the row: a price
+                                            you cannot meet yet is a menu, and
+                                            a greyed row is a lock. */}
+                                        <button
+                                            type="submit"
+                                            className="pixel-button"
+                                            disabled={
+                                                processing || !skill.affordable
+                                            }
+                                        >
+                                            {skill.price} xp
+                                        </button>
+                                    </>
+                                )}
+                            </Form>
                         )}
                     </li>
                 ))}

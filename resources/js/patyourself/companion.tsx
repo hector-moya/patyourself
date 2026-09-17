@@ -49,6 +49,9 @@ export interface BagNodeData {
     label: string;
     available: number;
     skill: string;
+    /** Whether Blob has walked over and looked at it. */
+    met: boolean;
+    /** Whether the skill that unlocks it has been bought. */
     known: boolean;
 }
 

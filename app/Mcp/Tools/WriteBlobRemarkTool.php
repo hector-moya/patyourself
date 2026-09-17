@@ -82,7 +82,7 @@ class WriteBlobRemarkTool extends Tool
         // resolver substitutes), but the coach writes free text and would go on
         // saying "Blob" forever. A remark is append-only and may be relayed
         // months from now, so a wrong name here is wrong for good.
-        $name = $this->companionName($request);
+        $name = Companion::nameFor($request->user());
 
         if ($name !== Companion::DEFAULT_NAME && str_contains($body, Companion::DEFAULT_NAME)) {
             return Response::error(
@@ -117,16 +117,6 @@ class WriteBlobRemarkTool extends Tool
             // #[Description] is one constant string for every user.
             'companion_name' => $name,
         ]);
-    }
-
-    /** What this user calls their companion, or "Blob" when they never said. */
-    private function companionName(Request $request): string
-    {
-        $name = trim((string) Companion::query()
-            ->where('user_id', $request->user()->id)
-            ->value('name'));
-
-        return $name === '' ? Companion::DEFAULT_NAME : $name;
     }
 
     /**

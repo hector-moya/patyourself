@@ -1,3 +1,4 @@
+import { router } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 
 import { useSpriteClock } from '@/hooks/use-sprite-clock';
@@ -17,9 +18,10 @@ import type {
 import type { AnimationName } from '@/patyourself/companion-animations';
 import { CompanionBag } from '@/patyourself/companion-bag';
 import { CompanionGlyph } from '@/patyourself/companion-glyph';
-import { CompanionRoom } from '@/patyourself/companion-room';
+import { CompanionRoom, roomOffset } from '@/patyourself/companion-room';
 import { partOfDay } from '@/patyourself/part-of-day';
 import { sceneFor } from '@/patyourself/scenes';
+import { store as touchNodeRoute } from '@/routes/companion/nodes';
 
 interface CompanionPageProps {
     companion: CompanionData;
@@ -38,6 +40,25 @@ interface CompanionPageProps {
      * open and not a thing you watch — see `CompanionBag`.
      */
     bag: CompanionBagData;
+    /**
+     * What just happened in the clearing, or null. The app's own voice — Blob
+     * turning something over, or a bag with no room left in it.
+     *
+     * Distinct from `remark`, which is the coach's. Both are Blob talking and
+     * both land in the same bubble; this one wins when they collide, because
+     * it is about the click that was just made.
+     */
+    said?: string | null;
+    /**
+     * Whether that encounter revealed a skill, which is the one thing that
+     * opens the bag without being asked.
+     *
+     * The payment for the bag being a modal: a panel would have made "click a
+     * node, its skill appears in the list" visible, and this shows it instead —
+     * once, as the response to a click you made. Never on load, never on a
+     * visit, and never sticky.
+     */
+    revealed?: boolean;
 }
 
 /**
@@ -65,6 +86,8 @@ export default function CompanionPage({
     companion,
     remark = null,
     bag,
+    said = null,
+    revealed = false,
 }: CompanionPageProps) {
     const now = useMinute();
     const hour = now.getHours();
@@ -72,7 +95,41 @@ export default function CompanionPage({
     // Held here rather than inside CompanionBag: an Inertia post re-renders
     // this page, and a dialog managing its own state would close on the way
     // through — you would rename the companion and watch the bag vanish.
-    const [bagOpen, setBagOpen] = useState(false);
+    const [bagOpen, setBagOpen] = useState(revealed);
+
+    // `revealed` is a flash: true on exactly the render after the encounter,
+    // gone by the next request. Inertia re-renders this component across visits
+    // rather than remounting it, so the initialiser above only fires once and
+    // the prop has to be watched as well.
+    //
+    // Adjusted during render against the previous value rather than in an
+    // effect. An effect would open the bag a frame late and — worse — would
+    // re-open it every time anything else re-rendered while the flash was still
+    // on the props, which is precisely the nag this must not become. Comparing
+    // to the last value means it reacts to the CHANGE, so closing it stays
+    // closed.
+    const [wasRevealed, setWasRevealed] = useState(revealed);
+
+    if (revealed !== wasRevealed) {
+        setWasRevealed(revealed);
+
+        if (revealed) {
+            setBagOpen(true);
+        }
+    }
+
+    /**
+     * Touching something in the clearing. One gesture from here — the server
+     * decides whether Blob looks at it or gathers from it, because that
+     * difference is about what Blob knows and not about what was clicked.
+     *
+     * `preserveScroll` so the page does not jump out from under the press.
+     * State is deliberately NOT preserved: the bag, the balance and what is
+     * standing all change, and the whole point of the click is to see that.
+     */
+    const touchNode = (node: string) => {
+        router.post(touchNodeRoute(node).url, {}, { preserveScroll: true });
+    };
 
     const { animation, frame, react } = useSpriteClock(
         ambientFor(companion, hour),
@@ -127,8 +184,10 @@ export default function CompanionPage({
                     now={now}
                     remark={remark}
                     bag={bag}
+                    said={bagOpen ? null : said}
                     onReact={react}
                     onOpenBag={() => setBagOpen(true)}
+                    onTouchNode={touchNode}
                 />
                 <Record companion={companion} />
             </div>
@@ -136,6 +195,10 @@ export default function CompanionPage({
             <CompanionBag
                 bag={bag}
                 open={bagOpen}
+                // The bubble sits behind the overlay while this is up, so a
+                // line shown only there would be a click that appears to do
+                // nothing. Whichever surface is visible says it.
+                said={bagOpen ? said : null}
                 onOpenChange={setBagOpen}
             />
         </CoachLayout>
@@ -157,9 +220,11 @@ function RoomCard({
     hour,
     now,
     remark,
+    said,
     bag,
     onReact,
     onOpenBag,
+    onTouchNode,
 }: {
     companion: CompanionData;
     animation: AnimationName;
@@ -167,11 +232,13 @@ function RoomCard({
     hour: number;
     now: Date;
     remark: string | null;
+    said: string | null;
     bag: CompanionBagData;
     onReact: (name: AnimationName) => void;
     onOpenBag: () => void;
+    onTouchNode: (node: string) => void;
 }) {
-    const [said, setSaid] = useState(true);
+    const [showRemark, setShowRemark] = useState(true);
     const part = partOfDay(hour, companion.room);
 
     return (
@@ -204,13 +271,19 @@ function RoomCard({
             </div>
 
             <div className="c-stage">
-                {remark !== null && said && (
+{/* What just happened wins over what Blob had to say: one is
+                    about the click that was made a moment ago, the other is a
+                    line the coach wrote some time ago. Both are Blob talking,
+                    and there is one bubble. */}
+                {said !== null && <p className="c-said c-did">{said}</p>}
+
+                {said === null && remark !== null && showRemark && (
                     <p data-testid="companion-remark" className="c-said">
                         {remark}
                         <button
                             type="button"
                             className="c-saidx"
-                            onClick={() => setSaid(false)}
+                            onClick={() => setShowRemark(false)}
                             aria-label="Dismiss what Blob said"
                         >
                             ×
@@ -226,6 +299,37 @@ function RoomCard({
                     className="c-scene"
                     onPoke={() => onReact('notice')}
                 />
+
+                {/* The clearing's own things, laid over the picture as real
+                    buttons rather than drawn inside the svg. The scene is a
+                    role="img" and everything reachable in it has to be
+                    reachable from a keyboard too — the same rule Poke already
+                    follows.
+
+                    BOTH ARE HERE FROM THE START, whatever the record says.
+                    Clicking one you cannot use does not fail and shows no
+                    lock: Blob turns it over and puts it down again, and that
+                    encounter is what puts the skill in the list. */}
+                {sceneFor(companion.scene).nodes.map((spec) => {
+                    const node = bag.nodes.find(
+                        (candidate) => candidate.node === spec.node,
+                    );
+
+                    if (node === undefined) {
+                        return null;
+                    }
+
+                    return (
+                        <NodeSpot
+                            key={spec.node}
+                            label={node.label}
+                            available={node.available}
+                            known={node.known}
+                            at={roomOffset(spec.at[0], spec.at[1])}
+                            onClick={() => onTouchNode(spec.node)}
+                        />
+                    );
+                })}
             </div>
 
             {/* Never disabled, never on a timer, never counted: pressing one
@@ -315,6 +419,45 @@ function Record({ companion }: { companion: CompanionData }) {
                 for what is not. */}
             <p className="c-first">that is the whole of it, so far</p>
         </section>
+    );
+}
+
+/**
+ * One thing standing in the clearing.
+ *
+ * A real `<button>` over the picture rather than a shape inside the svg, so it
+ * is focusable, announced, and reachable without a mouse.
+ *
+ * What it shows is what is THERE: its name always, and a count only once
+ * something has actually accrued. No lock, no "requires", no price — the price
+ * lives in the bag, which the encounter opens. A node you cannot use looks
+ * exactly like one you can, because that is the whole mechanic.
+ */
+function NodeSpot({
+    label,
+    available,
+    known,
+    at,
+    onClick,
+}: {
+    label: string;
+    available: number;
+    known: boolean;
+    at: { left: string; top: string };
+    onClick: () => void;
+}) {
+    return (
+        <button
+            type="button"
+            className={cn('c-node', known && 'is-known')}
+            style={at}
+            onClick={onClick}
+        >
+            {label}
+            {/* Only once there is something to take. A zero would be a count
+                of what you have not got. */}
+            {available > 0 && <i>{available}</i>}
+        </button>
     );
 }
 

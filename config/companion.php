@@ -481,6 +481,8 @@ return [
             'yields' => 'fibre',
             'label' => 'the reeds',
             'met' => '{name} turns the reeds over and puts them down again.',
+            'took' => '{name} comes back with {count} fibre.',
+            'empty' => '{name} checks the reeds. Nothing has grown back yet.',
             'full' => 'There is nowhere to put them. The reeds stay by the water.',
         ],
         'deadfall' => [
@@ -488,6 +490,8 @@ return [
             'yields' => 'deadfall',
             'label' => 'the fallen branches',
             'met' => '{name} pushes at a fallen branch and leaves it where it is.',
+            'took' => '{name} drags back {count} deadfall.',
+            'empty' => '{name} checks under the tree. Nothing has come down since.',
             'full' => 'There is nowhere to put it. The branches stay under the tree.',
         ],
     ],

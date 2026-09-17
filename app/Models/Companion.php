@@ -50,6 +50,27 @@ class Companion extends Model
         'xp_spent' => 0,
     ];
 
+    /**
+     * What this user calls their companion, or "Blob" when they never said.
+     *
+     * A query rather than `$user->companion?->displayName()`, and that is the
+     * whole reason this exists as a static. Eloquent caches a lazily-loaded
+     * relation on the model instance, NULL INCLUDED — so a user object asked
+     * for its companion before the row existed answers null for the rest of the
+     * request, and a deliberately renamed companion renders as "Blob" on the
+     * very request that named it.
+     *
+     * Three callers had written this out separately before it moved here.
+     */
+    public static function nameFor(User $user): string
+    {
+        $name = trim((string) static::query()
+            ->where('user_id', $user->id)
+            ->value('name'));
+
+        return $name === '' ? self::DEFAULT_NAME : $name;
+    }
+
     /** @return BelongsTo<User, $this> */
     public function user(): BelongsTo
     {

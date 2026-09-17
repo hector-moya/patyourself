@@ -30,6 +30,30 @@ use Inertia\Response;
 class CompanionController extends Controller
 {
     /**
+     * What just happened in the clearing, flashed by the write routes and read
+     * back here.
+     *
+     * Read straight off the session rather than shared globally through
+     * HandleInertiaRequests: this is one screen's business, and the remark
+     * already uses the session directly for the same reason.
+     */
+    public const SAID_KEY = 'companion.said';
+
+    /**
+     * Whether an encounter revealed a skill. The one thing that opens the bag
+     * without being asked — once, as the response to a click that was just
+     * made, and never sticky because a flash does not survive the next request.
+     */
+    public const REVEALED_KEY = 'companion.revealed';
+
+    /**
+     * Whether the bag should still be open. Set by the write routes posted from
+     * INSIDE it, because an Inertia visit re-renders the page and would
+     * otherwise close the dialog before the user saw what changed.
+     */
+    public const STAY_KEY = 'companion.stay';
+
+    /**
      * Not idempotent: a plain GET here can pick a remark and write its id to
      * the session. Inertia's `prefetch` fires this on hover, so wiring it onto
      * the Blob link would rotate the remark every time a cursor passed over
@@ -62,6 +86,13 @@ class CompanionController extends Controller
             // has one author and one test — the payload is where a total would
             // first appear, before any pixel is drawn.
             'bag' => $bag->forUser($user),
+            // What the last click did, in the app's own voice. Null on an
+            // ordinary visit, which is most of them.
+            'said' => $request->session()->get(self::SAID_KEY),
+            // Either the encounter revealed something, or the bag was already
+            // open and posted from. Both mean "leave it up".
+            'revealed' => (bool) $request->session()->get(self::REVEALED_KEY)
+                || (bool) $request->session()->get(self::STAY_KEY),
         ]);
     }
 }

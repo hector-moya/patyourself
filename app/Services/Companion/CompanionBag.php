@@ -45,7 +45,7 @@ final readonly class CompanionBag
      *     held: int,
      *     name: string,
      *     items: list<array{item: string, label: string, category: string, quantity: int}>,
-     *     nodes: list<array{node: string, label: string, available: int, skill: string, known: bool}>,
+     *     nodes: list<array{node: string, label: string, available: int, skill: string, met: bool, known: bool}>,
      *     skills: list<array{skill: string, label: string, price: int, known: bool, affordable: bool}>,
      *     recipes: list<array{item: string, label: string, recipe: array<string, int>, buildable: bool}>,
      * }
@@ -69,7 +69,10 @@ final readonly class CompanionBag
                 'held' => 0,
                 'name' => Companion::DEFAULT_NAME,
                 'items' => [],
-                'nodes' => [],
+                // The world is there before anything has been chosen: an
+                // account that has never touched this page still has two nodes
+                // standing in its clearing, unmet and unusable.
+                'nodes' => $this->worldBeforeAnythingHappened(),
                 'skills' => [],
                 'recipes' => [],
             ];
@@ -85,7 +88,7 @@ final readonly class CompanionBag
             'held' => $companion->held(),
             'name' => $companion->displayName(),
             'items' => $this->items($companion),
-            'nodes' => $this->nodes($companion, $learned),
+            'nodes' => $this->nodes($companion, $met, $learned),
             'skills' => $this->skills($met, $learned, $balance),
             'recipes' => $this->recipes($met, $held),
         ];
@@ -119,30 +122,71 @@ final readonly class CompanionBag
     }
 
     /**
-     * The nodes Blob has met, and what is standing at each.
+     * EVERY node in the world, whether Blob has met it or not.
      *
+     * This is the one list here that is not filtered by what has happened, and
+     * the exception is the point: both nodes are VISIBLE IN THE SCENE FROM THE
+     * START (F1 §2). A node standing in the clearing is not a preview of
+     * something you have not done — it is a thing that is there. What must stay
+     * hidden is the SKILL, and that list is filtered.
+     *
+     * `met` says whether Blob has walked over and looked at it, which is what
+     * revealed its skill. `known` says whether the skill was then bought.
+     * Neither is a lock: clicking an unmet node is how the game starts.
+     *
+     * @param  list<string>  $met
      * @param  list<string>  $learned
-     * @return list<array{node: string, label: string, available: int, skill: string, known: bool}>
+     * @return list<array{node: string, label: string, available: int, skill: string, met: bool, known: bool}>
      */
-    private function nodes(Companion $companion, array $learned): array
+    private function worldBeforeAnythingHappened(): array
     {
         /** @var array<string, array<string, mixed>> $authored */
         $authored = (array) config('companion.nodes', []);
 
-        return array_values(array_filter(array_map(
-            static function (CompanionNode $node) use ($authored, $learned): ?array {
-                $entry = $authored[$node->node] ?? null;
+        $listed = [];
 
-                return $entry === null ? null : [
-                    'node' => $node->node,
-                    'label' => (string) $entry['label'],
-                    'available' => $node->available,
-                    'skill' => (string) $entry['skill'],
-                    'known' => in_array($entry['skill'], $learned, true),
-                ];
-            },
-            $companion->nodes->all(),
-        )));
+        foreach ($authored as $name => $entry) {
+            $listed[] = [
+                'node' => $name,
+                'label' => (string) $entry['label'],
+                'available' => 0,
+                'skill' => (string) $entry['skill'],
+                'met' => false,
+                'known' => false,
+            ];
+        }
+
+        return $listed;
+    }
+
+    /**
+     * @param  list<string>  $met
+     * @param  list<string>  $learned
+     * @return list<array{node: string, label: string, available: int, skill: string, met: bool, known: bool}>
+     */
+    private function nodes(Companion $companion, array $met, array $learned): array
+    {
+        /** @var array<string, array<string, mixed>> $authored */
+        $authored = (array) config('companion.nodes', []);
+
+        $standing = $companion->nodes->keyBy(
+            static fn (CompanionNode $node): string => $node->node,
+        );
+
+        $listed = [];
+
+        foreach ($authored as $name => $entry) {
+            $listed[] = [
+                'node' => $name,
+                'label' => (string) $entry['label'],
+                'available' => (int) ($standing->get($name)?->available ?? 0),
+                'skill' => (string) $entry['skill'],
+                'met' => in_array($name, $met, true),
+                'known' => in_array($entry['skill'], $learned, true),
+            ];
+        }
+
+        return $listed;
     }
 
     /**

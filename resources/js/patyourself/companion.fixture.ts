@@ -25,7 +25,27 @@ export function bag(overrides: Partial<CompanionBagData> = {}): CompanionBagData
         held: 0,
         name: 'Blob',
         items: [],
-        nodes: [],
+        // Both nodes stand in the clearing from the start, unmet and unusable —
+        // the one list the server does NOT filter by what has happened, because
+        // a node being there is not a preview of anything.
+        nodes: [
+            {
+                node: 'deadfall',
+                label: 'the fallen branches',
+                available: 0,
+                skill: 'gather-wood',
+                met: false,
+                known: false,
+            },
+            {
+                node: 'reeds',
+                label: 'the reeds',
+                available: 0,
+                skill: 'gather-fibre',
+                met: false,
+                known: false,
+            },
+        ],
         skills: [],
         recipes: [],
         ...overrides,

@@ -32,7 +32,29 @@ import type { FoliageSpec } from '@/patyourself/scenes';
  * from the centre of the room, which is where Blob stands, and `FLOOR` is the
  * floor.
  */
-const ROOM = { x: -72, y: -38, w: 144, h: 114 };
+export const ROOM = { x: -72, y: -38, w: 144, h: 114 };
+
+/**
+ * A point in the room's coordinates, as a CSS offset into the drawing's box.
+ *
+ * The scene is an `<svg>` with a viewBox, so it scales with its container and
+ * absolute pixel offsets would only be right at one width. A relative offset
+ * tracks it for free — which is what lets the node hotspots be real HTML buttons laid
+ * over the picture rather than `<foreignObject>` inside it.
+ *
+ * Exported because the hotspots are drawn by the PAGE, not by this component:
+ * this one returns the `<svg>` itself, and a button has to be a sibling of it
+ * to be an ordinary focusable element in the document.
+ */
+export function roomOffset(
+    x: number,
+    y: number,
+): { left: string; top: string } {
+    return {
+        left: `${((x - ROOM.x) / ROOM.w) * 100}%`,
+        top: `${((y - ROOM.y) / ROOM.h) * 100}%`,
+    };
+}
 const ROOM_VIEWBOX = `${ROOM.x} ${ROOM.y} ${ROOM.w} ${ROOM.h}`;
 
 const INK = '#2A2622';

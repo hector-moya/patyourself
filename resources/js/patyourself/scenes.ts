@@ -51,6 +51,29 @@ export interface FoliageSpec {
     phase?: number;
 }
 
+/**
+ * Where a node stands in a scene, in the room's own coordinates.
+ *
+ * Placement only. WHICH nodes exist, what they are called and what is standing
+ * at them all come from the server — this file knows where the reeds are, not
+ * that there are reeds.
+ *
+ * Positions are fixed for the same reason the room objects' are: a clearing
+ * that rearranges itself between visits stops being a place.
+ *
+ * F1 SHIPS THESE AS LABELLED HOTSPOTS RATHER THAN SPRITES, which is the
+ * treatment the layout was signed off on. `docs/BLOB.md` §7 is clear that art
+ * is the slowest and least predictable part of this feature, and nothing about
+ * the mechanism needs a sprite to work — F2 can draw over these without
+ * touching a line of it.
+ */
+export interface NodeSpec {
+    /** Matches the key in `config('companion.nodes')`. */
+    node: string;
+    /** The hotspot's centre, in the room's own coordinates. */
+    at: readonly [number, number];
+}
+
 export interface SceneSpec {
     name: string;
     /** One backdrop per part of day config knows. A missing part falls back to `base`. */
@@ -61,6 +84,8 @@ export interface SceneSpec {
      */
     base: string;
     foliage: readonly FoliageSpec[];
+    /** What can be gathered from here. Empty indoors. */
+    nodes: readonly NodeSpec[];
 }
 
 /**
@@ -110,6 +135,14 @@ export const SCENES: Record<string, SceneSpec> = {
                 phase: 5,
             },
         ],
+        // The deadfall sits under the tree, whose cell ends at y=32, so this
+        // clears its trunk. The reeds sit off to the right, away from both the
+        // tree and Blob's own footprint at the centre. Both are clear of the
+        // grass line at y=52 so a hotspot never lands on a moving tuft.
+        nodes: [
+            { node: 'deadfall', at: [-46, 40] },
+            { node: 'reeds', at: [44, 36] },
+        ],
     },
 
     cabin: {
@@ -121,6 +154,9 @@ export const SCENES: Record<string, SceneSpec> = {
         backdrops: {},
         base: '#EFE6D6',
         foliage: [],
+        // Nothing grows indoors. The clearing is outside, and the cabin is
+        // where Blob takes what it gathered.
+        nodes: [],
     },
 };
 

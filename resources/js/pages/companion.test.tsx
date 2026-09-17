@@ -3,10 +3,23 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const page = { url: '/companion', props: { unread_notifications_count: 0 } };
+
+/**
+ * `router.post` is stubbed rather than exercised: touching a node is a visit,
+ * and what the server does with it has its own feature test. What matters here
+ * is that the press reaches the right URL at all.
+ */
+const post = vi.fn();
+
 vi.mock('@inertiajs/react', async (importOriginal) => {
     const actual = await importOriginal<typeof InertiaReact>();
 
-    return { ...actual, Head: () => null, usePage: () => page };
+    return {
+        ...actual,
+        Head: () => null,
+        usePage: () => page,
+        router: { ...actual.router, post: (...args: unknown[]) => post(...args) },
+    };
 });
 
 import {
@@ -23,6 +36,7 @@ import CompanionPage from './companion';
 // cannot leave `Date` faked for everything that follows it.
 afterEach(() => {
     vi.useRealTimers();
+    post.mockClear();
 });
 
 describe('Companion screen', () => {
@@ -307,6 +321,165 @@ describe('Companion screen', () => {
             );
 
             expect(screen.queryByRole('button', { name: /bag/i })).toBeNull();
+        });
+    });
+
+    /**
+     * The clearing. Both things are standing in it from the first visit, and a
+     * node Blob cannot use looks exactly like one it can — that sameness IS the
+     * mechanic, so it is what these cases pin.
+     */
+    describe('the clearing', () => {
+        it('draws everything in the clearing, met or not', () => {
+            render(
+                <CompanionPage
+                    bag={bag()}
+                    companion={companion({ scene: 'forest' })}
+                />,
+            );
+
+            expect(
+                screen.getByRole('button', { name: /the reeds/i }),
+            ).toBeInTheDocument();
+            expect(
+                screen.getByRole('button', { name: /the fallen branches/i }),
+            ).toBeInTheDocument();
+        });
+
+        /**
+         * No lock, no dimming, no price. The price lives in the bag, which the
+         * first encounter opens — a node you cannot use has to look like one
+         * you can, or the invitation to click it disappears.
+         */
+        it('shows no lock and no price on a node it cannot use', () => {
+            const { container } = render(
+                <CompanionPage
+                    bag={bag()}
+                    companion={companion({ scene: 'forest' })}
+                />,
+            );
+
+            const reeds = screen.getByRole('button', { name: /the reeds/i });
+
+            expect(reeds).toBeEnabled();
+            expect(reeds).not.toHaveClass('is-known');
+            expect(container.textContent ?? '').not.toMatch(
+                /locked|requires|need the|learn first/i,
+            );
+        });
+
+        it('touches the node it names', () => {
+            render(
+                <CompanionPage
+                    bag={bag()}
+                    companion={companion({ scene: 'forest' })}
+                />,
+            );
+
+            fireEvent.click(screen.getByRole('button', { name: /the reeds/i }));
+
+            expect(post).toHaveBeenCalledTimes(1);
+            expect(post.mock.calls[0][0]).toContain('/companion/nodes/reeds');
+        });
+
+        /** What is standing there, once something is. */
+        it('shows what has accrued, and nothing when nothing has', () => {
+            render(
+                <CompanionPage
+                    companion={companion({ scene: 'forest' })}
+                    bag={bag({
+                        nodes: [
+                            {
+                                node: 'reeds',
+                                label: 'the reeds',
+                                available: 4,
+                                skill: 'gather-fibre',
+                                met: true,
+                                known: true,
+                            },
+                            {
+                                node: 'deadfall',
+                                label: 'the fallen branches',
+                                available: 0,
+                                skill: 'gather-wood',
+                                met: false,
+                                known: false,
+                            },
+                        ],
+                    })}
+                />,
+            );
+
+            expect(
+                screen.getByRole('button', { name: /the reeds/i }),
+            ).toHaveTextContent('4');
+            // A zero would be a count of what you have not got.
+            expect(
+                screen.getByRole('button', { name: /the fallen branches/i }),
+            ).toHaveTextContent(/^the fallen branches$/i);
+        });
+
+        /** Indoors there is no clearing, so there is nothing to touch. */
+        it('draws no clearing in the cabin', () => {
+            render(
+                <CompanionPage
+                    bag={bag()}
+                    companion={companion({ scene: 'cabin' })}
+                />,
+            );
+
+            expect(
+                screen.queryByRole('button', { name: /the reeds/i }),
+            ).toBeNull();
+        });
+
+        /** What just happened, in the same bubble Blob's remarks use. */
+        it('says what the last press did, over the coach’s line', () => {
+            render(
+                <CompanionPage
+                    bag={bag()}
+                    companion={companion({ scene: 'forest' })}
+                    remark="Blob has been standing by the window."
+                    said="Blob turns the reeds over and puts them down again."
+                />,
+            );
+
+            expect(
+                screen.getByText(/turns the reeds over/i),
+            ).toBeInTheDocument();
+            expect(
+                screen.queryByText(/standing by the window/i),
+            ).toBeNull();
+        });
+
+        /** A revealed skill opens the bag, once, without being asked. */
+        it('opens the bag when an encounter revealed something', () => {
+            render(
+                <CompanionPage
+                    bag={bag()}
+                    companion={companion({ scene: 'forest' })}
+                    said="Blob turns the reeds over and puts them down again."
+                    revealed
+                />,
+            );
+
+            expect(screen.getByRole('dialog')).toBeInTheDocument();
+            // And says it there, because the bubble is behind the overlay.
+            expect(
+                screen.getByText(/turns the reeds over/i),
+            ).toBeInTheDocument();
+        });
+
+        it('opens nothing when the encounter revealed nothing', () => {
+            render(
+                <CompanionPage
+                    bag={bag()}
+                    companion={companion({ scene: 'forest' })}
+                    said="Blob checks the reeds. Nothing has grown back yet."
+                />,
+            );
+
+            expect(screen.queryByRole('dialog')).toBeNull();
         });
     });
 

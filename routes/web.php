@@ -3,8 +3,11 @@
 use App\Http\Controllers\ActionController;
 use App\Http\Controllers\ActionLogController;
 use App\Http\Controllers\CatchUpController;
+use App\Http\Controllers\CompanionBuildController;
 use App\Http\Controllers\CompanionController;
 use App\Http\Controllers\CompanionNameController;
+use App\Http\Controllers\CompanionNodeController;
+use App\Http\Controllers\CompanionSkillController;
 use App\Http\Controllers\ExperimentController;
 use App\Http\Controllers\ExportController;
 use App\Http\Controllers\InboxController;
@@ -153,6 +156,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // ladder: naming a creature is not an achievement. Clearing it puts the
     // name back to "Blob", so renaming is never final.
     Route::patch('companion/name', [CompanionNameController::class, 'update'])->name('companion.name');
+
+    // Touching something in the clearing. One route for both halves of the
+    // gesture, because from the user's side it is one gesture — you click the
+    // reeds, and what happens depends on whether Blob knows what reeds are.
+    Route::post('companion/nodes/{node}', [CompanionNodeController::class, 'store'])
+        ->name('companion.nodes.store');
+
+    // Spending the record, and putting what was gathered together. Both are
+    // posted from inside the bag and both leave it open.
+    Route::post('companion/skills', [CompanionSkillController::class, 'store'])->name('companion.skills.store');
+    Route::post('companion/build', [CompanionBuildController::class, 'store'])->name('companion.build.store');
 
     // The in-app inbox: delivered cues + read state.
     Route::get('inbox', [InboxController::class, 'index'])->name('inbox');
