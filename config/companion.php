@@ -359,4 +359,63 @@ return [
         ],
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | XP
+    |--------------------------------------------------------------------------
+    |
+    | What the record pays. The other track entirely from the ladder above: the
+    | ladder GIFTS a body and wearables from the record, unchosen and
+    | unpurchasable, and always will. XP is what the player chooses to spend.
+    |
+    | Earned XP is recomputed from the record on every read; only the spending
+    | is stored, in `companions.xp_spent`. See F1 §3.
+    |
+    | A `failed` outcome pays exactly what a `completed` one pays, and a
+    | `skipped` one pays the same again. Paying for completions would build an
+    | incentive to hide failures, choose easy actions, and feel worst exactly
+    | when the data matters most. NOTHING THAT READS THIS MAY EVER BRANCH ON AN
+    | OUTCOME.
+    |
+    | FIXED RATIO, NEVER VARIABLE. Slot-machine scheduling is what makes games
+    | compulsive; it works, and it is the wrong tool in a therapy-adjacent
+    | product. Every reward here is predictable and transparent.
+    |
+    */
+
+    'xp' => [
+
+        /*
+        | The nth outcome recorded in one day, grouped by `logged_at` — when the
+        | user sat down and told the truth — rather than by the occasion it is
+        | about. A catch-up session logging seven days at once therefore tapers
+        | as ONE day and pays 10, not 21. That is correct: the taper rewards
+        | showing up, and you showed up once. It also removes any incentive to
+        | batch-fabricate history.
+        |
+        | The taper exists because breadth must not pay better than depth. An
+        | uncapped per-record rate would mean ten loops earn ten times one loop,
+        | so the economy would quietly reward taking on more habits at once —
+        | the most reliable way to fail at habit-building.
+        |
+        | The last value is the FLOOR and repeats forever. Nothing recorded ever
+        | goes unpaid: the taper is there so breadth does not out-earn depth,
+        | not so that a tenth log is worthless.
+        */
+        'outcome' => [3, 2, 1],
+
+        /*
+        | The four insight sources, keyed by CompanionResolver's INSIGHT_*
+        | constants. OUTSIDE the taper: they are rarer by nature, and
+        | rate-limiting them would be double-counting.
+        */
+        'insight' => [
+            'concluded-experiment' => 15,
+            'started-experiment' => 10,
+            'chain-correction' => 8,
+            'reflection' => 5,
+        ],
+
+    ],
+
 ];
