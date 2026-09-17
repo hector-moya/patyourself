@@ -290,4 +290,35 @@ class BuildItemTest extends TestCase
 
         $this->assertSame(1, $this->held($companion, 'basket'));
     }
+
+    /**
+     * A recipe that says it makes nothing still makes one.
+     *
+     * The floor matters more than it looks. Without it a single mistyped
+     * digit in config would consume the whole recipe and hand back nothing —
+     * the one way this feature could ever take something away, and it would
+     * do it silently. Everything else here is guarded against that; this is
+     * the line that guards the guard.
+     */
+    public function test_a_recipe_that_says_it_makes_nothing_still_makes_one(): void
+    {
+        // The whole entry, not a sub-key: `planks` is not authored yet, and
+        // setting `…planks.makes` alone would leave it without a recipe to
+        // build from.
+        config()->set('companion.bag.planks', [
+            'category' => 'material',
+            'label' => 'planks',
+            'recipe' => ['fibre' => 1],
+            'makes' => 0,
+        ]);
+
+        [$user, $companion] = $this->carrying(['fibre' => 2]);
+
+        app(BuildItem::class)->handle($user, 'planks');
+
+        $this->assertSame(1, $this->held($companion, 'planks'));
+
+        // And it really did build rather than no-op: the fibre was spent.
+        $this->assertSame(1, $this->held($companion, 'fibre'));
+    }
 }
