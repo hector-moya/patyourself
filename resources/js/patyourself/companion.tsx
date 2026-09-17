@@ -60,6 +60,15 @@ export interface CompanionData {
      * falls back to.
      */
     scene: string;
+    /**
+     * What the user calls their companion; `'Blob'` until they say otherwise.
+     *
+     * Carried so the client can name it in copy IT writes — `describe()`'s
+     * aria-label, and anything a screen composes itself. Every message in
+     * `unlocks` already has the name substituted in server-side, so nothing
+     * here should ever be doing that substitution a second time.
+     */
+    name: string;
 }
 
 /** The height of the standalone drawing, relative to its width. */
@@ -254,14 +263,20 @@ export function arrivingItem(
 }
 
 /**
- * What a screen reader is told. States what Blob has, in the same register as
- * the copy: a description, never a score.
+ * What a screen reader is told. States what the companion has, in the same
+ * register as the copy: a description, never a score.
+ *
+ * The name comes off the payload rather than being written here. Every message
+ * the server sends already has it substituted in; this is the one place the
+ * CLIENT writes a sentence about the companion, so it is the one place that
+ * needs the name itself.
  */
 export function describe(companion: CompanionData): string {
+    const name = companion.name.trim() === '' ? 'Blob' : companion.name;
     const worn = companion.items.map((item) =>
         item.variant === null ? item.type : `${item.variant} ${item.type}`,
     );
     const parts = [...worn, ...companion.abilities];
 
-    return parts.length === 0 ? 'Blob' : `Blob, with ${parts.join(', ')}`;
+    return parts.length === 0 ? name : `${name}, with ${parts.join(', ')}`;
 }

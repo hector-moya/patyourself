@@ -2883,6 +2883,12 @@ In `CompanionLadderTest`, which already reads config directly:
 
 Tests: a rename persists and shows up in the next render; clearing restores "Blob"; another user's companion cannot be renamed; over-long names are rejected with a 422.
 
+> **Gap found while building this, carried into Batch 4.** The endpoint has no surface. The plan never gave the rename a control, and F1 §7 does not name one either — it describes the column and the token and stops. An endpoint nobody can reach is dead code, so **Task 15 gains the rename control**, in the bag modal's footer.
+>
+> The modal is the right home by elimination and then on merit: it is the only pixel-panel surface that opens, the place bar is a 10px uppercase rail with no room for an input, and the plinth is a row of verbs. On merit, the modal is already the companion's own drawer — the one place on the page that is about Blob's things rather than about the room or the record.
+>
+> It is a plain text input with a Save, not an inline-editable title: a title that turns into a field on click is a gesture nobody discovers, and this is the one control in the feature a user might actually go looking for.
+
 ```bash
 git commit -m "feat(companion): let Blob be called something else"
 ```
@@ -2961,7 +2967,8 @@ Four groups in one `.pixel-frame .c-panel`, in this order, each absent entirely 
 | *(ribbon)* | `THE BAG` · `3 / 5` | Held-of-capacity. Never the word "of". |
 | `HELD` | `fibre` · `3` | Only what is held. |
 | `BUILD` | `basket` · `4 fibre` | A price. Never "you need". |
-| `BLOB COULD LEARN` | `gather fibre` · `20 xp` | Only skills whose node has been met. |
+| `{NAME} COULD LEARN` | `gather fibre` · `20 xp` | Only skills whose node has been met. Heading uses `bag.name`. |
+| *(footer)* | `name` input · `Save` | `PATCH companion.name`. Clearing it restores "Blob". |
 
 An empty bag renders the ribbon and one plain line that owes nothing — the same register as `.c-first`'s "that is the whole of it, so far".
 

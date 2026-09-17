@@ -4,6 +4,7 @@ use App\Http\Controllers\ActionController;
 use App\Http\Controllers\ActionLogController;
 use App\Http\Controllers\CatchUpController;
 use App\Http\Controllers\CompanionController;
+use App\Http\Controllers\CompanionNameController;
 use App\Http\Controllers\ExperimentController;
 use App\Http\Controllers\ExportController;
 use App\Http\Controllers\InboxController;
@@ -147,6 +148,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // over the existing tables — there is nothing companion-shaped in the
     // database to fetch.
     Route::get('companion', [CompanionController::class, 'index'])->name('companion');
+
+    // What the user calls their companion. Not earned, not bought, not on the
+    // ladder: naming a creature is not an achievement. Clearing it puts the
+    // name back to "Blob", so renaming is never final.
+    Route::patch('companion/name', [CompanionNameController::class, 'update'])->name('companion.name');
 
     // The in-app inbox: delivered cues + read state.
     Route::get('inbox', [InboxController::class, 'index'])->name('inbox');

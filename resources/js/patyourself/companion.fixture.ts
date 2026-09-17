@@ -44,6 +44,10 @@ export function companion(
         // on the room's own wall, floor and objects without naming one.
         // Tests about the forest override this explicitly.
         scene: 'cabin',
+        // Unnamed, which is what the server sends for a companion nobody has
+        // renamed — the fallback happens on the way out of the resolver, so
+        // the client never receives an empty name in practice.
+        name: 'Blob',
         room: {
             day: {
                 from: 7,

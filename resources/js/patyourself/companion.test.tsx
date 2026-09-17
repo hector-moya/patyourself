@@ -560,6 +560,30 @@ describe('describe', () => {
     it('names Blob alone when it owns nothing yet', () => {
         expect(label(companion())).toBe('Blob');
     });
+
+    /**
+     * The one sentence about the companion the CLIENT writes. Every message the
+     * server sends already has the name substituted in, so this is the only
+     * place a rename could fail to reach — and it reaches a screen reader
+     * rather than the screen, which is exactly where nobody would notice.
+     */
+    it('names a renamed companion instead of Blob', () => {
+        expect(label(companion({ name: 'Pebble' }))).toBe('Pebble');
+        expect(
+            label(
+                companion({
+                    name: 'Pebble',
+                    items: [{ type: 'scarf', variant: 'coral' }],
+                    abilities: ['wave'],
+                }),
+            ),
+        ).toBe('Pebble, with coral scarf, wave');
+    });
+
+    /** A name that arrived blank still reads as something rather than nothing. */
+    it('falls back to Blob rather than describing an unnamed thing', () => {
+        expect(label(companion({ name: '   ' }))).toBe('Blob');
+    });
 });
 
 describe('selfStartedFor', () => {
