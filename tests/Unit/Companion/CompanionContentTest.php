@@ -224,7 +224,7 @@ class CompanionContentTest extends TestCase
     public function test_a_nodes_copy_follows_the_same_rules_as_the_ladders(): void
     {
         foreach ($this->config()['nodes'] as $name => $node) {
-            foreach (['met', 'blunt', 'full'] as $line) {
+            foreach (['met', 'blunt', 'took', 'empty', 'full'] as $line) {
                 if ($line === 'blunt' && ! array_key_exists($line, $node)) {
                     // Only a node that asks for a tool has a blunt line.
                     continue;

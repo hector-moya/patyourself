@@ -296,6 +296,14 @@ final readonly class CompanionBag
      * reason. Stores nothing — this is a read of authored config against what
      * Blob has already met.
      *
+     * This gate only ever hides a tool as a RECIPE — something the bag might
+     * list as buildable. A hidden tool named as an INGREDIENT elsewhere would
+     * still be knowable and would still price against a thing never shown to
+     * the user, and nothing here stops that. No current recipe takes a tool as
+     * an ingredient, and a recipe is arguably a price rather than a
+     * requirement anyway — but that is a call, not an accident, and it should
+     * stay a deliberate one if a future recipe ever tries it.
+     *
      * @param  list<string>  $met
      * @return array<string, bool>
      */

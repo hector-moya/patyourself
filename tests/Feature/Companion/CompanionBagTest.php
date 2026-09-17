@@ -46,8 +46,10 @@ class CompanionBagTest extends TestCase
     }
 
     /**
-     * A third node that needs both a skill and a tool, authored through config
-     * so these cases test the mechanism rather than the day's content.
+     * A third node that needs both a skill and a tool. The trunk, the rope and
+     * the axe are all real shipped content now, so this no longer stands in
+     * for the day's content — it pins the trunk's shape, so these cases do not
+     * move when content does.
      */
     private function authorATrunk(): void
     {
@@ -299,11 +301,18 @@ class CompanionBagTest extends TestCase
         $user = User::factory()->create();
         app(MeetNode::class)->handle($user, 'reeds');
 
-        $this->assertFalse($this->bag($user)['recipes'][0]['buildable']);
+        $basket = fn (): array => collect($this->bag($user)['recipes'])
+            ->firstWhere('item', 'basket');
+
+        $this->assertFalse($basket()['buildable']);
 
         $user->companion->items()->create(['item' => 'fibre', 'quantity' => 4]);
 
-        $this->assertTrue($this->bag($user)['recipes'][0]['buildable']);
+        // Exactly the recipe's price, so this pins the boundary rather than
+        // merely clearing it. Addressed by name because the catalogue's order
+        // is content's to change, and this assertion has silently moved once
+        // already.
+        $this->assertTrue($basket()['buildable']);
     }
 
     /** A renamed companion is named here, because the surfaces read it from here. */
@@ -327,6 +336,12 @@ class CompanionBagTest extends TestCase
         $user = $this->richUser();
         app(MeetNode::class)->handle($user, 'reeds');
         app(MeetNode::class)->handle($user, 'deadfall');
+
+        // Without a held item, `items` is empty and contributes no keys to the
+        // sweep below — the one list whose row shape this phase widened
+        // (`category` can now be `tool` as well as `consumable`) would go
+        // unchecked. Do not delete this as unused setup.
+        $user->companion->items()->create(['item' => 'fibre', 'quantity' => 2]);
 
         $bag = $this->bag($user);
 
