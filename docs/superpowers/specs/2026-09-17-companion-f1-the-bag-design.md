@@ -190,10 +190,23 @@ Guard it with a test asserting **no message in `config('companion')` contains th
 "Blob"** — otherwise a later rung will quietly reintroduce one and a renamed companion will refer to
 itself in the third person.
 
-**Known gap, accepted for F1:** coach-written remarks (`CompanionRemarks`, `WriteBlobRemark`, and the
-MCP surfaces that feed them) will still say "Blob" unless the name is passed to the coach. The name
-should be exposed wherever the coach reads companion state; if that proves larger than it looks, it
-moves to F2 and is recorded as a gap rather than left to be discovered.
+~~**Known gap, accepted for F1:**~~ **Closed 17 Sep 2026, in F1.** It turned out to be four lines,
+not an F2 phase.
+
+The coach writes free text, so it would have gone on saying "Blob" forever — the exact bug the token
+fixed everywhere the *app* writes, left standing everywhere the *coach* does. And a remark is
+append-only and may be relayed months later, so a wrong name there is wrong for good.
+
+Two moves, and the second is the one that matters:
+
+- **Every coach-facing payload carries the name.** `write-blob-remark` returns `companion_name` on
+  every call, and `CompanionAnnouncement::since()` carries `name` beside the message. A
+  `#[Description]` cannot carry it — that is one constant string for every user — so the response
+  has to.
+- **The app refuses a remark that calls a renamed companion "Blob".** Checkable, so it is checked,
+  in the same class as the existing 280-character and exclamation-mark rules: the tool names the
+  rule and the coach corrects it, rather than the app storing something that will read as a mistake
+  every time it is shown.
 
 ## 8. UI — settled
 

@@ -3,6 +3,7 @@
 namespace App\Mcp\Tools;
 
 use App\Actions\WriteBlobRemark;
+use App\Models\Companion;
 use App\Models\Intention;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\JsonSchema\Types\Type;
@@ -19,6 +20,10 @@ screen and nowhere else in the app.
 
 Blob is the app's companion, not its scoreboard. It describes itself and what
 it has been doing; it does not describe the user, and it never assesses them.
+
+THE COMPANION MAY NOT BE CALLED BLOB. Users can rename it, and every response
+from this tool carries `companion_name` — use that name in the remark. Writing
+"Blob" for a renamed companion is refused.
 
 The rules the app cannot check, and you have to keep:
 
@@ -72,6 +77,19 @@ class WriteBlobRemarkTool extends Tool
             return Response::error('A remark cannot contain an exclamation mark. Rewrite it flatter.');
         }
 
+        // The third checkable rule, and the reason it exists: the app's own
+        // copy stopped hardcoding the name (it carries a {name} token the
+        // resolver substitutes), but the coach writes free text and would go on
+        // saying "Blob" forever. A remark is append-only and may be relayed
+        // months from now, so a wrong name here is wrong for good.
+        $name = $this->companionName($request);
+
+        if ($name !== Companion::DEFAULT_NAME && str_contains($body, Companion::DEFAULT_NAME)) {
+            return Response::error(
+                "This companion is called {$name}, not ".Companion::DEFAULT_NAME.'. Rewrite the remark using its name.',
+            );
+        }
+
         $loop = null;
 
         if (($validated['intention_id'] ?? null) !== null) {
@@ -93,7 +111,22 @@ class WriteBlobRemarkTool extends Tool
             'remark_id' => $remark->id,
             'loop_id' => $loop?->id,
             'body' => $remark->body,
+            // Returned on every call so the coach learns the name without
+            // having to ask for it. It cannot read the companion's state any
+            // other way, and the tool description cannot carry it — a
+            // #[Description] is one constant string for every user.
+            'companion_name' => $name,
         ]);
+    }
+
+    /** What this user calls their companion, or "Blob" when they never said. */
+    private function companionName(Request $request): string
+    {
+        $name = trim((string) Companion::query()
+            ->where('user_id', $request->user()->id)
+            ->value('name'));
+
+        return $name === '' ? Companion::DEFAULT_NAME : $name;
     }
 
     /**

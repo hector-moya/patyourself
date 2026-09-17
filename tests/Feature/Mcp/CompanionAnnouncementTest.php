@@ -135,6 +135,23 @@ class CompanionAnnouncementTest extends TestCase
         $this->assertStringNotContainsString('Blob', $payload['companion']['message']);
     }
 
+    /**
+     * The payload names the companion as well as quoting it. The message reads
+     * correctly without this, but the coach writes its own words around the
+     * payload and has no other way to learn what to call the thing.
+     */
+    public function test_the_payload_tells_the_coach_what_the_companion_is_called(): void
+    {
+        $user = User::factory()->create(['timezone' => 'UTC']);
+
+        $this->assertSame('Blob', $this->logOne($user, $this->actionFor($user), 3)['companion']['name']);
+
+        $named = User::factory()->create(['timezone' => 'UTC']);
+        $named->companion()->firstOrCreate([])->update(['name' => 'Pebble']);
+
+        $this->assertSame('Pebble', $this->logOne($named, $this->actionFor($named), 3)['companion']['name']);
+    }
+
     public function test_an_outcome_that_moves_nothing_says_nothing(): void
     {
         $user = User::factory()->create(['timezone' => 'UTC']);

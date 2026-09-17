@@ -33,7 +33,7 @@ final readonly class CompanionAnnouncement
      * The payload to merge into a tool response — or an empty array, which
      * merges to nothing, when the write left Blob where it was.
      *
-     * @return array{companion?: array{unlocked: string, kind: string, message: string, url: string}}
+     * @return array{companion?: array{unlocked: string, kind: string, name: string, message: string, url: string}}
      */
     public function since(User $user, int $stageBefore): array
     {
@@ -48,6 +48,11 @@ final readonly class CompanionAnnouncement
         return ['companion' => [
             'unlocked' => $unlock['name'],
             'kind' => $unlock['kind'],
+            // What this companion is called. The message already reads
+            // correctly without it — the resolver substitutes the name before
+            // anything sees the string — but the coach writes its own words
+            // around this payload, and it has no other way to learn the name.
+            'name' => $state->name,
             'message' => $unlock['message'],
             'url' => route('companion'),
         ]];

@@ -173,4 +173,58 @@ class WriteBlobRemarkToolTest extends TestCase
 
         $this->assertSame(0, CompanionRemark::count());
     }
+
+    /**
+     * The coach cannot know the name unless the app says it, so every response
+     * carries it. Without this the coach writes "Blob" forever and a renamed
+     * companion refers to itself in the third person — which is the exact bug
+     * the {name} token fixed everywhere the APP writes, left standing
+     * everywhere the COACH does.
+     */
+    public function test_the_response_tells_the_coach_what_the_companion_is_called(): void
+    {
+        $user = User::factory()->create();
+
+        $response = PatYourSelfServer::actingAs($user)
+            ->tool(WriteBlobRemarkTool::class, ['body' => 'Blob moved the rug and put it back.']);
+
+        $this->assertSame('Blob', $this->payload($response)['companion_name']);
+
+        $user->companion()->firstOrCreate([])->update(['name' => 'Pebble']);
+
+        $renamed = PatYourSelfServer::actingAs($user)
+            ->tool(WriteBlobRemarkTool::class, ['body' => 'Pebble sat by the door all afternoon.']);
+
+        $this->assertSame('Pebble', $this->payload($renamed)['companion_name']);
+    }
+
+    /**
+     * And the app enforces it, rather than hoping. This is the same class of
+     * rule as the exclamation mark: something the app can actually check, so it
+     * checks it and names the rule rather than storing a remark that will read
+     * as a mistake for as long as it is relayed.
+     */
+    public function test_a_renamed_companion_refuses_a_remark_that_calls_it_blob(): void
+    {
+        $user = User::factory()->create();
+        $user->companion()->firstOrCreate([])->update(['name' => 'Pebble']);
+
+        PatYourSelfServer::actingAs($user)
+            ->tool(WriteBlobRemarkTool::class, ['body' => 'Blob has been sitting near the door.'])
+            ->assertHasErrors();
+
+        $this->assertSame(0, CompanionRemark::count());
+    }
+
+    /** An unnamed companion is still called Blob, so that body is fine. */
+    public function test_an_unnamed_companion_still_accepts_blob(): void
+    {
+        $user = User::factory()->create();
+
+        PatYourSelfServer::actingAs($user)
+            ->tool(WriteBlobRemarkTool::class, ['body' => 'Blob has been sitting near the door.'])
+            ->assertOk();
+
+        $this->assertSame(1, CompanionRemark::count());
+    }
 }
