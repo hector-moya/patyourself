@@ -321,4 +321,86 @@ class BuildItemTest extends TestCase
         // And it really did build rather than no-op: the fibre was spent.
         $this->assertSame(1, $this->held($companion, 'fibre'));
     }
+
+    /**
+     * A build that would not fit refuses WHOLE. Nothing is consumed and
+     * nothing is partially built — a half-consumed recipe would be the first
+     * thing in this feature that ever took something away.
+     */
+    public function test_a_build_that_would_not_fit_refuses_and_consumes_nothing(): void
+    {
+        config()->set('companion.bag.planks', [
+            'category' => 'material',
+            'label' => 'planks',
+            'recipe' => ['fibre' => 1],
+            'makes' => 3,
+        ]);
+
+        // Base capacity 5, and four fibre already in it. Spending one leaves
+        // three held, and three planks would make six.
+        [$user, $companion] = $this->carrying(['fibre' => 4]);
+
+        try {
+            app(BuildItem::class)->handle($user, 'planks');
+
+            $this->fail('Building past capacity should have been refused.');
+        } catch (CompanionEconomyException $exception) {
+            $this->assertStringContainsString('planks', $exception->getMessage());
+        }
+
+        $this->assertSame(4, $this->held($companion, 'fibre'));
+        $this->assertSame(0, $companion->items()->where('item', 'planks')->count());
+    }
+
+    /** It fits the moment there is room for the net gain, not for the whole. */
+    public function test_a_build_fits_when_there_is_room_for_the_net_gain(): void
+    {
+        config()->set('companion.bag.planks', [
+            'category' => 'material',
+            'label' => 'planks',
+            'recipe' => ['fibre' => 1],
+            'makes' => 3,
+        ]);
+
+        // Three fibre in a bag of five. Spending one leaves two held; three
+        // planks makes five, which is exactly full.
+        [$user, $companion] = $this->carrying(['fibre' => 3]);
+
+        app(BuildItem::class)->handle($user, 'planks');
+
+        $this->assertSame(3, $this->held($companion, 'planks'));
+        $this->assertSame(2, $this->held($companion, 'fibre'));
+        $this->assertSame(5, $companion->fresh()->load('items')->held());
+    }
+
+    /**
+     * A tool is not carried, so a recipe that makes one can never overflow
+     * however full the bag is.
+     */
+    public function test_building_a_tool_can_never_overflow(): void
+    {
+        config()->set('companion.bag.axe', [
+            'category' => 'tool',
+            'label' => 'axe',
+            'recipe' => ['fibre' => 1],
+        ]);
+
+        [$user, $companion] = $this->carrying(['fibre' => 5]);
+
+        app(BuildItem::class)->handle($user, 'axe');
+
+        $this->assertSame(1, $this->held($companion, 'axe'));
+        $this->assertSame(4, $companion->fresh()->load('items')->held());
+    }
+
+    /** A container does not occupy the room it creates, so nor can it overflow. */
+    public function test_building_a_container_can_never_overflow(): void
+    {
+        [$user, $companion] = $this->carrying(['fibre' => 5]);
+
+        app(BuildItem::class)->handle($user, 'basket');
+
+        $this->assertSame(1, $this->held($companion, 'basket'));
+        $this->assertSame(1, $companion->fresh()->load('items')->held());
+    }
 }

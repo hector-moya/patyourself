@@ -57,4 +57,17 @@ class CompanionEconomyException extends RuntimeException
     {
         return new self("[{$thing}] needs [{$tool}], which Blob is not carrying.");
     }
+
+    /**
+     * A build that would not fit.
+     *
+     * A second factory rather than a reworded `bagIsFull()`: the two say
+     * different sentences about different things — one is about what stays
+     * standing at a node, this is about a thing that cannot be put down — and
+     * rewording the other would edit a message the clearing already ships.
+     */
+    public static function noRoomFor(string $thing): self
+    {
+        return new self("There is no room left in the bag for [{$thing}].");
+    }
 }

@@ -62,7 +62,7 @@ final readonly class BuildItem
         // silently making nothing is worse than making the default.
         $makes = max(1, (int) ($catalogue[$item]['makes'] ?? 1));
 
-        return DB::transaction(function () use ($user, $item, $recipe, $tool, $makes): CompanionItem {
+        return DB::transaction(function () use ($user, $item, $recipe, $tool, $makes, $catalogue): CompanionItem {
             /** @var Companion $companion */
             $companion = $user->companion()->firstOrCreate([]);
 
@@ -91,6 +91,34 @@ final readonly class BuildItem
 
             if ($missing !== []) {
                 throw CompanionEconomyException::missingMaterials($item, $missing);
+            }
+
+            // Capacity last, because you cannot overflow with materials you do
+            // not have — a short recipe should say what it is short of rather
+            // than complain about room.
+            //
+            // Only CARRIED categories count, on both sides. A recipe that makes
+            // a tool or a container is always net-negative and can never
+            // refuse here; one that makes three carried things out of one is
+            // net +2, and that is the case this exists for.
+            $companion->load('items');
+
+            $carried = (array) config('companion.capacity.carried', []);
+
+            $categoryOf = static fn (string $name): string => (string) ($catalogue[$name]['category'] ?? '');
+
+            $consumed = 0;
+
+            foreach ($recipe as $ingredient => $needed) {
+                if (in_array($categoryOf($ingredient), $carried, true)) {
+                    $consumed += $needed;
+                }
+            }
+
+            $made = in_array($categoryOf($item), $carried, true) ? $makes : 0;
+
+            if ($companion->held() - $consumed + $made > $companion->capacity()) {
+                throw CompanionEconomyException::noRoomFor($item);
             }
 
             foreach ($recipe as $ingredient => $needed) {
