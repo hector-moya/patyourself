@@ -395,4 +395,37 @@ class CompanionBagTest extends TestCase
         $this->assertNotContains('knot', $listed);
         $this->assertNotContains('loop', $listed);
     }
+
+    /**
+     * The chain resolved in the order config happens to be written in, which is
+     * not the order it depends in.
+     *
+     * `torch` is authored BEFORE the `rope` it is made of, so a single scan of
+     * the catalogue reaches it while rope is still unknown and passes it over.
+     * Only a second pass picks it up. That is what the fixed point buys, and it
+     * is the reason this resolves by repeated passes rather than by one walk:
+     * nothing constrains an author to write a recipe after its ingredients.
+     */
+    public function test_a_recipe_authored_before_its_ingredient_still_resolves(): void
+    {
+        // Deliberately reversed: the dependent first, then what it depends on.
+        config()->set('companion.bag.torch', [
+            'category' => 'tool',
+            'label' => 'torch',
+            'recipe' => ['rope' => 1],
+        ]);
+        config()->set('companion.bag.rope', [
+            'category' => 'consumable',
+            'label' => 'rope',
+            'recipe' => ['fibre' => 3],
+        ]);
+
+        $user = User::factory()->create();
+        app(MeetNode::class)->handle($user, 'reeds');
+
+        $listed = array_column($this->bag($user)['recipes'], 'item');
+
+        $this->assertContains('rope', $listed);
+        $this->assertContains('torch', $listed);
+    }
 }
