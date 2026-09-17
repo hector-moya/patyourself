@@ -190,4 +190,76 @@ class HarvestNodeTest extends TestCase
         $this->assertSame(3, $this->standing($strangerCompanion, 'reeds'));
         $this->assertSame(0, $this->held($strangerCompanion, 'fibre'));
     }
+
+    /**
+     * A node may require a tool as well as a skill. The two gates are the two
+     * economic layers meeting on one gesture: the record says what Blob CAN
+     * do, and the world says what it has in hand. (F2 §2)
+     */
+    public function test_a_node_that_needs_a_tool_refuses_without_it(): void
+    {
+        config()->set('companion.nodes.reeds.tool', 'axe');
+
+        [$user, $companion] = $this->clearing(4);
+
+        try {
+            app(HarvestNode::class)->handle($user, 'reeds');
+
+            $this->fail('Harvesting without the tool should have been refused.');
+        } catch (CompanionEconomyException $exception) {
+            $this->assertStringContainsString('axe', $exception->getMessage());
+        }
+
+        // Nothing moved and nothing was destroyed: the stock is still standing
+        // and the bag is still empty.
+        $this->assertSame(4, $this->standing($companion, 'reeds'));
+        $this->assertSame(0, $this->held($companion, 'fibre'));
+    }
+
+    /** With the tool in the bag, the same click gathers as it always did. */
+    public function test_a_node_that_needs_a_tool_yields_once_it_is_held(): void
+    {
+        config()->set('companion.nodes.reeds.tool', 'axe');
+
+        [$user, $companion] = $this->clearing(4);
+        $companion->items()->create(['item' => 'axe', 'quantity' => 1]);
+
+        $moved = app(HarvestNode::class)->handle($user, 'reeds');
+
+        $this->assertSame(4, $moved);
+        $this->assertSame(4, $this->held($companion, 'fibre'));
+        $this->assertSame(0, $this->standing($companion, 'reeds'));
+    }
+
+    /**
+     * The skill is checked first. A node whose skill has not been bought is a
+     * node whose tool is not yet the problem, and refusing for the further of
+     * the two reasons would send the reader past the nearer one.
+     */
+    public function test_the_skill_is_refused_before_the_tool(): void
+    {
+        config()->set('companion.nodes.reeds.tool', 'axe');
+
+        $user = User::factory()->create();
+        $companion = $user->companion()->firstOrCreate([]);
+        $companion->nodes()->create(['node' => 'reeds', 'available' => 4]);
+
+        try {
+            app(HarvestNode::class)->handle($user, 'reeds');
+
+            $this->fail('Harvesting without the skill should have been refused.');
+        } catch (CompanionEconomyException $exception) {
+            $this->assertStringContainsString('gather-fibre', $exception->getMessage());
+            $this->assertStringNotContainsString('axe', $exception->getMessage());
+        }
+    }
+
+    /** A node with no tool key behaves exactly as F1's two always have. */
+    public function test_a_node_with_no_tool_needs_none(): void
+    {
+        [$user, $companion] = $this->clearing(2);
+
+        $this->assertSame(2, app(HarvestNode::class)->handle($user, 'reeds'));
+        $this->assertSame(2, $this->held($companion, 'fibre'));
+    }
 }

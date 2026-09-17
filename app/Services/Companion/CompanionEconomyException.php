@@ -45,4 +45,16 @@ class CompanionEconomyException extends RuntimeException
     {
         return new self("Blob has not learned [{$skill}], so nothing can be taken from [{$node}] yet.");
     }
+
+    /**
+     * Something was asked for that needs a thing Blob is not carrying.
+     *
+     * Takes a `$thing` rather than a node, because both halves of F2's rule
+     * raise this: a node that needs an axe and a recipe that needs a handsaw
+     * are the same refusal about the same kind of object.
+     */
+    public static function toolNotHeld(string $thing, string $tool): self
+    {
+        return new self("[{$thing}] needs [{$tool}], which Blob is not carrying.");
+    }
 }

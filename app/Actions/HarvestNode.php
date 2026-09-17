@@ -27,12 +27,13 @@ final readonly class HarvestNode
      * @return int How many units moved into the bag.
      *
      * @throws InvalidArgumentException when no such node is authored.
-     * @throws CompanionEconomyException when the skill is unlearned, or the bag
-     *                                   is full while stock is standing.
+     * @throws CompanionEconomyException when the skill is unlearned, the tool
+     *                                   is not held, or the bag is full while
+     *                                   stock is standing.
      */
     public function handle(User $user, string $node): int
     {
-        /** @var array<string, array{skill: string, yields: string, label: string}> $authored */
+        /** @var array<string, array{skill: string, yields: string, label: string, tool?: string}> $authored */
         $authored = (array) config('companion.nodes', []);
 
         if (! array_key_exists($node, $authored)) {
@@ -41,13 +42,25 @@ final readonly class HarvestNode
 
         $skill = (string) $authored[$node]['skill'];
         $yields = (string) $authored[$node]['yields'];
+        $tool = (string) ($authored[$node]['tool'] ?? '');
 
-        return DB::transaction(function () use ($user, $node, $skill, $yields): int {
+        return DB::transaction(function () use ($user, $node, $skill, $yields, $tool): int {
             /** @var Companion $companion */
             $companion = $user->companion()->firstOrCreate([]);
 
             if ($companion->skills()->where('name', $skill)->doesntExist()) {
                 throw CompanionEconomyException::skillNotLearned($node, $skill);
+            }
+
+            // The skill first, then the tool. A node whose skill has not been
+            // bought is a node whose tool is not yet the problem, and refusing
+            // for the further of the two reasons would send the reader past
+            // the nearer one.
+            //
+            // Absent is "needs none": every node F1 authored has no tool key
+            // and must go on behaving exactly as it always has.
+            if ($tool !== '' && $companion->items()->where('item', $tool)->doesntExist()) {
+                throw CompanionEconomyException::toolNotHeld($node, $tool);
             }
 
             $standing = $companion->nodes()->where('node', $node)->first();
