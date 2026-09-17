@@ -226,9 +226,67 @@ final readonly class CompanionBag
     }
 
     /**
-     * Recipes whose ingredients Blob has met, whether or not it is carrying
-     * them yet. Met, not held: the point of a recipe is to tell you what the
-     * thing in front of you is for.
+     * Every item whose existence Blob can account for.
+     *
+     * Seeded from the materials met nodes yield, then grown: an item is
+     * knowable if it is one of those, or if it is a recipe every one of whose
+     * ingredients is already knowable. Without the second half, nothing built
+     * from something built could ever be listed — an axe made from rope would
+     * be invisible for as long as rope is a thing you make rather than a thing
+     * you find.
+     *
+     * A FIXED POINT RATHER THAN RECURSION, and that is the whole reason this is
+     * shaped the way it is. `config` is authored data; an authored `a -> b -> a`
+     * pair would send a recursive resolver into a loop on an ordinary page
+     * load. Each pass adds whatever became reachable and the loop stops when a
+     * pass adds nothing, which is at most one pass per catalogue entry.
+     *
+     * @param  list<string>  $met
+     * @return list<string>
+     */
+    private function knowable(array $met): array
+    {
+        /** @var array<string, array<string, mixed>> $catalogue */
+        $catalogue = (array) config('companion.bag', []);
+
+        /** @var array<string, array<string, mixed>> $nodes */
+        $nodes = (array) config('companion.nodes', []);
+
+        $known = [];
+
+        foreach ($met as $node) {
+            if (isset($nodes[$node]['yields'])) {
+                $known[(string) $nodes[$node]['yields']] = true;
+            }
+        }
+
+        do {
+            $added = false;
+
+            foreach ($catalogue as $name => $item) {
+                if (isset($known[$name])) {
+                    continue;
+                }
+
+                /** @var array<string, int> $recipe */
+                $recipe = (array) ($item['recipe'] ?? []);
+
+                if ($recipe === [] || array_diff(array_keys($recipe), array_keys($known)) !== []) {
+                    continue;
+                }
+
+                $known[$name] = true;
+                $added = true;
+            }
+        } while ($added);
+
+        return array_keys($known);
+    }
+
+    /**
+     * Recipes Blob can account for, whether or not it is carrying the
+     * ingredients yet. Knowable, not held: the point of a recipe is to tell you
+     * what the thing in front of you is for.
      *
      * @param  list<string>  $met
      * @param  Collection<string, CompanionItem>  $held
@@ -239,16 +297,7 @@ final readonly class CompanionBag
         /** @var array<string, array<string, mixed>> $catalogue */
         $catalogue = (array) config('companion.bag', []);
 
-        /** @var array<string, array<string, mixed>> $nodes */
-        $nodes = (array) config('companion.nodes', []);
-
-        $metMaterials = [];
-
-        foreach ($met as $node) {
-            if (isset($nodes[$node]['yields'])) {
-                $metMaterials[] = (string) $nodes[$node]['yields'];
-            }
-        }
+        $knowable = $this->knowable($met);
 
         $listed = [];
 
@@ -256,15 +305,7 @@ final readonly class CompanionBag
             /** @var array<string, int> $recipe */
             $recipe = (array) ($item['recipe'] ?? []);
 
-            if ($recipe === []) {
-                continue;
-            }
-
-            // Every ingredient has to be something Blob has met. A recipe half
-            // in the dark would name a material the user has no way to place.
-            $knowable = array_diff(array_keys($recipe), $metMaterials) === [];
-
-            if (! $knowable) {
+            if ($recipe === [] || ! in_array($name, $knowable, true)) {
                 continue;
             }
 

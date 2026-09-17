@@ -311,4 +311,88 @@ class CompanionBagTest extends TestCase
         $this->assertSame([false, false], array_column($bag['nodes'], 'met'));
         $this->assertSame([0, 0], array_column($bag['nodes'], 'available'));
     }
+
+    /**
+     * An ingredient does not have to come out of the ground. A recipe whose
+     * ingredients are themselves knowable recipes is knowable too — otherwise
+     * nothing built from something built could ever be listed, however much of
+     * it Blob is carrying.
+     */
+    public function test_a_recipe_made_of_built_things_is_knowable(): void
+    {
+        config()->set('companion.bag.rope', [
+            'category' => 'consumable',
+            'label' => 'rope',
+            'recipe' => ['fibre' => 3],
+        ]);
+        config()->set('companion.bag.axe', [
+            'category' => 'tool',
+            'label' => 'axe',
+            'recipe' => ['deadfall' => 2, 'rope' => 1],
+        ]);
+
+        $user = User::factory()->create();
+        app(MeetNode::class)->handle($user, 'reeds');
+        app(MeetNode::class)->handle($user, 'deadfall');
+
+        $listed = array_column($this->bag($user)['recipes'], 'item');
+
+        // rope from fibre, and the axe from deadfall and that rope.
+        $this->assertContains('rope', $listed);
+        $this->assertContains('axe', $listed);
+    }
+
+    /** The chain still has to bottom out in something Blob has actually met. */
+    public function test_a_recipe_whose_chain_never_reaches_a_met_node_is_absent(): void
+    {
+        config()->set('companion.bag.rope', [
+            'category' => 'consumable',
+            'label' => 'rope',
+            'recipe' => ['fibre' => 3],
+        ]);
+        config()->set('companion.bag.axe', [
+            'category' => 'tool',
+            'label' => 'axe',
+            'recipe' => ['deadfall' => 2, 'rope' => 1],
+        ]);
+
+        $user = User::factory()->create();
+
+        // The reeds only. Rope is reachable; the axe needs deadfall, which
+        // Blob has never seen.
+        app(MeetNode::class)->handle($user, 'reeds');
+
+        $listed = array_column($this->bag($user)['recipes'], 'item');
+
+        $this->assertContains('rope', $listed);
+        $this->assertNotContains('axe', $listed);
+    }
+
+    /**
+     * Config is authored data, and an authored cycle would recurse forever on
+     * an ordinary page load. Resolving by fixed point rather than by recursion
+     * is what makes this terminate; this is the test that says so.
+     */
+    public function test_an_authored_recipe_cycle_terminates(): void
+    {
+        config()->set('companion.bag.knot', [
+            'category' => 'consumable',
+            'label' => 'knot',
+            'recipe' => ['loop' => 1],
+        ]);
+        config()->set('companion.bag.loop', [
+            'category' => 'consumable',
+            'label' => 'loop',
+            'recipe' => ['knot' => 1],
+        ]);
+
+        $user = User::factory()->create();
+        app(MeetNode::class)->handle($user, 'reeds');
+
+        $listed = array_column($this->bag($user)['recipes'], 'item');
+
+        // Neither is reachable from a met node, and asking took finite time.
+        $this->assertNotContains('knot', $listed);
+        $this->assertNotContains('loop', $listed);
+    }
 }
