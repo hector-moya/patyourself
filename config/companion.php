@@ -441,11 +441,17 @@ return [
     | unlocks. F1 ships two; F2 widens this without touching any of the code
     | that reads it.
     |
+    | Sawing is a recipe rather than a node, and a recipe never gates on a
+    | skill — hands have never needed permission, they need the right thing in
+    | them. So F2 adds one skill, not two. Pacing has never come from XP
+    | breadth; it comes from the world, which now accrues across three nodes.
+    |
     */
 
     'skills' => [
         'gather-fibre' => ['price' => 20, 'node' => 'reeds', 'label' => 'gather fibre'],
         'gather-wood' => ['price' => 20, 'node' => 'deadfall', 'label' => 'gather wood'],
+        'chop-wood' => ['price' => 20, 'node' => 'trunk', 'label' => 'chop wood'],
     ],
 
     /*
@@ -473,6 +479,10 @@ return [
     | `full` is what happens when there is nowhere to put what it picked up;
     | it names where the thing stays, because nothing is ever destroyed.
     |
+    | `blunt` is the fifth line and the only one a node without a `tool` key
+    | does not need: it is what Blob does at a node it has the record's
+    | permission for and not the thing in hand.
+    |
     */
 
     'nodes' => [
@@ -493,6 +503,25 @@ return [
             'took' => '{name} drags back {count} deadfall.',
             'empty' => '{name} checks under the tree. Nothing has come down since.',
             'full' => 'There is nowhere to put it. The branches stay under the tree.',
+        ],
+        'trunk' => [
+            'skill' => 'chop-wood',
+            // The second gate. A node may ask for a thing in hand as well as
+            // for the record's permission, and this is the one place in the
+            // feature where the two economic layers meet on one gesture.
+            'tool' => 'axe',
+            'yields' => 'timber',
+            'label' => 'the fallen trunk',
+            'met' => '{name} climbs onto the fallen trunk and sits there a while.',
+            // Said when the skill is known and the tool is not held. It
+            // describes what {name} is carrying and never names what to go and
+            // build: the pile of deadfall and the recipe already in the bag
+            // are the inference, and the app doing the saying is the one thing
+            // this feature refuses.
+            'blunt' => '{name} looks at the trunk. Nothing it is carrying will bite into it.',
+            'took' => '{name} drags back {count} timber.',
+            'empty' => '{name} checks the trunk. There is nothing loose on it.',
+            'full' => 'There is nowhere to put it. The timber stays by the trunk.',
         ],
     ],
 
@@ -517,11 +546,33 @@ return [
     | Building needs no skill: assembling by hand is what hands are for, and it
     | keeps F1 at two skills.
     |
+    | `timber`, not `logs`. `logs` already means something two hundred lines up
+    | — `'trigger' => 'logs'`, and `logCount` and `logMoments()` beyond this
+    | file. A material by that name would sit here meaning something else
+    | entirely, and every future grep for either would find both.
+    |
+    | A `tool` is on the belt: it is not in `capacity.carried`, so it never
+    | occupies the room it lets you use. A tool is permanent, and a permanent
+    | thing in a slot would be a permanent tax — gaining the axe would shrink
+    | the bag forever, which is regression in everything but name.
+    |
     */
 
     'bag' => [
         'fibre' => ['category' => 'material', 'label' => 'fibre'],
         'deadfall' => ['category' => 'material', 'label' => 'deadfall'],
+        'timber' => ['category' => 'material', 'label' => 'timber'],
+
+        'rope' => [
+            'category' => 'consumable',
+            'label' => 'rope',
+            'recipe' => ['fibre' => 3],
+        ],
+        'axe' => [
+            'category' => 'tool',
+            'label' => 'axe',
+            'recipe' => ['deadfall' => 2, 'rope' => 1],
+        ],
 
         'basket' => [
             'category' => 'container',

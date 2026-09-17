@@ -100,9 +100,9 @@ class CompanionBagTest extends TestCase
         // visible in the scene from the start, unmet and unusable. A node
         // standing in the clearing is a thing that is there, not a preview of
         // something you have not done.
-        $this->assertSame(['reeds', 'deadfall'], array_column($bag['nodes'], 'node'));
-        $this->assertSame([false, false], array_column($bag['nodes'], 'met'));
-        $this->assertSame([0, 0], array_column($bag['nodes'], 'available'));
+        $this->assertSame(['reeds', 'deadfall', 'trunk'], array_column($bag['nodes'], 'node'));
+        $this->assertSame([false, false, false], array_column($bag['nodes'], 'met'));
+        $this->assertSame([0, 0, 0], array_column($bag['nodes'], 'available'));
 
         // And no row was written just by looking.
         $this->assertDatabaseCount('companions', 0);
@@ -217,6 +217,14 @@ class CompanionBagTest extends TestCase
                 'met' => false,
                 'known' => false,
             ],
+            [
+                'node' => 'trunk',
+                'label' => 'the fallen trunk',
+                'available' => 0,
+                'skill' => 'chop-wood',
+                'met' => false,
+                'known' => false,
+            ],
         ], $bag['nodes']);
     }
 
@@ -267,12 +275,22 @@ class CompanionBagTest extends TestCase
 
         $bag = $this->bag($user);
 
-        $this->assertSame([[
-            'item' => 'basket',
-            'label' => 'basket',
-            'recipe' => ['fibre' => 4],
-            'buildable' => false,
-        ]], $bag['recipes']);
+        $this->assertSame([
+            // Rope is made of fibre too, and nothing gates it: no node needs a
+            // rope to be worked, so it is knowable the moment fibre is.
+            [
+                'item' => 'rope',
+                'label' => 'rope',
+                'recipe' => ['fibre' => 3],
+                'buildable' => false,
+            ],
+            [
+                'item' => 'basket',
+                'label' => 'basket',
+                'recipe' => ['fibre' => 4],
+                'buildable' => false,
+            ],
+        ], $bag['recipes']);
     }
 
     /** `buildable` flips when the materials are actually there. */
@@ -343,8 +361,8 @@ class CompanionBagTest extends TestCase
         $this->assertSame([], $bag['items']);
         $this->assertSame([], $bag['skills']);
         // The world is everyone's; what has been done to it is not.
-        $this->assertSame([false, false], array_column($bag['nodes'], 'met'));
-        $this->assertSame([0, 0], array_column($bag['nodes'], 'available'));
+        $this->assertSame([false, false, false], array_column($bag['nodes'], 'met'));
+        $this->assertSame([0, 0, 0], array_column($bag['nodes'], 'available'));
     }
 
     /**
@@ -369,6 +387,9 @@ class CompanionBagTest extends TestCase
         $user = User::factory()->create();
         app(MeetNode::class)->handle($user, 'reeds');
         app(MeetNode::class)->handle($user, 'deadfall');
+        // The axe is the trunk's tool now, so being knowable is no longer
+        // enough on its own — it also waits for the thing it is for.
+        app(MeetNode::class)->handle($user, 'trunk');
 
         $listed = array_column($this->bag($user)['recipes'], 'item');
 
@@ -443,16 +464,15 @@ class CompanionBagTest extends TestCase
      */
     public function test_a_recipe_authored_before_its_ingredient_still_resolves(): void
     {
-        // Deliberately reversed: the dependent first, then what it depends on.
-        config()->set('companion.bag.torch', [
-            'category' => 'tool',
-            'label' => 'torch',
-            'recipe' => ['rope' => 1],
-        ]);
-        config()->set('companion.bag.rope', [
-            'category' => 'consumable',
-            'label' => 'rope',
-            'recipe' => ['fibre' => 3],
+        // The whole catalogue, not two keys set into the live one. `config()->set`
+        // replaces an existing key IN PLACE and appends only new ones, so once
+        // `rope` is real content it sits ahead of `torch` and the adversarial
+        // ordering this test exists for quietly disappears. An ordering test
+        // whose order depends on the rest of the game is not an ordering test.
+        config()->set('companion.bag', [
+            'fibre' => ['category' => 'material', 'label' => 'fibre'],
+            'torch' => ['category' => 'tool', 'label' => 'torch', 'recipe' => ['rope' => 1]],
+            'rope' => ['category' => 'consumable', 'label' => 'rope', 'recipe' => ['fibre' => 3]],
         ]);
 
         $user = User::factory()->create();

@@ -105,30 +105,65 @@ class CompanionContentTest extends TestCase
     }
 
     /**
-     * The fork is real on day one: each of F1's two materials builds exactly one
-     * container, so the first 20 xp spent decides which one is standing in the
-     * clearing and the other is not. (F1 §1)
+     * F1's fork, kept and named.
+     *
+     * This was written as "each material builds exactly one container", which
+     * was true of F1 and was never a law — it was F1 §1's claim that the fork
+     * is real on day one, expressed as a test. F2 breaks the general form
+     * truthfully: timber builds a tool and a material and no container at all.
+     * The claim worth keeping is the specific one.
      */
-    public function test_each_material_builds_exactly_one_container(): void
+    public function test_the_first_fork_is_still_real_on_day_one(): void
     {
         $config = $this->config();
 
-        $materials = array_keys(array_filter(
-            $config['bag'],
-            static fn (array $item): bool => $item['category'] === 'material',
-        ));
-
-        $this->assertNotEmpty($materials);
-
-        foreach ($materials as $material) {
-            $built = array_filter(
+        foreach (['fibre' => 'basket', 'deadfall' => 'barrow'] as $material => $expected) {
+            $built = array_keys(array_filter(
                 $config['bag'],
                 static fn (array $item): bool => $item['category'] === 'container'
                     && array_key_exists($material, $item['recipe'] ?? []),
-            );
+            ));
 
-            $this->assertCount(1, $built, "{$material} should build exactly one container");
+            $this->assertSame([$expected], $built, "{$material} should build exactly {$expected}");
         }
+    }
+
+    /**
+     * Every tool a node or a recipe asks for is a thing that exists, is
+     * categorised as a tool, and can actually be built. A tool named but not
+     * buildable is a gate with no key.
+     */
+    public function test_every_tool_asked_for_exists_and_can_be_built(): void
+    {
+        $config = $this->config();
+
+        $asked = [];
+
+        foreach ($config['nodes'] as $name => $node) {
+            if (isset($node['tool'])) {
+                $asked[$node['tool']] = "node {$name}";
+            }
+        }
+
+        foreach ($config['bag'] as $name => $item) {
+            if (isset($item['tool'])) {
+                $asked[$item['tool']] = "recipe {$name}";
+            }
+        }
+
+        $this->assertNotEmpty($asked);
+
+        foreach ($asked as $tool => $who) {
+            $this->assertArrayHasKey($tool, $config['bag'], "{$who} needs a tool that does not exist");
+            $this->assertSame('tool', $config['bag'][$tool]['category'], "{$who} needs something that is not a tool");
+            $this->assertNotEmpty($config['bag'][$tool]['recipe'] ?? [], "[{$tool}] is a gate with no key");
+        }
+    }
+
+    /** A tool is on the belt. It never occupies the room it lets you use. */
+    public function test_a_tool_is_never_a_carried_category(): void
+    {
+        $this->assertNotContains('tool', $this->config()['capacity']['carried']);
     }
 
     public function test_every_container_raises_capacity(): void
@@ -189,10 +224,25 @@ class CompanionContentTest extends TestCase
     public function test_a_nodes_copy_follows_the_same_rules_as_the_ladders(): void
     {
         foreach ($this->config()['nodes'] as $name => $node) {
-            foreach (['met', 'full'] as $line) {
+            foreach (['met', 'blunt', 'full'] as $line) {
+                if ($line === 'blunt' && ! array_key_exists($line, $node)) {
+                    // Only a node that asks for a tool has a blunt line.
+                    continue;
+                }
+
                 $this->assertArrayHasKey($line, $node, "{$name} has no {$line} line");
                 $this->assertStringNotContainsString('!', $node[$line], "{$name}.{$line} exclaims");
                 $this->assertStringNotContainsString('Blob', $node[$line], "{$name}.{$line} hardcodes the name");
+            }
+
+            if (isset($node['tool'])) {
+                $this->assertArrayHasKey('blunt', $node, "{$name} asks for a tool and says nothing about it");
+                $this->assertStringContainsString('{name}', $node['blunt'], "{$name}.blunt never names the companion");
+                $this->assertStringNotContainsString(
+                    $node['tool'],
+                    $node['blunt'],
+                    "{$name}.blunt names the tool, which is the app stating a plan",
+                );
             }
 
             $this->assertStringContainsString('{name}', $node['met'], "{$name}.met never names the companion");
