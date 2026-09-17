@@ -242,4 +242,52 @@ class BuildItemTest extends TestCase
             $this->assertStringNotContainsString('fibre', $exception->getMessage());
         }
     }
+
+    /** One timber, three planks. The count is config's to say. */
+    public function test_a_recipe_can_make_more_than_one(): void
+    {
+        config()->set('companion.bag.planks', [
+            'category' => 'material',
+            'label' => 'planks',
+            'recipe' => ['fibre' => 1],
+            'makes' => 3,
+        ]);
+
+        [$user, $companion] = $this->carrying(['fibre' => 2]);
+
+        app(BuildItem::class)->handle($user, 'planks');
+
+        $this->assertSame(3, $this->held($companion, 'planks'));
+        $this->assertSame(1, $this->held($companion, 'fibre'));
+    }
+
+    /** Building the same thing twice stacks what it makes. */
+    public function test_making_several_twice_stacks_them(): void
+    {
+        config()->set('companion.bag.planks', [
+            'category' => 'material',
+            'label' => 'planks',
+            'recipe' => ['fibre' => 1],
+            'makes' => 3,
+        ]);
+        config()->set('companion.capacity.base', 20);
+
+        [$user, $companion] = $this->carrying(['fibre' => 2]);
+
+        app(BuildItem::class)->handle($user, 'planks');
+        app(BuildItem::class)->handle($user, 'planks');
+
+        $this->assertSame(6, $this->held($companion, 'planks'));
+        $this->assertSame(1, $companion->items()->where('item', 'planks')->count());
+    }
+
+    /** A recipe that does not say makes one, exactly as every F1 recipe does. */
+    public function test_a_recipe_with_no_count_makes_one(): void
+    {
+        [$user, $companion] = $this->carrying(['fibre' => 4]);
+
+        app(BuildItem::class)->handle($user, 'basket');
+
+        $this->assertSame(1, $this->held($companion, 'basket'));
+    }
 }

@@ -54,7 +54,15 @@ final readonly class BuildItem
 
         $tool = (string) ($catalogue[$item]['tool'] ?? '');
 
-        return DB::transaction(function () use ($user, $item, $recipe, $tool): CompanionItem {
+        // `makes`, not `yields`: `nodes.*.yields` already holds the NAME of a
+        // material, and the same word holding a count in the adjacent config
+        // block would be two types under one name.
+        //
+        // Floored at one: a recipe that makes nothing is a config mistake, and
+        // silently making nothing is worse than making the default.
+        $makes = max(1, (int) ($catalogue[$item]['makes'] ?? 1));
+
+        return DB::transaction(function () use ($user, $item, $recipe, $tool, $makes): CompanionItem {
             /** @var Companion $companion */
             $companion = $user->companion()->firstOrCreate([]);
 
@@ -103,7 +111,7 @@ final readonly class BuildItem
 
             $built = $companion->items()->firstOrCreate(['item' => $item], ['quantity' => 0]);
 
-            $built->increment('quantity');
+            $built->increment('quantity', $makes);
 
             return $built;
         });
