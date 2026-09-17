@@ -211,7 +211,7 @@ class CompanionContentTest extends TestCase
     }
 
     /**
-     * A node's two lines are shown to the user, so they follow the same copy
+     * A node's five lines are shown to the user, so they follow the same copy
      * rules as the ladder's: they describe Blob, they never congratulate, and
      * they carry no exclamation mark.
      *
@@ -279,5 +279,49 @@ class CompanionContentTest extends TestCase
         rsort($sorted);
 
         $this->assertSame($sorted, $taper);
+    }
+
+    /**
+     * No material is a dead end.
+     *
+     * This is what replaces the general form of the old container rule. A
+     * material or consumable nothing consumes is content that leads nowhere,
+     * and it is the property worth holding across every later phase — unlike
+     * "exactly one container", which was only ever true of F1.
+     *
+     * Tools and containers are terminal on purpose: they are what the chain is
+     * FOR.
+     */
+    public function test_no_material_is_a_dead_end(): void
+    {
+        $config = $this->config();
+
+        $consumed = [];
+
+        foreach ($config['bag'] as $item) {
+            foreach (array_keys($item['recipe'] ?? []) as $ingredient) {
+                $consumed[$ingredient] = true;
+            }
+        }
+
+        foreach ($config['bag'] as $name => $item) {
+            if (! in_array($item['category'], ['material', 'consumable'], true)) {
+                continue;
+            }
+
+            $this->assertArrayHasKey($name, $consumed, "[{$name}] is carried and nothing is made from it");
+        }
+    }
+
+    /** A recipe that makes several says so with a count above one. */
+    public function test_a_stated_count_is_a_real_count(): void
+    {
+        foreach ($this->config()['bag'] as $name => $item) {
+            if (! array_key_exists('makes', $item)) {
+                continue;
+            }
+
+            $this->assertGreaterThan(1, $item['makes'], "[{$name}] states a count of one, which is the default");
+        }
     }
 }

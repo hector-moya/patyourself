@@ -573,6 +573,27 @@ return [
             'label' => 'axe',
             'recipe' => ['deadfall' => 2, 'rope' => 1],
         ],
+        'handsaw' => [
+            'category' => 'tool',
+            'label' => 'handsaw',
+            'recipe' => ['timber' => 2, 'rope' => 1],
+        ],
+        'planks' => [
+            'category' => 'material',
+            'label' => 'planks',
+            // The recipe gate. Sawing is hands-work, so it asks for nothing
+            // the record has to grant — only for the thing that does the
+            // sawing.
+            'tool' => 'handsaw',
+            'recipe' => ['timber' => 1],
+            'makes' => 3,
+        ],
+        'crate' => [
+            'category' => 'container',
+            'label' => 'crate',
+            'recipe' => ['planks' => 4],
+            'capacity' => 5,
+        ],
 
         'basket' => [
             'category' => 'container',
