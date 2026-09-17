@@ -326,4 +326,83 @@ class CompanionClearingTest extends TestCase
             ->post(route('companion.build.store'), ['item' => 'fibre'])
             ->assertSessionHasErrors('item');
     }
+
+    /** The skill is bought and the tool is not, which is the third case. */
+    private function blunted(): array
+    {
+        config()->set('companion.nodes.reeds.tool', 'axe');
+        config()->set(
+            'companion.nodes.reeds.blunt',
+            '{name} looks at the reeds. Nothing it is carrying will cut them.',
+        );
+
+        $user = $this->richUser();
+        $companion = $user->companion()->firstOrCreate([]);
+
+        $companion->skills()->create(['name' => 'gather-fibre', 'learned_at' => now()]);
+        $companion->nodes()->create(['node' => 'reeds', 'available' => 4]);
+
+        return [$user, $companion];
+    }
+
+    /**
+     * A node that needs a tool Blob has not built says so in Blob's own voice,
+     * and never as a full bag — which is what the broad catch in `gather()`
+     * would otherwise announce.
+     *
+     * The line describes what Blob is carrying. It never names the thing the
+     * user should go and build: that is the app stating a plan rather than
+     * leaving an inference, which is the one thing BLOB.md forbids outright.
+     */
+    public function test_a_node_that_needs_a_tool_says_so_rather_than_saying_the_bag_is_full(): void
+    {
+        [$user, $companion] = $this->blunted();
+
+        $this->touch($user, 'reeds')->assertRedirect();
+
+        $this->actingAs($user)
+            ->get(route('companion'))
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('said', 'Blob looks at the reeds. Nothing it is carrying will cut them.')
+                // Nothing was revealed, so nothing opens. A refusal at a node
+                // Blob has already met is not a discovery.
+                ->where('revealed', false),
+            );
+
+        // And nothing moved, in either direction.
+        $this->assertSame(4, (int) $companion->nodes()->where('node', 'reeds')->value('available'));
+        $this->assertSame(0, $companion->items()->count());
+    }
+
+    /** A renamed companion is named in the refusal too. */
+    public function test_the_tool_refusal_carries_the_companions_name(): void
+    {
+        [$user, $companion] = $this->blunted();
+
+        $companion->update(['name' => 'Pebble']);
+
+        $this->touch($user, 'reeds');
+
+        $this->actingAs($user)
+            ->get(route('companion'))
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('said', 'Pebble looks at the reeds. Nothing it is carrying will cut them.'),
+            );
+    }
+
+    /** With the axe in the bag, the same click gathers. */
+    public function test_the_same_click_gathers_once_the_tool_is_held(): void
+    {
+        [$user, $companion] = $this->blunted();
+
+        $companion->items()->create(['item' => 'axe', 'quantity' => 1]);
+
+        $this->touch($user, 'reeds');
+
+        $this->actingAs($user)
+            ->get(route('companion'))
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('said', 'Blob comes back with 4 fibre.'),
+            );
+    }
 }

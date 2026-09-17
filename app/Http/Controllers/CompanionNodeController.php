@@ -27,6 +27,11 @@ use Symfony\Component\HttpFoundation\Response as Status;
  * WITH THE SKILL, Blob gathers what it can carry. The remainder stays standing;
  * nothing is ever destroyed.
  *
+ * WITH THE SKILL BUT WITHOUT THE TOOL, Blob looks and leaves it. Nothing is
+ * revealed — the skill list already has the row and the bag already has the
+ * recipe — so nothing opens, and the line says what Blob is carrying rather
+ * than what the reader should go and build.
+ *
  * Every outcome here is an ordinary state of the world rather than an error. A
  * full bag is a reason to build the next container, an empty node is a fact
  * about the clearing, and both come back as a line in Blob's own voice.
@@ -45,6 +50,20 @@ class CompanionNodeController extends Controller
         $name = Companion::nameFor($user);
 
         if ($this->hasSkill($user, (string) $entry['skill'])) {
+            $tool = (string) ($entry['tool'] ?? '');
+
+            // Checked here as well as in HarvestNode, for the same reason the
+            // skill is: the action's throw is the guarantee, and this is the
+            // copy. Letting the action throw and catching it in `gather()`
+            // would announce a full bag, which is a true sentence about the
+            // wrong thing.
+            if ($tool !== '' && ! $this->hasTool($user, $tool)) {
+                return back()->with(
+                    CompanionController::SAID_KEY,
+                    $this->say($entry['blunt'] ?? '', $name),
+                );
+            }
+
             return $this->gather($user, $node, $entry, $name);
         }
 
@@ -85,6 +104,14 @@ class CompanionNodeController extends Controller
         return Companion::query()
             ->where('user_id', $user->id)
             ->whereHas('skills', fn ($query) => $query->where('name', $skill))
+            ->exists();
+    }
+
+    private function hasTool(User $user, string $tool): bool
+    {
+        return Companion::query()
+            ->where('user_id', $user->id)
+            ->whereHas('items', fn ($query) => $query->where('item', $tool))
             ->exists();
     }
 
