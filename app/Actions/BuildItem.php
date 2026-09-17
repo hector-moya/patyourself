@@ -17,8 +17,13 @@ use InvalidArgumentException;
  * lets this feature have a consumption mechanic at all without breaking the
  * rule that nothing about Blob ever regresses.
  *
- * Building needs no skill. Assembling by hand is what hands are for, and it is
- * what keeps F1 at two skills rather than four.
+ * Building needs no skill, and it never will. Assembling by hand is what hands
+ * are for — but a hand may need the right thing in it, which is why a recipe
+ * can name a `tool`. That is the whole of F2's rule from this side: a node
+ * gates on skill and tool, a recipe gates on tool alone.
+ *
+ * A tool is USED, never used up. It is not an ingredient and nothing consumes
+ * it; the check is that it is held, and the bag is unchanged by it afterwards.
  *
  * A shortfall names EVERYTHING that is missing rather than the first thing, so
  * a recipe short on two ingredients takes one look rather than two attempts.
@@ -28,7 +33,8 @@ final readonly class BuildItem
     /**
      * @throws InvalidArgumentException when no such item is authored, or it has
      *                                  no recipe and so is not a thing to build.
-     * @throws CompanionEconomyException when the materials are short.
+     * @throws CompanionEconomyException when the tool is not held or the
+     *                                   materials are short.
      */
     public function handle(User $user, string $item): CompanionItem
     {
@@ -46,9 +52,19 @@ final readonly class BuildItem
             throw new InvalidArgumentException("[{$item}] has no recipe; it is gathered, not built.");
         }
 
-        return DB::transaction(function () use ($user, $item, $recipe): CompanionItem {
+        $tool = (string) ($catalogue[$item]['tool'] ?? '');
+
+        return DB::transaction(function () use ($user, $item, $recipe, $tool): CompanionItem {
             /** @var Companion $companion */
             $companion = $user->companion()->firstOrCreate([]);
+
+            // A recipe gates on a tool and NEVER on a skill: assembling by hand
+            // is what hands are for, and what a hand needs is the right thing
+            // in it. Checked before the materials because the tool is the
+            // harder of the two to come by.
+            if ($tool !== '' && $companion->items()->where('item', $tool)->doesntExist()) {
+                throw CompanionEconomyException::toolNotHeld($item, $tool);
+            }
 
             $stacks = $companion->items()
                 ->whereIn('item', array_keys($recipe))

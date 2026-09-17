@@ -183,4 +183,63 @@ class BuildItemTest extends TestCase
         $this->assertSame(4, $this->held($companion, 'fibre'));
         $this->assertSame(0, $companion->items()->where('item', 'basket')->count());
     }
+
+    /**
+     * The second half of F2's rule: a recipe may ask for a tool. It never asks
+     * for a skill — see test_building_needs_no_skill, which stays exactly as
+     * it is, because the basket still needs none.
+     */
+    public function test_a_recipe_that_needs_a_tool_refuses_without_it(): void
+    {
+        config()->set('companion.bag.basket.tool', 'handsaw');
+
+        [$user, $companion] = $this->carrying(['fibre' => 4]);
+
+        try {
+            app(BuildItem::class)->handle($user, 'basket');
+
+            $this->fail('Building without the tool should have been refused.');
+        } catch (CompanionEconomyException $exception) {
+            $this->assertStringContainsString('handsaw', $exception->getMessage());
+        }
+
+        // Materials transform; they are never taken. A refusal takes nothing.
+        $this->assertSame(4, $this->held($companion, 'fibre'));
+        $this->assertSame(0, $companion->items()->where('item', 'basket')->count());
+    }
+
+    /** With the tool held, the recipe builds as it always did. */
+    public function test_a_recipe_that_needs_a_tool_builds_once_it_is_held(): void
+    {
+        config()->set('companion.bag.basket.tool', 'handsaw');
+
+        [$user, $companion] = $this->carrying(['fibre' => 4, 'handsaw' => 1]);
+
+        app(BuildItem::class)->handle($user, 'basket');
+
+        $this->assertSame(1, $this->held($companion, 'basket'));
+        // The tool is used, never used UP. Nothing here wears out.
+        $this->assertSame(1, $this->held($companion, 'handsaw'));
+    }
+
+    /**
+     * The tool is named before the materials. It is the harder of the two to
+     * come by, and naming the nearer obstacle first would send the reader back
+     * for fibre they still could not use.
+     */
+    public function test_the_tool_is_named_before_the_shortfall(): void
+    {
+        config()->set('companion.bag.basket.tool', 'handsaw');
+
+        [$user] = $this->carrying(['fibre' => 1]);
+
+        try {
+            app(BuildItem::class)->handle($user, 'basket');
+
+            $this->fail('Building should have been refused.');
+        } catch (CompanionEconomyException $exception) {
+            $this->assertStringContainsString('handsaw', $exception->getMessage());
+            $this->assertStringNotContainsString('fibre', $exception->getMessage());
+        }
+    }
 }
