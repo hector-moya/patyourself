@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Fortify\Contracts\PasskeyUser;
@@ -108,5 +109,20 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
     public function companionRemarks(): HasMany
     {
         return $this->hasMany(CompanionRemark::class);
+    }
+
+    /**
+     * The part of Blob that is chosen rather than derived — the name, and what
+     * has been spent.
+     *
+     * Absent until the first choice is made, and created lazily on first need
+     * rather than backfilled. Everything the record can say about Blob stays
+     * derived; see {@see Companion}.
+     *
+     * @return HasOne<Companion, $this>
+     */
+    public function companion(): HasOne
+    {
+        return $this->hasOne(Companion::class);
     }
 }
