@@ -16,9 +16,9 @@ use Illuminate\Support\Collection;
  * {@see CompanionState} exists for the gift track.
  *
  * WHAT IS ABSENT HERE IS THE DESIGN. There is no count of skills that exist, no
- * count of nodes that exist, no percentage and no "next". The payload is where
- * a total would first appear — before any pixel is drawn — so the shape itself
- * is guarded by CompanionBagTest, not just the rendering.
+ * count of nodes that exist, no share of a whole and no "next". The payload is
+ * where a total would first appear — before any pixel is drawn — so the shape
+ * itself is guarded by CompanionBagTest, not just the rendering.
  *
  * Two lists are filtered by what Blob has MET rather than by what is authored:
  *

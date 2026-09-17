@@ -33,6 +33,22 @@ class CompanionVocabularyTest extends TestCase
             $root.'/app/Services/Companion/CompanionState.php',
             $root.'/app/Services/Companion/CompanionAnnouncement.php',
             $root.'/app/Services/Companion/CompanionRemarks.php',
+            // The economy behind the bag. Scanned by nothing until F2, which
+            // is exactly the gap BLOB.md warns about: a companion source file
+            // absent from this list is one no rule applies to, and this
+            // project has been bitten by that before.
+            $root.'/app/Services/Companion/CompanionBag.php',
+            $root.'/app/Services/Companion/CompanionWallet.php',
+            $root.'/app/Services/Companion/CompanionEconomyException.php',
+            $root.'/app/Actions/LearnSkill.php',
+            $root.'/app/Actions/MeetNode.php',
+            $root.'/app/Actions/HarvestNode.php',
+            $root.'/app/Actions/BuildItem.php',
+            $root.'/app/Listeners/StockCompanionNodes.php',
+            $root.'/app/Http/Controllers/CompanionNodeController.php',
+            $root.'/app/Http/Controllers/CompanionSkillController.php',
+            $root.'/app/Http/Controllers/CompanionBuildController.php',
+            $root.'/app/Http/Controllers/CompanionNameController.php',
             $root.'/app/Services/Workflows/WorkflowRegistry.php',
             $root.'/app/Services/Workflows/WorkflowDefinition.php',
             $root.'/app/Services/Workflows/MaterialisesOccasion.php',
