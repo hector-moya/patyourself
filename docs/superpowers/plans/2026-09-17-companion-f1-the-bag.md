@@ -183,9 +183,9 @@ The bag panel's contents, which the mockup must show because they are what the g
 
 Nothing in that panel names how many skills exist, how many are unbought, or how far along anything is.
 
-- [ ] **Step 3: Show it and stop**
+- [x] **Step 3: Show it and stop**
 
-Publish the mockup and put the recommendation in the batch report. Tasks 14–19 do not start until this is answered.
+Published 17 Sep 2026: <https://claude.ai/code/artifact/02cc1e73-548c-4f96-a4bd-f4ce568a634a> — both candidates at honest proportions, the phone stack, and the rule the bag has to pass. Tasks 14–19 do not start until this is answered.
 
 - [ ] **Step 4: Record the decision in the spec**
 
