@@ -2,10 +2,12 @@
 
 namespace Tests\Feature\Companion;
 
+use App\Actions\BuildItem;
 use App\Actions\MeetNode;
 use App\Models\ActionLog;
 use App\Models\User;
 use App\Services\Companion\CompanionBag;
+use App\Services\Companion\CompanionEconomyException;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -751,5 +753,45 @@ class CompanionBagTest extends TestCase
         $this->assertContains('handsaw', $listed);
         $this->assertContains('planks', $listed);
         $this->assertContains('crate', $listed);
+    }
+
+    /**
+     * C1: `buildable` must not promise a build BuildItem is about to refuse.
+     *
+     * `HarvestNode` fills the bag by design — it takes `min(available, room)`
+     * — so a full bag is the ordinary result of chopping the trunk, not an
+     * edge case. Here Blob holds the handsaw and exactly five timber in a
+     * five-slot bag: the tool is on the belt, the ingredient is held, so the
+     * old `buildable` (tool held AND ingredients held) said yes. But planks
+     * makes three from one timber — a net +2 — and there is no room for that.
+     * `buildable` and BuildItem are asserted together, on real shipped
+     * config, so the two can never quietly disagree again.
+     */
+    public function test_buildable_agrees_with_build_item_about_a_full_bag(): void
+    {
+        $user = User::factory()->create();
+        $companion = $user->companion()->firstOrCreate([]);
+
+        // Both nodes met: timber accounts for planks' ingredient, and rope
+        // (from fibre) plus timber accounts for the handsaw named as its
+        // tool — the same chain test_a_recipe_appears_once_its_tool_is_shown
+        // walks to get planks onto the list at all.
+        app(MeetNode::class)->handle($user, 'trunk');
+        app(MeetNode::class)->handle($user, 'reeds');
+
+        $companion->items()->create(['item' => 'handsaw', 'quantity' => 1]);
+        $companion->items()->create(['item' => 'timber', 'quantity' => 5]);
+
+        $this->assertSame(5, $companion->fresh()->load('items')->held());
+        $this->assertSame(5, $companion->fresh()->load('items')->capacity());
+
+        $planks = collect($this->bag($user)['recipes'])->firstWhere('item', 'planks');
+
+        $this->assertNotNull($planks, 'planks should stay listed even though it cannot be built right now');
+        $this->assertFalse($planks['buildable']);
+
+        $this->expectException(CompanionEconomyException::class);
+
+        app(BuildItem::class)->handle($user, 'planks');
     }
 }

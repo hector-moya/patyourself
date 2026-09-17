@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Actions\BuildItem;
+use App\Services\Companion\CompanionBag;
 use App\Services\Companion\CompanionResolver;
 use Database\Factories\CompanionFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -134,8 +136,8 @@ class Companion extends Model
      * How much of that capacity is taken up.
      *
      * Only the categories config calls carried count. A container does not
-     * occupy the space it creates, and a tool — when F2 adds one — is on the
-     * belt rather than in the bag.
+     * occupy the space it creates, and a tool is on the belt rather than in
+     * the bag.
      */
     public function held(): int
     {
@@ -162,5 +164,45 @@ class Companion extends Model
     public function room(): int
     {
         return max(0, $this->capacity() - $this->held());
+    }
+
+    /**
+     * Whether building `$item` — from `$recipe`, making `$makes` of it —
+     * would fit in what is left of the bag.
+     *
+     * `held − consumed + made ≤ capacity`, counting only the categories
+     * `companion.capacity.carried` names, on both sides — held, not
+     * consumed, because a tool named in a recipe is used and never used up.
+     *
+     * This is the exact arithmetic {@see BuildItem} enforces
+     * before it writes anything, pulled out here so a reader deciding
+     * whether a build WOULD succeed — {@see CompanionBag::recipes()} —
+     * cannot silently drift from what actually happens when it is tried.
+     * BuildItem remains the one place that refuses; this only answers the
+     * same question ahead of time.
+     *
+     * @param  array<string, int>  $recipe
+     */
+    public function wouldFit(string $item, array $recipe, int $makes): bool
+    {
+        /** @var array<string, array<string, mixed>> $catalogue */
+        $catalogue = (array) config('companion.bag', []);
+
+        /** @var list<string> $carried */
+        $carried = (array) config('companion.capacity.carried', []);
+
+        $categoryOf = static fn (string $name): string => (string) ($catalogue[$name]['category'] ?? '');
+
+        $consumed = 0;
+
+        foreach ($recipe as $ingredient => $needed) {
+            if (in_array($categoryOf($ingredient), $carried, true)) {
+                $consumed += $needed;
+            }
+        }
+
+        $made = in_array($categoryOf($item), $carried, true) ? $makes : 0;
+
+        return $this->held() - $consumed + $made <= $this->capacity();
     }
 }

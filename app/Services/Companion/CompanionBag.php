@@ -2,6 +2,7 @@
 
 namespace App\Services\Companion;
 
+use App\Actions\BuildItem;
 use App\Models\Companion;
 use App\Models\CompanionItem;
 use App\Models\CompanionNode;
@@ -90,7 +91,7 @@ final readonly class CompanionBag
             'items' => $this->items($companion),
             'nodes' => $this->nodes($companion, $met, $learned),
             'skills' => $this->skills($met, $learned, $balance),
-            'recipes' => $this->recipes($met, $held),
+            'recipes' => $this->recipes($met, $held, $companion),
         ];
     }
 
@@ -331,7 +332,7 @@ final readonly class CompanionBag
      * contains, a tool this map still withholds never enters `$known` at all,
      * so nothing built from it becomes accountable either — named as a
      * recipe's own tool, taken as a plain ingredient, or nested any number of
-     * links deeper. It rides inside the same ingredient check that already
+     * links deeper. It rides inside the same ingredient loop that already
      * gave chains their reach, rather than standing beside it.
      *
      * @param  list<string>  $met
@@ -362,11 +363,19 @@ final readonly class CompanionBag
      * ingredients yet. Knowable, not held: the point of a recipe is to tell you
      * what the thing in front of you is for.
      *
+     * `buildable` asks the same question {@see BuildItem} asks
+     * before it writes anything: the tool held, the ingredients held, AND
+     * the net effect on carried room actually fitting — `HarvestNode` fills
+     * the bag by design, so a recipe can be fully affordable and still not
+     * fit. `Companion::wouldFit()` is the one place that arithmetic lives, so
+     * this can never quietly promise a build that BuildItem is about to
+     * refuse.
+     *
      * @param  list<string>  $met
      * @param  Collection<string, CompanionItem>  $held
      * @return list<array{item: string, label: string, recipe: array<string, int>, tool: string|null, buildable: bool}>
      */
-    private function recipes(array $met, Collection $held): array
+    private function recipes(array $met, Collection $held, Companion $companion): array
     {
         /** @var array<string, array<string, mixed>> $catalogue */
         $catalogue = (array) config('companion.bag', []);
@@ -397,6 +406,16 @@ final readonly class CompanionBag
                         break;
                     }
                 }
+            }
+
+            // Held and affordable is not the same as fitting: a build whose
+            // net effect on carried room overflows the bag is still a
+            // refusal, and a full bag is the expected outcome of harvesting,
+            // not an edge case.
+            if ($buildable) {
+                $makes = max(1, (int) ($item['makes'] ?? 1));
+
+                $buildable = $companion->wouldFit($name, $recipe, $makes);
             }
 
             $listed[] = [
