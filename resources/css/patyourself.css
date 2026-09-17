@@ -1101,3 +1101,63 @@
   .c-wrap{grid-template-columns:minmax(0,1.14fr) minmax(330px,.86fr);gap:22px;align-items:start;}
   .c-said{max-width:62%;font-size:12.5px;}
 }
+
+/* ============================================================
+   COMPANION — the bag
+   ------------------------------------------------------------
+   A modal rather than a third panel: the bag is a thing you open,
+   not a thing you watch. Nothing in it changes unless you act, so
+   a permanent panel would spend a third of the screen on state
+   that is static between clicks. Its one ambient fact — how full
+   it is — rides the button instead.
+
+   Same wood as the two panels behind it, and the same refusal to
+   follow the theme. Everything here is inside the frame.
+   ============================================================ */
+
+/* The balance in the place bar. A number and nothing else: no target, no bar,
+   no "next at". A number with a ceiling is the checklist coming back in
+   through the window. */
+.c-xp{color:#FFD9A8;font-variant-numeric:tabular-nums;letter-spacing:.04em;}
+
+/* The button that opens it. The capacity rides here because it is the one fact
+   about the bag that is true whether or not you are looking. */
+.c-bagbtn i{font-style:normal;color:#FFD9A8;font-variant-numeric:tabular-nums;}
+
+/* A flat wash, never a blur: blur is notebook chrome, and what is behind this
+   is a world. */
+.c-bagveil{position:fixed;inset:0;z-index:60;background:rgba(6,5,3,.72);}
+
+/* The frame itself. `max-height` with its own scroll so a long skill list
+   scrolls inside the wood rather than growing the page — the page behind is
+   already scroll-locked by the dialog. */
+.c-bag{position:fixed;z-index:61;top:50%;left:50%;transform:translate(-50%,-50%);width:min(340px,calc(100vw - 32px));max-height:calc(100vh - 48px);overflow-y:auto;}
+.c-bagtitle{font:inherit;margin:0;letter-spacing:inherit;text-transform:inherit;color:inherit;}
+/* The ribbon holds three things here rather than two, so the capacity keeps
+   the middle and the × sits hard right. */
+.c-bag .c-ribbon{gap:10px;}
+.c-bag .c-ribbon span{margin-left:auto;}
+
+/* Group headings and rows. A row is a name and a price, and the price is a
+   price — never a requirement, never a count of what is missing. */
+.c-baggrp{margin:0;padding:11px 12px 5px;border-top:2px dotted #3D3124;font-family:var(--font-pixel);font-size:8.5px;letter-spacing:.09em;text-transform:uppercase;color:#A58D64;}
+.c-bagrows{list-style:none;margin:0;padding:0 0 4px;}
+.c-bagrow{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:5px 12px;font-size:13px;color:#E6D8BC;}
+.c-bagqty{font-family:var(--font-pixel);font-size:10px;font-weight:400;color:#F7EBD2;font-variant-numeric:tabular-nums;}
+.c-bagprice{font-family:var(--font-pixel);font-size:9.5px;letter-spacing:.03em;white-space:nowrap;color:#FFD9A8;font-variant-numeric:tabular-nums;}
+/* Already learned. Marked, never scored: it says this one happened and stops
+   there, the same way the record's "newest" tag does. */
+.c-bagknown{font-family:var(--font-pixel);font-size:8.5px;letter-spacing:.06em;text-transform:uppercase;color:#A58D64;}
+
+/* An empty bag states a fact and owes nothing — same register as the record's
+   "that is the whole of it, so far". */
+.c-bagnone{margin:0;padding:16px 12px;font-size:12.5px;line-height:1.5;color:#A58D64;}
+
+/* The name. Here because this is the only pixel panel that opens, and because
+   the bag is already the companion's own drawer. */
+.c-bagname{display:flex;align-items:center;gap:8px;padding:11px 12px;border-top:2px dotted #3D3124;background:#181209;}
+.c-bagname label{font-family:var(--font-pixel);font-size:8.5px;letter-spacing:.09em;text-transform:uppercase;color:#A58D64;}
+.c-bagfield{flex:1;min-width:0;background:#241C15;border:2px solid #3D3124;padding:5px 7px;font-size:12.5px;color:#F2E3BF;}
+.c-bagfield::placeholder{color:#6F5C3F;}
+.c-bagfield:focus-visible{outline:2px solid #E9B96B;outline-offset:1px;}
+.c-bagname .pixel-button{font-family:var(--font-pixel);font-weight:400;font-size:10px;letter-spacing:.04em;color:#F7EBD2;}

@@ -118,4 +118,65 @@ class CompanionScreenTest extends TestCase
                 ->where('companion.features', ['blob', 'legs']),
             );
     }
+
+    /**
+     * The bag rides along with the room and the record. Assembled by
+     * CompanionBag rather than here, so this only checks that it arrives and
+     * that the balance agrees with the wallet.
+     */
+    public function test_the_screen_carries_the_bag(): void
+    {
+        $user = User::factory()->create(['timezone' => 'UTC']);
+        $this->logOutcomes($user, 5);
+
+        $this->actingAs($user)
+            ->get('/companion')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('bag')
+                // Five outcomes on five separate days: 3 each.
+                ->where('bag.xp', 15)
+                ->where('bag.capacity', 5)
+                ->where('bag.held', 0)
+                ->where('bag.name', 'Blob')
+                ->where('bag.items', [])
+                ->where('bag.skills', []),
+            );
+    }
+
+    /**
+     * Looking at the screen writes nothing. The companion row appears on the
+     * first CHOICE, not on the first visit — a row created by reading would
+     * mean every account that ever opened this page has one.
+     */
+    public function test_looking_at_the_screen_creates_no_companion(): void
+    {
+        $user = User::factory()->create(['timezone' => 'UTC']);
+        $this->logOutcomes($user, 5);
+
+        $this->actingAs($user)->get('/companion')->assertOk();
+
+        $this->assertDatabaseCount('companions', 0);
+    }
+
+    /** The bag's own numbers follow what has actually been gathered. */
+    public function test_the_bag_reports_what_is_held_against_capacity(): void
+    {
+        $user = User::factory()->create(['timezone' => 'UTC']);
+        $this->logOutcomes($user, 5);
+
+        $companion = $user->companion()->firstOrCreate([]);
+        $companion->items()->create(['item' => 'fibre', 'quantity' => 3]);
+        $companion->items()->create(['item' => 'basket', 'quantity' => 1]);
+
+        $this->actingAs($user)
+            ->get('/companion')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('bag.held', 3)
+                // Hands plus one basket, and the basket does not occupy the
+                // room it creates.
+                ->where('bag.capacity', 10),
+            );
+    }
 }

@@ -10,10 +10,12 @@ import {
     selfStartedFor,
 } from '@/patyourself/companion';
 import type {
+    CompanionBagData,
     CompanionData,
     CompanionUnlockData,
 } from '@/patyourself/companion';
 import type { AnimationName } from '@/patyourself/companion-animations';
+import { CompanionBag } from '@/patyourself/companion-bag';
 import { CompanionGlyph } from '@/patyourself/companion-glyph';
 import { CompanionRoom } from '@/patyourself/companion-room';
 import { partOfDay } from '@/patyourself/part-of-day';
@@ -29,6 +31,13 @@ interface CompanionPageProps {
      * wallpaper within a week, and wallpaper is worse than silence.
      */
     remark?: string | null;
+    /**
+     * The chosen half: what has been spent, bought, gathered and built.
+     *
+     * Behind a button rather than on the page, because the bag is a thing you
+     * open and not a thing you watch — see `CompanionBag`.
+     */
+    bag: CompanionBagData;
 }
 
 /**
@@ -55,9 +64,15 @@ interface CompanionPageProps {
 export default function CompanionPage({
     companion,
     remark = null,
+    bag,
 }: CompanionPageProps) {
     const now = useMinute();
     const hour = now.getHours();
+
+    // Held here rather than inside CompanionBag: an Inertia post re-renders
+    // this page, and a dialog managing its own state would close on the way
+    // through — you would rename the companion and watch the bag vanish.
+    const [bagOpen, setBagOpen] = useState(false);
 
     const { animation, frame, react } = useSpriteClock(
         ambientFor(companion, hour),
@@ -111,10 +126,18 @@ export default function CompanionPage({
                     hour={hour}
                     now={now}
                     remark={remark}
+                    bag={bag}
                     onReact={react}
+                    onOpenBag={() => setBagOpen(true)}
                 />
                 <Record companion={companion} />
             </div>
+
+            <CompanionBag
+                bag={bag}
+                open={bagOpen}
+                onOpenChange={setBagOpen}
+            />
         </CoachLayout>
     );
 }
@@ -134,7 +157,9 @@ function RoomCard({
     hour,
     now,
     remark,
+    bag,
     onReact,
+    onOpenBag,
 }: {
     companion: CompanionData;
     animation: AnimationName;
@@ -142,7 +167,9 @@ function RoomCard({
     hour: number;
     now: Date;
     remark: string | null;
+    bag: CompanionBagData;
     onReact: (name: AnimationName) => void;
+    onOpenBag: () => void;
 }) {
     const [said, setSaid] = useState(true);
     const part = partOfDay(hour, companion.room);
@@ -157,6 +184,16 @@ function RoomCard({
                     <CompanionGlyph kind="body" size={14} />
                     the {sceneFor(companion.scene).name}
                 </b>
+                {/* The balance, and nothing else. No target, no bar, no
+                    "next at" — a number with a ceiling is the checklist
+                    coming back in through the window.
+
+                    Its own element rather than folded into either
+                    neighbouring string: both of those are asserted by exact
+                    text, and joining them would break two tests that are not
+                    about XP. */}
+                <span className="c-xp">{bag.xp} xp</span>
+
                 <time dateTime={now.toISOString()}>
                     {part} ·{' '}
                     {now.toLocaleTimeString('en-GB', {
@@ -221,6 +258,28 @@ function RoomCard({
                     onClick={() => onReact('notice')}
                 >
                     Poke
+                </button>
+
+                {/* The odd one out in this row: every other button fires an
+                    animation, this one opens a dialog. Poke is already the
+                    documented odd one out, and the shared rule holds — what
+                    these buttons act on is inside this frame, and everything
+                    in the bag came out of it.
+
+                    It carries the capacity because that is the bag's one
+                    AMBIENT fact: the number that is true whether or not you
+                    are looking. Everything else in there is static until you
+                    act on it, which is the whole argument for it being a
+                    modal rather than a panel. */}
+                <button
+                    type="button"
+                    className="pixel-button c-bagbtn"
+                    onClick={onOpenBag}
+                >
+                    Bag{' '}
+                    <i>
+                        {bag.held} / {bag.capacity}
+                    </i>
                 </button>
             </div>
         </section>

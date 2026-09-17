@@ -35,6 +35,65 @@ export interface CompanionUnlockData {
     room_object: string | null;
 }
 
+/** One stack Blob is carrying. */
+export interface BagItemData {
+    item: string;
+    label: string;
+    category: string;
+    quantity: number;
+}
+
+/** A node Blob has met, and what is standing at it. */
+export interface BagNodeData {
+    node: string;
+    label: string;
+    available: number;
+    skill: string;
+    known: boolean;
+}
+
+/**
+ * A skill whose node Blob has met.
+ *
+ * `affordable` rather than a flag meaning "hide this": an unaffordable skill
+ * stays on the list WITH its price, and it is the button that is disabled. A
+ * price you cannot pay yet is a menu; a greyed row is a lock.
+ */
+export interface BagSkillData {
+    skill: string;
+    label: string;
+    price: number;
+    known: boolean;
+    affordable: boolean;
+}
+
+/** Something buildable out of materials Blob has met. */
+export interface BagRecipeData {
+    item: string;
+    label: string;
+    recipe: Record<string, number>;
+    buildable: boolean;
+}
+
+/**
+ * The chosen half of Blob: what has been spent, bought, gathered and built.
+ *
+ * Assembled server-side by `CompanionBag`. Note what is NOT here — no count of
+ * skills that exist, no count of nodes that exist, no share of a whole, and no
+ * "next". The absence is the design, and it is guarded on both sides.
+ */
+export interface CompanionBagData {
+    /** The balance, and nothing about a target. */
+    xp: number;
+    capacity: number;
+    held: number;
+    name: string;
+    items: BagItemData[];
+    nodes: BagNodeData[];
+    skills: BagSkillData[];
+    recipes: BagRecipeData[];
+}
+
 export interface CompanionData {
     log_count: number;
     insight_count: number;

@@ -55,6 +55,10 @@ class CompanionVocabularyTest extends TestCase
             $root.'/resources/js/patyourself/companion.tsx',
             $root.'/resources/js/patyourself/blob-renderer.tsx',
             $root.'/resources/js/patyourself/companion-room.tsx',
+            // The one surface in the feature that shows something you do not
+            // have yet, which makes it the one most likely to start keeping
+            // score. It belongs on this list more than anything else on it.
+            $root.'/resources/js/patyourself/companion-bag.tsx',
             $root.'/resources/js/patyourself/part-of-day.ts',
             $root.'/resources/js/patyourself/scenes.ts',
             $root.'/resources/js/patyourself/scenes/README.md',

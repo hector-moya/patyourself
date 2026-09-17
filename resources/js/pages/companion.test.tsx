@@ -10,6 +10,7 @@ vi.mock('@inertiajs/react', async (importOriginal) => {
 });
 
 import {
+    bag,
     companion,
     noCompanion,
     unlock,
@@ -31,7 +32,7 @@ describe('Companion screen', () => {
      * put in it.
      */
     it('says what brings Blob out, without asking for it', () => {
-        render(<CompanionPage companion={noCompanion()} />);
+        render(<CompanionPage bag={bag()} companion={noCompanion()} />);
 
         expect(screen.getByText(/blob turns up once/i)).toBeInTheDocument();
         expect(screen.queryByText(/locked|to unlock|remaining/i)).toBeNull();
@@ -40,7 +41,7 @@ describe('Companion screen', () => {
 
     it('lists what has happened, newest first, with the date each arrived', () => {
         render(
-            <CompanionPage
+            <CompanionPage bag={bag()}
                 companion={companion({
                     stage_index: 3,
                     log_count: 5,
@@ -79,8 +80,55 @@ describe('Companion screen', () => {
      * nothing anywhere that reads as a score.
      */
     it('never shows what has not happened', () => {
-        render(<CompanionPage companion={companion()} />);
+        render(<CompanionPage bag={bag()} companion={companion()} />);
 
+        expect(
+            screen.queryByText(
+                /locked|next up|to unlock|remaining|streak|congratulation|\d+\s*%|\d+ of \d+/i,
+            ),
+        ).toBeNull();
+    });
+
+    /**
+     * The same guard, with the bag open.
+     *
+     * Two cases rather than one because the guard queries the rendered tree,
+     * and a modal that only exists after a click would otherwise never be
+     * inside it — the surface most at risk of showing a total would be the one
+     * surface the acceptance criterion never looked at.
+     */
+    it('still shows nothing that has not happened once the bag is open', () => {
+        render(
+            <CompanionPage
+                bag={bag({
+                    xp: 48,
+                    held: 3,
+                    capacity: 5,
+                    items: [
+                        {
+                            item: 'fibre',
+                            label: 'fibre',
+                            category: 'material',
+                            quantity: 3,
+                        },
+                    ],
+                    skills: [
+                        {
+                            skill: 'gather-fibre',
+                            label: 'gather fibre',
+                            price: 20,
+                            known: false,
+                            affordable: true,
+                        },
+                    ],
+                })}
+                companion={companion()}
+            />,
+        );
+
+        fireEvent.click(screen.getByRole('button', { name: /bag/i }));
+
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
         expect(
             screen.queryByText(
                 /locked|next up|to unlock|remaining|streak|congratulation|\d+\s*%|\d+ of \d+/i,
@@ -90,7 +138,7 @@ describe('Companion screen', () => {
 
     it('relays what Blob has to say, near Blob', () => {
         render(
-            <CompanionPage
+            <CompanionPage bag={bag()}
                 companion={companion()}
                 remark="Blob has been standing by the window a lot this week."
             />,
@@ -106,7 +154,7 @@ describe('Companion screen', () => {
      * should suggest a remark is missing.
      */
     it('says nothing when there is nothing to say', () => {
-        render(<CompanionPage companion={companion()} remark={null} />);
+        render(<CompanionPage bag={bag()} companion={companion()} remark={null} />);
 
         expect(screen.queryByTestId('companion-remark')).toBeNull();
         expect(screen.queryByText(/nothing to say|no remarks/i)).toBeNull();
@@ -114,7 +162,7 @@ describe('Companion screen', () => {
 
     it('names a recoloured item by its variant', () => {
         render(
-            <CompanionPage
+            <CompanionPage bag={bag()}
                 companion={companion({
                     items: [{ type: 'scarf', variant: 'coral' }],
                     unlocks: [
@@ -145,7 +193,7 @@ describe('Companion screen', () => {
             vi.setSystemTime(new Date('2026-09-11T19:30:00'));
 
             render(
-                <CompanionPage companion={companion({ scene: 'forest' })} />,
+                <CompanionPage bag={bag()} companion={companion({ scene: 'forest' })} />,
             );
 
             expect(screen.getByText('the forest')).toBeInTheDocument();
@@ -157,7 +205,7 @@ describe('Companion screen', () => {
             vi.setSystemTime(new Date('2026-09-11T22:00:00'));
 
             const { container } = render(
-                <CompanionPage companion={companion()} />,
+                <CompanionPage bag={bag()} companion={companion()} />,
             );
 
             expect(screen.getByText('night · 22:00')).toBeInTheDocument();
@@ -174,11 +222,99 @@ describe('Companion screen', () => {
         });
     });
 
+    /**
+     * XP and the bag: the balance stated, and the bag behind a button rather
+     * than on the page. Nothing here is a target — the moment a number grows a
+     * ceiling, the checklist is back in through the window.
+     */
+    describe('the balance and the bag', () => {
+        it('shows the balance, and nothing to reach', () => {
+            render(
+                <CompanionPage
+                    bag={bag({ xp: 48 })}
+                    companion={companion()}
+                />,
+            );
+
+            expect(screen.getByText('48 xp')).toBeInTheDocument();
+            expect(
+                screen.queryByText(/next at|target|of \d+ xp|\d+ xp to/i),
+            ).toBeNull();
+        });
+
+        /** The bag's one ambient fact, on the thing that opens it. */
+        it('carries the capacity on the button', () => {
+            render(
+                <CompanionPage
+                    bag={bag({ held: 3, capacity: 10 })}
+                    companion={companion()}
+                />,
+            );
+
+            expect(
+                screen.getByRole('button', { name: /bag/i }),
+            ).toHaveTextContent('3 / 10');
+        });
+
+        /** Closed until asked for. Nothing opens on arrival. */
+        it('keeps the bag shut until the button is pressed', () => {
+            render(
+                <CompanionPage bag={bag()} companion={companion()} />,
+            );
+
+            expect(screen.queryByRole('dialog')).toBeNull();
+
+            fireEvent.click(screen.getByRole('button', { name: /bag/i }));
+
+            expect(screen.getByRole('dialog')).toBeInTheDocument();
+        });
+
+        /** And it closes again without taking the page with it. */
+        it('closes again on the dialog’s own control', () => {
+            render(
+                <CompanionPage bag={bag()} companion={companion()} />,
+            );
+
+            fireEvent.click(screen.getByRole('button', { name: /bag/i }));
+            fireEvent.click(
+                screen.getByRole('button', { name: /close the bag/i }),
+            );
+
+            expect(screen.queryByRole('dialog')).toBeNull();
+            expect(
+                screen.getByRole('button', { name: /pet/i }),
+            ).toBeInTheDocument();
+        });
+
+        /** Adding a button never takes one away. */
+        it('keeps the other plinth buttons alongside it', () => {
+            render(
+                <CompanionPage bag={bag()} companion={companion()} />,
+            );
+
+            for (const name of [/pet/i, /play/i, /poke/i, /bag/i]) {
+                expect(screen.getByRole('button', { name })).toBeEnabled();
+            }
+        });
+
+        /**
+         * Before Blob exists there is no room, no plinth and nothing gathered,
+         * so there is no bag either — the same rule the buttons already follow.
+         */
+        it('offers no bag before Blob exists', () => {
+            render(
+                <CompanionPage bag={bag()} companion={noCompanion()} />,
+            );
+
+            expect(screen.queryByRole('button', { name: /bag/i })).toBeNull();
+        });
+    });
+
     describe('what Blob has to say', () => {
         /** Blob talking, over the scene — not the app captioning the picture. */
         it('puts it on the scene, and lets it be put away', () => {
             const { container } = render(
-                <CompanionPage
+                <CompanionPage bag={bag()}
                     companion={companion()}
                     remark="Blob watched the grass move for a while."
                 />,
@@ -199,7 +335,7 @@ describe('Companion screen', () => {
          */
         it('still relays it before Blob exists, as plain type', () => {
             render(
-                <CompanionPage
+                <CompanionPage bag={bag()}
                     companion={noCompanion()}
                     remark="Blob is nearly here."
                 />,
@@ -215,7 +351,7 @@ describe('Companion screen', () => {
     describe('poking Blob', () => {
         it('reacts when the scene itself is touched', () => {
             const { container } = render(
-                <CompanionPage companion={companion()} />,
+                <CompanionPage bag={bag()} companion={companion()} />,
             );
 
             fireEvent.click(container.querySelector('.blob-room') as Element);
@@ -230,7 +366,7 @@ describe('Companion screen', () => {
         /** The same reaction on a real button, so it is reachable by keyboard. */
         it('offers the same thing as a button', () => {
             const { container } = render(
-                <CompanionPage companion={companion()} />,
+                <CompanionPage bag={bag()} companion={companion()} />,
             );
 
             fireEvent.click(screen.getByRole('button', { name: /poke/i }));
@@ -246,7 +382,7 @@ describe('Companion screen', () => {
     describe('the record', () => {
         it('says when it began, and marks only the newest arrival', () => {
             render(
-                <CompanionPage
+                <CompanionPage bag={bag()}
                     companion={companion({
                         features: ['blob', 'legs'],
                         unlocks: [
@@ -282,7 +418,7 @@ describe('Companion screen', () => {
 
         it('marks each line with the kind of thing that arrived', () => {
             const { container } = render(
-                <CompanionPage
+                <CompanionPage bag={bag()}
                     companion={companion({
                         items: [{ type: 'shoes', variant: null }],
                         abilities: ['wave'],
@@ -313,7 +449,7 @@ describe('Companion screen', () => {
         /** No dangling "since" when the record carries no date to name. */
         it('says nothing about when it began if nothing is dated', () => {
             render(
-                <CompanionPage
+                <CompanionPage bag={bag()}
                     companion={companion({
                         unlocks: [unlock({ unlocked_at: null })],
                         latest_unlock: unlock({ unlocked_at: null }),
@@ -331,7 +467,7 @@ describe('Companion screen', () => {
          * — pressing them is not progress and Blob never asks to be pressed.
          */
         it('offers both, with nothing gating them', () => {
-            render(<CompanionPage companion={companion()} />);
+            render(<CompanionPage bag={bag()} companion={companion()} />);
 
             const pet = screen.getByRole('button', { name: /pet/i });
             const play = screen.getByRole('button', { name: /play/i });
@@ -349,7 +485,7 @@ describe('Companion screen', () => {
 
         it('plays the reaction on the drawing', () => {
             const { container } = render(
-                <CompanionPage companion={companion()} />,
+                <CompanionPage bag={bag()} companion={companion()} />,
             );
 
             fireEvent.click(screen.getByRole('button', { name: /pet/i }));
@@ -364,7 +500,7 @@ describe('Companion screen', () => {
         /** Nothing about a press is recorded, so nothing about it is shown. */
         it('shows no tally and no cooldown', () => {
             const { container } = render(
-                <CompanionPage companion={companion()} />,
+                <CompanionPage bag={bag()} companion={companion()} />,
             );
 
             fireEvent.click(screen.getByRole('button', { name: /pet/i }));
@@ -383,7 +519,7 @@ describe('Companion screen', () => {
          * ever shows what has happened.
          */
         it('draws no button for an ability Blob has not learned', () => {
-            render(<CompanionPage companion={companion({ abilities: [] })} />);
+            render(<CompanionPage bag={bag()} companion={companion({ abilities: [] })} />);
 
             expect(screen.queryByRole('button', { name: /wave/i })).toBeNull();
             expect(screen.queryByRole('button', { name: /jump/i })).toBeNull();
@@ -391,7 +527,7 @@ describe('Companion screen', () => {
 
         it('draws one once the ladder has announced it', () => {
             render(
-                <CompanionPage
+                <CompanionPage bag={bag()}
                     companion={companion({ abilities: ['wave'] })}
                 />,
             );
@@ -405,7 +541,7 @@ describe('Companion screen', () => {
 
         it('plays the ability it names, not some other one', () => {
             const { container } = render(
-                <CompanionPage
+                <CompanionPage bag={bag()}
                     companion={companion({ abilities: ['wave'] })}
                 />,
             );
@@ -422,7 +558,7 @@ describe('Companion screen', () => {
         /** Earning an ability adds a button; it never takes one away. */
         it('keeps the two ungated ones alongside it', () => {
             render(
-                <CompanionPage
+                <CompanionPage bag={bag()}
                     companion={companion({ abilities: ['wave', 'jump'] })}
                 />,
             );

@@ -7,9 +7,30 @@
  * vitest collect its cases twice.
  */
 import type {
+    CompanionBagData,
     CompanionData,
     CompanionUnlockData,
 } from '@/patyourself/companion';
+
+/**
+ * An untouched bag: nothing met, nothing held, nothing chosen.
+ *
+ * Every list is present and empty rather than absent, exactly as the server
+ * sends it — a screen should never have to ask whether a key exists.
+ */
+export function bag(overrides: Partial<CompanionBagData> = {}): CompanionBagData {
+    return {
+        xp: 0,
+        capacity: 5,
+        held: 0,
+        name: 'Blob',
+        items: [],
+        nodes: [],
+        skills: [],
+        recipes: [],
+        ...overrides,
+    };
+}
 
 export function unlock(
     overrides: Partial<CompanionUnlockData> = {},

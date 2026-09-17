@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\CompanionRemark;
+use App\Services\Companion\CompanionBag;
 use App\Services\Companion\CompanionRemarks;
 use App\Services\Companion\CompanionResolver;
 use Illuminate\Http\Request;
@@ -35,8 +36,12 @@ class CompanionController extends Controller
      * it — burning remarks nobody read. Never add `prefetch` to a link aimed
      * at this route.
      */
-    public function index(Request $request, CompanionResolver $resolver, CompanionRemarks $remarks): Response
-    {
+    public function index(
+        Request $request,
+        CompanionResolver $resolver,
+        CompanionRemarks $remarks,
+        CompanionBag $bag,
+    ): Response {
         $user = $request->user();
         $companion = $resolver->forUser($user);
 
@@ -52,6 +57,11 @@ class CompanionController extends Controller
             'companion' => $companion->toArray(),
             // Null is the ordinary case, and the screen renders nothing for it.
             'remark' => $remark?->body,
+            // The chosen half: what has been spent, bought, gathered and built.
+            // Assembled by {@see CompanionBag} rather than here, so the shape
+            // has one author and one test — the payload is where a total would
+            // first appear, before any pixel is drawn.
+            'bag' => $bag->forUser($user),
         ]);
     }
 }
