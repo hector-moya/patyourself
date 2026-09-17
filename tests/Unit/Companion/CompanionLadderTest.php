@@ -2,6 +2,7 @@
 
 namespace Tests\Unit\Companion;
 
+use App\Services\Companion\CompanionResolver;
 use App\Services\Companion\CompanionState;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -261,6 +262,58 @@ class CompanionLadderTest extends TestCase
                 "tail message {$index} says \"{$banned}\"",
             );
         }
+    }
+
+    /**
+     * Blob answers to a name now, so no authored line may hardcode the word.
+     *
+     * Every message carries a `{name}` token instead, substituted server-side
+     * in {@see CompanionResolver}. Without this guard a
+     * later rung quietly reintroduces the literal and a renamed companion
+     * refers to itself in the third person — the exact bug F1 §7 exists to
+     * avoid, and one nobody would notice until they had renamed and then earned
+     * that one rung.
+     *
+     * The tail is the half that matters most: it is the copy surface with the
+     * longest life and the least supervision, and its rungs are read by nobody
+     * before they ship.
+     */
+    public function test_no_authored_message_hardcodes_the_name(): void
+    {
+        foreach ($this->authoredMessages() as $where => $message) {
+            $this->assertStringNotContainsString(
+                'Blob',
+                $message,
+                "{$where} hardcodes the name instead of using {name}",
+            );
+            $this->assertStringContainsString(
+                '{name}',
+                $message,
+                "{$where} never names the companion",
+            );
+        }
+    }
+
+    /**
+     * Every line the app itself authors about Blob, keyed by where it lives so
+     * a failure names the rung rather than the string.
+     *
+     * @return array<string, string>
+     */
+    private function authoredMessages(): array
+    {
+        $config = $this->config();
+        $messages = [];
+
+        foreach ($config['ladder'] as $index => $entry) {
+            $messages["ladder entry {$index}"] = (string) $entry['message'];
+        }
+
+        foreach ($config['tail']['messages'] ?? [] as $index => $template) {
+            $messages["tail message {$index}"] = (string) $template;
+        }
+
+        return $messages;
     }
 
     /**

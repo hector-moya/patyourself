@@ -2,6 +2,8 @@
 
 namespace App\Services\Companion;
 
+use App\Models\Companion;
+
 /**
  * What Blob is, right now, for one user.
  *
@@ -22,6 +24,7 @@ final readonly class CompanionState
      *                                                                                                                             What each part of the day is drawn in, from config: the hour it starts at, the cabin's wall and window, and the light the whole scene is washed with — Blob included — at the strength `dim` names.
      * @param  list<array{name: string, trigger: string, at: int}>  $scenes  Ordered scene thresholds, from config.
      * @param  ?string  $sceneOverride  A scene to draw instead of the derived one, from the environment. Empty or null means the record decides.
+     * @param  string  $name  What this companion is called. "Blob" until someone renames it, and already substituted into every message above — the client never does the substitution, it only needs the name for its own copy.
      */
     public function __construct(
         public int $logCount,
@@ -31,6 +34,7 @@ final readonly class CompanionState
         public array $room = [],
         public array $scenes = [],
         public ?string $sceneOverride = null,
+        public string $name = Companion::DEFAULT_NAME,
     ) {}
 
     /**
@@ -185,6 +189,10 @@ final readonly class CompanionState
             'renderer' => $this->renderer,
             'room' => $this->room,
             'scene' => $this->scene(),
+            // Carried so the client can name the companion in its own copy —
+            // `describe()`'s aria-label, and anything the screen writes itself.
+            // Every message in `unlocks` already has it substituted in.
+            'name' => $this->name,
         ];
     }
 

@@ -175,42 +175,42 @@ return [
             'at' => 1,
             'kind' => 'body',
             'name' => 'blob',
-            'message' => 'Blob is here. New to all this, curious, not remotely cautious. Keep logging and Blob learns — about the world, about itself, about what it might turn into.',
+            'message' => '{name} is here. New to all this, curious, not remotely cautious. Keep logging and {name} learns — about the world, about itself, about what it might turn into.',
         ],
         [
             'trigger' => 'logs',
             'at' => 3,
             'kind' => 'body',
             'name' => 'legs',
-            'message' => 'Blob has legs now. Standing up took most of the day and Blob considers it a fine use of one.',
+            'message' => '{name} has legs now. Standing up took most of the day and {name} considers it a fine use of one.',
         ],
         [
             'trigger' => 'logs',
             'at' => 4,
             'kind' => 'body',
             'name' => 'arms',
-            'message' => 'Blob has arms now. It has not decided what they are for.',
+            'message' => '{name} has arms now. It has not decided what they are for.',
         ],
         [
             'trigger' => 'logs',
             'at' => 5,
             'kind' => 'item',
             'name' => 'shoes',
-            'message' => 'Blob has shoes now. They came before anywhere to go, which Blob does not find odd.',
+            'message' => '{name} has shoes now. They came before anywhere to go, which {name} does not find odd.',
         ],
         [
             'trigger' => 'insights',
             'at' => 1,
             'kind' => 'ability',
             'name' => 'walk',
-            'message' => 'Blob can walk. Slowly, and so far in one direction only.',
+            'message' => '{name} can walk. Slowly, and so far in one direction only.',
         ],
         [
             'trigger' => 'insights',
             'at' => 2,
             'kind' => 'item',
             'name' => 'scarf',
-            'message' => 'Blob has a scarf now. It is not cold. Blob likes the scarf.',
+            'message' => '{name} has a scarf now. It is not cold. {name} likes the scarf.',
         ],
         [
             'trigger' => 'insights',
@@ -220,14 +220,14 @@ return [
             // Reading gives Blob somewhere to keep what it reads. An object is
             // earned once and stays earned; the cabin is where it is drawn.
             'roomObject' => 'bookshelf',
-            'message' => 'Blob can read. What it reads is unclear, but it holds the page the right way up.',
+            'message' => '{name} can read. What it reads is unclear, but it holds the page the right way up.',
         ],
         [
             'trigger' => 'insights',
             'at' => 4,
             'kind' => 'item',
             'name' => 'hat',
-            'message' => 'Blob has a hat now. It wears the hat indoors.',
+            'message' => '{name} has a hat now. It wears the hat indoors.',
         ],
         [
             'trigger' => 'insights',
@@ -237,14 +237,14 @@ return [
             // A rug to wave from. An object is earned once and stays earned;
             // the cabin is where it is drawn.
             'roomObject' => 'rug',
-            'message' => 'Blob can wave. It mostly waves at things that have not arrived yet.',
+            'message' => '{name} can wave. It mostly waves at things that have not arrived yet.',
         ],
         [
             'trigger' => 'insights',
             'at' => 6,
             'kind' => 'item',
             'name' => 'glasses',
-            'message' => 'Blob has glasses now. Nothing about its eyesight has changed.',
+            'message' => '{name} has glasses now. Nothing about its eyesight has changed.',
         ],
         [
             'trigger' => 'insights',
@@ -254,7 +254,7 @@ return [
             // Somewhere to land the jump under. An object is earned once and
             // stays earned; the cabin is where it is drawn.
             'roomObject' => 'lamp',
-            'message' => 'Blob can jump. Both feet leave the ground, briefly, and it lands where it started.',
+            'message' => '{name} can jump. Both feet leave the ground, briefly, and it lands where it started.',
         ],
         // The four types are spent. From here an item stage recolours one Blob
         // already owns rather than inventing a fifth thing to collect.
@@ -264,7 +264,7 @@ return [
             'kind' => 'item',
             'name' => 'scarf',
             'variant' => 'coral',
-            'message' => 'Blob has another scarf, in coral. The first one is still around, folded somewhere.',
+            'message' => '{name} has another scarf, in coral. The first one is still around, folded somewhere.',
         ],
         [
             'trigger' => 'insights',
@@ -274,7 +274,7 @@ return [
             // Something to carry toward. An object is earned once and stays
             // earned; the cabin is where it is drawn.
             'roomObject' => 'plant',
-            'message' => 'Blob can carry something. It has not settled on what.',
+            'message' => '{name} can carry something. It has not settled on what.',
         ],
     ],
 
@@ -350,12 +350,12 @@ return [
         // construction rather than by special-casing vowels. "the {variant}"
         // and "in {variant}" both sidestep the agreement question entirely.
         'messages' => [
-            'Blob has another {type}, in {variant}. It keeps the old one, folded somewhere.',
-            'A {type} turned up in {variant}. Blob has opinions about the colour and is not sharing them.',
-            'Blob swapped to the {variant} {type} this morning. No occasion.',
-            'There is a {type} now, in {variant}. Blob wore it immediately and has not mentioned it.',
-            'The {variant} {type} arrived. Blob tried it on twice before settling.',
-            'Something changed: the {type} is {variant} now. Blob has not commented.',
+            '{name} has another {type}, in {variant}. It keeps the old one, folded somewhere.',
+            'A {type} turned up in {variant}. {name} has opinions about the colour and is not sharing them.',
+            '{name} swapped to the {variant} {type} this morning. No occasion.',
+            'There is a {type} now, in {variant}. {name} wore it immediately and has not mentioned it.',
+            'The {variant} {type} arrived. {name} tried it on twice before settling.',
+            'Something changed: the {type} is {variant} now. {name} has not commented.',
         ],
     ],
 

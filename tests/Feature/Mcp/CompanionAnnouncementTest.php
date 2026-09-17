@@ -104,6 +104,11 @@ class CompanionAnnouncementTest extends TestCase
      * The message is the app's, written in config, and relayed as written. The
      * coach never composes the praise — that separation is the whole reason the
      * copy lives on this side.
+     *
+     * "As written" now means with the {name} token resolved, which the resolver
+     * does once before anything sees the string. The token must never reach the
+     * coach: it would relay it verbatim, which is the contract, and the reader
+     * would see the braces.
      */
     public function test_the_message_is_the_config_copy_verbatim(): void
     {
@@ -112,9 +117,22 @@ class CompanionAnnouncementTest extends TestCase
         $payload = $this->logOne($user, $this->actionFor($user), 3);
 
         $this->assertSame(
-            config('companion.ladder.0.message'),
+            str_replace('{name}', 'Blob', config('companion.ladder.0.message')),
             $payload['companion']['message'],
         );
+        $this->assertStringNotContainsString('{name}', $payload['companion']['message']);
+    }
+
+    /** A renamed companion is named in what the coach relays, too. */
+    public function test_a_renamed_companion_is_named_in_what_the_coach_relays(): void
+    {
+        $user = User::factory()->create(['timezone' => 'UTC']);
+        $user->companion()->firstOrCreate([])->update(['name' => 'Pebble']);
+
+        $payload = $this->logOne($user, $this->actionFor($user), 3);
+
+        $this->assertStringStartsWith('Pebble is here.', $payload['companion']['message']);
+        $this->assertStringNotContainsString('Blob', $payload['companion']['message']);
     }
 
     public function test_an_outcome_that_moves_nothing_says_nothing(): void

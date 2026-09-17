@@ -3,6 +3,7 @@
 namespace App\Services\Companion;
 
 use App\Actions\UpdateIntention;
+use App\Models\Companion;
 use App\Models\Strategy;
 use App\Models\Summary;
 use App\Models\User;
@@ -57,6 +58,7 @@ final readonly class CompanionResolver
     {
         $logs = $this->logMoments($user);
         $insights = $this->insightMoments($user);
+        $name = $this->nameFor($user);
 
         $unlocks = [];
 
@@ -78,7 +80,12 @@ final readonly class CompanionResolver
                 // What this unlock put in the room, if anything. Null for most
                 // entries: the room fills up slowly on purpose.
                 'room_object' => $entry['roomObject'] ?? null,
-                'message' => (string) $entry['message'],
+                // Substituted here, once, rather than at each surface. The
+                // coach relays this string verbatim through
+                // CompanionAnnouncement and the screen prints it as it stands,
+                // so a token reaching either of them is a token the reader
+                // sees.
+                'message' => str_replace('{name}', $name, (string) $entry['message']),
                 // When this one arrived: the moment of the trigger that earned
                 // it, not of the request that noticed it. Reached through a
                 // helper because the two streams are shaped differently now —
@@ -91,7 +98,7 @@ final readonly class CompanionResolver
         // walk means the record has not reached the end yet, and the tail is
         // what happens after the end.
         if (count($unlocks) === count($ladder)) {
-            $unlocks = [...$unlocks, ...$this->tailUnlocks($insights)];
+            $unlocks = [...$unlocks, ...$this->tailUnlocks($insights, $name)];
         }
 
         return new CompanionState(
@@ -105,7 +112,26 @@ final readonly class CompanionResolver
             // nothing about what the record has earned, so this stays as much
             // of a pure read as the line above it.
             (string) config('companion.scene_override', ''),
+            $name,
         );
+    }
+
+    /**
+     * What this user calls their companion, or "Blob" when they never said.
+     *
+     * Queried rather than read off `$user->companion`: Eloquent caches a
+     * lazily-loaded relation on the model instance, null included, so a user
+     * object asked for its companion before the row existed answers null for
+     * the rest of the request. Here that would render an established,
+     * deliberately renamed companion as "Blob" on the request that named it.
+     */
+    private function nameFor(User $user): string
+    {
+        $name = trim((string) Companion::query()
+            ->where('user_id', $user->id)
+            ->value('name'));
+
+        return $name === '' ? Companion::DEFAULT_NAME : $name;
     }
 
     /**
@@ -297,7 +323,7 @@ final readonly class CompanionResolver
      * @param  list<array{at: CarbonImmutable, kind: string}>  $insights
      * @return list<array<string, mixed>>
      */
-    private function tailUnlocks(array $insights): array
+    private function tailUnlocks(array $insights, string $name): array
     {
         /** @var array<string, mixed> $tail */
         $tail = (array) config('companion.tail', []);
@@ -346,8 +372,8 @@ final readonly class CompanionResolver
                 // shoes" is not a sentence. `name` above stays the raw type —
                 // that is what the renderer and CompanionState key items by.
                 'message' => str_replace(
-                    ['{type}', '{variant}'],
-                    [$displayNames[$type] ?? $type, $variant],
+                    ['{name}', '{type}', '{variant}'],
+                    [$name, $displayNames[$type] ?? $type, $variant],
                     $messages[$index % count($messages)],
                 ),
                 'unlocked_at' => $insights[$at - 1]['at']->toIso8601String(),
