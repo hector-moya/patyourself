@@ -231,13 +231,16 @@ final readonly class CompanionBag
      *
      * Seeded from the materials met nodes yield, then grown: an item is
      * knowable if it is one of those, or if it is a recipe every one of whose
-     * ingredients is already knowable AND, when it names a tool, that tool is
-     * itself knowable and accounted for by some node. Without the ingredient
-     * half, nothing built from something built could ever be listed — an axe
-     * made from rope would be invisible for as long as rope is a thing you
-     * make rather than a thing you find. Without the tool half, a thing built
-     * from a gated tool would still slip through: the gate would stop only the
-     * tool itself, not what is made from it.
+     * ingredients is already knowable, whose own named tool (if it has one) is
+     * itself already knowable, and which no node is still withholding as THAT
+     * node's tool. The last two are separate checks — the axe names no tool of
+     * its own and is still withheld until the trunk is met, so this is never
+     * only about what a recipe explicitly names. Without the ingredient half,
+     * nothing built from something built could ever be listed — an axe made
+     * from rope would be invisible for as long as rope is a thing you make
+     * rather than a thing you find. Without either tool half, a thing built
+     * from a gated tool would still slip through: the old gate stopped only
+     * the tool itself, never what is made from it.
      *
      * A FIXED POINT RATHER THAN RECURSION, and that is the whole reason this is
      * shaped the way it is. `config` is authored data; an authored `a -> b -> a`
@@ -321,13 +324,15 @@ final readonly class CompanionBag
      * reason. Stores nothing — this is a read of authored config against what
      * Blob has already met.
      *
-     * This gate only ever hides a tool as a RECIPE — something the bag might
-     * list as buildable. A hidden tool named as an INGREDIENT elsewhere would
-     * still be knowable and would still price against a thing never shown to
-     * the user, and nothing here stops that. No current recipe takes a tool as
-     * an ingredient, and a recipe is arguably a price rather than a
-     * requirement anyway — but that is a call, not an accident, and it should
-     * stay a deliberate one if a future recipe ever tries it.
+     * Consumed inside {@see knowable()}'s fixed point now, rather than applied
+     * only while a recipe row is being built — which is what gives it reach.
+     * A gate checked at render time can only ever stop the withheld tool from
+     * being listed itself; checked inside the loop that decides what `$known`
+     * contains, a tool this map still withholds never enters `$known` at all,
+     * so nothing built from it becomes accountable either — named as a
+     * recipe's own tool, taken as a plain ingredient, or nested any number of
+     * links deeper. It rides inside the same ingredient check that already
+     * gave chains their reach, rather than standing beside it.
      *
      * @param  list<string>  $met
      * @return array<string, bool>
