@@ -7,8 +7,10 @@ use App\Actions\WriteReflection;
 use App\Models\ActionLog;
 use App\Models\Intention;
 use App\Models\Strategy;
+use App\Models\Summary;
 use App\Models\User;
 use App\Services\Companion\CompanionResolver;
+use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -348,5 +350,93 @@ class CompanionResolverTest extends TestCase
         $this->assertSame(1, $state->insightCount);
         $this->assertSame(1, $state->stageIndex());
         $this->assertSame([], $state->abilities());
+    }
+
+    /**
+     * The ladder only ever needed a count, so the kind used to be thrown away.
+     * The XP table prices each source differently (F1 §3), so it is carried
+     * now — still merged into one stream, still sorted by time.
+     */
+    public function test_insight_moments_carry_which_kind_each_one_was(): void
+    {
+        $user = User::factory()->create();
+
+        $loop = Intention::factory()->for($user)->create(['craving' => 'To feel less tired']);
+        Strategy::factory()->for($loop)->create(['verdict' => Strategy::VERDICT_WORKED]);
+        app(UpdateIntention::class)->handle($loop, ['craving' => 'To stop thinking about work']);
+        app(WriteReflection::class)->handle($loop, 'Still reads as a cue problem.');
+
+        $moments = $this->resolver()->insightMoments($user);
+
+        $this->assertCount(3, $moments);
+
+        foreach ($moments as $moment) {
+            $this->assertInstanceOf(CarbonImmutable::class, $moment['at']);
+            $this->assertContains($moment['kind'], CompanionResolver::INSIGHT_KINDS);
+        }
+
+        $kinds = array_map(static fn (array $moment): string => $moment['kind'], $moments);
+        sort($kinds);
+
+        $this->assertSame([
+            CompanionResolver::INSIGHT_CHAIN_CORRECTION,
+            CompanionResolver::INSIGHT_CONCLUDED_EXPERIMENT,
+            CompanionResolver::INSIGHT_REFLECTION,
+        ], $kinds);
+    }
+
+    /**
+     * Merged into one stream and sorted by time, whatever kind each one is. A
+     * sort that is only correct within one source would pass every other case
+     * in this file.
+     */
+    public function test_insight_moments_stay_in_time_order_across_kinds(): void
+    {
+        $user = User::factory()->create();
+        $base = CarbonImmutable::parse('2026-02-01T09:00:00+00:00');
+
+        $loop = Intention::factory()->for($user)->create();
+
+        Summary::factory()->create([
+            'user_id' => $user->id,
+            'intention_id' => $loop->id,
+            'scope' => Summary::SCOPE_INTENTION,
+            'created_at' => $base->addHours(2),
+            'updated_at' => $base->addHours(2),
+        ]);
+
+        Strategy::factory()->for($loop)->create([
+            'verdict' => Strategy::VERDICT_WORKED,
+            'verdict_note' => 'What the evidence showed.',
+            'created_at' => $base,
+            'updated_at' => $base,
+        ]);
+
+        $moments = $this->resolver()->insightMoments($user);
+
+        $this->assertSame(
+            [
+                CompanionResolver::INSIGHT_CONCLUDED_EXPERIMENT,
+                CompanionResolver::INSIGHT_REFLECTION,
+            ],
+            array_map(static fn (array $moment): string => $moment['kind'], $moments),
+        );
+    }
+
+    /**
+     * The other half of the record, public for the same reason. Bare moments,
+     * not tagged: there is only one kind of outcome as far as Blob is
+     * concerned, which is the point.
+     */
+    public function test_log_moments_are_readable_and_in_order(): void
+    {
+        $user = User::factory()->create();
+        $this->logOutcomes($user, 3);
+
+        $moments = $this->resolver()->logMoments($user);
+
+        $this->assertCount(3, $moments);
+        $this->assertContainsOnlyInstancesOf(CarbonImmutable::class, $moments);
+        $this->assertTrue($moments[0]->lessThan($moments[2]));
     }
 }

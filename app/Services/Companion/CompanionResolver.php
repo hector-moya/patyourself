@@ -25,6 +25,26 @@ use Illuminate\Database\Eloquent\Builder;
  */
 final readonly class CompanionResolver
 {
+    /** An experiment reached a verdict — any verdict. */
+    public const INSIGHT_CONCLUDED_EXPERIMENT = 'concluded-experiment';
+
+    /** A new strategy version was started from an existing one. */
+    public const INSIGHT_STARTED_EXPERIMENT = 'started-experiment';
+
+    /** A loop's cue / craving / response / reward was corrected. */
+    public const INSIGHT_CHAIN_CORRECTION = 'chain-correction';
+
+    /** A reflection was written on a loop. */
+    public const INSIGHT_REFLECTION = 'reflection';
+
+    /** @var list<string> */
+    public const INSIGHT_KINDS = [
+        self::INSIGHT_CONCLUDED_EXPERIMENT,
+        self::INSIGHT_STARTED_EXPERIMENT,
+        self::INSIGHT_CHAIN_CORRECTION,
+        self::INSIGHT_REFLECTION,
+    ];
+
     /**
      * Walks the ladder in order and stops at the first entry the record does not
      * yet satisfy.
@@ -60,8 +80,10 @@ final readonly class CompanionResolver
                 'room_object' => $entry['roomObject'] ?? null,
                 'message' => (string) $entry['message'],
                 // When this one arrived: the moment of the trigger that earned
-                // it, not of the request that noticed it.
-                'unlocked_at' => $moments[$at - 1]->toIso8601String(),
+                // it, not of the request that noticed it. Reached through a
+                // helper because the two streams are shaped differently now —
+                // logs are bare moments, insights carry their kind.
+                'unlocked_at' => $this->momentAt($moments, $at)->toIso8601String(),
             ];
         }
 
@@ -97,9 +119,13 @@ final readonly class CompanionResolver
      * than by the occasion, so a catch-up session earns its unlocks at the
      * moment it happens instead of retroactively.
      *
+     * Public because {@see CompanionWallet} prices the same stream the ladder
+     * counts, and two readers deriving the record separately is how they come
+     * to disagree about what happened.
+     *
      * @return list<CarbonImmutable>
      */
-    private function logMoments(User $user): array
+    public function logMoments(User $user): array
     {
         return $user->actionLogs()
             ->orderBy('logged_at')
@@ -110,32 +136,66 @@ final readonly class CompanionResolver
     }
 
     /**
-     * Every insight event this user has recorded, oldest first.
+     * Every insight event this user has recorded, oldest first, each tagged
+     * with which kind it was.
      *
      * Four sources, all of them existing records rather than a judgement call:
      * an experiment concluded, a new version started, the loop's chain
      * corrected, a reflection written. Merged and re-sorted because a ladder
      * entry needs the Nth insight overall, not the Nth of one kind.
      *
-     * @return list<CarbonImmutable>
+     * The ladder only ever needed `count()`, which is why the kind used to be
+     * discarded here. The XP table prices each source differently (F1 §3), so
+     * it is carried now — tagged once, in this method, rather than four times
+     * in the collectors below.
+     *
+     * Public for the same reason {@see logMoments()} is.
+     *
+     * @return list<array{at: CarbonImmutable, kind: string}>
      */
-    private function insightMoments(User $user): array
+    public function insightMoments(User $user): array
     {
         $moments = [
-            ...$this->concludedExperiments($user),
-            ...$this->startedExperiments($user),
-            ...$this->chainCorrections($user),
-            ...$this->reflections($user),
+            ...$this->tag($this->concludedExperiments($user), self::INSIGHT_CONCLUDED_EXPERIMENT),
+            ...$this->tag($this->startedExperiments($user), self::INSIGHT_STARTED_EXPERIMENT),
+            ...$this->tag($this->chainCorrections($user), self::INSIGHT_CHAIN_CORRECTION),
+            ...$this->tag($this->reflections($user), self::INSIGHT_REFLECTION),
         ];
 
         // By timestamp rather than by object: two moments in the same second
-        // from different sources still need a stable, total order.
+        // from different sources still need a stable, total order. usort has
+        // been stable since PHP 8.0, so equal timestamps keep the source order
+        // above — which is what CompanionLadderPinTest asserts.
         usort(
             $moments,
-            static fn (CarbonImmutable $a, CarbonImmutable $b): int => $a->getTimestamp() <=> $b->getTimestamp(),
+            static fn (array $a, array $b): int => $a['at']->getTimestamp() <=> $b['at']->getTimestamp(),
         );
 
         return $moments;
+    }
+
+    /**
+     * @param  list<CarbonImmutable>  $moments
+     * @return list<array{at: CarbonImmutable, kind: string}>
+     */
+    private function tag(array $moments, string $kind): array
+    {
+        return array_map(
+            static fn (CarbonImmutable $at): array => ['at' => $at, 'kind' => $kind],
+            $moments,
+        );
+    }
+
+    /**
+     * The Nth moment of a trigger stream, whichever of the two shapes it is.
+     *
+     * @param  list<CarbonImmutable>|list<array{at: CarbonImmutable, kind: string}>  $moments
+     */
+    private function momentAt(array $moments, int $at): CarbonImmutable
+    {
+        $moment = $moments[$at - 1];
+
+        return $moment instanceof CarbonImmutable ? $moment : $moment['at'];
     }
 
     /**
@@ -234,7 +294,7 @@ final readonly class CompanionResolver
      * because a rung is history the moment it is earned and history cannot
      * reword itself between two reads of the same record.
      *
-     * @param  list<CarbonImmutable>  $insights
+     * @param  list<array{at: CarbonImmutable, kind: string}>  $insights
      * @return list<array<string, mixed>>
      */
     private function tailUnlocks(array $insights): array
@@ -290,7 +350,7 @@ final readonly class CompanionResolver
                     [$displayNames[$type] ?? $type, $variant],
                     $messages[$index % count($messages)],
                 ),
-                'unlocked_at' => $insights[$at - 1]->toIso8601String(),
+                'unlocked_at' => $insights[$at - 1]['at']->toIso8601String(),
             ];
         }
 
