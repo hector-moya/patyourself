@@ -344,22 +344,32 @@ final readonly class CompanionBag
         $knowable = $this->knowable($met);
         $tools = $this->toolsAndTheirReasons($met);
 
+        // An item the player has actually been shown: one Blob can account
+        // for, and — if some node needs it — one whose node has been met.
+        // Both gates, in one place, because "shown" is the thing every rule
+        // below actually cares about.
+        $shown = static fn (string $name): bool => in_array($name, $knowable, true)
+            && ($tools[$name] ?? true) !== false;
+
         $listed = [];
 
         foreach ($catalogue as $name => $item) {
             /** @var array<string, int> $recipe */
             $recipe = (array) ($item['recipe'] ?? []);
 
-            if ($recipe === [] || ! in_array($name, $knowable, true)) {
-                continue;
-            }
-
-            // Knowable, but nothing Blob has seen needs it yet.
-            if (($tools[$name] ?? true) === false) {
+            if ($recipe === [] || ! $shown($name)) {
                 continue;
             }
 
             $tool = (string) ($item['tool'] ?? '');
+
+            // A recipe waits for its tool the way a tool waits for its node.
+            // Listing a thing whose price names something the player has never
+            // seen is the same defect from the other end — the row would read
+            // as a price in a currency nobody has been shown.
+            if ($tool !== '' && ! $shown($tool)) {
+                continue;
+            }
 
             // Held, not consumed. A tool is used and never used up, so this
             // asks whether it is in the bag and takes nothing from it.

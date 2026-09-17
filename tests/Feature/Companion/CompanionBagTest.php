@@ -83,6 +83,26 @@ class CompanionBagTest extends TestCase
     }
 
     /**
+     * The sawing half of F2's content, authored ahead of Task 12 so this gate
+     * is tested against the shape that motivated it rather than a stand-in.
+     */
+    private function authorASaw(): void
+    {
+        config()->set('companion.bag.handsaw', [
+            'category' => 'tool',
+            'label' => 'handsaw',
+            'recipe' => ['timber' => 2, 'rope' => 1],
+        ]);
+        config()->set('companion.bag.planks', [
+            'category' => 'material',
+            'label' => 'planks',
+            'tool' => 'handsaw',
+            'recipe' => ['timber' => 1],
+            'makes' => 3,
+        ]);
+    }
+
+    /**
      * Nothing met, nothing held, nothing chosen. Every list is empty rather
      * than absent, so the screen never has to guess whether a key exists.
      */
@@ -324,10 +344,15 @@ class CompanionBagTest extends TestCase
      */
     public function test_a_recipe_carries_its_tool_as_part_of_the_price(): void
     {
+        $this->authorASaw();
         config()->set('companion.bag.basket.tool', 'handsaw');
 
         $user = User::factory()->create();
         app(MeetNode::class)->handle($user, 'reeds');
+        // The trunk too: a tool has to be something Blob has been SHOWN before
+        // a recipe may quote it as a price. Reeds alone leave the handsaw
+        // unaccountable, and an unaccountable tool hides what needs it.
+        app(MeetNode::class)->handle($user, 'trunk');
 
         // By name, not by position: rope is knowable from fibre alone and
         // sorts ahead of the basket, and what else the clearing has taught
@@ -357,10 +382,15 @@ class CompanionBagTest extends TestCase
     /** Holding the materials is not enough when the tool is missing. */
     public function test_buildable_stays_false_without_the_tool(): void
     {
+        $this->authorASaw();
         config()->set('companion.bag.basket.tool', 'handsaw');
 
         $user = User::factory()->create();
         app(MeetNode::class)->handle($user, 'reeds');
+        // The trunk too: a tool has to be something Blob has been SHOWN before
+        // a recipe may quote it as a price. Reeds alone leave the handsaw
+        // unaccountable, and an unaccountable tool hides what needs it.
+        app(MeetNode::class)->handle($user, 'trunk');
         $user->companion->items()->create(['item' => 'fibre', 'quantity' => 4]);
 
         $basket = fn (): array => collect($this->bag($user)['recipes'])
@@ -616,5 +646,64 @@ class CompanionBagTest extends TestCase
         // Rope gates nothing, so nothing has to be met for it beyond the fibre
         // it is made of.
         $this->assertContains('rope', array_column($this->bag($user)['recipes'], 'item'));
+    }
+
+    /**
+     * A recipe waits for its tool the way a tool waits for its node.
+     *
+     * Sawing is knowable the moment timber is — but naming the handsaw in its
+     * price while the handsaw itself is nowhere on the screen would be a price
+     * quoted in a currency nobody has been shown. The rule the feature already
+     * keeps for node tools is the same rule from the other end.
+     */
+    public function test_a_recipe_waits_for_the_tool_it_names(): void
+    {
+        $this->authorASaw();
+
+        $user = User::factory()->create();
+
+        // The trunk alone: timber is accounted for, so planks would be
+        // knowable — but nothing has shown Blob a handsaw.
+        app(MeetNode::class)->handle($user, 'trunk');
+
+        $listed = array_column($this->bag($user)['recipes'], 'item');
+
+        $this->assertNotContains('planks', $listed);
+        $this->assertNotContains('handsaw', $listed);
+    }
+
+    /** Once the tool is on the screen, what it is for arrives with it. */
+    public function test_a_recipe_appears_once_its_tool_is_shown(): void
+    {
+        $this->authorASaw();
+
+        $user = User::factory()->create();
+        app(MeetNode::class)->handle($user, 'trunk');
+        app(MeetNode::class)->handle($user, 'reeds');
+
+        $listed = array_column($this->bag($user)['recipes'], 'item');
+
+        // Reeds bring fibre, so rope is accounted for; rope and timber make
+        // the handsaw accountable; the handsaw makes planks accountable.
+        $this->assertContains('handsaw', $listed);
+        $this->assertContains('planks', $listed);
+    }
+
+    /**
+     * The spec's own sentence, as a test: clicking the trunk first, on a
+     * clearing where nothing else has been touched, reveals the skill and no
+     * recipes at all. (F2 §4.5)
+     */
+    public function test_meeting_only_the_trunk_still_reveals_no_recipes(): void
+    {
+        $this->authorASaw();
+
+        $user = User::factory()->create();
+        app(MeetNode::class)->handle($user, 'trunk');
+
+        $bag = $this->bag($user);
+
+        $this->assertSame(['chop-wood'], array_column($bag['skills'], 'skill'));
+        $this->assertSame([], $bag['recipes']);
     }
 }
