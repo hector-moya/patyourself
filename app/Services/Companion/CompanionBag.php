@@ -47,7 +47,7 @@ final readonly class CompanionBag
      *     items: list<array{item: string, label: string, category: string, quantity: int}>,
      *     nodes: list<array{node: string, label: string, available: int, skill: string, met: bool, known: bool}>,
      *     skills: list<array{skill: string, label: string, price: int, known: bool, affordable: bool}>,
-     *     recipes: list<array{item: string, label: string, recipe: array<string, int>, buildable: bool}>,
+     *     recipes: list<array{item: string, label: string, recipe: array<string, int>, tool: string|null, buildable: bool}>,
      * }
      */
     public function forUser(User $user): array
@@ -334,7 +334,7 @@ final readonly class CompanionBag
      *
      * @param  list<string>  $met
      * @param  Collection<string, CompanionItem>  $held
-     * @return list<array{item: string, label: string, recipe: array<string, int>, buildable: bool}>
+     * @return list<array{item: string, label: string, recipe: array<string, int>, tool: string|null, buildable: bool}>
      */
     private function recipes(array $met, Collection $held): array
     {
@@ -359,13 +359,19 @@ final readonly class CompanionBag
                 continue;
             }
 
-            $buildable = true;
+            $tool = (string) ($item['tool'] ?? '');
 
-            foreach ($recipe as $ingredient => $needed) {
-                if ((int) ($held->get($ingredient)?->quantity ?? 0) < $needed) {
-                    $buildable = false;
+            // Held, not consumed. A tool is used and never used up, so this
+            // asks whether it is in the bag and takes nothing from it.
+            $buildable = $tool === '' || (int) ($held->get($tool)?->quantity ?? 0) > 0;
 
-                    break;
+            if ($buildable) {
+                foreach ($recipe as $ingredient => $needed) {
+                    if ((int) ($held->get($ingredient)?->quantity ?? 0) < $needed) {
+                        $buildable = false;
+
+                        break;
+                    }
                 }
             }
 
@@ -373,6 +379,9 @@ final readonly class CompanionBag
                 'item' => $name,
                 'label' => (string) $item['label'],
                 'recipe' => array_map(static fn ($count): int => (int) $count, $recipe),
+                // Null rather than '' so the client has one falsy case to test
+                // and never has to tell an absent tool from an empty one.
+                'tool' => $tool === '' ? null : $tool,
                 'buildable' => $buildable,
             ];
         }

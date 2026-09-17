@@ -284,12 +284,14 @@ class CompanionBagTest extends TestCase
                 'item' => 'rope',
                 'label' => 'rope',
                 'recipe' => ['fibre' => 3],
+                'tool' => null,
                 'buildable' => false,
             ],
             [
                 'item' => 'basket',
                 'label' => 'basket',
                 'recipe' => ['fibre' => 4],
+                'tool' => null,
                 'buildable' => false,
             ],
         ], $bag['recipes']);
@@ -312,6 +314,62 @@ class CompanionBagTest extends TestCase
         // merely clearing it. Addressed by name because the catalogue's order
         // is content's to change, and this assertion has silently moved once
         // already.
+        $this->assertTrue($basket()['buildable']);
+    }
+
+    /**
+     * A recipe carries its tool as part of its price. Not a "requires" and not
+     * a lock: the row stays readable and only the button is disabled, exactly
+     * as an unaffordable skill stays listed with its price.
+     */
+    public function test_a_recipe_carries_its_tool_as_part_of_the_price(): void
+    {
+        config()->set('companion.bag.basket.tool', 'handsaw');
+
+        $user = User::factory()->create();
+        app(MeetNode::class)->handle($user, 'reeds');
+
+        // By name, not by position: rope is knowable from fibre alone and
+        // sorts ahead of the basket, and what else the clearing has taught
+        // Blob is not what this test is about.
+        $basket = collect($this->bag($user)['recipes'])->firstWhere('item', 'basket');
+
+        $this->assertSame([
+            'item' => 'basket',
+            'label' => 'basket',
+            'recipe' => ['fibre' => 4],
+            'tool' => 'handsaw',
+            'buildable' => false,
+        ], $basket);
+    }
+
+    /** A recipe that needs nothing in hand says so with null, never an empty string. */
+    public function test_a_recipe_that_needs_no_tool_carries_null(): void
+    {
+        $user = User::factory()->create();
+        app(MeetNode::class)->handle($user, 'reeds');
+
+        $basket = collect($this->bag($user)['recipes'])->firstWhere('item', 'basket');
+
+        $this->assertNull($basket['tool']);
+    }
+
+    /** Holding the materials is not enough when the tool is missing. */
+    public function test_buildable_stays_false_without_the_tool(): void
+    {
+        config()->set('companion.bag.basket.tool', 'handsaw');
+
+        $user = User::factory()->create();
+        app(MeetNode::class)->handle($user, 'reeds');
+        $user->companion->items()->create(['item' => 'fibre', 'quantity' => 4]);
+
+        $basket = fn (): array => collect($this->bag($user)['recipes'])
+            ->firstWhere('item', 'basket');
+
+        $this->assertFalse($basket()['buildable']);
+
+        $user->companion->items()->create(['item' => 'handsaw', 'quantity' => 1]);
+
         $this->assertTrue($basket()['buildable']);
     }
 
