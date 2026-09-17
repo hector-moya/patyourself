@@ -284,6 +284,42 @@ final readonly class CompanionBag
     }
 
     /**
+     * Items that gate a node, and whether Blob has seen what they are for.
+     *
+     * A tool's recipe is knowable from its ingredients like any other, but
+     * listing it before Blob has met anything that needs it would be a tool
+     * with no reason attached. Meeting that node is what supplies the reason —
+     * and it is the same encounter that puts the node's skill in the skill
+     * list, so one click reveals both halves of what the node needs.
+     *
+     * Met at ANY node that names it is enough: seeing one reason is seeing a
+     * reason. Stores nothing — this is a read of authored config against what
+     * Blob has already met.
+     *
+     * @param  list<string>  $met
+     * @return array<string, bool>
+     */
+    private function toolsAndTheirReasons(array $met): array
+    {
+        /** @var array<string, array<string, mixed>> $nodes */
+        $nodes = (array) config('companion.nodes', []);
+
+        $tools = [];
+
+        foreach ($nodes as $name => $node) {
+            $tool = (string) ($node['tool'] ?? '');
+
+            if ($tool === '') {
+                continue;
+            }
+
+            $tools[$tool] = ($tools[$tool] ?? false) || in_array($name, $met, true);
+        }
+
+        return $tools;
+    }
+
+    /**
      * Recipes Blob can account for, whether or not it is carrying the
      * ingredients yet. Knowable, not held: the point of a recipe is to tell you
      * what the thing in front of you is for.
@@ -298,6 +334,7 @@ final readonly class CompanionBag
         $catalogue = (array) config('companion.bag', []);
 
         $knowable = $this->knowable($met);
+        $tools = $this->toolsAndTheirReasons($met);
 
         $listed = [];
 
@@ -306,6 +343,11 @@ final readonly class CompanionBag
             $recipe = (array) ($item['recipe'] ?? []);
 
             if ($recipe === [] || ! in_array($name, $knowable, true)) {
+                continue;
+            }
+
+            // Knowable, but nothing Blob has seen needs it yet.
+            if (($tools[$name] ?? true) === false) {
                 continue;
             }
 

@@ -46,6 +46,41 @@ class CompanionBagTest extends TestCase
     }
 
     /**
+     * A third node that needs both a skill and a tool, authored through config
+     * so these cases test the mechanism rather than the day's content.
+     */
+    private function authorATrunk(): void
+    {
+        config()->set('companion.skills.chop-wood', [
+            'price' => 20,
+            'node' => 'trunk',
+            'label' => 'chop wood',
+        ]);
+        config()->set('companion.nodes.trunk', [
+            'skill' => 'chop-wood',
+            'tool' => 'axe',
+            'yields' => 'timber',
+            'label' => 'the fallen trunk',
+            'met' => '{name} climbs onto the fallen trunk and sits there a while.',
+            'blunt' => '{name} looks at the trunk. Nothing it is carrying will bite into it.',
+            'took' => '{name} drags back {count} timber.',
+            'empty' => '{name} checks the trunk. There is nothing loose on it.',
+            'full' => 'There is nowhere to put it. The timber stays by the trunk.',
+        ]);
+        config()->set('companion.bag.timber', ['category' => 'material', 'label' => 'timber']);
+        config()->set('companion.bag.rope', [
+            'category' => 'consumable',
+            'label' => 'rope',
+            'recipe' => ['fibre' => 3],
+        ]);
+        config()->set('companion.bag.axe', [
+            'category' => 'tool',
+            'label' => 'axe',
+            'recipe' => ['deadfall' => 2, 'rope' => 1],
+        ]);
+    }
+
+    /**
      * Nothing met, nothing held, nothing chosen. Every list is empty rather
      * than absent, so the screen never has to guess whether a key exists.
      */
@@ -427,5 +462,66 @@ class CompanionBagTest extends TestCase
 
         $this->assertContains('rope', $listed);
         $this->assertContains('torch', $listed);
+    }
+
+    /**
+     * A tool's recipe waits for the thing it is for.
+     *
+     * The axe is knowable from deadfall and rope the moment both are met — but
+     * listing it then would be a tool with no reason attached. Meeting the node
+     * that needs it is what gives it one, and that is the same encounter that
+     * puts the node's skill in the skill list: one click, both halves of what
+     * the trunk needs.
+     */
+    public function test_a_tool_is_not_listed_until_its_node_has_been_met(): void
+    {
+        $this->authorATrunk();
+
+        $user = User::factory()->create();
+        app(MeetNode::class)->handle($user, 'reeds');
+        app(MeetNode::class)->handle($user, 'deadfall');
+
+        $listed = array_column($this->bag($user)['recipes'], 'item');
+
+        // Both of the axe's ingredients are knowable, and the axe is still not
+        // listed, because Blob has never seen the trunk.
+        $this->assertContains('rope', $listed);
+        $this->assertNotContains('axe', $listed);
+
+        app(MeetNode::class)->handle($user, 'trunk');
+
+        $this->assertContains('axe', array_column($this->bag($user)['recipes'], 'item'));
+    }
+
+    /**
+     * Meeting the trunk first, on a clearing where nothing else has been
+     * touched, reveals the skill and no recipes at all — every chain here
+     * bottoms out in fibre or deadfall. Nothing special-cases that: the lists
+     * are what Blob has met, and it has met one thing.
+     */
+    public function test_meeting_only_the_trunk_reveals_a_skill_and_no_recipes(): void
+    {
+        $this->authorATrunk();
+
+        $user = User::factory()->create();
+        app(MeetNode::class)->handle($user, 'trunk');
+
+        $bag = $this->bag($user);
+
+        $this->assertSame(['chop-wood'], array_column($bag['skills'], 'skill'));
+        $this->assertSame([], $bag['recipes']);
+    }
+
+    /** A recipe no node names is knowable from its ingredients alone. */
+    public function test_a_recipe_no_node_needs_is_listed_on_its_ingredients_alone(): void
+    {
+        $this->authorATrunk();
+
+        $user = User::factory()->create();
+        app(MeetNode::class)->handle($user, 'reeds');
+
+        // Rope gates nothing, so nothing has to be met for it beyond the fibre
+        // it is made of.
+        $this->assertContains('rope', array_column($this->bag($user)['recipes'], 'item'));
     }
 }
