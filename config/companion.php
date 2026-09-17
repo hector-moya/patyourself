@@ -418,4 +418,34 @@ return [
 
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Skills
+    |--------------------------------------------------------------------------
+    |
+    | What XP buys, and the one consequential choice in the whole feature: two
+    | identical records can produce different Blobs, permanently, because of
+    | what was bought first.
+    |
+    | A skill unlocks an interaction with one node; the node yields a material;
+    | the material builds a thing. Two layers, and they pace each other — the
+    | record controls what Blob CAN do, the world controls how fast. One wallet
+    | would collapse that and materials would become decoration.
+    |
+    | A skill is shown to the user only once Blob has MET its node, so THIS MAP
+    | IS NEVER RENDERED WHOLE AND ITS LENGTH IS NEVER SHOWN. A list that grows
+    | as you meet things is a menu; a list of everything that exists, with most
+    | of it greyed, is a checklist.
+    |
+    | `label` is what the row says, `price` is what it costs, `node` is what it
+    | unlocks. F1 ships two; F2 widens this without touching any of the code
+    | that reads it.
+    |
+    */
+
+    'skills' => [
+        'gather-fibre' => ['price' => 20, 'node' => 'reeds', 'label' => 'gather fibre'],
+        'gather-wood' => ['price' => 20, 'node' => 'deadfall', 'label' => 'gather wood'],
+    ],
+
 ];
