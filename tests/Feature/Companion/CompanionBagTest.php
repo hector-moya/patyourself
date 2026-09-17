@@ -100,6 +100,12 @@ class CompanionBagTest extends TestCase
             'recipe' => ['timber' => 1],
             'makes' => 3,
         ]);
+        config()->set('companion.bag.crate', [
+            'category' => 'container',
+            'label' => 'crate',
+            'recipe' => ['planks' => 4],
+            'capacity' => 5,
+        ]);
     }
 
     /**
@@ -705,5 +711,45 @@ class CompanionBagTest extends TestCase
 
         $this->assertSame(['chop-wood'], array_column($bag['skills'], 'skill'));
         $this->assertSame([], $bag['recipes']);
+    }
+
+    /**
+     * Being blocked travels. A thing made from something Blob has not been
+     * shown is not shown either, however ordinary its own price looks.
+     *
+     * The crate names no tool, so nothing about the crate itself is gated —
+     * but it is made of planks, and planks wait for a handsaw nobody has
+     * seen. Listing it would put "4 planks" on a screen where planks do not
+     * appear, which is the thing the gate exists to prevent, one link further
+     * along than the gate used to reach.
+     */
+    public function test_being_blocked_travels_down_the_chain(): void
+    {
+        $this->authorASaw();
+
+        $user = User::factory()->create();
+        app(MeetNode::class)->handle($user, 'trunk');
+
+        $listed = array_column($this->bag($user)['recipes'], 'item');
+
+        $this->assertNotContains('crate', $listed);
+        $this->assertNotContains('planks', $listed);
+        $this->assertNotContains('handsaw', $listed);
+    }
+
+    /** And it un-blocks the same way, all the way down. */
+    public function test_the_whole_chain_arrives_once_its_first_tool_does(): void
+    {
+        $this->authorASaw();
+
+        $user = User::factory()->create();
+        app(MeetNode::class)->handle($user, 'trunk');
+        app(MeetNode::class)->handle($user, 'reeds');
+
+        $listed = array_column($this->bag($user)['recipes'], 'item');
+
+        $this->assertContains('handsaw', $listed);
+        $this->assertContains('planks', $listed);
+        $this->assertContains('crate', $listed);
     }
 }

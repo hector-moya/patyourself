@@ -226,20 +226,26 @@ final readonly class CompanionBag
     }
 
     /**
-     * Every item whose existence Blob can account for.
+     * Every item whose existence Blob can account for, and — because the two
+     * are the same rule now — every item whose gates Blob has cleared.
      *
      * Seeded from the materials met nodes yield, then grown: an item is
      * knowable if it is one of those, or if it is a recipe every one of whose
-     * ingredients is already knowable. Without the second half, nothing built
-     * from something built could ever be listed — an axe made from rope would
-     * be invisible for as long as rope is a thing you make rather than a thing
-     * you find.
+     * ingredients is already knowable AND, when it names a tool, that tool is
+     * itself knowable and accounted for by some node. Without the ingredient
+     * half, nothing built from something built could ever be listed — an axe
+     * made from rope would be invisible for as long as rope is a thing you
+     * make rather than a thing you find. Without the tool half, a thing built
+     * from a gated tool would still slip through: the gate would stop only the
+     * tool itself, not what is made from it.
      *
      * A FIXED POINT RATHER THAN RECURSION, and that is the whole reason this is
      * shaped the way it is. `config` is authored data; an authored `a -> b -> a`
      * pair would send a recursive resolver into a loop on an ordinary page
      * load. Each pass adds whatever became reachable and the loop stops when a
-     * pass adds nothing, which is at most one pass per catalogue entry.
+     * pass adds nothing, which is at most one pass per catalogue entry. A gate
+     * changes what a pass is allowed to add, never how many passes there are,
+     * so the loop still terminates for the same reason it always did.
      *
      * @param  list<string>  $met
      * @return list<string>
@@ -251,6 +257,8 @@ final readonly class CompanionBag
 
         /** @var array<string, array<string, mixed>> $nodes */
         $nodes = (array) config('companion.nodes', []);
+
+        $tools = $this->toolsAndTheirReasons($met);
 
         $known = [];
 
@@ -272,6 +280,23 @@ final readonly class CompanionBag
                 $recipe = (array) ($item['recipe'] ?? []);
 
                 if ($recipe === [] || array_diff(array_keys($recipe), array_keys($known)) !== []) {
+                    continue;
+                }
+
+                // A tool nothing has shown Blob blocks the thing it makes —
+                // and because that block happens INSIDE the fixed point, it
+                // also blocks whatever is made from that in turn. A guard
+                // sitting outside this loop can only ever stop the first link
+                // of a chain.
+                $tool = (string) ($item['tool'] ?? '');
+
+                if ($tool !== '' && ! isset($known[$tool])) {
+                    continue;
+                }
+
+                // Something a node gates is not accounted for until that node
+                // has been met, for the same reason and with the same reach.
+                if (($tools[$name] ?? true) === false) {
                     continue;
                 }
 
@@ -342,14 +367,6 @@ final readonly class CompanionBag
         $catalogue = (array) config('companion.bag', []);
 
         $knowable = $this->knowable($met);
-        $tools = $this->toolsAndTheirReasons($met);
-
-        // An item the player has actually been shown: one Blob can account
-        // for, and — if some node needs it — one whose node has been met.
-        // Both gates, in one place, because "shown" is the thing every rule
-        // below actually cares about.
-        $shown = static fn (string $name): bool => in_array($name, $knowable, true)
-            && ($tools[$name] ?? true) !== false;
 
         $listed = [];
 
@@ -357,19 +374,11 @@ final readonly class CompanionBag
             /** @var array<string, int> $recipe */
             $recipe = (array) ($item['recipe'] ?? []);
 
-            if ($recipe === [] || ! $shown($name)) {
+            if ($recipe === [] || ! in_array($name, $knowable, true)) {
                 continue;
             }
 
             $tool = (string) ($item['tool'] ?? '');
-
-            // A recipe waits for its tool the way a tool waits for its node.
-            // Listing a thing whose price names something the player has never
-            // seen is the same defect from the other end — the row would read
-            // as a price in a currency nobody has been shown.
-            if ($tool !== '' && ! $shown($tool)) {
-                continue;
-            }
 
             // Held, not consumed. A tool is used and never used up, so this
             // asks whether it is in the bag and takes nothing from it.
