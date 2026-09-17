@@ -448,4 +448,110 @@ return [
         'gather-wood' => ['price' => 20, 'node' => 'deadfall', 'label' => 'gather wood'],
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Nodes
+    |--------------------------------------------------------------------------
+    |
+    | What stands in the clearing. Both are VISIBLE FROM THE START and unusable
+    | without their skill — clicking one before you have it does not fail and
+    | does not show a lock. Blob turns it over and puts it down again, and that
+    | encounter is what puts the skill in the list. (F1 §2)
+    |
+    | Each outcome recorded adds one unit to each node whose skill is learned,
+    | and only from the moment it was learned. Stock is uncapped and nothing
+    | expires: away for two weeks, it is all still there.
+    |
+    | `deadfall` is deliberately both a node and a material. They live in
+    | different maps and different tables, and calling the fallen branches one
+    | thing and what you carry away from them another would be two words for
+    | one object.
+    |
+    | Copy rules as everywhere else. `met` is what Blob does with a node it
+    | cannot use yet: it describes Blob, states no requirement, and never hints
+    | at a price — the price appears in the bag, which the encounter opens.
+    | `full` is what happens when there is nowhere to put what it picked up;
+    | it names where the thing stays, because nothing is ever destroyed.
+    |
+    */
+
+    'nodes' => [
+        'reeds' => [
+            'skill' => 'gather-fibre',
+            'yields' => 'fibre',
+            'label' => 'the reeds',
+            'met' => '{name} turns the reeds over and puts them down again.',
+            'full' => 'There is nowhere to put them. The reeds stay by the water.',
+        ],
+        'deadfall' => [
+            'skill' => 'gather-wood',
+            'yields' => 'deadfall',
+            'label' => 'the fallen branches',
+            'met' => '{name} pushes at a fallen branch and leaves it where it is.',
+            'full' => 'There is nowhere to put it. The branches stay under the tree.',
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | The bag
+    |--------------------------------------------------------------------------
+    |
+    | Everything Blob can hold or build, keyed by the name stored in
+    | `companion_items.item`. THE CATEGORY LIVES HERE AND NOWHERE ELSE — a row
+    | that carried its own category would be a second copy of this, and the two
+    | would eventually disagree about what a thing is.
+    |
+    | This is not `item_types`, which is the four WEARABLES and stays capped
+    | forever. Nothing here goes on Blob, and nothing here may reuse a
+    | wearable's name — CompanionContentTest guards that.
+    |
+    | Materials TRANSFORM; they are never taken. Spending fibre on a basket is
+    | not losing fibre, it is the basket having fibre in it. That is what keeps
+    | consumption inside the "nothing regresses" rule.
+    |
+    | Building needs no skill: assembling by hand is what hands are for, and it
+    | keeps F1 at two skills.
+    |
+    */
+
+    'bag' => [
+        'fibre' => ['category' => 'material', 'label' => 'fibre'],
+        'deadfall' => ['category' => 'material', 'label' => 'deadfall'],
+
+        'basket' => [
+            'category' => 'container',
+            'label' => 'basket',
+            'recipe' => ['fibre' => 4],
+            'capacity' => 5,
+        ],
+        'barrow' => [
+            'category' => 'container',
+            'label' => 'barrow',
+            'recipe' => ['deadfall' => 4],
+            'capacity' => 5,
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Capacity
+    |--------------------------------------------------------------------------
+    |
+    | What Blob's hands hold, and which categories take up that room. A
+    | container does not occupy the space it creates; a tool, when F2 adds one,
+    | is on the belt.
+    |
+    | Capacity CAPS WHAT BLOB HOLDS, never what the world has. When the bag is
+    | full, harvesting stops and says so — the remainder stays standing where
+    | it was, nothing is destroyed, and there is a reason to build the next
+    | container rather than hoard.
+    |
+    */
+
+    'capacity' => [
+        'base' => 5,
+        'carried' => ['material', 'consumable'],
+    ],
+
 ];
