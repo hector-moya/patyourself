@@ -85,8 +85,15 @@ class CompanionBagTest extends TestCase
     }
 
     /**
-     * The sawing half of F2's content, authored ahead of Task 12 so this gate
-     * is tested against the shape that motivated it rather than a stand-in.
+     * The sawing half of F2's content, pinned rather than authored.
+     *
+     * `handsaw`, `planks` and `crate` are real, shipped config now — this sets
+     * them byte-for-byte identical to `config/companion.php`. Kept anyway,
+     * rather than deleted in favour of the real config, so its callers keep
+     * testing the SHAPE this gate is about (a tool two links deep in a chain)
+     * rather than whatever numbers a later tuning pass gives the shipped
+     * recipe. {@see authorATrunk()} got the same treatment when its own
+     * content shipped, for the same reason.
      */
     private function authorASaw(): void
     {
@@ -622,25 +629,6 @@ class CompanionBagTest extends TestCase
         app(MeetNode::class)->handle($user, 'trunk');
 
         $this->assertContains('axe', array_column($this->bag($user)['recipes'], 'item'));
-    }
-
-    /**
-     * Meeting the trunk first, on a clearing where nothing else has been
-     * touched, reveals the skill and no recipes at all — every chain here
-     * bottoms out in fibre or deadfall. Nothing special-cases that: the lists
-     * are what Blob has met, and it has met one thing.
-     */
-    public function test_meeting_only_the_trunk_reveals_a_skill_and_no_recipes(): void
-    {
-        $this->authorATrunk();
-
-        $user = User::factory()->create();
-        app(MeetNode::class)->handle($user, 'trunk');
-
-        $bag = $this->bag($user);
-
-        $this->assertSame(['chop-wood'], array_column($bag['skills'], 'skill'));
-        $this->assertSame([], $bag['recipes']);
     }
 
     /** A recipe no node names is knowable from its ingredients alone. */

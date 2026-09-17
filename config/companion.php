@@ -615,8 +615,7 @@ return [
     |--------------------------------------------------------------------------
     |
     | What Blob's hands hold, and which categories take up that room. A
-    | container does not occupy the space it creates; a tool, when F2 adds one,
-    | is on the belt.
+    | container does not occupy the space it creates; a tool is on the belt.
     |
     | Capacity CAPS WHAT BLOB HOLDS, never what the world has. When the bag is
     | full, harvesting stops and says so — the remainder stays standing where

@@ -179,8 +179,8 @@ class CompanionContentTest extends TestCase
     }
 
     /**
-     * A container does not occupy the space it creates, and a tool — when F2
-     * adds one — is on the belt rather than in the bag.
+     * A container does not occupy the space it creates, and a tool is on the
+     * belt rather than in the bag.
      */
     public function test_only_carried_categories_take_up_room(): void
     {

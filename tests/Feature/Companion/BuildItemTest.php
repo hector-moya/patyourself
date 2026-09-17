@@ -243,7 +243,14 @@ class BuildItemTest extends TestCase
         }
     }
 
-    /** One timber, three planks. The count is config's to say. */
+    /**
+     * One fibre, three planks. The count is config's to say.
+     *
+     * `planks` is real, shipped content now (`timber` + a `handsaw` tool),
+     * but this substitutes a simpler fibre-only recipe with no tool, because
+     * this test is about the COUNT `makes` states rather than about the
+     * shipped recipe itself.
+     */
     public function test_a_recipe_can_make_more_than_one(): void
     {
         config()->set('companion.bag.planks', [
@@ -261,7 +268,13 @@ class BuildItemTest extends TestCase
         $this->assertSame(1, $this->held($companion, 'fibre'));
     }
 
-    /** Building the same thing twice stacks what it makes. */
+    /**
+     * Building the same thing twice stacks what it makes.
+     *
+     * Same fibre-only stand-in as the test above, deliberately dropping the
+     * shipped `handsaw` tool: this is about stacking, not about the tool
+     * gate `planks` actually carries.
+     */
     public function test_making_several_twice_stacks_them(): void
     {
         config()->set('companion.bag.planks', [
@@ -302,9 +315,10 @@ class BuildItemTest extends TestCase
      */
     public function test_a_recipe_that_says_it_makes_nothing_still_makes_one(): void
     {
-        // The whole entry, not a sub-key: `planks` is not authored yet, and
-        // setting `…planks.makes` alone would leave it without a recipe to
-        // build from.
+        // The whole entry, not a sub-key, and a fibre-only recipe rather than
+        // the shipped `timber` + `handsaw` one: setting only `…planks.makes`
+        // would leave the shipped `tool` key in place, and this test would
+        // end up about a tool gate it never meant to exercise.
         config()->set('companion.bag.planks', [
             'category' => 'material',
             'label' => 'planks',
@@ -329,6 +343,9 @@ class BuildItemTest extends TestCase
      */
     public function test_a_build_that_would_not_fit_refuses_and_consumes_nothing(): void
     {
+        // A fibre-only stand-in for the shipped `timber` + `handsaw` recipe,
+        // so this is about the capacity refusal alone and nothing here has to
+        // hold a tool to trigger it.
         config()->set('companion.bag.planks', [
             'category' => 'material',
             'label' => 'planks',
@@ -355,6 +372,9 @@ class BuildItemTest extends TestCase
     /** It fits the moment there is room for the net gain, not for the whole. */
     public function test_a_build_fits_when_there_is_room_for_the_net_gain(): void
     {
+        // Same fibre-only stand-in as the refusal test above, and for the
+        // same reason: no tool involved, so nothing here obscures the net
+        // gain the boundary is about.
         config()->set('companion.bag.planks', [
             'category' => 'material',
             'label' => 'planks',
@@ -376,6 +396,10 @@ class BuildItemTest extends TestCase
     /**
      * A tool is not carried, so a recipe that makes one can never overflow
      * however full the bag is.
+     *
+     * `axe` is real, shipped content now (`deadfall` + `rope`), but this
+     * substitutes a one-ingredient fibre recipe: this test is about a tool
+     * never occupying room, not about the shipped ingredients.
      */
     public function test_building_a_tool_can_never_overflow(): void
     {
