@@ -195,21 +195,40 @@ MCP surfaces that feed them) will still say "Blob" unless the name is passed to 
 should be exposed wherever the coach reads companion state; if that proves larger than it looks, it
 moves to F2 and is recorded as a gap rather than left to be discovered.
 
-## 8. UI — a working assumption, not an answer
+## 8. UI — settled
 
-**The first task of F1's implementation plan is to settle the layout with a mockup, before building
-any of it.** `/companion` already carries a room and a record; F1 adds an XP readout, a skill list, a
-bag, and clickable nodes. That is four panels on a page currently built for two, and the record may
-need to move.
+**Settled 17 Sep 2026.** The section previously carried a working assumption — a third panel beside
+the room and the record. That is not what ships. **The bag is a button that opens a modal.**
 
-The assumption to start from:
-
+- **The page stays at two panels.** Room and record, exactly as they are today. Nothing moves, and
+  the open question in the arc doc §7 about whether the record survives on `/companion` is answered:
+  it does, because the bag never competes with it for space.
+- **The plinth gains a `Bag 3 / 5` button**, beside Pet, Play and Poke. It carries the capacity
+  because that is the bag's one ambient fact — the number that is true whether or not you are
+  looking. Everything else in there is static until you act on it.
+- **The modal holds the bag**: contents, the build list and the skill list, in the same nine-sliced
+  wood as the panels behind it.
 - The place bar gains a **balance only** — `48 xp`. No target, no bar, no "next at". A number with a
   ceiling is the checklist coming back in through the window.
 - Nodes are clickable inside the existing `CompanionRoom` SVG, beside the foliage layers.
-- A third panel in the same nine-sliced wood holds **the bag** — contents, capacity, and the skill
-  list.
-- Phone stacks as it does now.
+- Phone stacks as it does now, unchanged, because there is no third panel to stack.
+
+**Why a modal rather than a panel.** The bag is a thing you open, not a thing you watch. Nothing in
+it changes unless you act — the clearing accrues, the bag does not — so a permanent panel would spend
+a third of the screen on state that is static between your own clicks. The room is the thing worth
+watching, and it gets the room back.
+
+**The cost, and what pays it.** A panel made one thing legible that a modal hides: clicking a node
+you cannot use puts its skill in the list, and behind a modal you would not see that happen. So
+**an encounter that reveals a skill opens the bag once, on the spot.** That is not a nag — it is the
+response to a click you just made, shown once, at the moment it happens. It turns the modal from a
+cost into the beat where discovery lands.
+
+**Implementation note.** Build on `@radix-ui/react-dialog`'s primitives directly, not on
+`@/components/ui/dialog`. That wrapper bakes in `bg-background`, `rounded-lg`, `p-6` and a lucide
+close button — the notebook's chrome, which is exactly wrong inside the pixel frame. The primitives
+give the focus trap, Esc and overlay; the skin is the panels'. Same rule the CSS block already
+states: inside these frames the art sets the rules.
 
 Everything new sits inside the pixel panels; the notebook outside them is untouched.
 

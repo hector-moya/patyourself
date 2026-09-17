@@ -151,13 +151,13 @@ and whatever F1–F3 taught us. Deliberately vague: designing it now would be gu
 
 ## 7. Open questions, deferred on purpose
 
-- **Where the surfaces live.** `/companion` already holds a room and a record; F1 adds XP, a skill
-  list, a bag and clickable nodes. The layout is the first thing F1's plan must settle, with a
-  mockup, before any of it is built. F1 states a working assumption, not an answer.
+- ~~**Where the surfaces live.**~~ **Settled 17 Sep 2026**, see F1 §8: the page stays at two panels,
+  the bag is a button in the plinth that opens a modal, and the XP balance sits in the place bar.
 - **What Blob says about any of this.** The remark system (`CompanionRemarks`) is the natural voice
   for "Blob has been looking at the reeds", but nothing here depends on it and F1 does not touch it.
-- **Whether the record panel stays on `/companion`.** It may need to move once the page carries four
-  panels. Not decided.
+- ~~**Whether the record panel stays on `/companion`.**~~ **Settled 17 Sep 2026:** it stays, and is
+  untouched. The question only existed because a third panel would have crowded it; the bag being a
+  modal means nothing ever competes with the record for the page.
 
 ## 8. What would make this wrong
 

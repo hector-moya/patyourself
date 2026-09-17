@@ -75,8 +75,8 @@ Every task's requirements implicitly include this section. Values are copied ver
 | `app/Http/Controllers/CompanionNodeController.php` | `POST /companion/nodes/{node}` — click one. |
 | `app/Http/Controllers/CompanionBuildController.php` | `POST /companion/build` — build one. |
 | `app/Http/Controllers/CompanionNameController.php` | `PATCH /companion/name` — rename. |
-| `resources/js/patyourself/companion-bag.tsx` | The third panel: capacity, contents, recipes, the skill list. |
-| `resources/js/patyourself/companion-bag.test.tsx` | Its own guard against totals. |
+| `resources/js/patyourself/companion-bag.tsx` | The bag modal: capacity, contents, recipes, the skill list, on Radix's dialog primitives in the panels' wood. |
+| `resources/js/patyourself/companion-bag.test.tsx` | Its own guard against totals, plus the open/close behaviour. |
 
 **Modified**
 
@@ -91,7 +91,7 @@ Every task's requirements implicitly include this section. Values are copied ver
 | `resources/js/patyourself/companion-room.tsx` | Clickable nodes in the scene. |
 | `resources/js/pages/companion.tsx` | The layout settled in Task 1. |
 | `resources/js/patyourself/companion.fixture.ts` | A `bag` default so the four other screens keep rendering. |
-| `resources/css/patyourself.css` | The bag panel, hand-formatted. |
+| `resources/css/patyourself.css` | The bag modal — overlay, frame, rows — hand-formatted. |
 
 ---
 
@@ -102,7 +102,7 @@ Every task's requirements implicitly include this section. Values are copied ver
 | **1** | The layout decision (a mockup, no code) + the tables + the wallet + buying a skill. Server-side only. | None on screen. |
 | **2** | The world: config content, the stocking listener, meeting a node, harvesting, building. Server-side only. | None on screen. |
 | **3** | The name: the `{name}` token across all authored copy, the guard, the rename. | Touches 19 authored strings. |
-| **4** | The bag panel and the XP readout on `/companion`, per Task 1's decision. | First UI. |
+| **4** | The bag modal and the XP readout on `/companion`, per Task 1's decision. | First UI. |
 | **5** | The clearing: clickable nodes inside `CompanionRoom`, the encounter, harvest and build wired to the scene. | Art. |
 
 **Stop for review after every batch.**
@@ -127,9 +127,15 @@ Nothing in this batch renders. Task 1 produces a mockup and a decision; Tasks 2�
 - Consumes: nothing
 - Produces: a layout decision that Tasks 14–19 build against. Specifically: which panel holds the bag, where the XP number sits, and the mobile stack order.
 
-- [ ] **Step 1: Establish the three candidate layouts**
+> **ANSWERED, 17 Sep 2026.** None of the three candidates below. **The bag is a button in the plinth
+> that opens a modal.** The page stays at two panels, the record is untouched, and the button carries
+> the capacity (`Bag 3 / 5`) because that is the bag's one ambient fact. Steps 1–3 are kept as the
+> record of what was weighed; Step 4 below carries the settled decision and is what Batches 4–5
+> build. F1 §8 has been rewritten to match.
 
-Only the second and third are live; the first is recorded because it is what F1 §8 assumed and a later reader should see why it lost.
+- [x] **Step 1: Establish the three candidate layouts**
+
+Only the second and third were live; the first is recorded because it is what F1 §8 assumed and a later reader should see why it lost.
 
 ```
 A — F1 §8's assumption: right column stacks bag over record
@@ -167,7 +173,7 @@ C — two panels, the right one tabbed
 
 Write a single self-contained HTML file using the real hex values from `resources/css/patyourself.css:1042-1103` (`#241C15` board, `#181209` bars, `#F2E3BF` / `#C9AE7E` / `#A58D64` type) so the decision is read in the wood it will actually live in. Show B at desktop width and at phone width, with A beside it for comparison. Box the scene rather than reproducing the sprite art — this is a layout decision, not a pixel one.
 
-The bag panel's contents, which the mockup must show because they are what the guard is about:
+The bag's contents, which the mockup must show because they are what the guard is about:
 
 ```
 ┌─ THE BAG ────────────────── 3 / 5 ─┐   ← held-of-capacity, never "60%"
@@ -187,9 +193,37 @@ Nothing in that panel names how many skills exist, how many are unbought, or how
 
 Published 17 Sep 2026: <https://claude.ai/code/artifact/02cc1e73-548c-4f96-a4bd-f4ce568a634a> — both candidates at honest proportions, the phone stack, and the rule the bag has to pass. Tasks 14–19 do not start until this is answered.
 
-- [ ] **Step 4: Record the decision in the spec**
+- [x] **Step 4: The settled layout**
 
-Once answered, replace F1 §8's "a working assumption, not an answer" with the settled layout, so the spec stops disagreeing with the code.
+Recorded in F1 §8 and in the arc doc's open-questions list, both of which now say this rather than pointing at a mockup.
+
+```
+/companion — two panels, unchanged in number
+┌──────────────────────────────┬──────────────────┐
+│ the forest · 48 xp · dusk    │ WHAT HAS HAPPENED│   XP balance in the
+│ ┌──────────────────────────┐ │  scarf    11 Sep │   place bar. Balance
+│ │        the scene         │ │  walk      4 Sep │   only — no target,
+│ │   reeds ·    · deadfall  │ │  shoes    28 Aug │   no bar, no "next at"
+│ └──────────────────────────┘ │  arms     24 Aug │
+│  [Pet] [Play] [Poke] [Bag 3/5]│  legs     22 Aug │   ← the bag is a button
+└──────────────────────────────┴──────────────────┘
+
+          ┌─ THE BAG ─────────────── 3 / 5 ─┐   opened by that button,
+          │  HELD                            │   in the same wood, over
+          │  fibre                        3  │   a dimmed page
+          │  BUILD                           │
+          │  basket                  4 fibre │
+          │  BLOB COULD LEARN                │
+          │  gather fibre             20 xp  │
+          └──────────────────────────────────┘
+```
+
+Four consequences the later tasks are built on:
+
+1. **The record is untouched.** No new panel competes with it, so `.c-wrap` keeps its two columns and the phone keeps its two-item stack. Task 15 writes no grid CSS.
+2. **The button carries the capacity.** `Bag 3 / 5` — the bag's one ambient fact, the number that is true whether or not you are looking. Everything else in the bag is static until you act on it, which is the argument for a modal in the first place.
+3. **An encounter that reveals a skill opens the bag once.** A panel made the discovery mechanic visible; a modal hides it. This pays that back — clicking the reeds shows Blob looking at them *and* opens the bag on the new row, once, as the response to a click you made. Not a nag; nothing opens unprompted.
+4. **Radix primitives, not `@/components/ui/dialog`.** That wrapper hardcodes `bg-background`, `rounded-lg`, `p-6` and a lucide close button, and the close button cannot be removed through `className`. The primitives give the focus trap, Esc and overlay; the skin is the panels'.
 
 ---
 
@@ -2879,9 +2913,9 @@ git commit -m "feat(companion): the name reaches the screen"
 
 ---
 
-# BATCH 4 — the bag panel
+# BATCH 4 — the bag modal
 
-Builds Task 1's settled layout. Do not start until Task 1 is answered.
+Builds Task 1's settled layout: the page stays at two panels, and the bag opens over them.
 
 ---
 
@@ -2897,36 +2931,95 @@ Feature test: the rendered Inertia page carries the bag prop, and its balance ma
 
 ---
 
-### Task 15: The bag panel itself
+### Task 15: The bag modal
 
 **Files:**
 - Create: `resources/js/patyourself/companion-bag.tsx`, `resources/js/patyourself/companion-bag.test.tsx`
 - Modify: `resources/js/pages/companion.tsx`, `resources/css/patyourself.css`
 
-Three sections in one `.pixel-frame .c-panel`, exactly as the Task 1 mockup shows: capacity as `held / capacity`, the contents, the build list, the skill list. Prices are prices; nothing is a requirement and nothing is a total.
+**Interfaces:**
+- Produces: `<CompanionBag bag={...} open={boolean} onOpenChange={(open: boolean) => void} />` — a controlled dialog. Controlled rather than self-managed because Task 18 has to open it from outside, when an encounter reveals a skill.
 
-Vitest, and these are the acceptance criteria rather than coverage:
-- the panel passes `/locked|next up|to unlock|remaining|streak|congratulation|\d+\s*%|\d+ of \d+/i` — note `3 / 5` must therefore be rendered so it does not match `\d+ of \d+`, which it does not, but `held` and `capacity` must never be joined by the word "of";
-- a skill whose node has not been met is absent from the DOM, not hidden;
-- an unaffordable skill is still listed, with its price, and its button is disabled rather than the row being greyed — a disabled button on a row you can read is a price you cannot pay yet, which is a menu; a greyed row is a lock;
-- an empty bag says something plain and owes nothing.
+- [ ] **Step 1: Build on the primitives, not the wrapper**
 
-CSS: hand-format, in the existing block's idiom, appended after `.c-first`. Do not run prettier over the file.
+```tsx
+import * as Dialog from '@radix-ui/react-dialog';
+```
+
+Not `@/components/ui/dialog`. That wrapper hardcodes `bg-background`, `rounded-lg`, `p-6`, `shadow-lg` and a lucide close button, and **the close button cannot be removed through `className`** — it would put a notebook X in the corner of a pixel panel. The primitives give the focus trap, Esc-to-close, the overlay and the scroll lock; the skin is the panels' own.
+
+`Dialog.Title` is not optional: Radix warns without one, and it is what the dialog is announced as. Use the `.c-ribbon` ribbon as the title element — `THE BAG`, with the capacity beside it exactly as `.c-ribbon span` already handles the record's "since 20 Aug 2026".
+
+The close control is the remark bubble's `×` (`.c-saidx`), reused rather than reinvented — it is already the app's one pixel-panel dismiss affordance, and it already carries a visible focus ring.
+
+- [ ] **Step 2: The contents**
+
+Four groups in one `.pixel-frame .c-panel`, in this order, each absent entirely when empty:
+
+| Group | Rows | Rule |
+| --- | --- | --- |
+| *(ribbon)* | `THE BAG` · `3 / 5` | Held-of-capacity. Never the word "of". |
+| `HELD` | `fibre` · `3` | Only what is held. |
+| `BUILD` | `basket` · `4 fibre` | A price. Never "you need". |
+| `BLOB COULD LEARN` | `gather fibre` · `20 xp` | Only skills whose node has been met. |
+
+An empty bag renders the ribbon and one plain line that owes nothing — the same register as `.c-first`'s "that is the whole of it, so far".
+
+- [ ] **Step 3: Write the tests**
+
+These are the acceptance criteria rather than coverage:
+
+- the modal's contents pass `/locked|next up|to unlock|remaining|streak|congratulation|\d+\s*%|\d+ of \d+/i`. `3 / 5` does not match `\d+ of \d+` — but `held` and `capacity` must never be joined by the word "of", and the test exists to keep it that way;
+- a skill whose node has not been met is **absent from the DOM**, not hidden;
+- an unaffordable skill is still listed, with its price, and its *button* is disabled while the row stays readable — a price you cannot pay yet is a menu; a greyed row is a lock;
+- an empty bag says something plain and owes nothing;
+- the dialog has an accessible name, closes on Esc, and returns focus to the button that opened it;
+- `open={false}` renders nothing — assert on `queryByRole('dialog')` being null, so a modal that is merely visually hidden fails.
+
+- [ ] **Step 4: CSS**
+
+Append after `.c-first`, hand-formatted in the existing block's idiom. Needed: the overlay (a flat dark wash, no blur — blur is notebook chrome), the centred frame with a `max-height` and its own `overflow-y: auto` so a long skill list scrolls inside the wood rather than growing the page, and the group/row/price rules.
+
+**Do not run prettier over `resources/css/patyourself.css`.** It is hand-formatted and already fails `format:check` on `main`; `--write` turns a small addition into a multi-thousand-line diff.
 
 ---
 
-### Task 16: The XP readout
+### Task 16: The XP readout and the button that opens the bag
 
 **Files:**
-- Modify: `resources/js/pages/companion.tsx` (`RoomCard`'s `.c-place`), `resources/css/patyourself.css`
+- Modify: `resources/js/pages/companion.tsx` (`RoomCard`'s `.c-place` and `.c-plinth`), `resources/css/patyourself.css`
 - Test: `resources/js/pages/companion.test.tsx`
 
-`the forest · 48 xp · dusk 19:30`. Balance only. The existing place-bar tests (`names where Blob is and what part of the day it is`, `reads the same hour the room and the ambient do`) must keep passing — they use `getByText('the forest')` and `getByText('dusk · 19:30')`, so the XP span goes in its own element rather than inside either of those strings.
+- [ ] **Step 1: The balance in the place bar**
 
-New test: the bar shows the balance and nothing resembling a target, a bar, a delta or a "next at".
+`the forest · 48 xp · dusk 19:30`. Balance only.
+
+The existing place-bar tests (`names where Blob is and what part of the day it is`, `reads the same hour the room and the ambient do`) must keep passing. They use `getByText('the forest')` and `getByText('dusk · 19:30')`, which are exact-string matchers — so the XP goes in **its own element**, never concatenated into either of those strings, or both tests break on a change that is not about them.
+
+- [ ] **Step 2: The button in the plinth**
+
+`Bag 3 / 5`, after Poke. A real `<button>` in `.c-plinth`, styled with the same `.pixel-button` the others use.
+
+It is the odd one out in that row — every other button there fires an animation through `onReact`, and this one opens a dialog. The plinth already has a documented odd one out (Poke, "deliberately last"), and the shared argument holds: what these buttons act on is inside this frame and nothing else, and everything in the bag came out of this frame.
+
+The capacity is on the button because it is the bag's one **ambient** fact — the number that is true whether or not you are looking. Everything else in the bag is static until you act on it, which is the whole argument for it being a modal.
+
+- [ ] **Step 3: Write the tests**
+
+- the bar shows the balance and nothing resembling a target, a bar, a delta or a "next at";
+- the plinth's bag button shows `3 / 5` and opens the dialog when clicked;
+- the three existing plinth buttons still work and are still enabled — earning something adds a button here, it never takes one away;
+- the page still passes `never shows what has not happened` with the bag **closed**, and again with it **open**. Two separate cases: the guard queries the whole rendered tree, and a modal that only appears on click would otherwise never be inside it.
+
+- [ ] **Step 4: Run, lint, commit**
 
 ```bash
-git commit -m "feat(companion): the bag, in the same wood"
+npx vitest run resources/js/pages/companion.test.tsx resources/js/patyourself
+npx eslint resources/js/pages/companion.tsx resources/js/patyourself/companion-bag.tsx
+```
+
+```bash
+git commit -m "feat(companion): a bag you open, in the same wood"
 ```
 
 ---
@@ -2964,20 +3057,33 @@ Each node is a real `<button>` over the SVG rather than a click handler on a `<g
 
 The line is authored copy and lives in `config('companion.nodes')` beside the label, under the same copy rules as everything else: sentence case, no exclamation marks, never congratulating.
 
-Vitest, and this is the acceptance criterion for the whole discovery mechanic:
+**The modal opens itself here, and only here.** This is the payment for Task 1's decision: a panel would have made "click a node, its skill appears in the list" visible, and a modal hides it. So the controller flags the response when the encounter revealed a skill that was not in the list before — `'bag_opened' => true` beside the flash — and the page passes that straight into `<CompanionBag open>` on the render that follows.
+
+Three rules on that, because an auto-opening modal is one wrong turn from being a nag:
+
+1. **Only on an encounter that revealed something.** Meeting a node whose skill is already listed opens nothing. Harvesting opens nothing.
+2. **Only as the response to a click.** Nothing opens on page load, on a poll, or on a visit.
+3. **Dismissing it is final for that visit.** The flag is per-response, not sticky, so closing it does not re-open on the next render.
+
+Vitest, and the first two are the acceptance criteria for the whole discovery mechanic:
 - clicking a node without its skill reveals the skill in the list and harvests nothing;
-- before the click, that skill is absent from the DOM entirely.
+- before that click, the skill is absent from the DOM entirely — including inside the modal, so open it and check;
+- the bag opens on the response to that first encounter, and does **not** open on a second encounter with the same node.
 
 ---
 
-### Task 19: Buying and building from the panel
+### Task 19: Buying and building from inside the modal
 
 **Files:**
 - Create: `app/Http/Controllers/CompanionSkillController.php`, `app/Http/Controllers/CompanionBuildController.php`
 - Modify: `routes/web.php`, `resources/js/patyourself/companion-bag.tsx`
 - Test: `tests/Feature/Companion/CompanionSkillScreenTest.php`, `tests/Feature/Companion/CompanionBuildScreenTest.php`
 
-Two Inertia `<Form>` posts from the bag panel, each redirecting back to `/companion`. `CompanionEconomyException` is caught at the controller and turned into a flash message rather than a 500 — a full bag and a short balance are ordinary states of the world, not errors.
+Two Inertia `<Form>` posts from inside the dialog, each redirecting back to `/companion`. `CompanionEconomyException` is caught at the controller and turned into a flash message rather than a 500 — a full bag and a short balance are ordinary states of the world, not errors.
+
+**The modal must survive its own submit.** An Inertia post re-renders the page, and an uncontrolled dialog would close on the way through — so you would buy a skill and watch the bag vanish. `CompanionBag` is controlled (Task 15), so the page holds the open state across the visit and the dialog stays up showing the result. Assert it: buying a skill leaves the dialog open with the skill moved out of `BLOB COULD LEARN`.
+
+Where the flash line goes matters too. The room card's `.c-said` bubble is behind the overlay while the bag is open, so a refusal shown only there is a button that appears to do nothing. Render the flash **inside** the dialog when the dialog is open.
 
 Then the closing checks, all of them:
 
