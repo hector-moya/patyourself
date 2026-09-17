@@ -1,0 +1,82 @@
+<?php
+
+namespace App\Actions;
+
+use App\Models\Companion;
+use App\Models\CompanionNode;
+use App\Models\User;
+use App\Services\Companion\CompanionEconomyException;
+use Illuminate\Support\Facades\DB;
+use InvalidArgumentException;
+
+/**
+ * Blob picks up what is standing at a node.
+ *
+ * Bounded by what Blob can still carry, and THE REMAINDER STAYS STANDING.
+ * Nothing is ever destroyed — that is the invariant this whole action exists to
+ * respect, and it is what makes a full bag a reason to build the next container
+ * rather than a punishment for not having built one yet. (F1 §4)
+ *
+ * Returns how many units moved, so the caller can say so in the app's own
+ * voice. Zero is an ordinary answer — an empty node is not a refusal, there was
+ * simply nothing there.
+ */
+final readonly class HarvestNode
+{
+    /**
+     * @return int How many units moved into the bag.
+     *
+     * @throws InvalidArgumentException when no such node is authored.
+     * @throws CompanionEconomyException when the skill is unlearned, or the bag
+     *                                   is full while stock is standing.
+     */
+    public function handle(User $user, string $node): int
+    {
+        /** @var array<string, array{skill: string, yields: string, label: string}> $authored */
+        $authored = (array) config('companion.nodes', []);
+
+        if (! array_key_exists($node, $authored)) {
+            throw new InvalidArgumentException("[{$node}] is not something Blob can gather from.");
+        }
+
+        $skill = (string) $authored[$node]['skill'];
+        $yields = (string) $authored[$node]['yields'];
+
+        return DB::transaction(function () use ($user, $node, $skill, $yields): int {
+            /** @var Companion $companion */
+            $companion = $user->companion()->firstOrCreate([]);
+
+            if ($companion->skills()->where('name', $skill)->doesntExist()) {
+                throw CompanionEconomyException::skillNotLearned($node, $skill);
+            }
+
+            $standing = $companion->nodes()->where('node', $node)->first();
+
+            // Never met, or met and empty. Both are "there is nothing here",
+            // which is a fact about the world rather than a refusal.
+            if (! $standing instanceof CompanionNode || $standing->available === 0) {
+                return 0;
+            }
+
+            // `items` may be stale on a companion the caller has been holding,
+            // and capacity is computed from it.
+            $companion->load('items');
+
+            $room = $companion->room();
+
+            if ($room === 0) {
+                throw CompanionEconomyException::bagIsFull($node);
+            }
+
+            $moved = min($standing->available, $room);
+
+            $standing->decrement('available', $moved);
+
+            $companion->items()
+                ->firstOrCreate(['item' => $yields], ['quantity' => 0])
+                ->increment('quantity', $moved);
+
+            return $moved;
+        });
+    }
+}

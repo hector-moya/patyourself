@@ -25,6 +25,18 @@ class CompanionNode extends Model
     /** @use HasFactory<CompanionNodeFactory> */
     use HasFactory;
 
+    /**
+     * Mirrors the migration's default so a row created by an encounter already
+     * reads as zero instead of null until it is re-fetched — the encounter
+     * returns the row it just wrote, and an empty node has to say "nothing
+     * here" rather than "unknown". Same reasoning as {@see Companion::$attributes}.
+     *
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'available' => 0,
+    ];
+
     /** @return BelongsTo<Companion, $this> */
     public function companion(): BelongsTo
     {
