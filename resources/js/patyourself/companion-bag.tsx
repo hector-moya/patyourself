@@ -161,6 +161,11 @@ function Held({ bag }: { bag: CompanionBagData }) {
  * Only nodes whose skill is known and which actually have something standing.
  * A node with nothing at it is absent rather than listed at zero: a zero is a
  * count of what you have not got.
+ *
+ * A row stays listed even when `usable` is false — a node whose skill is
+ * known but whose tool is not yet held. The row and its amount field stay
+ * readable; only the take button is disabled, exactly as a recipe stays
+ * listed with its price and only its build button greys.
  */
 function Clearing({ nodes }: { nodes: CompanionBagData['nodes'] }) {
     const standing = nodes.filter((node) => node.known && node.available > 0);
@@ -195,7 +200,7 @@ function Clearing({ nodes }: { nodes: CompanionBagData['nodes'] }) {
                                     <button
                                         type="submit"
                                         className="pixel-button"
-                                        disabled={processing}
+                                        disabled={processing || !node.usable}
                                         aria-label={`Take from ${node.label}`}
                                     >
                                         take

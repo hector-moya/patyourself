@@ -244,6 +244,7 @@ class CompanionBagTest extends TestCase
                 'skill' => 'gather-fibre',
                 'met' => true,
                 'known' => true,
+                'usable' => true,
             ],
             // Standing there the whole time, unmet: the clearing does not
             // appear one node at a time.
@@ -254,6 +255,7 @@ class CompanionBagTest extends TestCase
                 'skill' => 'gather-wood',
                 'met' => false,
                 'known' => false,
+                'usable' => false,
             ],
             [
                 'node' => 'trunk',
@@ -262,8 +264,49 @@ class CompanionBagTest extends TestCase
                 'skill' => 'chop-wood',
                 'met' => false,
                 'known' => false,
+                'usable' => false,
             ],
         ], $bag['nodes']);
+    }
+
+    /**
+     * `usable` tracks the tool, not just the skill. The trunk needs both
+     * `chop-wood` and an axe — buying the skill before building the axe is
+     * exactly the sequence a player can reach, and it must leave the row
+     * `known` but not `usable`, never the other way round.
+     */
+    public function test_usable_tracks_the_tool_the_node_names(): void
+    {
+        $this->authorATrunk();
+
+        $user = User::factory()->create();
+        $companion = $user->companion()->firstOrCreate([]);
+        $companion->nodes()->create(['node' => 'trunk', 'available' => 2]);
+        $companion->skills()->create(['name' => 'chop-wood', 'learned_at' => now()]);
+
+        $trunk = fn (): array => collect($this->bag($user)['nodes'])
+            ->firstWhere('node', 'trunk');
+
+        $this->assertTrue($trunk()['known']);
+        $this->assertFalse($trunk()['usable']);
+
+        $companion->items()->create(['item' => 'axe', 'quantity' => 1]);
+
+        $this->assertTrue($trunk()['usable']);
+    }
+
+    /** A node that names no tool is usable the moment its skill is known. */
+    public function test_a_node_naming_no_tool_is_usable_once_known(): void
+    {
+        $user = $this->richUser();
+        $companion = $user->companion()->firstOrCreate([]);
+        $companion->nodes()->create(['node' => 'reeds', 'available' => 4]);
+        $companion->skills()->create(['name' => 'gather-fibre', 'learned_at' => now()]);
+
+        $reeds = collect($this->bag($user)['nodes'])->firstWhere('node', 'reeds');
+
+        $this->assertTrue($reeds['known']);
+        $this->assertTrue($reeds['usable']);
     }
 
     /** Only what is held, and what it costs the bag to hold it. */

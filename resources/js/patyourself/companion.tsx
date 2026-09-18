@@ -60,6 +60,12 @@ export interface BagNodeData {
     met: boolean;
     /** Whether the skill that unlocks it has been bought. */
     known: boolean;
+    /**
+     * Whether the gesture would actually do something right now — `known`
+     * AND either the node names no tool or that tool is held. Differs from
+     * `known` exactly when a node names a tool Blob is not carrying yet.
+     */
+    usable: boolean;
 }
 
 /**

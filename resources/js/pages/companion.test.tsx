@@ -152,6 +152,7 @@ describe('Companion screen', () => {
                             skill: 'gather-fibre',
                             met: true,
                             known: true,
+                            usable: true,
                         },
                     ],
                 })}
@@ -411,6 +412,7 @@ describe('Companion screen', () => {
                                 skill: 'gather-fibre',
                                 met: true,
                                 known: true,
+                                usable: true,
                             },
                             {
                                 node: 'deadfall',
@@ -419,6 +421,7 @@ describe('Companion screen', () => {
                                 skill: 'gather-wood',
                                 met: false,
                                 known: false,
+                                usable: false,
                             },
                         ],
                     })}
@@ -513,6 +516,7 @@ describe('Companion screen', () => {
                                 skill: 'gather-wood',
                                 met: false,
                                 known: false,
+                                usable: false,
                             },
                             {
                                 node: 'reeds',
@@ -521,6 +525,7 @@ describe('Companion screen', () => {
                                 skill: 'gather-fibre',
                                 met: false,
                                 known: false,
+                                usable: false,
                             },
                             {
                                 node: 'trunk',
@@ -529,6 +534,7 @@ describe('Companion screen', () => {
                                 skill: 'chop-wood',
                                 met: false,
                                 known: false,
+                                usable: false,
                             },
                         ],
                     })}

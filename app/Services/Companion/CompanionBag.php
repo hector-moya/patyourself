@@ -46,7 +46,7 @@ final readonly class CompanionBag
      *     held: int,
      *     name: string,
      *     items: list<array{item: string, label: string, category: string, quantity: int, droppable: bool}>,
-     *     nodes: list<array{node: string, label: string, available: int, skill: string, met: bool, known: bool}>,
+     *     nodes: list<array{node: string, label: string, available: int, skill: string, met: bool, known: bool, usable: bool}>,
      *     skills: list<array{skill: string, label: string, price: int, known: bool, affordable: bool}>,
      *     recipes: list<array{item: string, label: string, recipe: array<string, int>, tool: string|null, buildable: bool}>,
      * }
@@ -89,7 +89,7 @@ final readonly class CompanionBag
             'held' => $companion->held(),
             'name' => $companion->displayName(),
             'items' => $this->items($companion),
-            'nodes' => $this->nodes($companion, $met, $learned),
+            'nodes' => $this->nodes($companion, $met, $learned, $held),
             'skills' => $this->skills($met, $learned, $balance),
             'recipes' => $this->recipes($met, $held, $companion),
         ];
@@ -141,11 +141,16 @@ final readonly class CompanionBag
      *
      * `met` says whether Blob has walked over and looked at it, which is what
      * revealed its skill. `known` says whether the skill was then bought.
-     * Neither is a lock: clicking an unmet node is how the game starts.
+     * `usable` says whether the gesture would actually do something right now
+     * — `known` AND either the node names no tool or that tool is held. The
+     * two differ exactly when a node names a tool Blob is not carrying: the
+     * trunk's `chop-wood` can be known well before its axe is built. Neither
+     * `met` nor `known` is a lock: clicking an unmet node is how the game
+     * starts.
      *
      * @param  list<string>  $met
      * @param  list<string>  $learned
-     * @return list<array{node: string, label: string, available: int, skill: string, met: bool, known: bool}>
+     * @return list<array{node: string, label: string, available: int, skill: string, met: bool, known: bool, usable: bool}>
      */
     private function worldBeforeAnythingHappened(): array
     {
@@ -162,6 +167,9 @@ final readonly class CompanionBag
                 'skill' => (string) $entry['skill'],
                 'met' => false,
                 'known' => false,
+                // Nothing is known and nothing is held, so nothing here could
+                // ever be usable yet.
+                'usable' => false,
             ];
         }
 
@@ -171,9 +179,10 @@ final readonly class CompanionBag
     /**
      * @param  list<string>  $met
      * @param  list<string>  $learned
-     * @return list<array{node: string, label: string, available: int, skill: string, met: bool, known: bool}>
+     * @param  Collection<string, CompanionItem>  $held
+     * @return list<array{node: string, label: string, available: int, skill: string, met: bool, known: bool, usable: bool}>
      */
-    private function nodes(Companion $companion, array $met, array $learned): array
+    private function nodes(Companion $companion, array $met, array $learned, Collection $held): array
     {
         /** @var array<string, array<string, mixed>> $authored */
         $authored = (array) config('companion.nodes', []);
@@ -185,13 +194,17 @@ final readonly class CompanionBag
         $listed = [];
 
         foreach ($authored as $name => $entry) {
+            $known = in_array($entry['skill'], $learned, true);
+            $tool = (string) ($entry['tool'] ?? '');
+
             $listed[] = [
                 'node' => $name,
                 'label' => (string) $entry['label'],
                 'available' => (int) ($standing->get($name)?->available ?? 0),
                 'skill' => (string) $entry['skill'],
                 'met' => in_array($name, $met, true),
-                'known' => in_array($entry['skill'], $learned, true),
+                'known' => $known,
+                'usable' => $known && ($tool === '' || (int) ($held->get($tool)?->quantity ?? 0) > 0),
             ];
         }
 

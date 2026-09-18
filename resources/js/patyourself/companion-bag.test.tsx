@@ -356,6 +356,7 @@ describe('the bag', () => {
                         skill: 'gather-fibre',
                         met: true,
                         known: true,
+                        usable: true,
                     },
                     {
                         node: 'trunk',
@@ -364,6 +365,7 @@ describe('the bag', () => {
                         skill: 'chop-wood',
                         met: true,
                         known: true,
+                        usable: true,
                     },
                     {
                         node: 'deadfall',
@@ -372,6 +374,7 @@ describe('the bag', () => {
                         skill: 'gather-wood',
                         met: false,
                         known: false,
+                        usable: false,
                     },
                 ],
             }),
@@ -386,5 +389,40 @@ describe('the bag', () => {
         // absent rather than listed at zero or greyed.
         expect(screen.queryByText('the fallen trunk')).toBeNull();
         expect(screen.queryByText('the fallen branches')).toBeNull();
+    });
+
+    /**
+     * The human partner's decision: keep the row, disable the button. A node
+     * whose skill is known but whose tool is not yet held stays listed and
+     * readable — only its take button greys, exactly as an unbuildable
+     * recipe's button does.
+     */
+    it('lists an unusable node with its button disabled rather than hiding the row', () => {
+        open(
+            bag({
+                nodes: [
+                    {
+                        node: 'trunk',
+                        label: 'the fallen trunk',
+                        available: 3,
+                        skill: 'chop-wood',
+                        met: true,
+                        known: true,
+                        usable: false,
+                    },
+                ],
+            }),
+        );
+
+        expect(screen.getByText('the fallen trunk')).toBeInTheDocument();
+
+        const row = screen.getByText('the fallen trunk').closest('li');
+
+        expect(row).not.toBeNull();
+        expect(
+            within(row as HTMLElement).getByRole('button', {
+                name: /take from the fallen trunk/i,
+            }),
+        ).toBeDisabled();
     });
 });

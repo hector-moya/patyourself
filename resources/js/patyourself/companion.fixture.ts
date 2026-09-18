@@ -36,6 +36,7 @@ export function bag(overrides: Partial<CompanionBagData> = {}): CompanionBagData
                 skill: 'gather-wood',
                 met: false,
                 known: false,
+                usable: false,
             },
             {
                 node: 'reeds',
@@ -44,6 +45,7 @@ export function bag(overrides: Partial<CompanionBagData> = {}): CompanionBagData
                 skill: 'gather-fibre',
                 met: false,
                 known: false,
+                usable: false,
             },
             {
                 node: 'trunk',
@@ -52,6 +54,7 @@ export function bag(overrides: Partial<CompanionBagData> = {}): CompanionBagData
                 skill: 'chop-wood',
                 met: false,
                 known: false,
+                usable: false,
             },
         ],
         skills: [],
