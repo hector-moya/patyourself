@@ -546,11 +546,14 @@ Every one of these has cost a round on this project.
   reasoning behind the whole arc, and what F3 and F4 are sketched to cover, lives in
   `docs/superpowers/specs/2026-09-17-companion-progression-arc-design.md`.
 - **A full bag of timber has no exit.** Timber is the only material with no single-material sink —
-  its consumers are the handsaw (which needs rope) and planks (which need the handsaw). A bag at
-  capacity holding, say, 2 deadfall and 3 timber cannot build the barrow (needs 4 deadfall), the
-  handsaw (needs rope), or anything else, and there is no discard. Nothing the player does changes
-  the world again. Open, and deliberately left that way here — several candidate fixes each leave a
-  residual locked state of their own, and choosing between them is not this document's call.
+  its consumers are the handsaw (which needs rope as well) and planks (a single-ingredient recipe on
+  paper, `['timber' => 1]`, but gated behind the handsaw itself, a tool built from timber and rope).
+  A bag at capacity holding, say, 2 deadfall and 3 timber cannot build the barrow (needs 4 deadfall),
+  the handsaw (needs rope), or anything else, and there is no discard. The record still pays, the
+  clearing still accrues, and the gift ladder still arrives — but the bag never moves again, and
+  every material gathered from here is one the player cannot pick up. Open, and deliberately left
+  that way here — several candidate fixes each leave a residual locked state of their own, and
+  choosing between them is not this document's call.
 - **Scarf, hat and glasses are still flat rects.** The worn-item pipeline in §7 covers them — except the
   hat, which occludes and therefore needs a different answer.
 - **Phases B, C and D1/D2 have never been verified in production** — mail arriving, one-click links on a
