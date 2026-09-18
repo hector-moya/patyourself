@@ -18,7 +18,10 @@ vi.mock('@inertiajs/react', async (importOriginal) => {
         ...actual,
         Head: () => null,
         usePage: () => page,
-        router: { ...actual.router, post: (...args: unknown[]) => post(...args) },
+        router: {
+            ...actual.router,
+            post: (...args: unknown[]) => post(...args),
+        },
     };
 });
 
@@ -55,7 +58,8 @@ describe('Companion screen', () => {
 
     it('lists what has happened, newest first, with the date each arrived', () => {
         render(
-            <CompanionPage bag={bag()}
+            <CompanionPage
+                bag={bag()}
                 companion={companion({
                     stage_index: 3,
                     log_count: 5,
@@ -136,6 +140,20 @@ describe('Companion screen', () => {
                             affordable: true,
                         },
                     ],
+                    // The fixture's own nodes default to available: 0, which
+                    // leaves Clearing rendering null and this guard blind to
+                    // it. At least one node standing and known so the
+                    // clearing group actually renders here.
+                    nodes: [
+                        {
+                            node: 'reeds',
+                            label: 'the reeds',
+                            available: 4,
+                            skill: 'gather-fibre',
+                            met: true,
+                            known: true,
+                        },
+                    ],
                 })}
                 companion={companion()}
             />,
@@ -153,7 +171,8 @@ describe('Companion screen', () => {
 
     it('relays what Blob has to say, near Blob', () => {
         render(
-            <CompanionPage bag={bag()}
+            <CompanionPage
+                bag={bag()}
                 companion={companion()}
                 remark="Blob has been standing by the window a lot this week."
             />,
@@ -169,7 +188,9 @@ describe('Companion screen', () => {
      * should suggest a remark is missing.
      */
     it('says nothing when there is nothing to say', () => {
-        render(<CompanionPage bag={bag()} companion={companion()} remark={null} />);
+        render(
+            <CompanionPage bag={bag()} companion={companion()} remark={null} />,
+        );
 
         expect(screen.queryByTestId('companion-remark')).toBeNull();
         expect(screen.queryByText(/nothing to say|no remarks/i)).toBeNull();
@@ -177,7 +198,8 @@ describe('Companion screen', () => {
 
     it('names a recoloured item by its variant', () => {
         render(
-            <CompanionPage bag={bag()}
+            <CompanionPage
+                bag={bag()}
                 companion={companion({
                     items: [{ type: 'scarf', variant: 'coral' }],
                     unlocks: [
@@ -208,7 +230,10 @@ describe('Companion screen', () => {
             vi.setSystemTime(new Date('2026-09-11T19:30:00'));
 
             render(
-                <CompanionPage bag={bag()} companion={companion({ scene: 'forest' })} />,
+                <CompanionPage
+                    bag={bag()}
+                    companion={companion({ scene: 'forest' })}
+                />,
             );
 
             expect(screen.getByText('the forest')).toBeInTheDocument();
@@ -245,10 +270,7 @@ describe('Companion screen', () => {
     describe('the balance and the bag', () => {
         it('shows the balance, and nothing to reach', () => {
             render(
-                <CompanionPage
-                    bag={bag({ xp: 48 })}
-                    companion={companion()}
-                />,
+                <CompanionPage bag={bag({ xp: 48 })} companion={companion()} />,
             );
 
             expect(screen.getByText('48 xp')).toBeInTheDocument();
@@ -273,9 +295,7 @@ describe('Companion screen', () => {
 
         /** Closed until asked for. Nothing opens on arrival. */
         it('keeps the bag shut until the button is pressed', () => {
-            render(
-                <CompanionPage bag={bag()} companion={companion()} />,
-            );
+            render(<CompanionPage bag={bag()} companion={companion()} />);
 
             expect(screen.queryByRole('dialog')).toBeNull();
 
@@ -286,9 +306,7 @@ describe('Companion screen', () => {
 
         /** And it closes again without taking the page with it. */
         it('closes again on the dialog’s own control', () => {
-            render(
-                <CompanionPage bag={bag()} companion={companion()} />,
-            );
+            render(<CompanionPage bag={bag()} companion={companion()} />);
 
             fireEvent.click(screen.getByRole('button', { name: /bag/i }));
             fireEvent.click(
@@ -303,9 +321,7 @@ describe('Companion screen', () => {
 
         /** Adding a button never takes one away. */
         it('keeps the other plinth buttons alongside it', () => {
-            render(
-                <CompanionPage bag={bag()} companion={companion()} />,
-            );
+            render(<CompanionPage bag={bag()} companion={companion()} />);
 
             for (const name of [/pet/i, /play/i, /poke/i, /bag/i]) {
                 expect(screen.getByRole('button', { name })).toBeEnabled();
@@ -317,9 +333,7 @@ describe('Companion screen', () => {
          * so there is no bag either — the same rule the buttons already follow.
          */
         it('offers no bag before Blob exists', () => {
-            render(
-                <CompanionPage bag={bag()} companion={noCompanion()} />,
-            );
+            render(<CompanionPage bag={bag()} companion={noCompanion()} />);
 
             expect(screen.queryByRole('button', { name: /bag/i })).toBeNull();
         });
@@ -448,9 +462,7 @@ describe('Companion screen', () => {
             expect(
                 screen.getByText(/turns the reeds over/i),
             ).toBeInTheDocument();
-            expect(
-                screen.queryByText(/standing by the window/i),
-            ).toBeNull();
+            expect(screen.queryByText(/standing by the window/i)).toBeNull();
         });
 
         /** A revealed skill opens the bag, once, without being asked. */
@@ -533,7 +545,8 @@ describe('Companion screen', () => {
         /** Blob talking, over the scene — not the app captioning the picture. */
         it('puts it on the scene, and lets it be put away', () => {
             const { container } = render(
-                <CompanionPage bag={bag()}
+                <CompanionPage
+                    bag={bag()}
                     companion={companion()}
                     remark="Blob watched the grass move for a while."
                 />,
@@ -554,7 +567,8 @@ describe('Companion screen', () => {
          */
         it('still relays it before Blob exists, as plain type', () => {
             render(
-                <CompanionPage bag={bag()}
+                <CompanionPage
+                    bag={bag()}
                     companion={noCompanion()}
                     remark="Blob is nearly here."
                 />,
@@ -601,7 +615,8 @@ describe('Companion screen', () => {
     describe('the record', () => {
         it('says when it began, and marks only the newest arrival', () => {
             render(
-                <CompanionPage bag={bag()}
+                <CompanionPage
+                    bag={bag()}
                     companion={companion({
                         features: ['blob', 'legs'],
                         unlocks: [
@@ -637,7 +652,8 @@ describe('Companion screen', () => {
 
         it('marks each line with the kind of thing that arrived', () => {
             const { container } = render(
-                <CompanionPage bag={bag()}
+                <CompanionPage
+                    bag={bag()}
                     companion={companion({
                         items: [{ type: 'shoes', variant: null }],
                         abilities: ['wave'],
@@ -668,7 +684,8 @@ describe('Companion screen', () => {
         /** No dangling "since" when the record carries no date to name. */
         it('says nothing about when it began if nothing is dated', () => {
             render(
-                <CompanionPage bag={bag()}
+                <CompanionPage
+                    bag={bag()}
                     companion={companion({
                         unlocks: [unlock({ unlocked_at: null })],
                         latest_unlock: unlock({ unlocked_at: null }),
@@ -738,7 +755,12 @@ describe('Companion screen', () => {
          * ever shows what has happened.
          */
         it('draws no button for an ability Blob has not learned', () => {
-            render(<CompanionPage bag={bag()} companion={companion({ abilities: [] })} />);
+            render(
+                <CompanionPage
+                    bag={bag()}
+                    companion={companion({ abilities: [] })}
+                />,
+            );
 
             expect(screen.queryByRole('button', { name: /wave/i })).toBeNull();
             expect(screen.queryByRole('button', { name: /jump/i })).toBeNull();
@@ -746,7 +768,8 @@ describe('Companion screen', () => {
 
         it('draws one once the ladder has announced it', () => {
             render(
-                <CompanionPage bag={bag()}
+                <CompanionPage
+                    bag={bag()}
                     companion={companion({ abilities: ['wave'] })}
                 />,
             );
@@ -760,7 +783,8 @@ describe('Companion screen', () => {
 
         it('plays the ability it names, not some other one', () => {
             const { container } = render(
-                <CompanionPage bag={bag()}
+                <CompanionPage
+                    bag={bag()}
                     companion={companion({ abilities: ['wave'] })}
                 />,
             );
@@ -777,7 +801,8 @@ describe('Companion screen', () => {
         /** Earning an ability adds a button; it never takes one away. */
         it('keeps the two ungated ones alongside it', () => {
             render(
-                <CompanionPage bag={bag()}
+                <CompanionPage
+                    bag={bag()}
                     companion={companion({ abilities: ['wave', 'jump'] })}
                 />,
             );
