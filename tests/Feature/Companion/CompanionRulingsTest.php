@@ -175,10 +175,10 @@ class CompanionRulingsTest extends TestCase
      * standing than will fit, and a week of the record goes past: the harvest
      * refuses, the build refuses, and every quantity is exactly what it was.
      *
-     * The two `fail()` calls guard that HarvestNode and BuildItem refuse as
-     * promised; the quantity comparison guards the path a listener could take —
-     * the automatic, well-meaning discard that is the realistic way this rule
-     * gets broken.
+     * The quantity check sits immediately after logging because that is where
+     * its claim ends; delaying it past the refusal checks would let any discard
+     * mutation inside a listener un-fill the bag and trip a refusal assertion
+     * first, hiding the discard behind a different failure.
      */
     public function test_nothing_is_dropped_on_the_players_behalf(): void
     {
@@ -195,6 +195,10 @@ class CompanionRulingsTest extends TestCase
             $this->logOnce($user);
         }
 
+        $after = $companion->fresh()->items->pluck('quantity', 'item')->all();
+
+        $this->assertSame($before, $after, 'something was taken that nobody asked to lose');
+
         // A harvest into a bag with no room refuses, and refuses WHOLE.
         try {
             app(HarvestNode::class)->handle($user, 'reeds');
@@ -210,10 +214,6 @@ class CompanionRulingsTest extends TestCase
         } catch (CompanionEconomyException) {
             // Likewise.
         }
-
-        $after = $companion->fresh()->items->pluck('quantity', 'item')->all();
-
-        $this->assertSame($before, $after, 'something was taken that nobody asked to lose');
 
         // And the world only ever grew: 3 seeded plus one per logged outcome
         // against the one learned skill, seven times over.
