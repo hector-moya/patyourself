@@ -7,10 +7,16 @@ use RuntimeException;
 /**
  * A refusal the economy makes.
  *
- * All three cases are the same shape: something was asked for that the current
- * state cannot pay for. NONE OF THEM DESTROYS ANYTHING, and none of them is a
- * failure on the user's part — a full bag is a reason to build the next
- * container, not a mistake, and the words say so rather than scolding.
+ * Six factories now, not the three this once was, but the shape held: something
+ * was asked for that the current state cannot pay for. NONE OF THEM DESTROYS
+ * ANYTHING, and none of them is a failure on the user's part — a full bag is a
+ * reason to build the next container, not a mistake, and the words say so
+ * rather than scolding.
+ *
+ * One exception to "cannot pay for": {@see noRoomFor()} alone is a *capacity*
+ * refusal rather than a shortage — the price was paid, there is nowhere to put
+ * what it bought — and it returns the distinct {@see CompanionCapacityException}
+ * subclass so a caller can tell the two apart without parsing a message.
  *
  * Callers on a screen should turn these into a flash message rather than an
  * error page: a short balance and a full bag are ordinary states of the world.
@@ -65,9 +71,14 @@ class CompanionEconomyException extends RuntimeException
      * different sentences about different things — one is about what stays
      * standing at a node, this is about a thing that cannot be put down — and
      * rewording the other would edit a message the clearing already ships.
+     *
+     * Returns {@see CompanionCapacityException}, not a plain instance of this
+     * class: the caller's catch block needs to tell "no room" apart from every
+     * other refusal here, because it is the one case where the answer is not
+     * "not enough."
      */
     public static function noRoomFor(string $thing): self
     {
-        return new self("There is no room left in the bag for [{$thing}].");
+        return new CompanionCapacityException("There is no room left in the bag for [{$thing}].");
     }
 }

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Actions\BuildItem;
 use App\Models\Companion;
+use App\Services\Companion\CompanionCapacityException;
 use App\Services\Companion\CompanionEconomyException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -18,6 +19,11 @@ use Illuminate\Validation\Rule;
  * and not having paid it yet is not a mistake. The bag stays open, same as
  * buying a skill, because this is posted from inside the dialog and the point
  * is to see the thing appear.
+ *
+ * A full bag is a DIFFERENT line from a short recipe, and is caught
+ * separately: the price was paid in full, there is simply nowhere to put what
+ * it would make, and "there is not enough" would be a false sentence about a
+ * true state.
  */
 class CompanionBuildController extends Controller
 {
@@ -42,6 +48,16 @@ class CompanionBuildController extends Controller
 
         try {
             $build->handle($request->user(), $item);
+        } catch (CompanionCapacityException) {
+            // Checked first: this subclass is also a CompanionEconomyException,
+            // so the broader catch below would otherwise swallow it and say a
+            // false "not enough" over a true "no room".
+            return back()
+                ->with(
+                    CompanionController::SAID_KEY,
+                    str_replace('{label}', $label, (string) config('companion.capacity.full')),
+                )
+                ->with(CompanionController::STAY_KEY, true);
         } catch (CompanionEconomyException) {
             return back()
                 ->with(

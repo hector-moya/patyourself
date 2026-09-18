@@ -319,6 +319,46 @@ class CompanionClearingTest extends TestCase
         $this->assertSame(3, (int) $companion->items()->where('item', 'fibre')->value('quantity'));
     }
 
+    /**
+     * A full bag says so as a room problem, not a shortage. The materials were
+     * paid in full; there is simply nowhere to put what building would make —
+     * a different true sentence from the "not enough" one above, and the whole
+     * reason `CompanionCapacityException` is caught separately in the
+     * controller.
+     */
+    public function test_a_build_that_would_not_fit_says_theres_no_room_rather_than_not_enough(): void
+    {
+        // A fibre-only stand-in for the shipped `timber` + `handsaw` recipe, so
+        // this is about the capacity refusal alone — same technique
+        // BuildItemTest uses for the Action-level version of this boundary.
+        config()->set('companion.bag.basket', [
+            'category' => 'material',
+            'label' => 'basket',
+            'recipe' => ['fibre' => 1],
+            'makes' => 3,
+        ]);
+
+        // Base capacity 5, four fibre already held. Spending one leaves three,
+        // and three baskets made is a net +2 — one more than the one slot free.
+        $user = $this->richUser();
+        $companion = $user->companion()->firstOrCreate([]);
+        $companion->items()->create(['item' => 'fibre', 'quantity' => 4]);
+
+        $this->actingAs($user)
+            ->post(route('companion.build.store'), ['item' => 'basket'])
+            ->assertRedirect();
+
+        $this->actingAs($user)
+            ->get(route('companion'))
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('said', 'There is nowhere to put a basket yet.')
+                ->where('bag.capacity', 5),
+            );
+
+        $this->assertSame(4, (int) $companion->items()->where('item', 'fibre')->value('quantity'));
+        $this->assertSame(0, $companion->items()->where('item', 'basket')->count());
+    }
+
     /** A material is not a recipe: there is nothing to build fibre out of. */
     public function test_an_item_with_no_recipe_is_rejected(): void
     {

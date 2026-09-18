@@ -459,10 +459,10 @@ return [
     | Nodes
     |--------------------------------------------------------------------------
     |
-    | What stands in the clearing. Both are VISIBLE FROM THE START and unusable
-    | without their skill — clicking one before you have it does not fail and
-    | does not show a lock. Blob turns it over and puts it down again, and that
-    | encounter is what puts the skill in the list. (F1 §2)
+    | What stands in the clearing. All three are VISIBLE FROM THE START and
+    | unusable without their skill — clicking one before you have it does not
+    | fail and does not show a lock. Blob turns it over and puts it down
+    | again, and that encounter is what puts the skill in the list. (F1 §2)
     |
     | Each outcome recorded adds one unit to each node whose skill is learned,
     | and only from the moment it was learned. Stock is uncapped and nothing
@@ -622,11 +622,19 @@ return [
     | it was, nothing is destroyed, and there is a reason to build the next
     | container rather than hoard.
     |
+    | `full` is this section's own authored line, in the same register as a
+    | node's `full`, `empty` and `blunt` lines: it describes what is so and
+    | never what the player should do about it. It is said only for a build
+    | that priced out fine but would not fit — a room refusal, never a
+    | shortage — which is why its wording never mentions materials. `{label}`
+    | is substituted with the thing that could not be put down.
+    |
     */
 
     'capacity' => [
         'base' => 5,
         'carried' => ['material', 'consumable'],
+        'full' => 'There is nowhere to put a {label} yet.',
     ],
 
 ];
