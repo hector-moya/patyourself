@@ -306,7 +306,7 @@ function RoomCard({
                     reachable from a keyboard too — the same rule Poke already
                     follows.
 
-                    BOTH ARE HERE FROM THE START, whatever the record says.
+                    ALL THREE ARE HERE FROM THE START, whatever the record says.
                     Clicking one you cannot use does not fail and shows no
                     lock: Blob turns it over and puts it down again, and that
                     encounter is what puts the skill in the list. */}

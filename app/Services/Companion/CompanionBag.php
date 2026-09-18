@@ -71,8 +71,8 @@ final readonly class CompanionBag
                 'name' => Companion::DEFAULT_NAME,
                 'items' => [],
                 // The world is there before anything has been chosen: an
-                // account that has never touched this page still has two nodes
-                // standing in its clearing, unmet and unusable.
+                // account that has never touched this page still has three
+                // nodes standing in its clearing, unmet and unusable.
                 'nodes' => $this->worldBeforeAnythingHappened(),
                 'skills' => [],
                 'recipes' => [],
@@ -126,8 +126,8 @@ final readonly class CompanionBag
      * EVERY node in the world, whether Blob has met it or not.
      *
      * This is the one list here that is not filtered by what has happened, and
-     * the exception is the point: both nodes are VISIBLE IN THE SCENE FROM THE
-     * START (F1 §2). A node standing in the clearing is not a preview of
+     * the exception is the point: all three nodes are VISIBLE IN THE SCENE FROM
+     * THE START (F1 §2). A node standing in the clearing is not a preview of
      * something you have not done — it is a thing that is there. What must stay
      * hidden is the SKILL, and that list is filtered.
      *

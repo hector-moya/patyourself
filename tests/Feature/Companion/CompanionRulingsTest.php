@@ -152,7 +152,8 @@ class CompanionRulingsTest extends TestCase
         $this->assertSame(1, (int) $fresh->items()->where('item', 'axe')->value('quantity'));
         $this->assertSame(4, (int) $fresh->items()->where('item', 'fibre')->value('quantity'));
 
-        // And the world only ever grew.
-        $this->assertGreaterThan(3, $this->standing($fresh, 'reeds'));
+        // And the world only ever grew: 3 seeded plus one per logged outcome
+        // against the one learned skill, seven times over, is exactly 10.
+        $this->assertSame(10, $this->standing($fresh, 'reeds'));
     }
 }

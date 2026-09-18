@@ -13,8 +13,8 @@ use InvalidArgumentException;
  * This is the mechanic that lets a skill list exist without becoming a
  * checklist, and it is the part of F1 most worth getting right.
  *
- * Both nodes are visible in the scene from the start. Clicking one before you
- * have its skill DOES NOT FAIL AND DOES NOT SHOW A LOCK — Blob walks over,
+ * All three nodes are visible in the scene from the start. Clicking one before
+ * you have its skill DOES NOT FAIL AND DOES NOT SHOW A LOCK — Blob walks over,
  * turns it over and puts it down again, and that encounter is what puts the
  * skill in the list. So the list only ever contains skills whose subject you
  * have already met. It grows, and it never shows its own length: no totals, no

@@ -58,7 +58,7 @@ describe('the bag', () => {
                         item: 'basket',
                         label: 'basket',
                         recipe: { fibre: 4 },
-                        tool: null,
+                        tool: 'handsaw',
                         buildable: false,
                     },
                 ],
