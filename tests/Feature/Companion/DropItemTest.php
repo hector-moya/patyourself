@@ -87,9 +87,15 @@ class DropItemTest extends TestCase
     /** Dropping what is not held is not a failure. There was nothing there. */
     public function test_dropping_something_not_held_takes_nothing(): void
     {
-        [$user] = $this->carrying(['fibre' => 1]);
+        [$user, $companion] = $this->carrying(['fibre' => 1]);
 
         $this->assertSame(0, app(DropItem::class)->handle($user, 'timber'));
+
+        // Zero on its own is not enough: an implementation that returned zero
+        // while deleting whatever row it found first would also return zero.
+        // The bag has to be exactly as it was.
+        $this->assertSame(1, $this->held($companion, 'fibre'));
+        $this->assertSame(1, $companion->items()->count());
     }
 
     /**
@@ -127,14 +133,25 @@ class DropItemTest extends TestCase
         app(DropItem::class)->handle($user, 'anvil');
     }
 
-    /** One person's bag is never another's. */
+    /**
+     * One person's bag is never another's.
+     *
+     * The stranger is created FIRST on purpose. With the actor created first,
+     * an implementation that ignored the user entirely and took whichever
+     * companion row it found first would hit the right one by coincidence and
+     * this would pass — which is the one scoping bug nothing else in this file
+     * can catch, since no other case creates two companions.
+     */
     public function test_another_users_bag_is_untouched(): void
     {
-        [$user] = $this->carrying(['fibre' => 2]);
         [, $strangersCompanion] = $this->carrying(['fibre' => 4]);
+        [$user, $companion] = $this->carrying(['fibre' => 2]);
 
-        app(DropItem::class)->handle($user, 'fibre');
+        $this->assertSame(2, app(DropItem::class)->handle($user, 'fibre'));
 
+        // Both halves. The actor's own stack really went...
+        $this->assertSame(0, $companion->items()->where('item', 'fibre')->count());
+        // ...and the stranger's did not.
         $this->assertSame(4, $this->held($strangersCompanion, 'fibre'));
     }
 }
