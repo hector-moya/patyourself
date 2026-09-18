@@ -611,6 +611,90 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | The shelter
+    |--------------------------------------------------------------------------
+    |
+    | What stands in the clearing, built out of what was sawn. ORDERED, and the
+    | order IS the arc: a stage's predecessor is the key before it, and the
+    | first has none. They REPLACE one another rather than accumulating —
+    | building the hut is the lean-to becoming a hut, and the lean-to's planks
+    | are in it — which is why what is built is one stored value rather than a
+    | table of them.
+    |
+    | Not in `bag` above, and that is deliberate rather than an oversight. A
+    | recipe in `bag` becomes knowable from its ingredients, so all three stages
+    | would be listed at once; ONLY THE NEXT STAGE IS EVER LISTED, because a
+    | stage whose predecessor does not exist is absent rather than greyed — the
+    | same rule the skill list has followed since F1. A structure is also not a
+    | thing that stacks in `companion_items`.
+    |
+    | NO TOOL AND NO SKILL. F2's rule stands unchanged — a recipe gates on a
+    | tool, never a skill — and planks already carry the handsaw's gate
+    | upstream. A second gate here would tax the same work twice.
+    |
+    | `insights` is an optional FLOOR, and only the cabin has one. It is the
+    | same 5 the cabin has always sat at: E1's rule is that the threshold never
+    | moves, and it has not — it has stopped GRANTING the cabin and started
+    | being the floor at which the cabin may be BUILT. The thing being taken
+    | away from an established record is drawn geometry rather than the pixel
+    | art the forest has, and putting it up is the reward the whole arc was
+    | designed around: people value what they built.
+    |
+    | Copy rules as everywhere else: sentence case, one or two sentences, no
+    | exclamation marks, never congratulating, `{name}` rather than the literal.
+    |
+    */
+
+    'shelter' => [
+        'lean-to' => [
+            'label' => 'lean-to',
+            'recipe' => ['planks' => 4],
+            'built' => '{name} leans the planks against each other until they stay up. It is not much, and it is out of the rain.',
+        ],
+        'hut' => [
+            'label' => 'hut',
+            'recipe' => ['planks' => 8],
+            'built' => '{name} walls the lean-to in. The wind has stopped finding a way through, which {name} appears to regard as a personal victory.',
+        ],
+        'cabin' => [
+            'label' => 'cabin',
+            'recipe' => ['planks' => 14],
+            'insights' => 5,
+            'built' => '{name} put up a cabin. There is a window in it, and {name} has already looked out of it twice.',
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | The salvage
+    |--------------------------------------------------------------------------
+    |
+    | An established account was given a cabin by the record, and the record no
+    | longer gives one. The cabin is not taken: it COMES APART into the
+    | materials it was worth, and rebuilding it becomes the first thing there
+    | is to do.
+    |
+    | Those materials go into the CLEARING rather than into the bag, and the
+    | arithmetic is why: the whole arc costs more planks than any bag in this
+    | game can hold at once, so handing them over directly is impossible. A
+    | heap standing in the world is the rule "the world holds the overflow"
+    | doing exactly the job it was written for, using machinery that already
+    | exists — a node, its standing stock, and a harvest that takes what it is
+    | asked for.
+    |
+    | `stock` is tied to the shelter's own prices by a test rather than written
+    | out twice, so retuning a stage cannot leave an established account short
+    | without something saying so.
+    |
+    */
+
+    'salvage' => [
+        'node' => 'salvage',
+        'stock' => 26,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Capacity
     |--------------------------------------------------------------------------
     |
