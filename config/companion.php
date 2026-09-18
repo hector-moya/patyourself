@@ -637,4 +637,23 @@ return [
         'full' => 'There is nowhere to put a {label} yet.',
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Dropping
+    |--------------------------------------------------------------------------
+    |
+    | What Blob does when the player tips a stack out. Same copy rules as
+    | everywhere else, and one more that matters here: IT DESCRIBES THE ACT AND
+    | NEVER COMMENTS ON THE CHOICE. No "are you sure", no tally of what has been
+    | discarded, nothing that reads as the app having an opinion about it.
+    |
+    | It also must not imply the thing can be fetched back. It cannot: what is
+    | dropped does not return to the node, to the world, or to anywhere else.
+    |
+    | `{label}` is the thing that went.
+    |
+    */
+
+    'drop' => '{name} tips out the {label}. The bag is lighter.',
+
 ];
