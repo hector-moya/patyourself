@@ -157,12 +157,22 @@ function Build({ recipes }: { recipes: CompanionBagData['recipes'] }) {
                                             processing || !recipe.buildable
                                         }
                                     >
-                                        {Object.entries(recipe.recipe)
-                                            .map(
+                                        {[
+                                            ...Object.entries(
+                                                recipe.recipe,
+                                            ).map(
                                                 ([item, count]) =>
                                                     `${count} ${item}`,
-                                            )
-                                            .join(', ')}
+                                            ),
+                                            // Last, and named plainly. A tool
+                                            // is part of the price, so it sits
+                                            // in the price and gets no label,
+                                            // no "requires" and no explanation
+                                            // of its own.
+                                            ...(recipe.tool === null
+                                                ? []
+                                                : [recipe.tool]),
+                                        ].join(', ')}
                                     </button>
                                 </>
                             )}

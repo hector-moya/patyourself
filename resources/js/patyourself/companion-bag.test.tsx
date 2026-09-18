@@ -58,6 +58,7 @@ describe('the bag', () => {
                         item: 'basket',
                         label: 'basket',
                         recipe: { fibre: 4 },
+                        tool: null,
                         buildable: false,
                     },
                 ],
@@ -145,6 +146,7 @@ describe('the bag', () => {
                         item: 'basket',
                         label: 'basket',
                         recipe: { fibre: 4 },
+                        tool: null,
                         buildable: false,
                     },
                 ],
@@ -250,5 +252,52 @@ describe('the bag', () => {
             expect(field).toHaveValue('');
             expect(field).toHaveAttribute('placeholder', 'Blob');
         });
+    });
+
+    /**
+     * A recipe is a PRICE, and a tool is part of what the thing costs. Not a
+     * "requires" line, not an explanation and not a greyed row — the row stays
+     * readable and the button alone is disabled, exactly as an unaffordable
+     * skill stays listed with its price.
+     */
+    it('renders a recipe tool as part of the price', () => {
+        open(
+            bag({
+                recipes: [
+                    {
+                        item: 'planks',
+                        label: 'planks',
+                        recipe: { timber: 1 },
+                        tool: 'handsaw',
+                        buildable: false,
+                    },
+                ],
+            }),
+        );
+
+        expect(
+            screen.getByRole('button', { name: '1 timber, handsaw' }),
+        ).toBeDisabled();
+    });
+
+    /** A recipe needing nothing in hand prices only its ingredients. */
+    it('prices a toolless recipe by its ingredients alone', () => {
+        open(
+            bag({
+                recipes: [
+                    {
+                        item: 'basket',
+                        label: 'basket',
+                        recipe: { fibre: 4 },
+                        tool: null,
+                        buildable: true,
+                    },
+                ],
+            }),
+        );
+
+        expect(
+            screen.getByRole('button', { name: '4 fibre' }),
+        ).toBeEnabled();
     });
 });

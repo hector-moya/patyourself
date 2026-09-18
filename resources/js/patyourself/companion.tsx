@@ -75,6 +75,12 @@ export interface BagRecipeData {
     item: string;
     label: string;
     recipe: Record<string, number>;
+    /**
+     * What has to be in hand, or null. Part of the PRICE rather than a
+     * requirement — a tool is the same kind of statement as `4 fibre`, which
+     * has named something Blob may not have since F1.
+     */
+    tool: string | null;
     buildable: boolean;
 }
 
