@@ -143,10 +143,26 @@ export const SCENES: Record<string, SceneSpec> = {
             { node: 'deadfall', at: [-46, 40] },
             { node: 'reeds', at: [44, 36] },
             // Low and near, between the tree's foot and the centre, so it
-            // reads as foreground without standing where Blob does. Above the
-            // grass line at y=52 like the other two, so it never lands on a
-            // moving tuft either.
-            { node: 'trunk', at: [-24, 44] },
+            // reads as foreground without standing where Blob does.
+            //
+            // y=48 clears TWO constraints, not one — the previous y=44 only
+            // ever recorded the first of these, which is exactly how it
+            // collided with the second:
+            //   1. Above the grass line at y=52, same as the other two, so
+            //      the hotspot never lands on a moving tuft.
+            //   2. Clear of the deadfall's label box. Hotspot labels are real
+            //      buttons at a fixed 8px font that does not scale with the
+            //      SVG, so at [-24, 44] the trunk's "THE FALLEN TRUNK" box
+            //      overlapped the deadfall's "THE FALLEN BRANCHES" box by
+            //      roughly 31x2.4px on desktop (up to 64x8px on a 390px
+            //      phone) and DOM order let the trunk paint over the
+            //      deadfall's hit target.
+            // This coordinate is computed from the two boxes' measured
+            // dimensions, not eyeballed against a render. Below roughly a
+            // 300px stage no y value clears both constraints at once — the
+            // labels are simply larger than the room at that scale, which is
+            // a label-sizing question and not this coordinate's to answer.
+            { node: 'trunk', at: [-24, 48] },
         ],
     },
 
