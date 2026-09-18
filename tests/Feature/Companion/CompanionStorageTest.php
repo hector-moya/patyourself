@@ -5,8 +5,10 @@ namespace Tests\Feature\Companion;
 use App\Models\Companion;
 use App\Models\User;
 use App\Services\Companion\CompanionResolver;
+use Carbon\CarbonInterface;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 /**
@@ -136,5 +138,47 @@ class CompanionStorageTest extends TestCase
         $this->assertDatabaseCount('companion_skills', 0);
         $this->assertDatabaseCount('companion_items', 0);
         $this->assertDatabaseCount('companion_nodes', 0);
+    }
+
+    /**
+     * The shelter is the one stored value in this feature that only ever moves
+     * one way. It is a single value rather than a collection because the stages
+     * REPLACE one another — building the hut is the lean-to becoming a hut, and
+     * the lean-to's planks are in it.
+     */
+    public function test_the_companion_row_can_hold_a_shelter(): void
+    {
+        $this->assertTrue(Schema::hasColumn('companions', 'shelter'));
+
+        $user = User::factory()->create();
+        $companion = $user->companion()->firstOrCreate([]);
+
+        $this->assertNull($companion->shelter);
+
+        $companion->update(['shelter' => 'lean-to']);
+
+        $this->assertSame('lean-to', $companion->fresh()->shelter);
+    }
+
+    /**
+     * And a mark saying its cabin was already converted into a heap.
+     *
+     * Stored rather than derived because the heap is DELETED once it is
+     * drained, so "is there a salvage node?" cannot answer "has this account
+     * been converted?" — and an unmarked account would be handed a second
+     * cabin's worth of planks the next time the conversion ran.
+     */
+    public function test_the_companion_row_remembers_a_cabin_it_already_gave_back(): void
+    {
+        $this->assertTrue(Schema::hasColumn('companions', 'salvaged_at'));
+
+        $user = User::factory()->create();
+        $companion = $user->companion()->firstOrCreate([]);
+
+        $this->assertNull($companion->salvaged_at);
+
+        $companion->forceFill(['salvaged_at' => now()])->save();
+
+        $this->assertInstanceOf(CarbonInterface::class, $companion->fresh()->salvaged_at);
     }
 }

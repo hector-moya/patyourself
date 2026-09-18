@@ -32,6 +32,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 #[Fillable([
     'name',
     'xp_spent',
+    // Only ever written by BuildShelter, and only ever forward. `salvaged_at`
+    // is deliberately absent: it is written once, by the conversion, through
+    // forceFill — it is not a thing any request should be able to set.
+    'shelter',
 ])]
 class Companion extends Model
 {
@@ -51,6 +55,16 @@ class Companion extends Model
     protected $attributes = [
         'xp_spent' => 0,
     ];
+
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'salvaged_at' => 'datetime',
+        ];
+    }
 
     /**
      * What this user calls their companion, or "Blob" when they never said.
