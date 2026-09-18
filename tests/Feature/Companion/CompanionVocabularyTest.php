@@ -49,6 +49,7 @@ class CompanionVocabularyTest extends TestCase
             $root.'/app/Actions/MeetNode.php',
             $root.'/app/Actions/HarvestNode.php',
             $root.'/app/Actions/BuildItem.php',
+            $root.'/app/Actions/BuildShelter.php',
             // The one path in the feature that destroys something. It is the
             // likeliest place in the whole app for a scolding word to appear,
             // which is exactly why it is scanned.

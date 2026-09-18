@@ -7,7 +7,7 @@ use RuntimeException;
 /**
  * A refusal the economy makes.
  *
- * Six factories now, not the three this once was, but the shape held: something
+ * Seven factories now, not the three this once was, but the shape held: something
  * was asked for that the current state cannot pay for. NONE OF THEM DESTROYS
  * ANYTHING, and none of them is a failure on the user's part — a full bag is a
  * reason to build the next container, not a mistake, and the words say so
@@ -80,5 +80,21 @@ class CompanionEconomyException extends RuntimeException
     public static function noRoomFor(string $thing): self
     {
         return new CompanionCapacityException("There is no room left in the bag for [{$thing}].");
+    }
+
+    /**
+     * Something was asked for that the screen never offered.
+     *
+     * The shelter's own refusal, and the one factory here whose message is not
+     * really for a user: a stage whose predecessor is missing, or whose floor
+     * the record has not reached, is ABSENT from the bag rather than listed
+     * and disabled — so reaching this means a request the screen does not
+     * make. It stays a refusal rather than an abort because it is still a
+     * statement about the current state, and because the one thing it must not
+     * do is take anything on the way out.
+     */
+    public static function notOffered(string $thing): self
+    {
+        return new self("[{$thing}] is not something Blob can put up yet.");
     }
 }
