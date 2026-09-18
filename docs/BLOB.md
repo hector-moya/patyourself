@@ -52,23 +52,29 @@ order to document them, so scanning it would fail on its own subject matter.
 
 ## 3. From record to drawing
 
-There is **no companion table**. Nothing about Blob is stored, so there is nothing to backfill,
-nothing to repair, and nothing that can drift out of step with the record it describes.
+**Store only what cannot be derived.** Four tables hold the chosen half of Blob — `companions`
+(the name and `xp_spent`), `companion_skills`, `companion_items` and `companion_nodes`. Nothing
+else. Counts, earned XP, the scene and the whole gift ladder are still recomputed from the record
+on every read, so the parts that could drift still cannot.
+
+The rule survived its own replacement: the pre-F1 premise was "nothing is stored, so nothing can
+drift", and what made that valuable was never the storage count. It was that no stored number
+claims to describe the record. A choice is not a claim about the record, which is why a choice may
+be stored and a count may not.
 
 ```
-outcomes + summaries in the DB
-        |
-        v
-CompanionResolver::forUser()      pure read; walks the ladder in order
-        |
-        v
-CompanionState                    counts, features, items, abilities,
-        |                         room objects, unlocks, scene
-        v
-CompanionController               + one remark, at most, per visit
-        |
-        v
-Inertia payload -> pages/companion.tsx
+outcomes + summaries in the DB          companions + its three tables
+        |                                          |
+        v                                          v
+CompanionResolver::forUser()              CompanionBag::forUser()
+CompanionWallet::balanceFor()             what is held, buildable, learnable
+        |                                          |
+        +------------------ + ---------------------+
+                            v
+                   CompanionController
+                            |
+                            v
+        Inertia payload -> pages/companion.tsx
 ```
 
 Two numbers drive everything:
@@ -90,6 +96,10 @@ the resolver exists to avoid.
 ## 4. The ladder
 
 Authored rungs, in `config/companion.php`. `logs` builds the body; `insights` earns everything else.
+
+**This is the gift track.** It hands out the body and the wearables from the record — unchosen,
+unpurchasable, and untouched by either F1 or F2. XP is the other track, the one a player spends;
+see §8.
 
 | Trigger | At | Unlocks | Brings |
 | --- | --- | --- | --- |
@@ -115,6 +125,28 @@ the item dictionary never needs a fifth type.
 **`shoes` is index 0 in `item_types`, so the very first tail rung recolours the shoes.** Anything
 drawing an item must therefore support every variant — see §7.
 
+### XP, the other track
+
+Every outcome and insight pays XP as well as feeding the counts above. Earned XP is derived the
+same way `logCount` is — recomputed from the record on every read — and only the *spending* is
+stored; see §8 for the full mechanics.
+
+| Source | XP |
+| --- | --- |
+| An outcome recorded — 1st of the day | 3 |
+| — 2nd of the day | 2 |
+| — 3rd and every one after | 1 (floor; never zero) |
+| A reflection written | 5 |
+| A loop's chain corrected | 8 |
+| A new strategy version started | 10 |
+| An experiment concluded | 15 |
+
+The four insight rates sit outside the taper — they are rarer by nature, and rate-limiting them
+would double-count. The outcome taper groups by `logged_at`, not by the occasion a log describes,
+so a catch-up session logging seven days at once tapers as **one** day and pays 10, not 21 — the
+taper rewards showing up, and you showed up once. A `failed` outcome pays exactly what a
+`completed` one pays, same as the ladder above.
+
 ## 5. Where Blob stands
 
 The scene is **derived, never stored**, exactly as a body form is.
@@ -125,7 +157,7 @@ The scene is **derived, never stored**, exactly as a body form is.
 | `cabin` | `insights: 5` | wall, floor, window, and the five room objects |
 
 The arc is `forest → lean-to → hut → cabin → whatever follows`. Today's room **is the cabin** — the
-destination, not the thing being replaced. The lean-to and hut are not built; E2 and E3 insert them
+destination, not the thing being replaced. The lean-to and hut are not built; **F3** inserts them
 *below* the cabin's threshold.
 
 `COMPANION_SCENE` in `.env` overrides the derived scene. It is a **development affordance, not a
@@ -303,20 +335,150 @@ objects, tilesets, maps, fonts and UI panels — there is no images list, and `a
 take one. The backdrops therefore cannot be found in the Pixel Lab UI at all. **The repo is their only
 durable home**, and `scenes/README.md` records every job id.
 
-## 8. Where everything lives
+## 8. The economy
+
+Two layers, added by F1 and widened by F2, sitting entirely beside the gift ladder in §4. **XP buys
+skills; a skill unlocks an interaction with one node; a node yields a material; a material builds a
+thing.** The record controls what Blob *can* do — buying a skill is a decision, and a permanent
+one, so two people with identical records can build visibly different clearings. The world controls
+*how fast* — a skill only earns access, and every unit still has to be harvested one outcome at a
+time. One wallet would collapse the two into an animation; harvesting is what keeps a material a
+resource rather than decoration.
+
+### Discovery: clicking the thing you cannot use
+
+All three nodes — F1's reeds and deadfall, F2's trunk — are **visible in the clearing from the
+start** and unusable without their skill. Clicking one before you have it does not fail and shows no
+lock: Blob walks over, turns it over, and puts it down again, and that encounter is what puts the
+skill in the bag's skill list. The list therefore only ever contains skills whose subject has been
+met, grows without ever showing its own length, and a skill you cannot yet afford stays listed with
+its price — a menu, never a checklist with a bottom to be behind on.
+
+### Spending: earned is derived, spent is stored
 
 ```
-config/companion.php                    ladder, tail, scenes, parts of day, renderer
+balance = max(0, earned − spent)
+          ^^^^^^        ^^^^^
+          derived       companions.xp_spent
+          from the
+          record
+```
+
+`CompanionWallet::earnedFor()` recomputes earned XP from the record on every read, at the rates in
+§4. Only the *spending* is stored, in `companions.xp_spent`, written nowhere but `LearnSkill`.
+Deleting history can lower the balance, but a skill already learned is never revoked, and the clamp
+stops the balance going negative — the worst case is being unable to buy until more is recorded,
+which takes nothing away.
+
+### The rule F2 established
+
+```
+a node   gates on  skill + tool
+a recipe gates on  tool, never skill
+```
+
+A skill is the record's permission to **touch the world**. Hands have never needed permission — they
+need the right thing in them. `BuildItem` gates on a tool alone: assembling by hand is what hands are
+for, which is why building has needed no skill since F1 and never will. A node needing both a bought
+skill and a built tool is the only place in the feature where the two layers meet on a single
+gesture — the thing that makes a tool a mechanic rather than a badge.
+
+### The chain
+
+```
+fibre ──▶ rope ──▶ axe ──▶ timber ──▶ handsaw ──▶ planks ──▶ crate
+  │                 │        │                       │
+gathered          built    gathered                built
+(F1 node)      (recipe)   (F2 node, needs        (recipe,
+                           chop-wood + axe)       needs handsaw)
+```
+
+Five links, crossing between the two layers at every step. `timber`, not `logs` — that word already
+means something two hundred lines up in `config/companion.php` (`'trigger' => 'logs'`, `logCount`,
+`logMoments()`), and a material by the same name would sit near it meaning something else entirely.
+
+### Visibility is a fixed point
+
+`CompanionBag::knowable()` decides what Blob can account for — the same list that gates which
+recipes appear at all. An ingredient is knowable if it is a met node's yield **or** if it is itself a
+knowable recipe: rope is knowable because fibre is, and the axe is knowable because deadfall and rope
+both are. A tool that gates a *node*, like the axe, is additionally withheld from the list until that
+node has been met — the axe stays unlisted until the trunk is, even once its own ingredients are
+already known. A tool that gates a *recipe* instead, like the handsaw, is not reverse-gated by
+anything — no node names it — so it becomes knowable the moment its own ingredients are, which is
+the same click that reveals the axe, since both bottom out in meeting the trunk.
+
+**The gates sit inside the loop, not beside it.** An item this map still withholds never enters the
+known set at all, so nothing built from it becomes accountable either — at whatever depth the chain
+runs. A guard checked only when a row is rendered could stop the withheld tool itself; it could not
+stop something three links downstream of it. The resolution is a fixed point over the catalogue, not
+recursion, because `config` is authored data and an authored `a → b → a` pair would otherwise
+recurse forever on a page load — each pass adds whatever became reachable, and the loop stops the
+first time a pass adds nothing.
+
+### One arithmetic, two callers
+
+`Companion::wouldFit()` is the single place the build-capacity check lives: `held − consumed + made
+≤ capacity`, counting only carried categories on both sides. `BuildItem` calls it before it writes
+anything, and `CompanionBag::recipes()` calls the same method to decide whether `buildable` should
+say yes — so the action that refuses and the read that predicts can never quietly disagree about
+whether a build will fit. Held and affordable is not the same as fitting: `HarvestNode` fills the bag
+by design, so a full bag is the expected outcome of harvesting, not an edge case.
+
+### Three things F2 refused
+
+Each of these is a test that fails if the refusal is ever quietly reversed — see §10.
+
+- **A tool takes no bag room.** `capacity.carried` stays `['material', 'consumable']`; a tool is on
+  the belt. A tool is permanent, so a tool that occupied a slot would be a permanent tax on what Blob
+  can carry — gaining the axe would shrink the bag forever, which is regression in everything but
+  name.
+- **A tool never wears out.** Durability is removal with extra steps, and repair-with-materials would
+  reintroduce upkeep — the same loss-aversion reasoning that rules out streaks. Progression past a
+  tool, if a later phase wants it, is a second, better tool. Addition, never repair.
+- **Insight events do not stock the world.** There is no insight event in this application — the four
+  kinds are derived from database state by `CompanionResolver::insightMoments()`, with no seam to
+  listen to. Stocking from them would mean new domain events dispatched from the reflection, intention
+  and experiment actions: new architecture for a pacing adjustment, and a second opinion about what
+  happened alongside a resolver that already derives it. The world does not need it anyway — it now
+  accrues across three nodes, so one outcome logged yields three units, and insights are already paid
+  generously, outside the taper, in the layer §4 describes.
+
+## 9. Where everything lives
+
+```
+config/companion.php                    ladder, tail, scenes, parts of day, renderer, xp, skills,
+                                         nodes, the bag, capacity
+app/Models/
+  Companion.php                         the name, xp_spent, capacity(), held(), wouldFit()
+  CompanionItem.php                     one stack held in the bag
+  CompanionNode.php                     one node's standing stock
+  CompanionSkill.php                    one skill learned, and when
 app/Services/Companion/
   CompanionResolver.php                 record -> state, a pure read
   CompanionState.php                    what Blob is right now
   CompanionAnnouncement.php             what an unlock says
   CompanionRemarks.php                  the coach's own line, relayed verbatim
-app/Http/Controllers/CompanionController.php
+  CompanionWallet.php                   earned − spent, the balance
+  CompanionBag.php                      what the bag screen needs, in one shape
+  CompanionEconomyException.php         every refusal the economy makes
+app/Actions/
+  LearnSkill.php                        buys a skill; the only writer of xp_spent
+  MeetNode.php                          the encounter that reveals a skill
+  HarvestNode.php                       moves stock from a node into the bag
+  BuildItem.php                         spends a recipe, makes something
+app/Listeners/StockCompanionNodes.php   ActionLogged -> one unit into each unlocked node
+app/Http/Controllers/
+  CompanionController.php               the screen: the resolver and the bag, assembled
+  CompanionNodeController.php           clicking a node — meet it or harvest it
+  CompanionSkillController.php          buying a skill
+  CompanionBuildController.php          building an item
+  CompanionNameController.php           renaming Blob
 
 resources/js/hooks/use-sprite-clock.ts  the one rAF loop
 resources/js/patyourself/
   companion.tsx                         payload types, ambientFor, selfStartedFor, actionsFor
+  companion-bag.tsx                     the bag modal: contents, the build list, the skill list
   companion-animations.ts               the animation registry
   companion-room.tsx                    the scene compositor and the light
   blob-renderer.tsx                     both renderers, worn items, ability props
@@ -329,11 +491,11 @@ resources/js/patyourself/
 resources/css/patyourself.css           .pixel-frame, .pixel-button, transition rules
 resources/js/pages/companion.tsx        the screen
 
-tests/Feature/Companion/                resolver, tail, scene, screen, vocabulary
-tests/Unit/Companion/                   ladder, room config
+tests/Feature/Companion/                resolver, tail, scene, screen, vocabulary, the economy
+tests/Unit/Companion/                   ladder, room config, content
 ```
 
-## 9. Rulings that must not be reopened
+## 10. Rulings that must not be reopened
 
 Each of these was settled with evidence. The cost column is what getting it wrong actually costs.
 
@@ -350,8 +512,11 @@ Each of these was settled with evidence. The cost column is what getting it wron
 | **Sleep is a behaviour, not a rung** | It needs nothing earned and announces nothing — Blob sleeps the first night it exists, the same as `blink`. A rung would make it something the record grants, which is exactly the mirror this feature refuses to be. | A rung, permanently, and a shallow record standing awake while a deep one sleeps. |
 | **The browser's clock drives Blob's day, same as it drives the room's light** | Two clocks disagreeing is worse than one clock being wrong: a sleeping Blob in a lit room, or a lit Blob in a dark one, reads as broken rather than as a creature keeping its own hours. | The two splitting, and a sleeping Blob in a midday room. |
 | **The sleeping pose stays upright** | Lying down or curling up both rotates the body and moves it sideways — the two things every other animation here has always avoided, and the reason every per-frame anchor's `x` is `0`. A curled-up Blob would need bespoke per-frame accessory art, or would have to go without accessories while asleep. | Per-frame horizontal anchors, and one sprite per item becoming one per frame. |
+| **A tool never occupies bag capacity** | It sits on the belt, not in a slot — `capacity.carried` excludes `tool`. A tool is permanent, and counting a permanent thing against capacity would tax Blob forever for having progressed. | Every future tool becomes a punishment: gaining it would shrink the bag forever. |
+| **A tool never wears out or needs repair** | Durability is removal with extra steps, and repair-with-materials would reintroduce upkeep — the same loss-aversion reasoning that rules out streaks. Progression past a tool is a second, better tool, never a mend. | The one regression rule this whole feature exists to hold, broken in the one place a tool could hide it. |
+| **Insight events never stock a node** | There is no insight event in this app — the four kinds are derived by `CompanionResolver::insightMoments()`, with no seam to listen to. Stocking from them would mean new domain events and a second opinion about what happened, beside a resolver that already derives it. | New architecture built to duplicate a pacing job XP already does, and two sources of truth about what one log did. |
 
-## 10. Traps that have already bitten
+## 11. Traps that have already bitten
 
 Every one of these has cost a round on this project.
 
@@ -375,9 +540,17 @@ Every one of these has cost a round on this project.
    running. A reviewer's in-flight mutation once looked exactly like a shipped defect.
 8. **Herd serves the main checkout, never a worktree.** Dump to HTML and `php -S 127.0.0.1:8899 -t .`.
 
-## 11. What is not done
+## 12. What is not done
 
-- **E2 (tools and materials)** and **E3 (shelter)** are sketched in the Phase E spec, not designed.
+- **F3 (the shelter) and F4 (depth)** are what remain. F1 (the bag) and F2 (the tools) are built; the
+  reasoning behind the whole arc, and what F3 and F4 are sketched to cover, lives in
+  `docs/superpowers/specs/2026-09-17-companion-progression-arc-design.md`.
+- **A full bag of timber has no exit.** Timber is the only material with no single-material sink —
+  its consumers are the handsaw (which needs rope) and planks (which need the handsaw). A bag at
+  capacity holding, say, 2 deadfall and 3 timber cannot build the barrow (needs 4 deadfall), the
+  handsaw (needs rope), or anything else, and there is no discard. Nothing the player does changes
+  the world again. Open, and deliberately left that way here — several candidate fixes each leave a
+  residual locked state of their own, and choosing between them is not this document's call.
 - **Scarf, hat and glasses are still flat rects.** The worn-item pipeline in §7 covers them — except the
   hat, which occludes and therefore needs a different answer.
 - **Phases B, C and D1/D2 have never been verified in production** — mail arriving, one-click links on a

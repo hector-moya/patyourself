@@ -25,7 +25,7 @@ export function bag(overrides: Partial<CompanionBagData> = {}): CompanionBagData
         held: 0,
         name: 'Blob',
         items: [],
-        // Both nodes stand in the clearing from the start, unmet and unusable —
+        // All three nodes stand in the clearing from the start, unmet and unusable —
         // the one list the server does NOT filter by what has happened, because
         // a node being there is not a preview of anything.
         nodes: [
