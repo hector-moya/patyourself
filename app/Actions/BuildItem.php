@@ -74,20 +74,7 @@ final readonly class BuildItem
                 throw CompanionEconomyException::toolNotHeld($item, $tool);
             }
 
-            $stacks = $companion->items()
-                ->whereIn('item', array_keys($recipe))
-                ->get()
-                ->keyBy(static fn (CompanionItem $stack): string => $stack->item);
-
-            $missing = [];
-
-            foreach ($recipe as $ingredient => $needed) {
-                $have = (int) ($stacks->get($ingredient)?->quantity ?? 0);
-
-                if ($have < $needed) {
-                    $missing[$ingredient] = $needed - $have;
-                }
-            }
+            $missing = $companion->shortfallFor($recipe);
 
             if ($missing !== []) {
                 throw CompanionEconomyException::missingMaterials($item, $missing);
@@ -110,21 +97,7 @@ final readonly class BuildItem
                 throw CompanionEconomyException::noRoomFor($item);
             }
 
-            foreach ($recipe as $ingredient => $needed) {
-                /** @var CompanionItem $stack */
-                $stack = $stacks->get($ingredient);
-
-                // A stack spent to nothing is removed rather than left at zero:
-                // an empty row would render as a line in the bag saying Blob is
-                // carrying no fibre, which is not a thing worth saying.
-                if ($stack->quantity === $needed) {
-                    $stack->delete();
-
-                    continue;
-                }
-
-                $stack->decrement('quantity', $needed);
-            }
+            $companion->spend($recipe);
 
             $built = $companion->items()->firstOrCreate(['item' => $item], ['quantity' => 0]);
 

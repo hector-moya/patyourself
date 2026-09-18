@@ -427,4 +427,39 @@ class BuildItemTest extends TestCase
         $this->assertSame(1, $this->held($companion, 'basket'));
         $this->assertSame(1, $companion->fresh()->load('items')->held());
     }
+
+    /**
+     * The consumption arithmetic, addressed directly rather than through a
+     * recipe, because a second caller is about to use it: a shelter consumes
+     * materials exactly as a recipe does and must agree about what an emptied
+     * stack becomes.
+     */
+    public function test_a_shortfall_names_everything_that_is_missing(): void
+    {
+        $user = User::factory()->create();
+        $companion = $user->companion()->firstOrCreate([]);
+        $companion->items()->create(['item' => 'fibre', 'quantity' => 1]);
+
+        $companion = $companion->fresh();
+
+        $this->assertSame([], $companion->shortfallFor(['fibre' => 1]));
+        $this->assertSame(
+            ['fibre' => 2, 'deadfall' => 3],
+            $companion->shortfallFor(['fibre' => 3, 'deadfall' => 3]),
+        );
+    }
+
+    /** And spending it deletes what it emptied rather than leaving a zero row. */
+    public function test_spending_a_recipe_leaves_no_emptied_row(): void
+    {
+        $user = User::factory()->create();
+        $companion = $user->companion()->firstOrCreate([]);
+        $companion->items()->create(['item' => 'fibre', 'quantity' => 3]);
+        $companion->items()->create(['item' => 'deadfall', 'quantity' => 4]);
+
+        $companion->fresh()->spend(['fibre' => 3, 'deadfall' => 1]);
+
+        $this->assertSame(0, $companion->items()->where('item', 'fibre')->count());
+        $this->assertSame(3, (int) $companion->items()->where('item', 'deadfall')->value('quantity'));
+    }
 }

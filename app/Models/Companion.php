@@ -205,4 +205,72 @@ class Companion extends Model
 
         return $this->held() - $consumed + $made <= $this->capacity();
     }
+
+    /**
+     * What a recipe is still short of: ingredient to how many more are needed.
+     *
+     * Empty means affordable. Everything missing rather than the first thing,
+     * so a recipe short on two ingredients takes one look rather than two
+     * attempts.
+     *
+     * Here rather than in the action for the same reason {@see wouldFit()} is:
+     * a shelter stage consumes materials exactly as a recipe does, and two
+     * copies of this loop would eventually disagree about what an emptied
+     * stack becomes.
+     *
+     * @param  array<string, int>  $recipe
+     * @return array<string, int>
+     */
+    public function shortfallFor(array $recipe): array
+    {
+        $stacks = $this->items()
+            ->whereIn('item', array_keys($recipe))
+            ->get()
+            ->keyBy(static fn (CompanionItem $stack): string => $stack->item);
+
+        $missing = [];
+
+        foreach ($recipe as $ingredient => $needed) {
+            $have = (int) ($stacks->get($ingredient)?->quantity ?? 0);
+
+            if ($have < $needed) {
+                $missing[$ingredient] = $needed - $have;
+            }
+        }
+
+        return $missing;
+    }
+
+    /**
+     * Spends a recipe. Call only once {@see shortfallFor()} has come back
+     * empty — this assumes every ingredient is there, because a partial spend
+     * would be the first thing in this feature that ever took something away
+     * without giving anything back.
+     *
+     * A stack spent to nothing is REMOVED rather than left at zero: an empty
+     * row would render as a line in the bag saying Blob is carrying no fibre,
+     * which is not a thing worth saying.
+     *
+     * @param  array<string, int>  $recipe
+     */
+    public function spend(array $recipe): void
+    {
+        $stacks = $this->items()
+            ->whereIn('item', array_keys($recipe))
+            ->get()
+            ->keyBy(static fn (CompanionItem $stack): string => $stack->item);
+
+        foreach ($recipe as $ingredient => $needed) {
+            /** @var CompanionItem $stack */
+            $stack = $stacks->get($ingredient);
+
+            if ($stack->quantity === $needed) {
+                $stack->delete();
+
+                continue;
+            }
+
+            $stack->decrement('quantity', $needed);
+        }
+    }
 }
