@@ -806,16 +806,18 @@ class CompanionBagTest extends TestCase
     }
 
     /**
-     * THE INVARIANT the whole batch rests on, stated as a test rather than
-     * left implicit: the categories {@see Companion::held()} counts toward
-     * capacity and the categories a row here marks `droppable` are the SAME
-     * set, both read from `companion.capacity.carried`. Because they agree,
-     * `room() === 0` always implies at least one held stack can be tipped
-     * out — no full bag is ever inescapable, which is the dead end this
-     * batch exists to close. If a later phase gives `held()` its own list,
-     * or adds a carried category this bag does not mark droppable, the trap
-     * reopens with a green suite: a full bag holding nothing that can be put
-     * down.
+     * THE INVARIANT the whole batch rests on, asserted from both ends this
+     * covers, rather than left implicit or checked against a copy of
+     * itself: every category `droppable` marks true matches
+     * `companion.capacity.carried`, AND {@see Companion::held()} counts
+     * exactly the rows that came back droppable — the same key read by two
+     * independent pieces of code, agreeing in fact rather than by
+     * definition. Because they agree, `room() === 0` always implies at
+     * least one held stack can be tipped out — no full bag is ever
+     * inescapable, which is the dead end this batch exists to close. If
+     * `held()` is ever given its own list, or `droppable` stops honouring a
+     * carried category, the two diverge and the trap reopens with a green
+     * suite: a full bag holding nothing that can be put down.
      *
      * Covers all four categories on one companion, including `rope` — the
      * consumable, which no other case here asserts `droppable` for.
@@ -837,8 +839,10 @@ class CompanionBagTest extends TestCase
         $user = User::factory()->create();
         $companion = $user->companion()->firstOrCreate([]);
 
-        // One item from each of the four categories: material, consumable,
-        // tool, container.
+        // One of each of the four categories, and exactly one each:
+        // held() sums quantity over carried categories, so with one of
+        // every item held it equals the count of carried items, which is
+        // the count of droppable rows below.
         $held = ['fibre', 'rope', 'axe', 'basket'];
 
         foreach ($held as $item) {
@@ -847,7 +851,9 @@ class CompanionBagTest extends TestCase
 
         $expectedDroppable = array_values(array_filter($held, $isCarried));
 
-        $rows = collect($this->bag($user)['items'])->keyBy('item');
+        $bag = $this->bag($user);
+
+        $rows = collect($bag['items'])->keyBy('item');
 
         $actualDroppable = $rows
             ->filter(static fn (array $row): bool => $row['droppable'])
@@ -858,5 +864,15 @@ class CompanionBagTest extends TestCase
         sort($actualDroppable);
 
         $this->assertSame($expectedDroppable, $actualDroppable);
+
+        // held() and droppable must be answering the same question. With
+        // one of every item held, the number of droppable rows IS what
+        // held() counts — and if either ever stops reading
+        // capacity.carried, or reads it differently, these two diverge and
+        // a bag can fill with something that cannot be put down. That is
+        // the dead end this batch exists to close.
+        $droppable = array_filter($bag['items'], static fn (array $row): bool => $row['droppable']);
+
+        $this->assertSame(count($droppable), $bag['held']);
     }
 }
