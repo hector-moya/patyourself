@@ -35,6 +35,10 @@ use Symfony\Component\HttpFoundation\Response as Status;
  * Every outcome here is an ordinary state of the world rather than an error. A
  * full bag is a reason to build the next container, an empty node is a fact
  * about the clearing, and both come back as a line in Blob's own voice.
+ *
+ * WITH AN AMOUNT, it does the same thing and takes only that much. The amount
+ * is also how this route knows the press came from inside the bag rather than
+ * from the clearing, which is what decides whether the bag stays up afterwards.
  */
 class CompanionNodeController extends Controller
 {
@@ -44,6 +48,15 @@ class CompanionNodeController extends Controller
         $authored = (array) config('companion.nodes', []);
 
         abort_unless(array_key_exists($node, $authored), Status::HTTP_NOT_FOUND);
+
+        // An amount is optional and, when present, says where the press came
+        // from: the clearing's own click sends none and fills the bag, and
+        // only the bag's own control names a number.
+        $validated = $request->validate([
+            'take' => ['sometimes', 'integer', 'min:1'],
+        ]);
+
+        $wanted = array_key_exists('take', $validated) ? (int) $validated['take'] : null;
 
         $user = $request->user();
         $entry = $authored[$node];
@@ -58,13 +71,16 @@ class CompanionNodeController extends Controller
             // would announce a full bag, which is a true sentence about the
             // wrong thing.
             if ($tool !== '' && ! $this->hasTool($user, $tool)) {
-                return back()->with(
-                    CompanionController::SAID_KEY,
-                    $this->say($entry['blunt'] ?? '', $name),
+                return $this->stayIfAsked(
+                    back()->with(
+                        CompanionController::SAID_KEY,
+                        $this->say($entry['blunt'] ?? '', $name),
+                    ),
+                    $wanted,
                 );
             }
 
-            return $this->gather($user, $node, $entry, $name);
+            return $this->gather($user, $node, $entry, $name, $wanted);
         }
 
         // Whether this is the FIRST look is the only thing that decides if the
@@ -82,21 +98,36 @@ class CompanionNodeController extends Controller
     /**
      * @param  array<string, mixed>  $entry
      */
-    private function gather(User $user, string $node, array $entry, string $name): RedirectResponse
+    private function gather(User $user, string $node, array $entry, string $name, ?int $wanted): RedirectResponse
     {
         try {
-            $moved = app(HarvestNode::class)->handle($user, $node);
+            $moved = app(HarvestNode::class)->handle($user, $node, $wanted);
         } catch (CompanionEconomyException) {
             // The bag is full. Said plainly, naming where the thing stayed,
             // because it is still standing there and that is the point.
-            return back()->with(CompanionController::SAID_KEY, $this->say($entry['full'] ?? '', $name));
+            return $this->stayIfAsked(
+                back()->with(CompanionController::SAID_KEY, $this->say($entry['full'] ?? '', $name)),
+                $wanted,
+            );
         }
 
         $line = $moved === 0
             ? $this->say($entry['empty'] ?? '', $name)
             : str_replace('{count}', (string) $moved, $this->say($entry['took'] ?? '', $name));
 
-        return back()->with(CompanionController::SAID_KEY, $line);
+        return $this->stayIfAsked(back()->with(CompanionController::SAID_KEY, $line), $wanted);
+    }
+
+    /**
+     * An amount could only have come from inside the bag, so the bag stays up
+     * to show what changed. A click in the clearing sends none and leaves the
+     * screen exactly as it was.
+     */
+    private function stayIfAsked(RedirectResponse $response, ?int $wanted): RedirectResponse
+    {
+        return $wanted === null
+            ? $response
+            : $response->with(CompanionController::STAY_KEY, true);
     }
 
     private function hasSkill(User $user, string $skill): bool

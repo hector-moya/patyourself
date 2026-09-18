@@ -57,6 +57,7 @@ class CompanionVocabularyTest extends TestCase
             $root.'/app/Http/Controllers/CompanionNodeController.php',
             $root.'/app/Http/Controllers/CompanionSkillController.php',
             $root.'/app/Http/Controllers/CompanionBuildController.php',
+            $root.'/app/Http/Controllers/CompanionItemController.php',
             $root.'/app/Http/Controllers/CompanionNameController.php',
             $root.'/app/Services/Workflows/WorkflowRegistry.php',
             $root.'/app/Services/Workflows/WorkflowDefinition.php',

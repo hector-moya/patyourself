@@ -5,6 +5,7 @@ use App\Http\Controllers\ActionLogController;
 use App\Http\Controllers\CatchUpController;
 use App\Http\Controllers\CompanionBuildController;
 use App\Http\Controllers\CompanionController;
+use App\Http\Controllers\CompanionItemController;
 use App\Http\Controllers\CompanionNameController;
 use App\Http\Controllers\CompanionNodeController;
 use App\Http\Controllers\CompanionSkillController;
@@ -167,6 +168,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // posted from inside the bag and both leave it open.
     Route::post('companion/skills', [CompanionSkillController::class, 'store'])->name('companion.skills.store');
     Route::post('companion/build', [CompanionBuildController::class, 'store'])->name('companion.build.store');
+
+    // Tipping a stack out. The one route in this feature that destroys, and it
+    // is reachable only for the categories the bag actually carries — a tool
+    // is on the belt and a container is the room itself, so neither is here.
+    Route::delete('companion/items/{item}', [CompanionItemController::class, 'destroy'])
+        ->name('companion.items.destroy');
 
     // The in-app inbox: delivered cues + read state.
     Route::get('inbox', [InboxController::class, 'index'])->name('inbox');
