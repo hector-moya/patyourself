@@ -6,6 +6,8 @@ use App\Actions\BuildItem;
 use App\Actions\MeetNode;
 use App\Models\ActionLog;
 use App\Models\Companion;
+use App\Models\Intention;
+use App\Models\Strategy;
 use App\Models\User;
 use App\Services\Companion\CompanionBag;
 use App\Services\Companion\CompanionEconomyException;
@@ -491,6 +493,11 @@ class CompanionBagTest extends TestCase
         // unchecked. Do not delete this as unused setup.
         $user->companion->items()->create(['item' => 'fibre', 'quantity' => 2]);
 
+        // Without a met trunk the shelter offer is null and its own keys never
+        // enter the sweep — the one shape this phase added would go unchecked.
+        // Do not delete this as unused setup.
+        app(MeetNode::class)->handle($user, 'trunk');
+
         $bag = $this->bag($user);
 
         $keys = [...array_keys($bag)];
@@ -499,6 +506,15 @@ class CompanionBagTest extends TestCase
             foreach ($bag[$list] as $row) {
                 $keys = [...$keys, ...array_keys($row)];
             }
+        }
+
+        // The shelter is a shape rather than a list, and its inner keys would
+        // otherwise never be swept. `offer` is named the way it is precisely
+        // because `next` is on the list below.
+        $keys = [...$keys, ...array_keys($bag['shelter'])];
+
+        if ($bag['shelter']['offer'] !== null) {
+            $keys = [...$keys, ...array_keys($bag['shelter']['offer'])];
         }
 
         foreach ($keys as $key) {
@@ -917,5 +933,125 @@ class CompanionBagTest extends TestCase
         $droppable = array_filter($bag['items'], static fn (array $row): bool => $row['droppable']);
 
         $this->assertSame(count($droppable), $bag['held']);
+    }
+
+    /**
+     * Only the stage that is choosable now, and only once its price is in a
+     * currency Blob has been shown. A brand-new account seeing "lean-to, 4
+     * planks" before it has met the trunk would be a price quoted in something
+     * that does not exist for it yet — the same defect the recipe list's own
+     * reveal gate was built to stop, one list along.
+     */
+    public function test_the_shelter_is_absent_until_its_price_can_be_accounted_for(): void
+    {
+        $user = User::factory()->create();
+
+        $shelter = $this->bag($user)['shelter'];
+
+        $this->assertNull($shelter['built']);
+        $this->assertNull($shelter['offer']);
+    }
+
+    /** Once planks are accountable, the first stage — and only the first. */
+    public function test_only_the_stage_that_is_choosable_now_is_listed(): void
+    {
+        $user = User::factory()->create();
+        app(MeetNode::class)->handle($user, 'trunk');
+        app(MeetNode::class)->handle($user, 'reeds');
+
+        $offer = $this->bag($user)['shelter']['offer'];
+
+        $this->assertSame('lean-to', $offer['stage']);
+        $this->assertSame(['planks' => 4], $offer['recipe']);
+        $this->assertFalse($offer['buildable']);
+    }
+
+    /** It advances with what is built, one at a time and never two. */
+    public function test_the_offer_advances_as_the_shelter_does(): void
+    {
+        $user = User::factory()->create();
+        app(MeetNode::class)->handle($user, 'trunk');
+        app(MeetNode::class)->handle($user, 'reeds');
+
+        $user->companion->update(['shelter' => 'lean-to']);
+
+        $bag = $this->bag($user);
+
+        $this->assertSame('lean-to', $bag['shelter']['built']);
+        $this->assertSame('hut', $bag['shelter']['offer']['stage']);
+    }
+
+    /**
+     * A stage behind a floor the record has not reached is ABSENT, not listed
+     * and greyed. A price you cannot pay yet is a menu; a fact about the record
+     * you cannot pay at all is a lock, and the feature answers it with silence
+     * rather than naming what you are waiting for.
+     */
+    public function test_a_stage_behind_a_floor_the_record_has_not_reached_is_absent(): void
+    {
+        $user = User::factory()->create();
+        app(MeetNode::class)->handle($user, 'trunk');
+        app(MeetNode::class)->handle($user, 'reeds');
+
+        $user->companion->update(['shelter' => 'hut']);
+
+        $this->assertNull($this->bag($user)['shelter']['offer']);
+    }
+
+    /** And arrives, unannounced, when the record reaches it. */
+    public function test_the_cabin_arrives_on_the_offer_once_the_floor_is_reached(): void
+    {
+        $user = User::factory()->create();
+        app(MeetNode::class)->handle($user, 'trunk');
+        app(MeetNode::class)->handle($user, 'reeds');
+
+        $user->companion->update(['shelter' => 'hut']);
+
+        for ($index = 0; $index < 5; $index++) {
+            Strategy::factory()
+                ->for(Intention::factory()->for($user))
+                ->create([
+                    'verdict' => Strategy::VERDICT_WORKED,
+                    'verdict_note' => 'What the evidence showed.',
+                ]);
+        }
+
+        $this->assertSame('cabin', $this->bag($user)['shelter']['offer']['stage']);
+    }
+
+    /** Nothing is offered once the arc is finished. There is no fourth stage. */
+    public function test_a_finished_shelter_offers_nothing(): void
+    {
+        $user = User::factory()->create();
+        app(MeetNode::class)->handle($user, 'trunk');
+        app(MeetNode::class)->handle($user, 'reeds');
+
+        $user->companion->update(['shelter' => 'cabin']);
+
+        $bag = $this->bag($user);
+
+        $this->assertSame('cabin', $bag['shelter']['built']);
+        $this->assertNull($bag['shelter']['offer']);
+    }
+
+    /**
+     * `buildable` asks the same question BuildShelter asks before it writes
+     * anything, for the same reason the recipe list does: a read that promises
+     * a build the action is about to refuse is the defect F2 shipped once.
+     */
+    public function test_buildable_flips_when_the_planks_are_there(): void
+    {
+        $user = User::factory()->create();
+        app(MeetNode::class)->handle($user, 'trunk');
+        app(MeetNode::class)->handle($user, 'reeds');
+
+        $offer = fn (): array => $this->bag($user)['shelter']['offer'];
+
+        $this->assertFalse($offer()['buildable']);
+
+        // Exactly the price, so this pins the boundary rather than clearing it.
+        $user->companion->items()->create(['item' => 'planks', 'quantity' => 4]);
+
+        $this->assertTrue($offer()['buildable']);
     }
 }

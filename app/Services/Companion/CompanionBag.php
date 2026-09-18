@@ -37,7 +37,10 @@ use Illuminate\Support\Collection;
  */
 final readonly class CompanionBag
 {
-    public function __construct(private CompanionWallet $wallet) {}
+    public function __construct(
+        private CompanionWallet $wallet,
+        private CompanionResolver $resolver,
+    ) {}
 
     /**
      * @return array{
@@ -49,6 +52,7 @@ final readonly class CompanionBag
      *     nodes: list<array{node: string, label: string, available: int, skill: string, met: bool, known: bool, usable: bool}>,
      *     skills: list<array{skill: string, label: string, price: int, known: bool, affordable: bool}>,
      *     recipes: list<array{item: string, label: string, recipe: array<string, int>, tool: string|null, buildable: bool}>,
+     *     shelter: array{built: string|null, label: string|null, offer: array{stage: string, label: string, recipe: array<string, int>, buildable: bool}|null},
      * }
      */
     public function forUser(User $user): array
@@ -76,12 +80,18 @@ final readonly class CompanionBag
                 'nodes' => $this->worldBeforeAnythingHappened(),
                 'skills' => [],
                 'recipes' => [],
+                // Nothing built, and nothing offered: the offer waits on a
+                // price Blob can account for, and an account that has met
+                // nothing can account for nothing.
+                'shelter' => ['built' => null, 'label' => null, 'offer' => null],
             ];
         }
 
         $met = $companion->nodes->pluck('node')->all();
         $learned = $companion->skills->pluck('name')->all();
         $held = $companion->items->keyBy(static fn (CompanionItem $item): string => $item->item);
+
+        $knowable = $this->knowable($met);
 
         return [
             'xp' => $balance,
@@ -91,7 +101,8 @@ final readonly class CompanionBag
             'items' => $this->items($companion),
             'nodes' => $this->nodes($companion, $met, $learned, $held),
             'skills' => $this->skills($met, $learned, $balance),
-            'recipes' => $this->recipes($met, $held, $companion),
+            'recipes' => $this->recipes($knowable, $held, $companion),
+            'shelter' => $this->shelter($companion, $held, $knowable, $user),
         ];
     }
 
@@ -392,16 +403,14 @@ final readonly class CompanionBag
      * this can never quietly promise a build that BuildItem is about to
      * refuse.
      *
-     * @param  list<string>  $met
+     * @param  list<string>  $knowable
      * @param  Collection<string, CompanionItem>  $held
      * @return list<array{item: string, label: string, recipe: array<string, int>, tool: string|null, buildable: bool}>
      */
-    private function recipes(array $met, Collection $held, Companion $companion): array
+    private function recipes(array $knowable, Collection $held, Companion $companion): array
     {
         /** @var array<string, array<string, mixed>> $catalogue */
         $catalogue = (array) config('companion.bag', []);
-
-        $knowable = $this->knowable($met);
 
         $listed = [];
 
@@ -451,5 +460,89 @@ final readonly class CompanionBag
         }
 
         return $listed;
+    }
+
+    /**
+     * What is standing in the clearing, and the ONE stage that can be chosen
+     * next.
+     *
+     * Only the next stage is ever listed, and a stage whose predecessor does
+     * not exist is ABSENT rather than greyed — the same rule the skill list has
+     * followed since F1. A player at the hut with three insights sees no
+     * shelter row at all, and the feature answers that with silence: naming
+     * what they are waiting for would be the app stating a plan.
+     *
+     * Two things withhold the offer, and they are different in kind. A price in
+     * a material Blob has never been shown is a price quoted in a currency
+     * nobody has seen, so the offer waits on `knowable()` exactly as a recipe
+     * does. A floor on the record is not a price at all — it cannot be paid
+     * from the bag — so listing the cabin at "14 planks" while the real
+     * obstacle is the record would be a lie about what the thing costs.
+     *
+     * `offer`, not `next`. The payload-shape guard bans `next` outright, and it
+     * is right to: a "next" is the first half of a checklist.
+     *
+     * @param  Collection<string, CompanionItem>  $held
+     * @param  list<string>  $knowable
+     * @return array{built: string|null, label: string|null, offer: array{stage: string, label: string, recipe: array<string, int>, buildable: bool}|null}
+     */
+    private function shelter(Companion $companion, Collection $held, array $knowable, User $user): array
+    {
+        /** @var array<string, array<string, mixed>> $stages */
+        $stages = (array) config('companion.shelter', []);
+
+        $order = array_keys($stages);
+        $built = $companion->shelter;
+
+        $standing = $built === null ? null : ($stages[$built] ?? null);
+
+        // A stage config no longer knows still stands: nothing about Blob is
+        // ever taken because an author edited a list. Nothing follows it,
+        // because there is no position in the arc to follow from.
+        if ($built !== null && $standing === null) {
+            return ['built' => $built, 'label' => $built, 'offer' => null];
+        }
+
+        $at = $built === null ? -1 : (int) array_search($built, $order, true);
+        $stage = $order[$at + 1] ?? null;
+
+        $offer = null;
+
+        if ($stage !== null) {
+            $entry = $stages[$stage];
+
+            /** @var array<string, int> $recipe */
+            $recipe = (array) ($entry['recipe'] ?? []);
+            $floor = (int) ($entry['insights'] ?? 0);
+
+            $accountable = array_diff(array_keys($recipe), $knowable) === [];
+
+            // Short-circuited on purpose: only a stage that names a floor pays
+            // for the four queries that answer it.
+            if ($accountable && ($floor === 0 || count($this->resolver->insightMoments($user)) >= $floor)) {
+                $buildable = true;
+
+                foreach ($recipe as $ingredient => $needed) {
+                    if ((int) ($held->get($ingredient)?->quantity ?? 0) < $needed) {
+                        $buildable = false;
+
+                        break;
+                    }
+                }
+
+                $offer = [
+                    'stage' => $stage,
+                    'label' => (string) $entry['label'],
+                    'recipe' => array_map(static fn ($count): int => (int) $count, $recipe),
+                    'buildable' => $buildable,
+                ];
+            }
+        }
+
+        return [
+            'built' => $built,
+            'label' => $standing === null ? null : (string) $standing['label'],
+            'offer' => $offer,
+        ];
     }
 }

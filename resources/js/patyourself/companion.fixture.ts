@@ -59,6 +59,9 @@ export function bag(overrides: Partial<CompanionBagData> = {}): CompanionBagData
         ],
         skills: [],
         recipes: [],
+        // Nothing built and nothing offered, which is what an untouched
+        // clearing sends: the offer waits on a price Blob can account for.
+        shelter: { built: null, label: null, offer: null },
         ...overrides,
     };
 }

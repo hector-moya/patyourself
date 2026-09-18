@@ -98,6 +98,26 @@ export interface BagRecipeData {
 }
 
 /**
+ * The shelter: what is standing, and the one stage that can be chosen now.
+ *
+ * `offer` is null far more often than not — before planks are accountable,
+ * once the arc is finished, and whenever the record has not reached a stage's
+ * floor. A null offer renders NOTHING, not a placeholder and not an
+ * explanation: a stage you cannot reach is absent, the same way an unmet
+ * skill is.
+ */
+export interface BagShelterData {
+    built: string | null;
+    label: string | null;
+    offer: {
+        stage: string;
+        label: string;
+        recipe: Record<string, number>;
+        buildable: boolean;
+    } | null;
+}
+
+/**
  * The chosen half of Blob: what has been spent, bought, gathered and built.
  *
  * Assembled server-side by `CompanionBag`. Note what is NOT here — no count of
@@ -114,6 +134,7 @@ export interface CompanionBagData {
     nodes: BagNodeData[];
     skills: BagSkillData[];
     recipes: BagRecipeData[];
+    shelter: BagShelterData;
 }
 
 export interface CompanionData {
