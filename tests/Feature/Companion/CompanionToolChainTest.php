@@ -21,7 +21,9 @@ use Tests\TestCase;
  * times for `planks`, once for `axe` — or not exercised at all: `handsaw` and
  * `crate` were built zero times, and `HarvestNode` was never called on
  * `trunk`. The shipped chain had been run only by the controller's manual
- * probes. This is that chain, end to end, with no override in sight:
+ * probes. This walks that chain end to end, on the real shipped catalogue,
+ * with capacity raised by one slot (see the comment inside the test method)
+ * and fibre and deadfall seeded directly rather than gathered:
  *
  *     3 fibre  -> rope
  *     2 deadfall + 1 rope -> axe
@@ -39,6 +41,13 @@ use Tests\TestCase;
  * are seeded directly so this stays about what F2 shipped: the tool gate on a
  * node, the tool gate on a recipe, and a recipe that makes several. Every
  * other step goes through the real Action.
+ *
+ * WHAT THIS DOES NOT PROVE: that the chain is playable at the shipped 5-slot
+ * capacity. The raised capacity and the directly-seeded materials are exactly
+ * the moves a real player cannot make, and the gap between "the recipes
+ * compose" and "the chain is playable" is precisely where the known soft-lock
+ * (BLOB.md §12, "a full bag of timber has no exit") lives. This test proves
+ * the former on purpose and steps over the latter on purpose.
  */
 class CompanionToolChainTest extends TestCase
 {
