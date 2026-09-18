@@ -262,4 +262,52 @@ class HarvestNodeTest extends TestCase
         $this->assertSame(2, app(HarvestNode::class)->handle($user, 'reeds'));
         $this->assertSame(2, $this->held($companion, 'fibre'));
     }
+
+    /**
+     * The choice this adds, and the reason for it: `HarvestNode` force-fills
+     * the bag, which is what springs the trap a bag full of one material is.
+     * Asking for less is the deliberate act; asking for nothing in particular
+     * is still what every click in the clearing does.
+     */
+    public function test_harvesting_takes_only_what_was_asked_for(): void
+    {
+        [$user, $companion] = $this->clearing(4);
+
+        $moved = app(HarvestNode::class)->handle($user, 'reeds', 2);
+
+        $this->assertSame(2, $moved);
+        $this->assertSame(2, $this->held($companion->fresh()->load('items'), 'fibre'));
+        $this->assertSame(2, $this->standing($companion->fresh(), 'reeds'));
+    }
+
+    /** Asking for more than is standing takes what is there, and does not fail. */
+    public function test_asking_for_more_than_is_standing_takes_what_is_there(): void
+    {
+        [$user, $companion] = $this->clearing(2);
+
+        $moved = app(HarvestNode::class)->handle($user, 'reeds', 5);
+
+        $this->assertSame(2, $moved);
+        $this->assertSame(0, $this->standing($companion->fresh(), 'reeds'));
+    }
+
+    /** And asking for more than fits takes what fits. The rest stays standing. */
+    public function test_asking_for_more_than_fits_takes_what_fits(): void
+    {
+        [$user, $companion] = $this->clearing(10);
+
+        $moved = app(HarvestNode::class)->handle($user, 'reeds', 8);
+
+        $this->assertSame(5, $moved);
+        $this->assertSame(5, $this->standing($companion->fresh(), 'reeds'));
+    }
+
+    /** Absent means fill, so nothing about the existing gesture changes. */
+    public function test_asking_for_nothing_in_particular_still_fills_the_bag(): void
+    {
+        [$user, $companion] = $this->clearing(10);
+
+        $this->assertSame(5, app(HarvestNode::class)->handle($user, 'reeds'));
+        $this->assertSame(5, $this->standing($companion->fresh(), 'reeds'));
+    }
 }

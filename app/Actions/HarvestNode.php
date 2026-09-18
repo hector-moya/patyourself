@@ -24,6 +24,11 @@ use InvalidArgumentException;
 final readonly class HarvestNode
 {
     /**
+     * @param  ?int  $wanted  How much to take, or null to take what fits.
+     *                        Absent is the clearing's own gesture: one click
+     *                        fills the bag. Naming an amount is the deliberate
+     *                        act, and it is what stops a node force-filling the
+     *                        bag with one material and leaving nothing buildable.
      * @return int How many units moved into the bag.
      *
      * @throws InvalidArgumentException when no such node is authored.
@@ -31,7 +36,7 @@ final readonly class HarvestNode
      *                                   is not held, or the bag is full while
      *                                   stock is standing.
      */
-    public function handle(User $user, string $node): int
+    public function handle(User $user, string $node, ?int $wanted = null): int
     {
         /** @var array<string, array{skill: string, yields: string, label: string, tool?: string}> $authored */
         $authored = (array) config('companion.nodes', []);
@@ -44,7 +49,7 @@ final readonly class HarvestNode
         $yields = (string) $authored[$node]['yields'];
         $tool = (string) ($authored[$node]['tool'] ?? '');
 
-        return DB::transaction(function () use ($user, $node, $skill, $yields, $tool): int {
+        return DB::transaction(function () use ($user, $node, $skill, $yields, $tool, $wanted): int {
             /** @var Companion $companion */
             $companion = $user->companion()->firstOrCreate([]);
 
@@ -81,7 +86,16 @@ final readonly class HarvestNode
                 throw CompanionEconomyException::bagIsFull($node);
             }
 
+            // Floored at one rather than clamped to zero: a caller asking for
+            // nothing has asked a question this action has no answer for, and
+            // taking nothing while reporting success would say "the reeds are
+            // empty" about a node that is not. The route validates `min:1`, so
+            // this is the second of the two.
             $moved = min($standing->available, $room);
+
+            if ($wanted !== null) {
+                $moved = min($moved, max(1, $wanted));
+            }
 
             $standing->decrement('available', $moved);
 
