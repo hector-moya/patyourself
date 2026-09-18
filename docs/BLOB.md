@@ -29,7 +29,7 @@ a progress bar.
 | Rule | What it forbids |
 | --- | --- |
 | **Only ever show what has happened** | No locked slot, no greyed-out item, no "next up", no remaining count, no preview. An empty slot is a to-do, and a to-do is a thing to be behind on. |
-| **Never state a plan** | The app never names a material Blob does not have or a building it has not made. Inference is welcome — a pile of logs beside a half-built frame says plenty. What is forbidden is the app doing the saying. |
+| **Never state a plan** | Naming the thing the player should go and get, or previewing a building that has not been made. A price is not a plan: a recipe stating what something costs — in materials, or in a tool — is what a recipe has always been, and stays allowed. Inference is welcome — a pile of logs beside a half-built frame says plenty. What is forbidden is the app doing the saying. |
 | **Blob's life is never a mirror** | Copy says what Blob did, never how the person is doing. *"Blob can walk. Slowly, and so far in one direction only."* is a creature learning, with no lesson attached. |
 | **Nothing regresses** | Once earned, always drawn. No decay, no sad state, no diminished state. |
 | **Blob never asks to be pressed** | Pet and Play have no cooldown, no daily limit, no counter. They touch nothing the resolver reads. |
@@ -52,10 +52,12 @@ order to document them, so scanning it would fail on its own subject matter.
 
 ## 3. From record to drawing
 
-**Store only what cannot be derived.** Four tables hold the chosen half of Blob — `companions`
-(the name and `xp_spent`), `companion_skills`, `companion_items` and `companion_nodes`. Nothing
-else. Counts, earned XP, the scene and the whole gift ladder are still recomputed from the record
-on every read, so the parts that could drift still cannot.
+**Store only what cannot be derived.** Five tables hold the chosen half of Blob — `companions`
+(the name and `xp_spent`), `companion_skills`, `companion_items`, `companion_nodes` and
+`companion_remarks` (the coach's own lines, written via `WriteBlobRemark` and the MCP tool, read
+on every `/companion` request). Nothing else. Counts, earned XP, the scene and the whole gift
+ladder are still recomputed from the record on every read, so the parts that could drift still
+cannot.
 
 The rule survived its own replacement: the pre-F1 premise was "nothing is stored, so nothing can
 drift", and what made that valuable was never the storage count. It was that no stored number
@@ -63,13 +65,13 @@ claims to describe the record. A choice is not a claim about the record, which i
 be stored and a count may not.
 
 ```
-outcomes + summaries in the DB          companions + its three tables
-        |                                          |
-        v                                          v
-CompanionResolver::forUser()              CompanionBag::forUser()
-CompanionWallet::balanceFor()             what is held, buildable, learnable
-        |                                          |
-        +------------------ + ---------------------+
+outcomes + summaries in the DB     companions + its three tables     companion_remarks
+        |                                    |                       (+ one remark, at
+        v                                    v                        most, per visit)
+CompanionResolver::forUser()        CompanionBag::forUser()                 |
+CompanionWallet::balanceFor()       what is held, buildable, learnable      |
+        |                                    |                              |
+        +------------------+-----------------+------------------------------+
                             v
                    CompanionController
                             |
@@ -454,6 +456,7 @@ app/Models/
   CompanionItem.php                     one stack held in the bag
   CompanionNode.php                     one node's standing stock
   CompanionSkill.php                    one skill learned, and when
+  CompanionRemark.php                   one thing Blob has to say, written by the coach
 app/Services/Companion/
   CompanionResolver.php                 record -> state, a pure read
   CompanionState.php                    what Blob is right now
@@ -467,7 +470,9 @@ app/Actions/
   MeetNode.php                          the encounter that reveals a skill
   HarvestNode.php                       moves stock from a node into the bag
   BuildItem.php                         spends a recipe, makes something
+  WriteBlobRemark.php                   records one of Blob's remarks; the only writer
 app/Listeners/StockCompanionNodes.php   ActionLogged -> one unit into each unlocked node
+app/Mcp/Tools/WriteBlobRemarkTool.php   the MCP surface a remark is written through
 app/Http/Controllers/
   CompanionController.php               the screen: the resolver and the bag, assembled
   CompanionNodeController.php           clicking a node — meet it or harvest it
