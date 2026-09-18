@@ -279,6 +279,7 @@ class CompanionBagTest extends TestCase
             'label' => 'fibre',
             'category' => 'material',
             'quantity' => 3,
+            'droppable' => true,
         ]], $bag['items']);
         $this->assertSame(3, $bag['held']);
         $this->assertSame(5, $bag['capacity']);
@@ -781,5 +782,25 @@ class CompanionBagTest extends TestCase
         $this->expectException(CompanionEconomyException::class);
 
         app(BuildItem::class)->handle($user, 'planks');
+    }
+
+    /**
+     * A row says whether it is a thing the bag can be relieved of. The client
+     * could work it out from the category, but that would put the carried list
+     * in two places and they would eventually disagree about what a tool is.
+     */
+    public function test_a_held_row_says_whether_it_can_be_tipped_out(): void
+    {
+        $user = User::factory()->create();
+        $companion = $user->companion()->firstOrCreate([]);
+        $companion->items()->create(['item' => 'fibre', 'quantity' => 2]);
+        $companion->items()->create(['item' => 'axe', 'quantity' => 1]);
+        $companion->items()->create(['item' => 'basket', 'quantity' => 1]);
+
+        $rows = collect($this->bag($user)['items'])->keyBy('item');
+
+        $this->assertTrue($rows['fibre']['droppable']);
+        $this->assertFalse($rows['axe']['droppable']);
+        $this->assertFalse($rows['basket']['droppable']);
     }
 }

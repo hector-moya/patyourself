@@ -124,6 +124,7 @@ describe('Companion screen', () => {
                             label: 'fibre',
                             category: 'material',
                             quantity: 3,
+                            droppable: true,
                         },
                     ],
                     skills: [

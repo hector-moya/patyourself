@@ -1,5 +1,5 @@
 import type * as InertiaReact from '@inertiajs/react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 const page = { url: '/companion', props: {} };
@@ -42,6 +42,7 @@ describe('the bag', () => {
                         label: 'fibre',
                         category: 'material',
                         quantity: 3,
+                        droppable: true,
                     },
                 ],
                 skills: [
@@ -299,5 +300,91 @@ describe('the bag', () => {
         expect(
             screen.getByRole('button', { name: '4 fibre' }),
         ).toBeEnabled();
+    });
+
+    /**
+     * Two choices this phase adds, and the reason both are here rather than in
+     * the clearing: deciding how much to carry is a bag question, and the
+     * clearing is already at the limit of what its labels can hold.
+     */
+    it('offers to tip out a carried stack, and never a tool', () => {
+        open(
+            bag({
+                held: 4,
+                items: [
+                    {
+                        item: 'timber',
+                        label: 'timber',
+                        category: 'material',
+                        quantity: 3,
+                        droppable: true,
+                    },
+                    {
+                        item: 'axe',
+                        label: 'axe',
+                        category: 'tool',
+                        quantity: 1,
+                        droppable: false,
+                    },
+                ],
+            }),
+        );
+
+        const rows = screen.getAllByRole('listitem');
+        const timber = rows.find((row) => row.textContent?.includes('timber'));
+        const axe = rows.find((row) => row.textContent?.includes('axe'));
+
+        expect(timber).toBeDefined();
+        expect(axe).toBeDefined();
+        expect(
+            within(timber as HTMLElement).getByRole('button', { name: /drop/i }),
+        ).toBeInTheDocument();
+        expect(
+            within(axe as HTMLElement).queryByRole('button', { name: /drop/i }),
+        ).toBeNull();
+    });
+
+    /** What is standing, and a control to take some of it rather than all. */
+    it('lists what is standing at a node whose skill is known', () => {
+        open(
+            bag({
+                nodes: [
+                    {
+                        node: 'reeds',
+                        label: 'the reeds',
+                        available: 6,
+                        skill: 'gather-fibre',
+                        met: true,
+                        known: true,
+                    },
+                    {
+                        node: 'trunk',
+                        label: 'the fallen trunk',
+                        available: 0,
+                        skill: 'chop-wood',
+                        met: true,
+                        known: true,
+                    },
+                    {
+                        node: 'deadfall',
+                        label: 'the fallen branches',
+                        available: 4,
+                        skill: 'gather-wood',
+                        met: false,
+                        known: false,
+                    },
+                ],
+            }),
+        );
+
+        expect(screen.getByText('the reeds')).toBeInTheDocument();
+        expect(
+            screen.getByRole('spinbutton', { name: /how much to take from the reeds/i }),
+        ).toBeInTheDocument();
+
+        // Nothing standing, and a node whose skill is not known, are both
+        // absent rather than listed at zero or greyed.
+        expect(screen.queryByText('the fallen trunk')).toBeNull();
+        expect(screen.queryByText('the fallen branches')).toBeNull();
     });
 });

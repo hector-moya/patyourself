@@ -31,6 +31,8 @@ import * as Dialog from '@radix-ui/react-dialog';
 import type { CompanionBagData } from '@/patyourself/companion';
 import { name as renameRoute } from '@/routes/companion';
 import { store as buildRoute } from '@/routes/companion/build';
+import { destroy as dropRoute } from '@/routes/companion/items';
+import { store as takeRoute } from '@/routes/companion/nodes';
 import { store as learnRoute } from '@/routes/companion/skills';
 
 export function CompanionBag({
@@ -83,6 +85,7 @@ export function CompanionBag({
                     {said !== null && <p className="c-bagsaid">{said}</p>}
 
                     <Held bag={bag} />
+                    <Clearing nodes={bag.nodes} />
                     <Build recipes={bag.recipes} />
                     <Skills bag={bag} />
                     <Rename name={bag.name} />
@@ -99,7 +102,9 @@ export function CompanionBag({
 function Held({ bag }: { bag: CompanionBagData }) {
     if (bag.items.length === 0) {
         return (
-            <p className="c-bagnone">{bag.name} is not carrying anything yet.</p>
+            <p className="c-bagnone">
+                {bag.name} is not carrying anything yet.
+            </p>
         );
     }
 
@@ -110,7 +115,92 @@ function Held({ bag }: { bag: CompanionBagData }) {
                 {bag.items.map((item) => (
                     <li key={item.item} className="c-bagrow">
                         <span>{item.label}</span>
-                        <b className="c-bagqty">{item.quantity}</b>
+                        <span className="c-bagheld">
+                            <b className="c-bagqty">{item.quantity}</b>
+                            {/* Offered only for what the bag actually
+                                carries. A tool takes no room, so tipping one
+                                out would buy nothing and lose something
+                                permanent — and a container IS the room.
+
+                                No confirmation, by rule: an "are you sure" is
+                                the app having an opinion about a choice that
+                                belongs to the player. */}
+                            {item.droppable && (
+                                <Form
+                                    {...dropRoute.form(item.item)}
+                                    options={{ preserveScroll: true }}
+                                >
+                                    {({ processing }) => (
+                                        <button
+                                            type="submit"
+                                            className="c-bagdrop"
+                                            disabled={processing}
+                                        >
+                                            drop
+                                        </button>
+                                    )}
+                                </Form>
+                            )}
+                        </span>
+                    </li>
+                ))}
+            </ul>
+        </>
+    );
+}
+
+/**
+ * What is standing out there, and how much of it to carry back.
+ *
+ * Here rather than in the clearing for two reasons. Deciding how much to carry
+ * is a bag question — the clearing is where a thing IS, the bag is what you
+ * are holding — and the clearing's hotspot labels are already at the limit of
+ * what the scene can hold at small sizes, which `scenes.ts` records at length.
+ *
+ * Only nodes whose skill is known and which actually have something standing.
+ * A node with nothing at it is absent rather than listed at zero: a zero is a
+ * count of what you have not got.
+ */
+function Clearing({ nodes }: { nodes: CompanionBagData['nodes'] }) {
+    const standing = nodes.filter((node) => node.known && node.available > 0);
+
+    if (standing.length === 0) {
+        return null;
+    }
+
+    return (
+        <>
+            <p className="c-baggrp">In the clearing</p>
+            <ul className="c-bagrows">
+                {standing.map((node) => (
+                    <li key={node.node} className="c-bagrow">
+                        <span>{node.label}</span>
+                        <Form
+                            {...takeRoute.form(node.node)}
+                            options={{ preserveScroll: true }}
+                            className="c-bagbuy"
+                        >
+                            {({ processing }) => (
+                                <>
+                                    <input
+                                        type="number"
+                                        name="take"
+                                        min={1}
+                                        max={node.available}
+                                        defaultValue={1}
+                                        className="c-bagtake"
+                                        aria-label={`How much to take from ${node.label}`}
+                                    />
+                                    <button
+                                        type="submit"
+                                        className="pixel-button"
+                                        disabled={processing}
+                                    >
+                                        take
+                                    </button>
+                                </>
+                            )}
+                        </Form>
                     </li>
                 ))}
             </ul>

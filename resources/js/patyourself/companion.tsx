@@ -41,6 +41,13 @@ export interface BagItemData {
     label: string;
     category: string;
     quantity: number;
+    /**
+     * Whether the bag can be relieved of it. Answered by the server from
+     * `capacity.carried` rather than derived from `category` here, so what
+     * Blob carries has one author — a tool is on the belt and a container is
+     * the room itself.
+     */
+    droppable: boolean;
 }
 
 /** A node Blob has met, and what is standing at it. */

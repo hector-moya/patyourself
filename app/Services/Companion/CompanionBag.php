@@ -45,7 +45,7 @@ final readonly class CompanionBag
      *     capacity: int,
      *     held: int,
      *     name: string,
-     *     items: list<array{item: string, label: string, category: string, quantity: int}>,
+     *     items: list<array{item: string, label: string, category: string, quantity: int, droppable: bool}>,
      *     nodes: list<array{node: string, label: string, available: int, skill: string, met: bool, known: bool}>,
      *     skills: list<array{skill: string, label: string, price: int, known: bool, affordable: bool}>,
      *     recipes: list<array{item: string, label: string, recipe: array<string, int>, tool: string|null, buildable: bool}>,
@@ -100,15 +100,18 @@ final readonly class CompanionBag
      * rather than shown as a blank row — the same rule the room already applies
      * to an unknown room object.
      *
-     * @return list<array{item: string, label: string, category: string, quantity: int}>
+     * @return list<array{item: string, label: string, category: string, quantity: int, droppable: bool}>
      */
     private function items(Companion $companion): array
     {
         /** @var array<string, array<string, mixed>> $catalogue */
         $catalogue = (array) config('companion.bag', []);
 
+        /** @var list<string> $carried */
+        $carried = (array) config('companion.capacity.carried', []);
+
         return array_values(array_filter(array_map(
-            static function (CompanionItem $held) use ($catalogue): ?array {
+            static function (CompanionItem $held) use ($catalogue, $carried): ?array {
                 $entry = $catalogue[$held->item] ?? null;
 
                 return $entry === null ? null : [
@@ -116,6 +119,11 @@ final readonly class CompanionBag
                     'label' => (string) $entry['label'],
                     'category' => (string) $entry['category'],
                     'quantity' => $held->quantity,
+                    // Answered here rather than from the category on the
+                    // client, so the list of what Blob carries has one author.
+                    // A tool is on the belt and a container is the room
+                    // itself; neither is a thing the bag can be relieved of.
+                    'droppable' => in_array((string) $entry['category'], $carried, true),
                 ];
             },
             $companion->items->all(),

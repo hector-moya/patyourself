@@ -1144,6 +1144,12 @@
 .c-bagrows{list-style:none;margin:0;padding:0 0 4px;}
 .c-bagrow{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:5px 12px;font-size:13px;color:#E6D8BC;}
 .c-bagqty{font-family:var(--font-pixel);font-size:10px;font-weight:400;color:#F7EBD2;font-variant-numeric:tabular-nums;}
+.c-bagheld{display:flex;align-items:baseline;gap:9px;margin-left:auto;}
+.c-bagdrop{padding:0;border:0;background:none;font-family:var(--font-pixel);font-size:8.5px;letter-spacing:.06em;text-transform:uppercase;color:#A58D64;cursor:pointer;}
+.c-bagdrop:hover{color:#E9B96B;}
+.c-bagdrop:focus-visible{outline:2px solid #E9B96B;outline-offset:1px;}
+.c-bagtake{width:40px;min-width:0;margin-right:7px;background:#241C15;border:2px solid #3D3124;padding:3px 4px;font-family:var(--font-pixel);font-size:9.5px;color:#F2E3BF;text-align:center;}
+.c-bagtake:focus-visible{outline:2px solid #E9B96B;outline-offset:1px;}
 .c-bagprice{font-family:var(--font-pixel);font-size:9.5px;letter-spacing:.03em;white-space:nowrap;color:#FFD9A8;font-variant-numeric:tabular-nums;}
 /* Already learned. Marked, never scored: it says this one happened and stops
    there, the same way the record's "newest" tag does. */
