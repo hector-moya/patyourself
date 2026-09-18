@@ -2,7 +2,10 @@
 
 namespace Tests\Feature\Companion;
 
+use App\Actions\BuildItem;
 use App\Actions\ConcludeExperiment;
+use App\Actions\DropItem;
+use App\Actions\HarvestNode;
 use App\Actions\LogAction;
 use App\Actions\UpdateIntention;
 use App\Actions\WriteReflection;
@@ -13,16 +16,17 @@ use App\Models\Intention;
 use App\Models\Occurrence;
 use App\Models\Strategy;
 use App\Models\User;
+use App\Services\Companion\CompanionEconomyException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
- * The three things F2 refuses, each written as a test that fails if the
+ * The things F2 and F3 refuse, each written as a test that fails if the
  * refusal is ever quietly reversed.
  *
  * None of these asserts a feature. They assert the ABSENCE of one, which is
  * why they exist: a ruling recorded only in prose erodes, and each of these
- * three is the kind a later phase could undo while meaning to do something
+ * is the kind a later phase could undo while meaning to do something
  * else entirely.
  */
 class CompanionRulingsTest extends TestCase
@@ -155,5 +159,82 @@ class CompanionRulingsTest extends TestCase
         // And the world only ever grew: 3 seeded plus one per logged outcome
         // against the one learned skill, seven times over, is exactly 10.
         $this->assertSame(10, $this->standing($fresh, 'reeds'));
+    }
+
+    /**
+     * Spec §2's second overturn, guarded from the side that matters.
+     *
+     * F3 adds a destruction, and the whole justification is that the PLAYER
+     * initiates it. The line that must hold is therefore not "nothing is
+     * destroyed" — that one is genuinely overturned — but that nothing in this
+     * feature ever drops, decays, expires or discards on the player's behalf,
+     * for any reason, INCLUDING A FULL BAG.
+     *
+     * A full bag is the case worth driving, because it is the one place where
+     * a later phase might "helpfully" make room. Here the bag is full, more is
+     * standing than will fit, and a week of the record goes past: the harvest
+     * refuses, the build refuses, and every quantity is exactly what it was.
+     */
+    public function test_nothing_is_dropped_on_the_players_behalf(): void
+    {
+        [$user, $companion] = $this->clearing();
+
+        // Full to the brim, and holding something with no single-material
+        // exit — the exact shape of the trap F3 exists to defuse.
+        $companion->items()->create(['item' => 'timber', 'quantity' => 5]);
+        $companion->nodes()->updateOrCreate(['node' => 'reeds'], ['available' => 9]);
+
+        $before = $companion->fresh()->items->pluck('quantity', 'item')->all();
+
+        for ($index = 0; $index < 7; $index++) {
+            $this->logOnce($user);
+        }
+
+        // A harvest into a bag with no room refuses, and refuses WHOLE.
+        try {
+            app(HarvestNode::class)->handle($user, 'reeds');
+            $this->fail('a full bag should refuse rather than make room');
+        } catch (CompanionEconomyException) {
+            // The refusal is the expected outcome; what matters is below.
+        }
+
+        // So does a build that cannot fit what it would make.
+        try {
+            app(BuildItem::class)->handle($user, 'basket');
+            $this->fail('a recipe short of materials should refuse');
+        } catch (CompanionEconomyException) {
+            // Likewise.
+        }
+
+        $after = $companion->fresh()->items->pluck('quantity', 'item')->all();
+
+        $this->assertSame($before, $after, 'something was taken that nobody asked to lose');
+
+        // And the world only ever grew: 3 seeded plus one per logged outcome
+        // against the one learned skill, seven times over.
+        $this->assertSame(16, $this->standing($companion->fresh(), 'reeds'));
+    }
+
+    /**
+     * The other half of the same rule: when the player DOES ask, exactly what
+     * they asked for goes and nothing else does — including at the node the
+     * material came from, which is not a place things go back to.
+     */
+    public function test_a_drop_takes_exactly_what_was_dropped_and_nothing_else(): void
+    {
+        [$user, $companion] = $this->clearing();
+
+        $companion->items()->create(['item' => 'timber', 'quantity' => 3]);
+        $companion->items()->create(['item' => 'fibre', 'quantity' => 2]);
+
+        $standingBefore = $this->standing($companion, 'reeds');
+
+        app(DropItem::class)->handle($user, 'timber');
+
+        $fresh = $companion->fresh();
+
+        $this->assertSame(0, $fresh->items()->where('item', 'timber')->count());
+        $this->assertSame(2, (int) $fresh->items()->where('item', 'fibre')->value('quantity'));
+        $this->assertSame($standingBefore, $this->standing($fresh, 'reeds'));
     }
 }
