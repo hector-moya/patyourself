@@ -481,6 +481,51 @@ describe('Companion screen', () => {
 
             expect(screen.queryByRole('dialog')).toBeNull();
         });
+
+        /**
+         * Three things stand in the clearing, all of them from the start. A node
+         * you cannot use looks exactly like one you can — that is the whole
+         * discovery mechanic, and a lock would undo it.
+         */
+        it('stands the trunk in the clearing beside the other two', () => {
+            render(
+                <CompanionPage
+                    companion={companion({ scene: 'forest' })}
+                    bag={bag({
+                        nodes: [
+                            {
+                                node: 'deadfall',
+                                label: 'the fallen branches',
+                                available: 0,
+                                skill: 'gather-wood',
+                                met: false,
+                                known: false,
+                            },
+                            {
+                                node: 'reeds',
+                                label: 'the reeds',
+                                available: 0,
+                                skill: 'gather-fibre',
+                                met: false,
+                                known: false,
+                            },
+                            {
+                                node: 'trunk',
+                                label: 'the fallen trunk',
+                                available: 0,
+                                skill: 'chop-wood',
+                                met: false,
+                                known: false,
+                            },
+                        ],
+                    })}
+                />,
+            );
+
+            expect(
+                screen.getByRole('button', { name: 'the fallen trunk' }),
+            ).toBeEnabled();
+        });
     });
 
     describe('what Blob has to say', () => {

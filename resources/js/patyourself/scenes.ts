@@ -142,6 +142,9 @@ export const SCENES: Record<string, SceneSpec> = {
         nodes: [
             { node: 'deadfall', at: [-46, 40] },
             { node: 'reeds', at: [44, 36] },
+            // Low and near, between the tree's foot and the centre, so it
+            // reads as foreground without standing where Blob does.
+            { node: 'trunk', at: [-24, 52] },
         ],
     },
 
