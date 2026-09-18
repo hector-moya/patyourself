@@ -174,6 +174,11 @@ class CompanionRulingsTest extends TestCase
      * a later phase might "helpfully" make room. Here the bag is full, more is
      * standing than will fit, and a week of the record goes past: the harvest
      * refuses, the build refuses, and every quantity is exactly what it was.
+     *
+     * The two `fail()` calls guard that HarvestNode and BuildItem refuse as
+     * promised; the quantity comparison guards the path a listener could take —
+     * the automatic, well-meaning discard that is the realistic way this rule
+     * gets broken.
      */
     public function test_nothing_is_dropped_on_the_players_behalf(): void
     {
@@ -198,7 +203,7 @@ class CompanionRulingsTest extends TestCase
             // The refusal is the expected outcome; what matters is below.
         }
 
-        // So does a build that cannot fit what it would make.
+        // A recipe short of its materials likewise refuses and consumes nothing.
         try {
             app(BuildItem::class)->handle($user, 'basket');
             $this->fail('a recipe short of materials should refuse');
