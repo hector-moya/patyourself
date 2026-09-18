@@ -135,6 +135,7 @@ function Held({ bag }: { bag: CompanionBagData }) {
                                             type="submit"
                                             className="c-bagdrop"
                                             disabled={processing}
+                                            aria-label={`Drop the ${item.label}`}
                                         >
                                             drop
                                         </button>
@@ -195,6 +196,7 @@ function Clearing({ nodes }: { nodes: CompanionBagData['nodes'] }) {
                                         type="submit"
                                         className="pixel-button"
                                         disabled={processing}
+                                        aria-label={`Take from ${node.label}`}
                                     >
                                         take
                                     </button>

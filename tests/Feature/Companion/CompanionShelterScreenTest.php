@@ -121,6 +121,23 @@ class CompanionShelterScreenTest extends TestCase
         $this->assertSame(1, (int) $companion->items()->where('item', 'axe')->value('quantity'));
     }
 
+    /**
+     * Nothing was there. Silence is the correct response here too: a line
+     * about a stack that was never held would be the app narrating a press
+     * that did nothing, which is exactly what the controller's own comment
+     * says this branch exists to avoid.
+     */
+    public function test_dropping_a_stack_not_held_says_nothing(): void
+    {
+        [$user] = $this->clearing();
+
+        $this->actingAs($user)
+            ->delete(route('companion.items.destroy', ['item' => 'timber']))
+            ->assertRedirect()
+            ->assertSessionMissing(CompanionController::SAID_KEY)
+            ->assertSessionHas(CompanionController::STAY_KEY, true);
+    }
+
     public function test_dropping_requires_signing_in(): void
     {
         $this->delete(route('companion.items.destroy', ['item' => 'timber']))

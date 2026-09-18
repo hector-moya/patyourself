@@ -5,6 +5,7 @@ namespace Tests\Feature\Companion;
 use App\Actions\BuildItem;
 use App\Actions\MeetNode;
 use App\Models\ActionLog;
+use App\Models\Companion;
 use App\Models\User;
 use App\Services\Companion\CompanionBag;
 use App\Services\Companion\CompanionEconomyException;
@@ -802,5 +803,60 @@ class CompanionBagTest extends TestCase
         $this->assertTrue($rows['fibre']['droppable']);
         $this->assertFalse($rows['axe']['droppable']);
         $this->assertFalse($rows['basket']['droppable']);
+    }
+
+    /**
+     * THE INVARIANT the whole batch rests on, stated as a test rather than
+     * left implicit: the categories {@see Companion::held()} counts toward
+     * capacity and the categories a row here marks `droppable` are the SAME
+     * set, both read from `companion.capacity.carried`. Because they agree,
+     * `room() === 0` always implies at least one held stack can be tipped
+     * out — no full bag is ever inescapable, which is the dead end this
+     * batch exists to close. If a later phase gives `held()` its own list,
+     * or adds a carried category this bag does not mark droppable, the trap
+     * reopens with a green suite: a full bag holding nothing that can be put
+     * down.
+     *
+     * Covers all four categories on one companion, including `rope` — the
+     * consumable, which no other case here asserts `droppable` for.
+     */
+    public function test_droppable_agrees_with_carried_for_every_category(): void
+    {
+        /** @var array<string, array<string, mixed>> $catalogue */
+        $catalogue = (array) config('companion.bag', []);
+
+        /** @var list<string> $carried */
+        $carried = (array) config('companion.capacity.carried', []);
+
+        $isCarried = static fn (string $item): bool => in_array(
+            (string) ($catalogue[$item]['category'] ?? ''),
+            $carried,
+            true,
+        );
+
+        $user = User::factory()->create();
+        $companion = $user->companion()->firstOrCreate([]);
+
+        // One item from each of the four categories: material, consumable,
+        // tool, container.
+        $held = ['fibre', 'rope', 'axe', 'basket'];
+
+        foreach ($held as $item) {
+            $companion->items()->create(['item' => $item, 'quantity' => 1]);
+        }
+
+        $expectedDroppable = array_values(array_filter($held, $isCarried));
+
+        $rows = collect($this->bag($user)['items'])->keyBy('item');
+
+        $actualDroppable = $rows
+            ->filter(static fn (array $row): bool => $row['droppable'])
+            ->keys()
+            ->all();
+
+        sort($expectedDroppable);
+        sort($actualDroppable);
+
+        $this->assertSame($expectedDroppable, $actualDroppable);
     }
 }
