@@ -833,4 +833,127 @@ describe('Companion screen', () => {
             }
         });
     });
+
+    /**
+     * Where Blob IS and what Blob has BUILT are independent facts, and the
+     * control that moves between them only exists once there is something to
+     * go into. A "go inside" button with nothing built would be a door to a
+     * room that does not exist — which is the preview this feature refuses.
+     */
+    it('offers no way inside until something has been built', () => {
+        render(
+            <CompanionPage
+                bag={bag()}
+                companion={companion({ scene: 'forest' })}
+            />,
+        );
+
+        expect(screen.queryByRole('button', { name: /go inside/i })).toBeNull();
+    });
+
+    it('goes inside what was built, and comes back out again', () => {
+        render(
+            <CompanionPage
+                bag={bag({
+                    shelter: {
+                        built: 'lean-to',
+                        label: 'lean-to',
+                        offer: null,
+                    },
+                })}
+                companion={companion({ scene: 'forest' })}
+            />,
+        );
+
+        expect(screen.getByRole('img')).toHaveAttribute('data-scene', 'forest');
+        expect(screen.getByRole('img')).not.toHaveAttribute('data-interior');
+
+        fireEvent.click(screen.getByRole('button', { name: /go inside/i }));
+
+        // The scene underneath is unchanged: the forest is always the world.
+        expect(screen.getByRole('img')).toHaveAttribute('data-scene', 'forest');
+        expect(screen.getByRole('img')).toHaveAttribute(
+            'data-interior',
+            'lean-to',
+        );
+
+        fireEvent.click(screen.getByRole('button', { name: /go outside/i }));
+
+        expect(screen.getByRole('img')).not.toHaveAttribute('data-interior');
+    });
+
+    /**
+     * Inside is where you are looking, not something you own. A fresh render
+     * is the reload, and it always starts outside — the way a modal does.
+     */
+    it('starts outside every time, because inside is not stored', () => {
+        const props = {
+            bag: bag({
+                shelter: { built: 'cabin', label: 'cabin', offer: null },
+            }),
+            companion: companion({ scene: 'forest' }),
+        };
+
+        const first = render(<CompanionPage {...props} />);
+        fireEvent.click(screen.getByRole('button', { name: /go inside/i }));
+        expect(screen.getByRole('img')).toHaveAttribute(
+            'data-interior',
+            'cabin',
+        );
+
+        first.unmount();
+        render(<CompanionPage {...props} />);
+
+        expect(screen.getByRole('img')).not.toHaveAttribute('data-interior');
+    });
+
+    /** Nothing grows indoors: the clearing's own things are not reachable there. */
+    it('draws no clearing while Blob is inside', () => {
+        render(
+            <CompanionPage
+                bag={bag({
+                    shelter: { built: 'hut', label: 'hut', offer: null },
+                    nodes: [
+                        {
+                            node: 'reeds',
+                            label: 'the reeds',
+                            available: 4,
+                            skill: 'gather-fibre',
+                            met: true,
+                            known: true,
+                            usable: true,
+                        },
+                    ],
+                })}
+                companion={companion({ scene: 'forest' })}
+            />,
+        );
+
+        expect(
+            screen.getByRole('button', { name: /the reeds/i }),
+        ).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: /go inside/i }));
+
+        expect(screen.queryByRole('button', { name: /the reeds/i })).toBeNull();
+    });
+
+    /** The place bar names where Blob actually is, not where the record says. */
+    it('names the place Blob is standing in', () => {
+        render(
+            <CompanionPage
+                bag={bag({
+                    shelter: { built: 'hut', label: 'hut', offer: null },
+                })}
+                companion={companion({ scene: 'forest' })}
+            />,
+        );
+
+        expect(screen.getByText('the forest')).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: /go inside/i }));
+
+        expect(screen.getByText('the hut')).toBeInTheDocument();
+        expect(screen.queryByText('the forest')).toBeNull();
+    });
 });

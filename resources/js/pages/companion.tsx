@@ -97,6 +97,12 @@ export default function CompanionPage({
     // through — you would rename the companion and watch the bag vanish.
     const [bagOpen, setBagOpen] = useState(revealed);
 
+    // Where Blob is looking, and nothing more. NOT STORED and never posted:
+    // inside/outside is a view, not a thing you own, and it resets on load the
+    // way the bag does. What Blob has BUILT is the stored half, and it lives
+    // on the bag payload.
+    const [inside, setInside] = useState(false);
+
     // `revealed` is a flash: true on exactly the render after the encounter,
     // gone by the next request. Inertia re-renders this component across visits
     // rather than remounting it, so the initialiser above only fires once and
@@ -185,9 +191,11 @@ export default function CompanionPage({
                     remark={remark}
                     bag={bag}
                     said={bagOpen ? null : said}
+                    inside={inside}
                     onReact={react}
                     onOpenBag={() => setBagOpen(true)}
                     onTouchNode={touchNode}
+                    onToggleInside={() => setInside((was) => !was)}
                 />
                 <Record companion={companion} />
             </div>
@@ -222,9 +230,11 @@ function RoomCard({
     remark,
     said,
     bag,
+    inside,
     onReact,
     onOpenBag,
     onTouchNode,
+    onToggleInside,
 }: {
     companion: CompanionData;
     animation: AnimationName;
@@ -234,9 +244,11 @@ function RoomCard({
     remark: string | null;
     said: string | null;
     bag: CompanionBagData;
+    inside: boolean;
     onReact: (name: AnimationName) => void;
     onOpenBag: () => void;
     onTouchNode: (node: string) => void;
+    onToggleInside: () => void;
 }) {
     const [showRemark, setShowRemark] = useState(true);
     const part = partOfDay(hour, companion.room);
@@ -249,7 +261,13 @@ function RoomCard({
             <div className="c-place">
                 <b>
                     <CompanionGlyph kind="body" size={14} />
-                    the {sceneFor(companion.scene).name}
+                    {/* Where Blob actually is. The record decides the world;
+                        a press decides which side of the wall Blob is on, and
+                        the bar says the one that is true right now. */}
+                    the{' '}
+                    {inside && bag.shelter.label !== null
+                        ? bag.shelter.label
+                        : sceneFor(companion.scene).name}
                 </b>
                 {/* The balance, and nothing else. No target, no bar, no
                     "next at" — a number with a ceiling is the checklist
@@ -298,6 +316,8 @@ function RoomCard({
                     hour={hour}
                     className="c-scene"
                     onPoke={() => onReact('notice')}
+                    inside={inside}
+                    shelter={bag.shelter.built}
                 />
 
                 {/* The clearing's own things, laid over the picture as real
@@ -309,27 +329,30 @@ function RoomCard({
                     ALL THREE ARE HERE FROM THE START, whatever the record says.
                     Clicking one you cannot use does not fail and shows no
                     lock: Blob turns it over and puts it down again, and that
-                    encounter is what puts the skill in the list. */}
-                {sceneFor(companion.scene).nodes.map((spec) => {
-                    const node = bag.nodes.find(
-                        (candidate) => candidate.node === spec.node,
-                    );
+                    encounter is what puts the skill in the list.
 
-                    if (node === undefined) {
-                        return null;
-                    }
+                    Not reachable from indoors: nothing grows in a room. */}
+                {!inside &&
+                    sceneFor(companion.scene).nodes.map((spec) => {
+                        const node = bag.nodes.find(
+                            (candidate) => candidate.node === spec.node,
+                        );
 
-                    return (
-                        <NodeSpot
-                            key={spec.node}
-                            label={node.label}
-                            available={node.available}
-                            known={node.known}
-                            at={roomOffset(spec.at[0], spec.at[1])}
-                            onClick={() => onTouchNode(spec.node)}
-                        />
-                    );
-                })}
+                        if (node === undefined) {
+                            return null;
+                        }
+
+                        return (
+                            <NodeSpot
+                                key={spec.node}
+                                label={node.label}
+                                available={node.available}
+                                known={node.known}
+                                at={roomOffset(spec.at[0], spec.at[1])}
+                                onClick={() => onTouchNode(spec.node)}
+                            />
+                        );
+                    })}
             </div>
 
             {/* Never disabled, never on a timer, never counted: pressing one
@@ -363,6 +386,23 @@ function RoomCard({
                 >
                     Poke
                 </button>
+
+                {/* Only once there is something to go into. A door to a room
+                    that has not been built would be a preview, and this
+                    feature shows what has happened.
+
+                    A real button rather than a shape in the picture, the same
+                    rule the node hotspots follow: everything reachable in this
+                    frame has to be reachable from a keyboard. */}
+                {bag.shelter.built !== null && (
+                    <button
+                        type="button"
+                        className="pixel-button"
+                        onClick={onToggleInside}
+                    >
+                        {inside ? 'Go outside' : 'Go inside'}
+                    </button>
+                )}
 
                 {/* The odd one out in this row: every other button fires an
                     animation, this one opens a dialog. Poke is already the
