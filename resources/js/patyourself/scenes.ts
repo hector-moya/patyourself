@@ -164,12 +164,33 @@ export const SCENES: Record<string, SceneSpec> = {
             //      roughly 31x2.4px on desktop (up to 64x8px on a 390px
             //      phone) and DOM order let the trunk paint over the
             //      deadfall's hit target.
-            // This coordinate is computed from the two boxes' measured
-            // dimensions, not eyeballed against a render. Below roughly a
-            // 300px stage no y value clears both constraints at once — the
-            // labels are simply larger than the room at that scale, which is
-            // a label-sizing question and not this coordinate's to answer.
-            { node: 'trunk', at: [-24, 48] },
+            // Both constraints on y are still correct and y stays at 48.
+            //
+            // x did not. [-24, 48] was computed against the other labels and
+            // never against Blob, and a render this session — the built page
+            // viewed, the label dragged in the live DOM, the result
+            // photographed — showed it sitting on Blob's left arm: Blob's
+            // silhouette spans roughly x −15..15 around the centre, and a
+            // box centred at −24 that is ~16 room units half-wide at a 508px
+            // stage reaches −7.7, well inside it.
+            //
+            // −40 solves the two constraints that now bind: the right edge
+            // clears Blob's silhouette (≈ −15, with a margin), and the left
+            // edge stays inside the room's left wall at −72. That gives a
+            // feasible window of roughly −55.7 ≤ x ≤ −33.6 at a 508px stage.
+            // −40 sits inside it, clears Blob by about 8 room units (~30px),
+            // and keeps a visible 6-unit offset from the deadfall's label at
+            // −46 rather than stacking directly under it.
+            //
+            // The caveat still holds, and is sharper now the window is
+            // known: because the label is a fixed 8px font that does not
+            // scale with the SVG, its width in ROOM UNITS grows as the stage
+            // shrinks. Below roughly a 303px stage the window above is EMPTY
+            // — twice the box's half-width exceeds the space between Blob
+            // and the wall, so no x clears both constraints at once. That is
+            // the label-sizing problem the feature has deliberately left
+            // open, not something this coordinate can answer.
+            { node: 'trunk', at: [-40, 48] },
             // The heap: the cabin an established record used to be given,
             // in pieces. It stands in the one gap the grass leaves.
             //
@@ -198,13 +219,26 @@ export const SCENES: Record<string, SceneSpec> = {
         // Back and to the right, against the treeline: a building belongs
         // behind the things you pick up rather than in front of them.
         //
-        // Same caveat and same arithmetic. "LEAN-TO" is the longest of the
-        // three stage labels at 7 characters — about 56px, or 20 room units
-        // at a 400px stage — so a box centred here spans x 34..54 and stays
-        // inside the room's right edge at 72. The reeds sit at [44, 36], 46
-        // units below, against box heights of 6 units at 400px and 8 at
-        // 300px: the two never come within 38 units of each other.
-        shelter: [44, -10],
+        // "LEAN-TO" is the longest of the three stage labels at 7 characters
+        // — about 56px, or 20 room units at a 400px stage — so a box centred
+        // at x=44 spans 34..54 and stays inside the room's right edge at 72.
+        // That reasoning is still correct and x stays at 44.
+        //
+        // y did not. [44, -10] was argued only against THE REEDS' label, 46
+        // units below at box heights of 6 units at 400px and 8 at 300px —
+        // never against the ground. A render this session — the built page
+        // viewed, the label dragged in the live DOM, the result photographed
+        // — showed it floating in open sky: every other object in the
+        // clearing sits at y ∈ {36, 40, 48, 62} in a room whose viewBox spans
+        // y −38..76, and −10 alone sat up among the landmark tree's canopy.
+        //
+        // 22 puts it where the treeline meets the grass at the back of the
+        // clearing — still behind the things you pick up, now standing on
+        // the ground instead of above it. THE REEDS sits at [44, 36], the
+        // same x; the vertical gap between the two label boxes is ~4.5 room
+        // units tall at a 508px stage and ~7.7 at 300px, so at y=22 the two
+        // clear each other by about 6.3 units even in the tightest case.
+        shelter: [44, 22],
     },
 
     cabin: {
