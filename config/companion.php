@@ -483,6 +483,11 @@ return [
     | does not need: it is what Blob does at a node it has the record's
     | permission for and not the thing in hand.
     |
+    | `salvage` BELOW IS THE EXCEPTION TO ALL OF THAT. It names no `skill`, so
+    | it is not part of the world the paragraph above describes: it is not
+    | visible from the start, the record never stocks it, and it has no `met`
+    | line because there is no skill to be without. See its own comment.
+    |
     */
 
     'nodes' => [
@@ -522,6 +527,35 @@ return [
             'took' => '{name} drags back {count} timber.',
             'empty' => '{name} checks the trunk. There is nothing loose on it.',
             'full' => 'There is nowhere to put it. The timber stays by the trunk.',
+        ],
+
+        // The cabin, in pieces. NO SKILL, and that absence is the whole rule:
+        //
+        //   a node with a skill  is the world — always standing, and the
+        //                        record stocks it
+        //   a node without one   is a heap — there only if something put it
+        //                        there, and nothing restocks it
+        //
+        // So this is absent from the clearing for every account that never had
+        // a cabin, it never grows by one unit per outcome logged, and it is
+        // removed once drained rather than standing there forever as an empty
+        // label. Removing it takes nothing from Blob — there is nothing left
+        // in it — and it is the only delete path in the feature that is not a
+        // stack spent on something.
+        //
+        // No `met` line, because there is no state in which Blob meets this
+        // without being able to use it: there is no skill to be without.
+        //
+        // "the heap" is eight characters on purpose. Hotspot labels are real
+        // buttons at a fixed 8px font that does not scale with the svg, so
+        // every character costs the same pixels at every stage size, and the
+        // clearing is already crowded.
+        'salvage' => [
+            'yields' => 'planks',
+            'label' => 'the heap',
+            'took' => '{name} carries {count} planks up from the heap.',
+            'empty' => '{name} turns over what is left of the heap. There is nothing in it.',
+            'full' => 'There is nowhere to put them. The planks stay in the heap.',
         ],
     ],
 

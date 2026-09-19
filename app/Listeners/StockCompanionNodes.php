@@ -49,7 +49,7 @@ class StockCompanionNodes
             return;
         }
 
-        /** @var array<string, array{skill: string, yields: string, label: string}> $nodes */
+        /** @var array<string, array{skill?: string, yields: string, label: string}> $nodes */
         $nodes = (array) config('companion.nodes', []);
 
         $learned = $companion->skills()
@@ -57,7 +57,13 @@ class StockCompanionNodes
             ->keyBy(static fn (CompanionSkill $skill): string => $skill->name);
 
         foreach ($nodes as $name => $node) {
-            if (! $learned->has($node['skill'])) {
+            $skill = (string) ($node['skill'] ?? '');
+
+            // A node that names no skill is a heap rather than part of the
+            // world: something put it there and nothing restocks it. Skipping
+            // it is not an optimisation — stocking it would rebuild the thing
+            // it is the remains of, one outcome at a time.
+            if ($skill === '' || ! $learned->has($skill)) {
                 continue;
             }
 

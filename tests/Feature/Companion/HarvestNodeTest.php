@@ -310,4 +310,56 @@ class HarvestNodeTest extends TestCase
         $this->assertSame(5, app(HarvestNode::class)->handle($user, 'reeds'));
         $this->assertSame(5, $this->standing($companion->fresh(), 'reeds'));
     }
+
+    /**
+     * A node that names no skill needs none. There is nothing to have learned:
+     * a heap in the clearing is not a thing you learn to use, it is a thing
+     * somebody put there.
+     */
+    public function test_a_node_with_no_skill_is_harvestable_without_one(): void
+    {
+        $user = User::factory()->create();
+        $companion = $user->companion()->firstOrCreate([]);
+        $companion->nodes()->create(['node' => 'salvage', 'available' => 9]);
+
+        $this->assertSame(0, $companion->skills()->count());
+        $this->assertSame(5, app(HarvestNode::class)->handle($user, 'salvage'));
+        $this->assertSame(5, $this->held($companion->fresh()->load('items'), 'planks'));
+    }
+
+    /**
+     * And a heap drained to nothing is REMOVED rather than left at zero.
+     *
+     * A drained node would otherwise stand in the clearing forever as an empty
+     * label. This is the one delete path in the feature that is not a stack
+     * spent on something, and it takes nothing from Blob — there is nothing
+     * left in it to take.
+     */
+    public function test_a_drained_heap_is_removed_rather_than_left_at_zero(): void
+    {
+        $user = User::factory()->create();
+        $companion = $user->companion()->firstOrCreate([]);
+        $companion->nodes()->create(['node' => 'salvage', 'available' => 3]);
+        $companion->skills()->create(['name' => 'gather-fibre', 'learned_at' => now()]);
+        $companion->nodes()->create(['node' => 'reeds', 'available' => 2]);
+
+        app(HarvestNode::class)->handle($user, 'salvage');
+
+        $this->assertSame(0, $companion->nodes()->where('node', 'salvage')->count());
+
+        // And removing it changed nothing else about Blob.
+        $this->assertSame(3, $this->held($companion->fresh()->load('items'), 'planks'));
+        $this->assertSame(2, $this->standing($companion->fresh(), 'reeds'));
+    }
+
+    /** A node that still has a skill is never removed, however empty it gets. */
+    public function test_a_node_of_the_world_is_never_removed_when_it_empties(): void
+    {
+        [$user, $companion] = $this->clearing(2);
+
+        app(HarvestNode::class)->handle($user, 'reeds');
+
+        $this->assertSame(1, $companion->nodes()->where('node', 'reeds')->count());
+        $this->assertSame(0, $this->standing($companion->fresh(), 'reeds'));
+    }
 }

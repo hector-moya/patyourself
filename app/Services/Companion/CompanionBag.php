@@ -49,7 +49,7 @@ final readonly class CompanionBag
      *     held: int,
      *     name: string,
      *     items: list<array{item: string, label: string, category: string, quantity: int, droppable: bool}>,
-     *     nodes: list<array{node: string, label: string, available: int, skill: string, met: bool, known: bool, usable: bool}>,
+     *     nodes: list<array{node: string, label: string, available: int, skill: string|null, met: bool, known: bool, usable: bool}>,
      *     skills: list<array{skill: string, label: string, price: int, known: bool, affordable: bool}>,
      *     recipes: list<array{item: string, label: string, recipe: array<string, int>, tool: string|null, buildable: bool}>,
      *     shelter: array{built: string|null, label: string|null, offer: array{stage: string, label: string, recipe: array<string, int>, buildable: bool}|null},
@@ -159,9 +159,12 @@ final readonly class CompanionBag
      * `met` nor `known` is a lock: clicking an unmet node is how the game
      * starts.
      *
+     * A heap needs a row to exist, and this branch is the case where there is
+     * no companion row at all — so there can be none.
+     *
      * @param  list<string>  $met
      * @param  list<string>  $learned
-     * @return list<array{node: string, label: string, available: int, skill: string, met: bool, known: bool, usable: bool}>
+     * @return list<array{node: string, label: string, available: int, skill: string|null, met: bool, known: bool, usable: bool}>
      */
     private function worldBeforeAnythingHappened(): array
     {
@@ -171,6 +174,10 @@ final readonly class CompanionBag
         $listed = [];
 
         foreach ($authored as $name => $entry) {
+            if (! isset($entry['skill'])) {
+                continue;
+            }
+
             $listed[] = [
                 'node' => $name,
                 'label' => (string) $entry['label'],
@@ -188,10 +195,16 @@ final readonly class CompanionBag
     }
 
     /**
+     * A heap is absent until something puts it there. Every node of the WORLD
+     * is listed whether met or not — a thing standing in the clearing is not
+     * a preview of anything — but a heap is not part of the world, so listing
+     * one would put a salvage pile in front of an account that never had a
+     * cabin.
+     *
      * @param  list<string>  $met
      * @param  list<string>  $learned
      * @param  Collection<string, CompanionItem>  $held
-     * @return list<array{node: string, label: string, available: int, skill: string, met: bool, known: bool, usable: bool}>
+     * @return list<array{node: string, label: string, available: int, skill: string|null, met: bool, known: bool, usable: bool}>
      */
     private function nodes(Companion $companion, array $met, array $learned, Collection $held): array
     {
@@ -205,15 +218,24 @@ final readonly class CompanionBag
         $listed = [];
 
         foreach ($authored as $name => $entry) {
-            $known = in_array($entry['skill'], $learned, true);
+            $skill = (string) ($entry['skill'] ?? '');
+            $standingHere = $standing->get($name);
+
+            if ($skill === '' && $standingHere === null) {
+                continue;
+            }
+
+            $known = $skill === '' || in_array($skill, $learned, true);
             $tool = (string) ($entry['tool'] ?? '');
 
             $listed[] = [
                 'node' => $name,
                 'label' => (string) $entry['label'],
-                'available' => (int) ($standing->get($name)?->available ?? 0),
-                'skill' => (string) $entry['skill'],
-                'met' => in_array($name, $met, true),
+                'available' => (int) ($standingHere?->available ?? 0),
+                // Null rather than '' so the client has one falsy case to
+                // test, the same choice `recipes[].tool` already made.
+                'skill' => $skill === '' ? null : $skill,
+                'met' => $standingHere !== null || in_array($name, $met, true),
                 'known' => $known,
                 'usable' => $known && ($tool === '' || (int) ($held->get($tool)?->quantity ?? 0) > 0),
             ];

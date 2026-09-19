@@ -55,10 +55,15 @@ export interface BagNodeData {
     node: string;
     label: string;
     available: number;
-    skill: string;
+    /**
+     * The skill that unlocks it, or null for a heap — something that was put
+     * in the clearing rather than something Blob learns to use. Null is the
+     * one falsy case, the same choice `BagRecipeData.tool` made.
+     */
+    skill: string | null;
     /** Whether Blob has walked over and looked at it. */
     met: boolean;
-    /** Whether the skill that unlocks it has been bought. */
+    /** Whether the skill that unlocks it has been bought, or there is none. */
     known: boolean;
     /**
      * Whether the gesture would actually do something right now — `known`

@@ -62,7 +62,7 @@ class CompanionNodeController extends Controller
         $entry = $authored[$node];
         $name = Companion::nameFor($user);
 
-        if ($this->hasSkill($user, (string) $entry['skill'])) {
+        if ($this->hasSkill($user, (string) ($entry['skill'] ?? ''))) {
             $tool = (string) ($entry['tool'] ?? '');
 
             // Checked here as well as in HarvestNode, for the same reason the
@@ -130,8 +130,13 @@ class CompanionNodeController extends Controller
             : $response->with(CompanionController::STAY_KEY, true);
     }
 
+    /** A node that names no skill needs none — there is nothing to have learned. */
     private function hasSkill(User $user, string $skill): bool
     {
+        if ($skill === '') {
+            return true;
+        }
+
         return Companion::query()
             ->where('user_id', $user->id)
             ->whereHas('skills', fn ($query) => $query->where('name', $skill))

@@ -20,6 +20,9 @@ use InvalidArgumentException;
  * Returns how many units moved, so the caller can say so in the app's own
  * voice. Zero is an ordinary answer — an empty node is not a refusal, there was
  * simply nothing there.
+ *
+ * A node that names no SKILL is a heap rather than part of the world: it needs
+ * nothing learned, nothing restocks it, and it is removed once it is drained.
  */
 final readonly class HarvestNode
 {
@@ -38,14 +41,14 @@ final readonly class HarvestNode
      */
     public function handle(User $user, string $node, ?int $wanted = null): int
     {
-        /** @var array<string, array{skill: string, yields: string, label: string, tool?: string}> $authored */
+        /** @var array<string, array{skill?: string, yields: string, label: string, tool?: string}> $authored */
         $authored = (array) config('companion.nodes', []);
 
         if (! array_key_exists($node, $authored)) {
             throw new InvalidArgumentException("[{$node}] is not something Blob can gather from.");
         }
 
-        $skill = (string) $authored[$node]['skill'];
+        $skill = (string) ($authored[$node]['skill'] ?? '');
         $yields = (string) $authored[$node]['yields'];
         $tool = (string) ($authored[$node]['tool'] ?? '');
 
@@ -53,7 +56,9 @@ final readonly class HarvestNode
             /** @var Companion $companion */
             $companion = $user->companion()->firstOrCreate([]);
 
-            if ($companion->skills()->where('name', $skill)->doesntExist()) {
+            // A node that names no skill needs none: a heap is not a thing you
+            // learn to use, it is a thing somebody put there.
+            if ($skill !== '' && $companion->skills()->where('name', $skill)->doesntExist()) {
                 throw CompanionEconomyException::skillNotLearned($node, $skill);
             }
 
@@ -98,6 +103,15 @@ final readonly class HarvestNode
             }
 
             $standing->decrement('available', $moved);
+
+            // A drained heap is removed rather than left standing as an empty
+            // label forever. Nothing is taken by it — there is nothing left in
+            // it to take — and it is the only delete path in this feature that
+            // is not a stack spent on something. A node of the world is never
+            // removed, however empty it gets: the record refills it.
+            if ($skill === '' && $standing->fresh()->available === 0) {
+                $standing->delete();
+            }
 
             $companion->items()
                 ->firstOrCreate(['item' => $yields], ['quantity' => 0])

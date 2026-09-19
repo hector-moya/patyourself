@@ -42,18 +42,31 @@ class CompanionContentTest extends TestCase
         }
     }
 
-    public function test_every_node_names_a_skill_and_a_material_that_exist(): void
+    /**
+     * A node names a material that exists, and — if it names a skill at all —
+     * one that exists.
+     *
+     * The skill is optional now, exactly as the tool already was. A node with a
+     * skill is part of the world: always standing, and the record stocks it. A
+     * node without one is a heap: there only if something put it there, and
+     * nothing restocks it. Requiring a skill would make the second kind
+     * unexpressible.
+     */
+    public function test_every_node_names_a_material_that_exists_and_any_skill_it_claims(): void
     {
         $config = $this->config();
 
         $this->assertNotEmpty($config['nodes']);
 
         foreach ($config['nodes'] as $name => $node) {
-            $this->assertArrayHasKey(
-                $node['skill'],
-                $config['skills'],
-                "{$name} needs a skill that does not exist",
-            );
+            if (isset($node['skill'])) {
+                $this->assertArrayHasKey(
+                    $node['skill'],
+                    $config['skills'],
+                    "{$name} needs a skill that does not exist",
+                );
+            }
+
             $this->assertArrayHasKey(
                 $node['yields'],
                 $config['bag'],
@@ -225,8 +238,16 @@ class CompanionContentTest extends TestCase
     {
         foreach ($this->config()['nodes'] as $name => $node) {
             foreach (['met', 'blunt', 'took', 'empty', 'full'] as $line) {
-                if ($line === 'blunt' && ! array_key_exists($line, $node)) {
-                    // Only a node that asks for a tool has a blunt line.
+                // Each line is required exactly when the state it describes is
+                // reachable. `blunt` only for a node that asks for a tool;
+                // `met` only for a node that asks for a skill, since meeting a
+                // node you cannot use has no meaning where there is nothing to
+                // have learned.
+                if ($line === 'blunt' && ! array_key_exists('tool', $node)) {
+                    continue;
+                }
+
+                if ($line === 'met' && ! array_key_exists('skill', $node)) {
                     continue;
                 }
 
@@ -245,7 +266,9 @@ class CompanionContentTest extends TestCase
                 );
             }
 
-            $this->assertStringContainsString('{name}', $node['met'], "{$name}.met never names the companion");
+            if (isset($node['skill'])) {
+                $this->assertStringContainsString('{name}', $node['met'], "{$name}.met never names the companion");
+            }
         }
     }
 

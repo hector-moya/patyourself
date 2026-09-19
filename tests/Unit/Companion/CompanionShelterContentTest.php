@@ -132,6 +132,27 @@ class CompanionShelterContentTest extends TestCase
     }
 
     /**
+     * The heap has to actually pay for the arc it stands in for. Both sides
+     * are derived from config rather than the material's name being written
+     * out twice, so retuning either the salvage node or a stage's recipe
+     * cannot quietly leave the two priced in different things.
+     */
+    public function test_the_salvage_node_yields_the_material_every_stage_is_priced_in(): void
+    {
+        $config = $this->config();
+
+        $material = $config['nodes'][$config['salvage']['node']]['yields'];
+
+        foreach ($config['shelter'] as $stage => $entry) {
+            $this->assertSame(
+                [$material],
+                array_keys($entry['recipe']),
+                "{$stage} is not priced in what the salvage node yields",
+            );
+        }
+    }
+
+    /**
      * A stage's line is shown to the user, so it follows the same copy rules
      * as the ladder's: it describes Blob, it never congratulates, it carries no
      * exclamation mark, and it names the companion with a token rather than

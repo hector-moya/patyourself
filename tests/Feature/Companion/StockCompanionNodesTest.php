@@ -227,6 +227,24 @@ class StockCompanionNodesTest extends TestCase
         $this->assertSame(1, $this->standing($strangerCompanion, 'reeds'));
     }
 
+    /**
+     * A heap does not grow back. It is what is left of something, not a thing
+     * the world produces, and stocking it would rebuild a cabin out of nothing
+     * one outcome at a time.
+     */
+    public function test_a_node_with_no_skill_is_never_stocked_by_the_record(): void
+    {
+        $user = User::factory()->create();
+        $companion = $user->companion()->firstOrCreate([]);
+        $companion->nodes()->create(['node' => 'salvage', 'available' => 4]);
+        $this->learn($companion, 'gather-fibre');
+
+        $this->logOnce($user, $this->actionFor($user));
+
+        $this->assertSame(4, (int) $companion->nodes()->where('node', 'salvage')->value('available'));
+        $this->assertSame(1, $this->standing($companion, 'reeds'));
+    }
+
     /** Stock is uncapped: the world holds whatever you cannot carry. */
     public function test_stock_is_uncapped_and_ignores_the_bag_being_full(): void
     {

@@ -297,6 +297,35 @@ class CompanionBagTest extends TestCase
         $this->assertTrue($trunk()['usable']);
     }
 
+    /**
+     * A heap is absent from the clearing until something puts it there.
+     *
+     * Every node of the WORLD is listed whether or not Blob has met it, because
+     * a node standing there is a thing that is there rather than a preview. A
+     * heap is not in the world until it exists, so listing it would put a
+     * salvage pile in front of every account that never had a cabin.
+     */
+    public function test_a_heap_is_absent_until_something_puts_it_there(): void
+    {
+        $user = User::factory()->create();
+
+        $this->assertNotContains('salvage', array_column($this->bag($user)['nodes'], 'node'));
+
+        $user->companion()->firstOrCreate([])->nodes()->create([
+            'node' => 'salvage',
+            'available' => 26,
+        ]);
+
+        $heap = collect($this->bag($user)['nodes'])->firstWhere('node', 'salvage');
+
+        $this->assertSame(26, $heap['available']);
+        $this->assertNull($heap['skill']);
+        // Nothing to learn, so nothing is withheld: `known` is what gates the
+        // take control, and a heap is usable the moment it is there.
+        $this->assertTrue($heap['known']);
+        $this->assertTrue($heap['met']);
+    }
+
     /** A node that names no tool is usable the moment its skill is known. */
     public function test_a_node_naming_no_tool_is_usable_once_known(): void
     {
