@@ -569,6 +569,7 @@ resources/js/patyourself/
   companion-bag.tsx                     the bag modal: contents, the build list, the skill list
   companion-animations.ts               the animation registry
   companion-room.tsx                    the scene compositor and the light; takes inside and shelter
+  companion-glyph.tsx                   the 8x8 mark beside a record line: sprout, crate, spark
   blob-renderer.tsx                     both renderers, worn items, ability props
   sprite-layout.ts                      forms, cells, the 231 anchors
   sprite-items.tsx                      what Blob wears, rects or sheets
@@ -664,6 +665,10 @@ Every one of these has cost a round on this project.
   the same pixels.
 - **`ROOM_OBJECTS` and `SPRITE_ITEMS` share the prototype-chain fallthrough** that was fixed only in
   `scenes.ts` — `Object.hasOwn` there, a bare lookup in the other two.
+- **`companion-glyph.tsx` is absent from `CompanionVocabularyTest::sourceFiles()`.** It is a
+  companion source file scanned by nothing, exactly the gap §2 warns about — true since the file
+  landed on 16 Sep, not something F3 introduced. It is today almost entirely glyph grids and colour
+  constants, so the exposure is small; the cost is that the next edit to it inherits no guard.
 - **The Settings area still wears the stock Laravel starter-kit shell.**
 - **A catch-up acknowledgement** is an open design question, not code.
 - **`stretch` and `look` fall back to `idle` on the `blob` and `legs` forms.** Neither form has a row
