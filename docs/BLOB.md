@@ -498,10 +498,11 @@ tool: handsaw}`, and `Companion::wouldFit()`'s `held − consumed + made ≤ cap
 a net +2, so it needs `held ≤ 3` the moment it runs. Held 1 timber saws to 3 planks, fine; held 3
 planks plus the timber that has to be in hand to saw again is 4, and 4 + 2 = 6 > 5, refused.
 **Sawing alone tops out at 3 planks in a base bag, and the lean-to costs 4** — the first stage of
-the whole arc needs a container before it can be paid for, which makes the basket or the barrow a
-prerequisite of the build arc rather than an optimisation. One route reaches 5 anyway: tip a plank
-out (held drops to 2), harvest one timber (held 3), saw (2 kept + 3 made = 5). It costs a plank, and
-it is the only way to a lean-to without building a container first.
+the whole arc needs a container before it can be paid for by an account that saws its own planks,
+which makes the basket or the barrow a prerequisite of that build path rather than an optimisation.
+It is not a prerequisite for a converted account: a harvest takes `min(standing, room)`, so a base
+bag draws `min(26, 5) = 5` planks straight out of the salvage heap, and the lean-to is paid for with
+no container at all.
 
 ### Two ways to keep a bag from clogging
 
@@ -657,6 +658,24 @@ Every one of these has cost a round on this project.
 - **Node hotspot labels do not scale with the stage.** A fixed 8px font, so below roughly a 300px
   stage the labels are larger than the room. F3 added a fifth object to the clearing, which makes it
   urgent; it is a label-sizing problem and was deliberately left out of scope.
+- **Two of the clearing's coordinates were rendered this session and found wrong; `scenes.ts`'s own
+  comments argue at length that both are sound, with no hint that anyone has since disagreed.**
+  Checked by viewing the built page and photographing the labels moved in the live DOM; `scenes.ts`
+  itself was not changed, so both replacements below are proposals awaiting the human partner.
+  - **`THE FALLEN TRUNK` at `[-24, 48]` overlaps Blob.** F2 computed it against the other *labels* and
+    never against the *creature*. Proposed `[-40, 48]` — `y=48` must not move, since it is the only
+    value clearing both the grass line at 52 and the deadfall's label box, so the whole correction is
+    in x.
+  - **The shelter at `[44, -10]` floats in open sky** instead of standing on the ground; every other
+    clearing object sits at `y ∈ {36, 40, 48, 62}` in a room spanning `y −38..76`. Proposed `[44, 22]`,
+    which puts it where the treeline meets the grass and leaves a 6.3-unit gap to `THE REEDS` at
+    `[44, 36]` even at a 300px stage.
+  - **The trunk's fix is width-limited, and the residual is the label-sizing problem above, not a
+    coordinate.** Solving "right edge clears Blob's silhouette" against "left edge stays inside the
+    room" gives a feasible window only down to roughly a 303px stage; below that no x exists, because
+    the fixed-8px box is wider than the gap between Blob and the wall.
+  - **`THE HEAP` at `[21, 62]` was checked and is fine** — it renders cleanly in its gap between the
+    middle and right grass tufts, with visible margin both sides. No label overlaps another label.
 - **Scarf, hat and glasses are still flat rects.** The worn-item pipeline in §7 covers them — except the
   hat, which occludes and therefore needs a different answer.
 - **Phases B, C and D1/D2 have never been verified in production** — mail arriving, one-click links on a
