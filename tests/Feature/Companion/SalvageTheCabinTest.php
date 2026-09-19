@@ -116,6 +116,36 @@ class SalvageTheCabinTest extends TestCase
         $this->assertSame(9, $this->heap($user));
     }
 
+    /**
+     * The state a crash leaves behind, and the reason the node is written with
+     * firstOrCreate rather than updateOrCreate.
+     *
+     * This action is not transactional and runs once over every account, so a
+     * process that dies between the heap being created and the mark being
+     * written leaves an account with a heap and no mark. The re-run then meets
+     * a heap that has already been partly drawn — and must leave it exactly as
+     * it found it. Topping it back up would hand out planks the player has
+     * already spent.
+     *
+     * Reached by building that state directly: going through a second handle()
+     * cannot exercise it, because the mark from the first call short-circuits
+     * before the node is ever touched.
+     */
+    public function test_a_heap_left_by_a_crash_is_not_topped_back_up(): void
+    {
+        $user = $this->withInsights(User::factory()->create(), 5);
+
+        $companion = $user->companion()->firstOrCreate([]);
+        $companion->nodes()->create(['node' => 'salvage', 'available' => 9]);
+
+        $this->assertNull($companion->fresh()->salvaged_at);
+
+        $this->assertSame(1, app(SalvageTheCabin::class)->handle());
+
+        $this->assertSame(9, $this->heap($user));
+        $this->assertNotNull($user->companion()->first()->salvaged_at);
+    }
+
     /** It converts every qualifying account and only those. */
     public function test_it_converts_every_qualifying_account_and_no_others(): void
     {
