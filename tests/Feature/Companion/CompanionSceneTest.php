@@ -63,23 +63,34 @@ class CompanionSceneTest extends TestCase
         $this->assertSame('forest', $this->resolve($user)->toArray()['scene']);
     }
 
-    public function test_a_record_that_has_reached_the_threshold_is_indoors(): void
+    /**
+     * The correction at the heart of this phase: THE FOREST IS ALWAYS THE
+     * WORLD, and it is never replaced.
+     *
+     * `insights: 5` has not moved. It has stopped granting a cabin and started
+     * being the floor at which one may be built, which is why an established
+     * record now stands in its own clearing rather than being teleported
+     * indoors — where, before this, it could not see the world it had been
+     * gathering from at all.
+     */
+    public function test_an_established_record_still_stands_in_the_clearing(): void
     {
         $user = $this->userWithInsights(5);
 
-        $this->assertSame('cabin', $this->resolve($user)->toArray()['scene']);
+        $this->assertSame('forest', $this->resolve($user)->toArray()['scene']);
     }
 
     /**
      * The regression this threshold exists to prevent: an established record
-     * must not lose sight of anything it earned.
+     * must not lose sight of anything it earned. What it earned is the room
+     * objects; the cabin they stand in is now something it builds.
      */
     public function test_an_established_record_keeps_every_object_it_earned(): void
     {
         $user = $this->userWithInsights(9);
         $state = $this->resolve($user)->toArray();
 
-        $this->assertSame('cabin', $state['scene']);
+        $this->assertSame('forest', $state['scene']);
         $this->assertContains('bookshelf', $state['room_objects']);
     }
 
@@ -112,7 +123,7 @@ class CompanionSceneTest extends TestCase
 
         $this->travel(1)->minutes();
 
-        $this->assertSame('cabin', $this->resolve($user)->toArray()['scene']);
+        $this->assertSame('forest', $this->resolve($user)->toArray()['scene']);
         $this->assertSame($before, User::findOrFail($user->id)->getRawOriginal());
     }
 
@@ -135,30 +146,38 @@ class CompanionSceneTest extends TestCase
      * set the record decides. `COMPANION_SCENE=` in a .env file reads back as
      * an empty string rather than as absent, so both have to mean the same
      * thing or half the ways of turning the override off would not.
+     *
+     * The override is set to something the record does NOT derive, on purpose.
+     * Overriding to the value the record already produces would pass under an
+     * implementation that ignored the override completely — a test that is
+     * green and means nothing, which this file has come close to twice.
      */
     public function test_an_absent_or_empty_override_leaves_the_record_deciding(): void
     {
         $user = $this->userWithInsights(5);
 
-        config(['companion.scene_override' => null]);
+        config(['companion.scene_override' => 'cabin']);
         $this->assertSame('cabin', $this->resolve($user)->toArray()['scene']);
 
+        config(['companion.scene_override' => null]);
+        $this->assertSame('forest', $this->resolve($user)->toArray()['scene']);
+
         config(['companion.scene_override' => '']);
-        $this->assertSame('cabin', $this->resolve($user)->toArray()['scene']);
+        $this->assertSame('forest', $this->resolve($user)->toArray()['scene']);
     }
 
     /**
-     * Why the override exists: the cabin's threshold sits below an established
-     * record, so without this there is no way to put the forest on screen
-     * short of editing the record itself.
+     * Why the override exists, restated: the interior is no longer a place the
+     * record puts Blob, so without this there is no way to put the cabin's own
+     * drawing on screen short of building one.
      */
     public function test_the_override_wins_over_the_scene_the_record_derives(): void
     {
         $user = $this->userWithInsights(5);
 
-        config(['companion.scene_override' => 'forest']);
+        config(['companion.scene_override' => 'cabin']);
 
-        $this->assertSame('forest', $this->resolve($user)->toArray()['scene']);
+        $this->assertSame('cabin', $this->resolve($user)->toArray()['scene']);
     }
 
     /**

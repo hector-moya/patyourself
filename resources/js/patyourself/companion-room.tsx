@@ -1,13 +1,13 @@
 /**
- * Where Blob is drawn: a single-screen scene, one of the two `scenes.ts`
- * knows about.
+ * Where Blob is drawn: the forest is always the world, and it is never
+ * replaced. `forest` is a photographed backdrop swapped per part of day, with
+ * the layers that move drawn over it — the one scene the record ever derives.
  *
- * `cabin` is the original room — back wall, floor line, one window, flat
- * geometry in the same style as Blob — drawn in Blob's own coordinate system
- * so the body needs no transform to stand on the floor. That drawing is
- * unchanged from before scenes existed; it is reached here by name rather
- * than rewritten. `forest` is a photographed backdrop swapped per part of
- * day, with the layers that move drawn over it.
+ * The interior is a view of something Blob BUILT, not a second place the
+ * record puts it in. Whether it is on screen is `inside`'s answer, held by
+ * the client and never stored; which stage is drawn — lean-to, hut or cabin —
+ * is `shelter`'s. Only the cabin has a window to look out of; a lean-to has
+ * neither wall nor window, because it is open on every side but one.
  *
  * Both are a record of what happened. Indoors, only earned objects appear —
  * no greyed-out object, no silhouette, no empty slot. A room with two things
@@ -251,6 +251,8 @@ export function CompanionRoom({
     hour = new Date().getHours(),
     className = '',
     onPoke,
+    inside = false,
+    shelter = null,
 }: {
     companion: CompanionData;
     animation: AnimationName;
@@ -267,13 +269,35 @@ export function CompanionRoom({
      * button somewhere on the screen. /companion's Poke is that button.
      */
     onPoke?: () => void;
+    /**
+     * Whether Blob is looking at the inside of what it built.
+     *
+     * Transient and never stored: where you are looking is not something you
+     * own, and it resets to outside on load the way a modal does. Where Blob
+     * IS and what Blob has BUILT are independent facts — you can stand outside
+     * a cabin or sit inside a lean-to.
+     */
+    inside?: boolean;
+    /**
+     * Which stage is standing, when there is one. Null draws no interior.
+     *
+     * `'cabin'` is the default the scene override falls back to, so
+     * `COMPANION_SCENE=cabin` still puts today's drawing on screen with
+     * nothing built — which is the one way left to look at it.
+     */
+    shelter?: string | null;
 }) {
     if (!companion.features.includes('blob')) {
         return null;
     }
 
     const scene = sceneFor(companion.scene);
-    const indoors = scene.name === 'cabin';
+
+    // The scene override is the second way in, and the only one left that does
+    // not require building something: `COMPANION_SCENE=cabin` still draws the
+    // interior, which is what that development affordance exists for.
+    const indoors = inside || scene.name === 'cabin';
+    const stage = shelter ?? 'cabin';
 
     const part = partOfDay(hour, companion.room);
     const palette = companion.room[part] ?? {
@@ -295,6 +319,7 @@ export function CompanionRoom({
             aria-label={`${describe(companion)}, ${indoors ? 'at home' : 'outside'}`}
             data-part-of-day={part}
             data-scene={scene.name}
+            {...(indoors ? { 'data-interior': stage } : {})}
             onClick={onPoke}
             className={['blob-room', className].filter(Boolean).join(' ')}
         >
@@ -335,16 +360,32 @@ export function CompanionRoom({
 
             {indoors && (
                 <>
-                    <rect
-                        x={ROOM.x}
-                        y={ROOM.y}
-                        width={ROOM.w}
-                        height={FLOOR - ROOM.y}
-                        fill={palette.wall}
-                    />
+                    {/* A lean-to is open on every side but one, so what is
+                        behind Blob is the clearing rather than a wall. Drawn
+                        from the scene's own base colour rather than a
+                        literal, so it agrees with whatever the outside is. */}
+                    {stage === 'lean-to' ? (
+                        <rect
+                            x={ROOM.x}
+                            y={ROOM.y}
+                            width={ROOM.w}
+                            height={FLOOR - ROOM.y}
+                            fill={scene.base}
+                        />
+                    ) : (
+                        <rect
+                            x={ROOM.x}
+                            y={ROOM.y}
+                            width={ROOM.w}
+                            height={FLOOR - ROOM.y}
+                            fill={palette.wall}
+                        />
+                    )}
 
-                    {/* The floor is the wall colour under a flat shadow rather
-                        than its own value, so a new time of day is still two
+                    {/* The floor is the same in all three: a floor is a
+                        floor, and it is what stops Blob standing on nothing.
+                        It is the wall colour under a flat shadow rather than
+                        its own value, so a new time of day is still two
                         colours in config and not four. */}
                     <rect
                         x={ROOM.x}
@@ -368,34 +409,100 @@ export function CompanionRoom({
                         strokeWidth={1}
                     />
 
-                    <g>
-                        <rect
-                            x={16}
-                            y={-22}
-                            width={42}
-                            height={30}
-                            rx={2}
-                            fill={palette.window}
-                        />
-                        <path
-                            d={`M 37 -22 V 8 M 16 -7 H 58`}
-                            stroke={INK}
-                            strokeOpacity={0.45}
-                            strokeWidth={1.5}
-                        />
-                        <rect
-                            x={16}
-                            y={-22}
-                            width={42}
-                            height={30}
-                            rx={2}
-                            fill="none"
-                            stroke={INK}
-                            strokeOpacity={0.45}
-                            strokeWidth={2}
-                        />
-                    </g>
+                    {/* The lean-to's own structure: one sloping beam on one
+                        post, and nothing else. It reads as shelter because it
+                        is over Blob's head, not because it encloses
+                        anything. */}
+                    {stage === 'lean-to' && (
+                        <g className="room-shelter room-shelter--lean-to">
+                            {/* A path rather than a `<polygon>`: its own
+                                attribute is a banned word's substring, which
+                                CompanionVocabularyTest reads as a hit. */}
+                            <path
+                                d={`M ${ROOM.x} -32 L 44 4 L 44 11 L ${ROOM.x} -25 Z`}
+                                fill="#7A5B3A"
+                            />
+                            <rect
+                                x={41}
+                                y={8}
+                                width={3}
+                                height={FLOOR - 8}
+                                fill="#6B5039"
+                            />
+                        </g>
+                    )}
 
+                    {/* A hut has the gap a window will one day be, boarded
+                        over. Same geometry as the cabin's window, so the
+                        cabin reads as the same building with the boards
+                        taken off. */}
+                    {stage === 'hut' && (
+                        <g data-window="shuttered">
+                            <rect
+                                x={16}
+                                y={-22}
+                                width={42}
+                                height={30}
+                                rx={2}
+                                fill={palette.wall}
+                            />
+                            <path
+                                d={`M 16 -12 H 58 M 16 -2 H 58`}
+                                stroke={INK}
+                                strokeOpacity={0.3}
+                                strokeWidth={3}
+                            />
+                            <rect
+                                x={16}
+                                y={-22}
+                                width={42}
+                                height={30}
+                                rx={2}
+                                fill="none"
+                                stroke={INK}
+                                strokeOpacity={0.45}
+                                strokeWidth={2}
+                            />
+                        </g>
+                    )}
+
+                    {/* The cabin's window, exactly as it has always been
+                        drawn. This is the destination, not a thing being
+                        replaced. */}
+                    {stage === 'cabin' && (
+                        <g data-window="open">
+                            <rect
+                                x={16}
+                                y={-22}
+                                width={42}
+                                height={30}
+                                rx={2}
+                                fill={palette.window}
+                            />
+                            <path
+                                d={`M 37 -22 V 8 M 16 -7 H 58`}
+                                stroke={INK}
+                                strokeOpacity={0.45}
+                                strokeWidth={1.5}
+                            />
+                            <rect
+                                x={16}
+                                y={-22}
+                                width={42}
+                                height={30}
+                                rx={2}
+                                fill="none"
+                                stroke={INK}
+                                strokeOpacity={0.45}
+                                strokeWidth={2}
+                            />
+                        </g>
+                    )}
+
+                    {/* Whatever the ladder handed over, drawn in whatever
+                        exists. A bookshelf under a lean-to is funny rather
+                        than wrong, and withholding it would mean the ladder
+                        could hand over something invisible. */}
                     {objects.map(([name, spec]) => (
                         <g key={name} data-room-object={name}>
                             {spec.render(palette)}

@@ -168,10 +168,12 @@ export const SCENES: Record<string, SceneSpec> = {
 
     cabin: {
         name: 'cabin',
-        // No photographed backdrop: the interior is still drawn by
-        // CompanionRoom itself — wall, floor, window, ROOM_OBJECTS — exactly
-        // as it always has been. `base` exists so this scene still satisfies
-        // the same shape as one that does have art.
+        // Not a place the record puts Blob any more: the forest is always the
+        // world, and the interior is a view of something Blob BUILT. This entry
+        // survives because `COMPANION_SCENE=cabin` still needs a name to resolve
+        // to, and because `CompanionRoom` reads `base` from whatever scene it was
+        // handed. The wall, floor and window are drawn by `CompanionRoom` itself,
+        // per stage.
         backdrops: {},
         base: '#EFE6D6',
         foliage: [],

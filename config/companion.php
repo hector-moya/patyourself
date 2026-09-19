@@ -105,14 +105,25 @@ return [
     |
     | A THRESHOLD HERE NEVER MOVES ONCE SET. Later phases add scenes BELOW the
     | ones above them; raising one would walk an established record backwards
-    | out of a building it has already earned, and nothing in this feature has
+    | out of a place it has already earned, and nothing in this feature has
     | ever regressed.
+    |
+    | THE FOREST IS ALWAYS THE WORLD. It is never replaced, which is why there
+    | is one entry here rather than two. `cabin` used to sit at `insights: 5`
+    | and swap the clearing out from under an established record; the shelter
+    | replaced that with an object standing IN the clearing that upgrades in
+    | place, and where Blob is standing became a transient thing the client
+    | holds rather than something the record decides.
+    |
+    | THE NUMBER 5 HAS NOT MOVED. It is in `shelter.cabin.insights` now, doing
+    | a different job: it has stopped granting a cabin and started being the
+    | floor at which one may be built. E1's rule is that a threshold never
+    | relocates, and it has not — what it does changed, not where it sits.
     |
     */
 
     'scenes' => [
         ['name' => 'forest', 'trigger' => 'logs', 'at' => 0],
-        ['name' => 'cabin', 'trigger' => 'insights', 'at' => 5],
     ],
 
     /*

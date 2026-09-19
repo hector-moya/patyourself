@@ -89,13 +89,14 @@ const FULL_DAY = {
     },
 };
 
-function room(overrides = {}, hour = 12) {
+function room(overrides = {}, hour = 12, props = {}) {
     return render(
         <CompanionRoom
             companion={companion(overrides)}
             animation="idle"
             frame={0}
             hour={hour}
+            {...props}
         />,
     ).container;
 }
@@ -627,5 +628,65 @@ describe('room objects', () => {
         expect(
             container.querySelectorAll('[class*="room-object--"]'),
         ).toHaveLength(5);
+    });
+});
+
+describe('the shelter interior', () => {
+    /**
+     * Where Blob IS and what Blob has BUILT are independent facts. You can
+     * stand outside a cabin or sit inside a lean-to, which is precisely what
+     * the arc's own sentence about this phase conflated.
+     */
+    it('goes inside without the scene changing underneath it', () => {
+        const markup = room(
+            { scene: 'forest' },
+            12,
+            { inside: true, shelter: 'cabin' },
+        ).innerHTML;
+
+        expect(markup).toContain('data-scene="forest"');
+        expect(markup).toContain('data-interior="cabin"');
+    });
+
+    /** Each stage is a different interior, and only ever one of them. */
+    it('draws the interior the stage that is standing has', () => {
+        const leanTo = room(
+            { scene: 'forest' },
+            12,
+            { inside: true, shelter: 'lean-to' },
+        ).innerHTML;
+        const hut = room(
+            { scene: 'forest' },
+            12,
+            { inside: true, shelter: 'hut' },
+        ).innerHTML;
+        const cabin = room(
+            { scene: 'forest' },
+            12,
+            { inside: true, shelter: 'cabin' },
+        ).innerHTML;
+
+        expect(leanTo).toContain('data-interior="lean-to"');
+        expect(hut).toContain('data-interior="hut"');
+        expect(cabin).toContain('data-interior="cabin"');
+
+        // A lean-to is open on one side, so it has no wall and no window; a
+        // hut has walls and a gap that has been boarded over; only the cabin
+        // has a window to look out of.
+        expect(leanTo).not.toContain('data-window');
+        expect(hut).toContain('data-window="shuttered"');
+        expect(cabin).toContain('data-window="open"');
+    });
+
+    /** Outside, no interior is drawn at all — never two at once. */
+    it('draws no interior while Blob is outside', () => {
+        const markup = room(
+            { scene: 'forest' },
+            12,
+            { shelter: 'cabin' },
+        ).innerHTML;
+
+        expect(markup).not.toContain('data-interior');
+        expect(markup).toContain('scene-backdrop');
     });
 });

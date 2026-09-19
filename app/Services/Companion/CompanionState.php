@@ -129,10 +129,12 @@ final readonly class CompanionState
      * Where Blob is, from the same counts the ladder walk already has.
      *
      * Walked in full rather than stopped at the first unsatisfied entry: a
-     * scene threshold is independent of the others, so the record can clear
-     * `cabin` without ever passing through an intermediate scene that does
-     * not exist yet. The last entry the record has passed wins; a record
-     * with nothing behind it gets the first entry.
+     * scene threshold is independent of the others. There is one entry today —
+     * the forest is always the world, and the interior is no longer a scene the
+     * record puts Blob in but a view of something Blob built — so the walk has
+     * nothing to choose between. It stays because the override still needs
+     * somewhere to be overriding, and because a later outdoor place would slot
+     * straight into it.
      *
      * The override short-circuits all of that so the scene a record has not
      * reached can still be looked at. It is passed on as it stands rather
