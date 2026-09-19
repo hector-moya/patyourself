@@ -318,12 +318,24 @@ class CompanionBagTest extends TestCase
 
         $heap = collect($this->bag($user)['nodes'])->firstWhere('node', 'salvage');
 
-        $this->assertSame(26, $heap['available']);
-        $this->assertNull($heap['skill']);
-        // Nothing to learn, so nothing is withheld: `known` is what gates the
-        // take control, and a heap is usable the moment it is there.
-        $this->assertTrue($heap['known']);
-        $this->assertTrue($heap['met']);
+        // The whole row, not selected fields: a wrong `usable`, a removed
+        // key, or an unexpected extra key all fail loudly this way, none of
+        // which a field-by-field assertion could see.
+        $this->assertSame([
+            'node' => 'salvage',
+            'label' => 'the heap',
+            'available' => 26,
+            // Null rather than '': a heap is not a thing you learn to use.
+            'skill' => null,
+            // The row exists, so it has been placed — and a heap is placed
+            // already met.
+            'met' => true,
+            // Nothing to learn is nothing withheld...
+            'known' => true,
+            // ...and with no skill and no tool, there is nothing standing
+            // between Blob and the heap.
+            'usable' => true,
+        ], $heap);
     }
 
     /** A node that names no tool is usable the moment its skill is known. */
