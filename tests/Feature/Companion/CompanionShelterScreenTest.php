@@ -177,14 +177,22 @@ class CompanionShelterScreenTest extends TestCase
         $this->assertSame(2, (int) $companion->items()->where('item', 'planks')->value('quantity'));
     }
 
-    /** A stage the screen never offers is refused the same way, and silently. */
+    /**
+     * A stage the screen never offers is refused the same way, and silently.
+     *
+     * The hut, not the cabin: the cabin also carries an unmet insight floor,
+     * which would refuse the request on its own and leave the ordering rule
+     * untested. The hut names no floor, its predecessor is the lean-to, and
+     * this companion has nothing built and 20 planks against a price of 8 —
+     * so nothing but "built out of order" can explain the refusal.
+     */
     public function test_a_stage_out_of_order_is_refused_without_an_error_page(): void
     {
         [$user, $companion] = $this->clearing();
         $companion->items()->create(['item' => 'planks', 'quantity' => 20]);
 
         $this->actingAs($user)
-            ->post(route('companion.shelter.store'), ['stage' => 'cabin'])
+            ->post(route('companion.shelter.store'), ['stage' => 'hut'])
             ->assertRedirect();
 
         $this->assertNull($companion->fresh()->shelter);
@@ -198,5 +206,27 @@ class CompanionShelterScreenTest extends TestCase
         $this->actingAs($user)
             ->post(route('companion.shelter.store'), ['stage' => 'castle'])
             ->assertSessionHasErrors('stage');
+    }
+
+    /**
+     * A renamed companion is named in the built line too, because every
+     * authored line carries `{name}` and a token that reaches the reader is a
+     * token the reader sees. Asserted on the literal substituted string
+     * rather than a fragment — `assertStringContainsString('leans the
+     * planks', …)` above survives the placeholder untouched, and this is the
+     * case that cannot.
+     */
+    public function test_the_built_line_carries_the_companions_name(): void
+    {
+        [$user, $companion] = $this->clearing();
+        $companion->update(['name' => 'Pebble']);
+        $companion->items()->create(['item' => 'planks', 'quantity' => 4]);
+
+        $this->actingAs($user)
+            ->post(route('companion.shelter.store'), ['stage' => 'lean-to'])
+            ->assertSessionHas(
+                CompanionController::SAID_KEY,
+                'Pebble leans the planks against each other until they stay up. It is not much, and it is out of the rain.',
+            );
     }
 }
