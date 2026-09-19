@@ -34,6 +34,14 @@ a progress bar.
 | **Nothing regresses** | Once earned, always drawn. No decay, no sad state, no diminished state. |
 | **Blob never asks to be pressed** | Pet and Play have no cooldown, no daily limit, no counter. They touch nothing the resolver reads. |
 
+**The one exception, and its exact shape.** A player may destroy a material they are carrying. That
+is not this rule breaking: every prohibition in it names something *the system does to you* — decay,
+expiry, upkeep, removal for inactivity — and a player tipping out timber is the same category as
+spending fibre on a basket. The line that holds instead is that **destruction is always
+player-initiated and never automatic.** Nothing may drop, decay, expire or discard on the player's
+behalf, for any reason, including a full bag. `CompanionRulingsTest::test_nothing_is_dropped_on_the_players_behalf`
+is the guard.
+
 **Banned vocabulary**, enforced by `CompanionVocabularyTest` over a list of source files, comments
 included: `streak`, `congratulation`, `well done`, `completion rate`, `percent`, `points`,
 `level up`, `lonely`, `hungry`, `misses you`, `neglect`, `cooldown`. `points` is a substring trap —
@@ -53,11 +61,16 @@ order to document them, so scanning it would fail on its own subject matter.
 ## 3. From record to drawing
 
 **Store only what cannot be derived.** Five tables hold the chosen half of Blob — `companions`
-(the name and `xp_spent`), `companion_skills`, `companion_items`, `companion_nodes` and
+(the name, `xp_spent`, `shelter` — what has been built — and `salvaged_at` — whether a granted
+cabin was already handed back), `companion_skills`, `companion_items`, `companion_nodes` and
 `companion_remarks` (the coach's own lines, written via `WriteBlobRemark` and the MCP tool, read
 on every `/companion` request). Nothing else. Counts, earned XP, the scene and the whole gift
 ladder are still recomputed from the record on every read, so the parts that could drift still
 cannot.
+
+Where Blob is *looking* is deliberately not among them. `inside` is `useState(false)` in
+`resources/js/pages/companion.tsx`, with a comment saying why, and it resets to outside on load the
+way the bag itself does — a view, not a thing anyone owns.
 
 The rule survived its own replacement: the pre-F1 premise was "nothing is stored, so nothing can
 drift", and what made that valuable was never the storage count. It was that no stored number
@@ -156,15 +169,23 @@ The scene is **derived, never stored**, exactly as a body form is.
 | Scene | Trigger | Contents |
 | --- | --- | --- |
 | `forest` | `logs: 0` | four baked backdrops, one landmark tree, three grass tufts |
-| `cabin` | `insights: 5` | wall, floor, window, and the five room objects |
 
-The arc is `forest → lean-to → hut → cabin → whatever follows`. Today's room **is the cabin** — the
-destination, not the thing being replaced. The lean-to and hut are not built; **F3** inserts them
-*below* the cabin's threshold.
+The forest is always the world and is never replaced. What Blob built is an **object standing in
+the clearing** that upgrades in place — lean-to, then hut, then cabin, one at a time and never two
+— and going inside it is a view, held by the client and reset on load, rather than a scene the
+record puts Blob in. Where Blob **is** and what Blob has **built** are independent facts: you can
+stand outside a cabin or sit inside a lean-to.
+
+`insights: 5` has not moved. It has stopped *granting* a cabin and started being the *floor at
+which one may be built*. E1's rule is that a threshold never relocates, and it has not — what it
+does changed, not where it sits.
 
 `COMPANION_SCENE` in `.env` overrides the derived scene. It is a **development affordance, not a
 setting** — a scene the reader can choose is a setting rather than a consequence of the record.
 Without it the forest is unreachable on any established account, which is why it exists.
+`config('companion.scenes')` since F3 names only `forest`; `cabin` survives solely in `scenes.ts`'s
+`SCENES` registry, so `COMPANION_SCENE=cabin` still resolves to a name without being a threshold of
+anything.
 
 ### Light
 
@@ -385,19 +406,33 @@ for, which is why building has needed no skill since F1 and never will. A node n
 skill and a built tool is the only place in the feature where the two layers meet on a single
 gesture — the thing that makes a tool a mechanic rather than a badge.
 
+### The rule F3 adds beside it
+
+```
+a node with a skill  is the world:  always standing, and the record stocks it
+a node without one   is a heap:     there only if something put it there, and nothing restocks it
+```
+
+`salvage` — the cabin an established account already had, handed back as a heap standing where it
+stood, see §10 — is the one node of the second kind this feature has: absent from the clearing
+until something puts it there, never grown by an outcome logged, and deleted once drained rather
+than standing there forever as an empty label.
+
 ### The chain
 
 ```
-fibre ──▶ rope ──▶ axe ──▶ timber ──▶ handsaw ──▶ planks ──▶ crate
-  │                 │        │                       │
-gathered          built    gathered                built
-(F1 node)      (recipe)   (F2 node, needs        (recipe,
-                           chop-wood + axe)       needs handsaw)
+fibre ──▶ rope ──▶ axe ──▶ timber ──▶ handsaw ──▶ planks ──┬─▶ crate
+  │                 │        │                       │     │
+gathered          built    gathered                built  └─▶ shelter
+(F1 node)      (recipe)   (F2 node, needs        (recipe,      (lean-to → hut → cabin;
+                           chop-wood + axe)       needs handsaw)  priced, but not a recipe)
 ```
 
 Five links, crossing between the two layers at every step. `timber`, not `logs` — that word already
 means something two hundred lines up in `config/companion.php` (`'trigger' => 'logs'`, `logCount`,
 `logMoments()`), and a material by the same name would sit near it meaning something else entirely.
+`planks` also feeds the shelter, but that branch is not a sixth link: `companion.shelter` prices
+lean-to, hut and cabin in planks alone and is deliberately not a `bag` recipe — §10 has the ruling.
 
 ### Visibility is a fixed point
 
@@ -446,13 +481,55 @@ Each of these is a test that fails if the refusal is ever quietly reversed — s
   accrues across three nodes, so one outcome logged yields three units, and insights are already paid
   generously, outside the taper, in the layer §4 describes.
 
+### The shelter's price
+
+| Stage | Cost | Floor |
+| --- | --- | --- |
+| `lean-to` | 4 planks | — |
+| `hut` | 8 planks | — |
+| `cabin` | 14 planks | `insights: 5` |
+
+No tool and no skill gates a stage. `planks` already carries the handsaw's gate upstream, and a
+second gate here would tax the same work twice — the same reasoning `BuildItem` has followed since
+F1.
+
+**A base bag cannot pay for even the cheapest stage.** `planks` is `{recipe: {timber: 1}, makes: 3,
+tool: handsaw}`, and `Companion::wouldFit()`'s `held − consumed + made ≤ capacity` makes one sawing
+a net +2, so it needs `held ≤ 3` the moment it runs. Held 1 timber saws to 3 planks, fine; held 3
+planks plus the timber that has to be in hand to saw again is 4, and 4 + 2 = 6 > 5, refused.
+**Sawing alone tops out at 3 planks in a base bag, and the lean-to costs 4** — the first stage of
+the whole arc needs a container before it can be paid for, which makes the basket or the barrow a
+prerequisite of the build arc rather than an optimisation. One route reaches 5 anyway: tip a plank
+out (held drops to 2), harvest one timber (held 3), saw (2 kept + 3 made = 5). It costs a plank, and
+it is the only way to a lean-to without building a container first.
+
+### Two ways to keep a bag from clogging
+
+F2 left a real dead end: timber's only consumers are the handsaw (needs rope as well) and planks
+(needs the handsaw), so a bag at capacity holding timber and no rope can build nothing — and because
+node stock accrues while you are away, the trap gets *more* likely the longer someone is gone.
+Pricing the shelter in planks does not touch it; F3 closes it instead, with two choices that both
+belong to the player:
+
+- **Take less than a bagful.** The clearing's own click still fills the bag by default —
+  `HarvestNode` sends no amount — but the bag's own control can name one, so filling the bag with
+  one material and nothing else buildable is now avoidable rather than inevitable.
+- **Tip a stack out.** `DropItem` destroys a whole carried stack — the one exception §2 records and
+  §10 rules on — so a bag already stuck can still be emptied. Only carried categories are droppable;
+  a tool or container reaching `CompanionItemController` is a 404, not a line in Blob's voice,
+  because there is no sentence for a gesture the screen never offers.
+
 ## 9. Where everything lives
 
 ```
 config/companion.php                    ladder, tail, scenes, parts of day, renderer, xp, skills,
-                                         nodes, the bag, capacity
+                                         nodes, the bag, capacity, the shelter, salvage
+database/migrations/
+  ..._000001_add_the_shelter_to_companions_table.php   shelter + salvaged_at
+  ..._000002_salvage_granted_cabins.php                the one-time backfill
 app/Models/
-  Companion.php                         the name, xp_spent, capacity(), held(), wouldFit()
+  Companion.php                         the name, xp_spent, capacity(), held(), wouldFit(),
+                                         shortfallFor(), spend()
   CompanionItem.php                     one stack held in the bag
   CompanionNode.php                     one node's standing stock
   CompanionSkill.php                    one skill learned, and when
@@ -465,11 +542,15 @@ app/Services/Companion/
   CompanionWallet.php                   earned − spent, the balance
   CompanionBag.php                      what the bag screen needs, in one shape
   CompanionEconomyException.php         every refusal the economy makes
+  CompanionCapacityException.php        the one refusal that is not a shortage: no room, not unpaid
 app/Actions/
   LearnSkill.php                        buys a skill; the only writer of xp_spent
   MeetNode.php                          the encounter that reveals a skill
   HarvestNode.php                       moves stock from a node into the bag
   BuildItem.php                         spends a recipe, makes something
+  BuildShelter.php                      puts up one shelter stage; the only writer of shelter
+  DropItem.php                          tips a carried stack out; the only path that destroys
+  SalvageTheCabin.php                   the migration's conversion, factored out and tested
   WriteBlobRemark.php                   records one of Blob's remarks; the only writer
 app/Listeners/StockCompanionNodes.php   ActionLogged -> one unit into each unlocked node
 app/Mcp/Tools/WriteBlobRemarkTool.php   the MCP surface a remark is written through
@@ -478,6 +559,8 @@ app/Http/Controllers/
   CompanionNodeController.php           clicking a node — meet it or harvest it
   CompanionSkillController.php          buying a skill
   CompanionBuildController.php          building an item
+  CompanionShelterController.php        putting up one shelter stage
+  CompanionItemController.php           tipping a carried stack out
   CompanionNameController.php           renaming Blob
 
 resources/js/hooks/use-sprite-clock.ts  the one rAF loop
@@ -485,11 +568,12 @@ resources/js/patyourself/
   companion.tsx                         payload types, ambientFor, selfStartedFor, actionsFor
   companion-bag.tsx                     the bag modal: contents, the build list, the skill list
   companion-animations.ts               the animation registry
-  companion-room.tsx                    the scene compositor and the light
+  companion-room.tsx                    the scene compositor and the light; takes inside and shelter
   blob-renderer.tsx                     both renderers, worn items, ability props
   sprite-layout.ts                      forms, cells, the 231 anchors
   sprite-items.tsx                      what Blob wears, rects or sheets
-  scenes.ts                             the scene registry
+  scenes.ts                             the scene registry; each scene may carry a shelter coordinate
+  part-of-day.ts                        partOfDay, asleepAt(), wakingAt()
   sprites/   + README.md                bodies, worn-item sheets, every measurement
   scenes/    + README.md                backdrops, foliage, the light's reasoning
   ui/        + README.md                the pixel frame and buttons
@@ -520,6 +604,10 @@ Each of these was settled with evidence. The cost column is what getting it wron
 | **A tool never occupies bag capacity** | It sits on the belt, not in a slot — `capacity.carried` excludes `tool`. A tool is permanent, and counting a permanent thing against capacity would tax Blob forever for having progressed. | Every future tool becomes a punishment: gaining it would shrink the bag forever. |
 | **A tool never wears out or needs repair** | Durability is removal with extra steps, and repair-with-materials would reintroduce upkeep — the same loss-aversion reasoning that rules out streaks. Progression past a tool is a second, better tool, never a mend. | The one regression rule this whole feature exists to hold, broken in the one place a tool could hide it. |
 | **Insight events never stock a node** | There is no insight event in this app — the four kinds are derived by `CompanionResolver::insightMoments()`, with no seam to listen to. Stocking from them would mean new domain events and a second opinion about what happened, beside a resolver that already derives it. | New architecture built to duplicate a pacing job XP already does, and two sources of truth about what one log did. |
+| **Destruction is always player-initiated** | Every prohibition in "nothing regresses" names something the system does to you. A player spending, or tipping out, is the thing arc §2 celebrates. | The one rule the whole feature rests on, broken in the one place that looks like a convenience. |
+| **A node without a skill is a heap, not the world** | One property drives three behaviours: it is absent until placed, the record never stocks it, and it needs nothing learned. Stocking one would rebuild a cabin out of nothing, one outcome at a time. | A salvage pile in front of an account that never had a cabin, or a heap that regrows forever. |
+| **The shelter is not a `bag` category** | This departs from arc §5's taxonomy table, deliberately. A recipe in `bag` becomes knowable from its ingredients, so all three stages would list at once — and only the next stage is ever listed. A structure also does not stack in `companion_items`. | The build list becomes a checklist of three, which is the one thing the arc forbids. |
+| **The salvage is 26 planks, and 26 is not self-sufficient** | 4 + 8 + 14 is what the arc costs, but the cabin is consumed in one act of fourteen and the bag holds five plus five per container — so two crates, eight more planks, stand between the heap and the cabin. An established account reaches the hut and then has to play the economy for the rest. That is consistent with the cabin being something you build rather than something you are given; it is *not* what spec §6's own sentence claims. | An established account is told it can rebuild what it had and finds it cannot without gathering. |
 
 ## 11. Traps that have already bitten
 
@@ -544,21 +632,30 @@ Every one of these has cost a round on this project.
 7. **Check the commit, not the working tree**, before believing anything found while a review is
    running. A reviewer's in-flight mutation once looked exactly like a shipped defect.
 8. **Herd serves the main checkout, never a worktree.** Dump to HTML and `php -S 127.0.0.1:8899 -t .`.
+9. **When a task adds a conditionally-rendered section, the shared fixture must be widened in the
+   same task, or every guard downstream goes quiet rather than red.** It has bitten three times on
+   one branch, always in `companion.test.tsx`'s "never shows what has not happened" guard — the
+   acceptance criterion for the whole feature, run twice, bag closed and bag open. The three nodes'
+   shared `available: 0` default hid `Clearing` from both runs (Batch 1); `shelter.offer`'s default
+   of `null` hid `Shelter`, and rendering `1 of 4` as visible text there left 38/38 green (Batch 2);
+   and `ShelterSpot` needed two fixture fields widened together — `bag.shelter.built` *and* the
+   fixture's default scene, `cabin`, whose `SCENES` entry names no `shelter` coordinate — because
+   widening `built` alone still left the object absent (Batch 3). This differs from trap 1: that one
+   is about a single test proving nothing; this is about a **shared** fixture, where an unnamed
+   section does not fail the guard, it silently drops out of what the guard covers, and every later
+   addition to the same surface inherits the blind spot. Widening the obvious field is not proof a
+   section renders — assert that it did.
 
 ## 12. What is not done
 
-- **F3 (the shelter) and F4 (depth)** are what remain. F1 (the bag) and F2 (the tools) are built; the
-  reasoning behind the whole arc, and what F3 and F4 are sketched to cover, lives in
+- **F4 (depth)** is what remains. F1 (the bag), F2 (the tools) and F3 (the shelter) are built; the
+  reasoning behind the whole arc, and what F4 is sketched to cover, lives in
   `docs/superpowers/specs/2026-09-17-companion-progression-arc-design.md`.
-- **A full bag of timber has no exit.** Timber is the only material with no single-material sink —
-  its consumers are the handsaw (which needs rope as well) and planks (a single-ingredient recipe on
-  paper, `['timber' => 1]`, but gated behind the handsaw itself, a tool built from timber and rope).
-  A bag at capacity holding, say, 2 deadfall and 3 timber cannot build the barrow (needs 4 deadfall),
-  the handsaw (needs rope), or anything else, and there is no discard. The record still pays, the
-  clearing still accrues, and the gift ladder still arrives — but the bag never moves again, and
-  every material gathered from here is one the player cannot pick up. Open, and deliberately left
-  that way here — several candidate fixes each leave a residual locked state of their own, and
-  choosing between them is not this document's call.
+- ~~A full bag of timber has no exit.~~ **Closed by F3**: a harvest can take less than a bagful, and
+  a carried stack can be tipped out. Both are the player's act; nothing discards on their behalf.
+- **Node hotspot labels do not scale with the stage.** A fixed 8px font, so below roughly a 300px
+  stage the labels are larger than the room. F3 added a fifth object to the clearing, which makes it
+  urgent; it is a label-sizing problem and was deliberately left out of scope.
 - **Scarf, hat and glasses are still flat rects.** The worn-item pipeline in §7 covers them — except the
   hat, which occludes and therefore needs a different answer.
 - **Phases B, C and D1/D2 have never been verified in production** — mail arriving, one-click links on a
