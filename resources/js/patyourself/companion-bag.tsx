@@ -33,6 +33,7 @@ import { name as renameRoute } from '@/routes/companion';
 import { store as buildRoute } from '@/routes/companion/build';
 import { destroy as dropRoute } from '@/routes/companion/items';
 import { store as takeRoute } from '@/routes/companion/nodes';
+import { store as shelterRoute } from '@/routes/companion/shelter';
 import { store as learnRoute } from '@/routes/companion/skills';
 
 export function CompanionBag({
@@ -86,6 +87,7 @@ export function CompanionBag({
 
                     <Held bag={bag} />
                     <Clearing nodes={bag.nodes} />
+                    <Shelter shelter={bag.shelter} />
                     <Build recipes={bag.recipes} />
                     <Skills bag={bag} />
                     <Rename name={bag.name} />
@@ -210,6 +212,63 @@ function Clearing({ nodes }: { nodes: CompanionBagData['nodes'] }) {
                         </Form>
                     </li>
                 ))}
+            </ul>
+        </>
+    );
+}
+
+/**
+ * The shelter: the one stage that can be chosen now, and nothing else.
+ *
+ * A null offer renders NOTHING — no placeholder, no explanation, no greyed
+ * row. A stage whose predecessor does not exist, or whose floor the record has
+ * not reached, is absent the same way an unmet skill is, and the feature
+ * answers it with silence rather than naming what is being waited for.
+ *
+ * What IS standing is not drawn here either. That is the clearing's job, and
+ * the bag is about what can be chosen.
+ */
+function Shelter({ shelter }: { shelter: CompanionBagData['shelter'] }) {
+    if (shelter.offer === null) {
+        return null;
+    }
+
+    const offer = shelter.offer;
+
+    return (
+        <>
+            <p className="c-baggrp">Put up</p>
+            <ul className="c-bagrows">
+                <li className="c-bagrow">
+                    <span>{offer.label}</span>
+                    <Form
+                        {...shelterRoute.form()}
+                        options={{ preserveScroll: true }}
+                        className="c-bagbuy"
+                    >
+                        {({ processing }) => (
+                            <>
+                                <input
+                                    type="hidden"
+                                    name="stage"
+                                    value={offer.stage}
+                                />
+                                <button
+                                    type="submit"
+                                    className="pixel-button"
+                                    disabled={processing || !offer.buildable}
+                                >
+                                    {Object.entries(offer.recipe)
+                                        .map(
+                                            ([item, count]) =>
+                                                `${count} ${item}`,
+                                        )
+                                        .join(', ')}
+                                </button>
+                            </>
+                        )}
+                    </Form>
+                </li>
             </ul>
         </>
     );

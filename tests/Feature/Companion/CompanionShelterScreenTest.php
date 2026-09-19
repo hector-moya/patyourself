@@ -143,4 +143,60 @@ class CompanionShelterScreenTest extends TestCase
         $this->delete(route('companion.items.destroy', ['item' => 'timber']))
             ->assertRedirect(route('login'));
     }
+
+    /** Putting one up says so, and leaves the bag open to show it. */
+    public function test_putting_up_a_stage_says_what_blob_did(): void
+    {
+        [$user, $companion] = $this->clearing();
+        $companion->items()->create(['item' => 'planks', 'quantity' => 4]);
+
+        $this->actingAs($user)
+            ->post(route('companion.shelter.store'), ['stage' => 'lean-to'])
+            ->assertRedirect()
+            ->assertSessionHas(CompanionController::STAY_KEY, true);
+
+        $this->assertSame('lean-to', $companion->fresh()->shelter);
+        $this->assertStringContainsString(
+            'leans the planks',
+            (string) session(CompanionController::SAID_KEY),
+        );
+    }
+
+    /** Short planks come back as a line, not an error page, and take nothing. */
+    public function test_short_planks_are_refused_without_an_error_page(): void
+    {
+        [$user, $companion] = $this->clearing();
+        $companion->items()->create(['item' => 'planks', 'quantity' => 2]);
+
+        $this->actingAs($user)
+            ->post(route('companion.shelter.store'), ['stage' => 'lean-to'])
+            ->assertRedirect()
+            ->assertSessionHas(CompanionController::SAID_KEY, 'There is not enough for a lean-to yet.');
+
+        $this->assertNull($companion->fresh()->shelter);
+        $this->assertSame(2, (int) $companion->items()->where('item', 'planks')->value('quantity'));
+    }
+
+    /** A stage the screen never offers is refused the same way, and silently. */
+    public function test_a_stage_out_of_order_is_refused_without_an_error_page(): void
+    {
+        [$user, $companion] = $this->clearing();
+        $companion->items()->create(['item' => 'planks', 'quantity' => 20]);
+
+        $this->actingAs($user)
+            ->post(route('companion.shelter.store'), ['stage' => 'cabin'])
+            ->assertRedirect();
+
+        $this->assertNull($companion->fresh()->shelter);
+        $this->assertSame(20, (int) $companion->items()->where('item', 'planks')->value('quantity'));
+    }
+
+    public function test_a_stage_nobody_authored_is_rejected(): void
+    {
+        [$user] = $this->clearing();
+
+        $this->actingAs($user)
+            ->post(route('companion.shelter.store'), ['stage' => 'castle'])
+            ->assertSessionHasErrors('stage');
+    }
 }

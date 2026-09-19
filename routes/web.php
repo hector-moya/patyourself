@@ -8,6 +8,7 @@ use App\Http\Controllers\CompanionController;
 use App\Http\Controllers\CompanionItemController;
 use App\Http\Controllers\CompanionNameController;
 use App\Http\Controllers\CompanionNodeController;
+use App\Http\Controllers\CompanionShelterController;
 use App\Http\Controllers\CompanionSkillController;
 use App\Http\Controllers\ExperimentController;
 use App\Http\Controllers\ExportController;
@@ -174,6 +175,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // is on the belt and a container is the room itself, so neither is here.
     Route::delete('companion/items/{item}', [CompanionItemController::class, 'destroy'])
         ->name('companion.items.destroy');
+
+    // Putting up a stage of the shelter. Posted from inside the bag like the
+    // other two, and the only writer of what is built.
+    Route::post('companion/shelter', [CompanionShelterController::class, 'store'])
+        ->name('companion.shelter.store');
 
     // The in-app inbox: delivered cues + read state.
     Route::get('inbox', [InboxController::class, 'index'])->name('inbox');

@@ -425,4 +425,35 @@ describe('the bag', () => {
             }),
         ).toBeDisabled();
     });
+
+    /** The one stage that can be chosen now, priced like anything else. */
+    it('offers the stage that is choosable now, with its price', () => {
+        open(
+            bag({
+                shelter: {
+                    built: null,
+                    label: null,
+                    offer: {
+                        stage: 'lean-to',
+                        label: 'lean-to',
+                        recipe: { planks: 4 },
+                        buildable: false,
+                    },
+                },
+            }),
+        );
+
+        expect(screen.getByText('lean-to')).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: '4 planks' }),
+        ).toBeDisabled();
+    });
+
+    /** No offer renders nothing at all — not a placeholder, not an explanation. */
+    it('says nothing about a stage it is not offering', () => {
+        open(bag({ shelter: { built: 'hut', label: 'hut', offer: null } }));
+
+        expect(screen.queryByRole('button', { name: /planks/i })).toBeNull();
+        expect(screen.queryByText(/cabin/i)).toBeNull();
+    });
 });
