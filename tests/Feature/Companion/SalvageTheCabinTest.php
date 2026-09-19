@@ -180,4 +180,24 @@ class SalvageTheCabinTest extends TestCase
         $this->assertSame(7, (int) $fresh->nodes()->where('node', 'reeds')->value('available'));
         $this->assertSame(1, $fresh->skills()->count());
     }
+
+    /**
+     * Every case above drives `SalvageTheCabin` directly, which proves the
+     * action but not the migration: `RefreshDatabase` runs the shipped
+     * migration against a database with zero users, so its body is inert in
+     * every test here unless something calls it against a populated one.
+     *
+     * This is the migration file itself — `require`d for its returned
+     * anonymous class, the shipped Laravel idiom — run against a qualifying
+     * account built the same way every other case in this file builds one.
+     */
+    public function test_the_shipped_migration_calls_the_conversion(): void
+    {
+        $user = $this->withInsights(User::factory()->create(), 5);
+
+        (require database_path('migrations/2026_09_18_000002_salvage_granted_cabins.php'))->up();
+
+        $this->assertSame(26, $this->heap($user));
+        $this->assertNotNull($user->companion()->first()->salvaged_at);
+    }
 }

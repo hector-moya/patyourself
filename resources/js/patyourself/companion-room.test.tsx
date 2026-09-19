@@ -676,6 +676,13 @@ describe('the shelter interior', () => {
         expect(leanTo).not.toContain('data-window');
         expect(hut).toContain('data-window="shuttered"');
         expect(cabin).toContain('data-window="open"');
+
+        // The other half of the same fact: `toContain` only ever checked for
+        // the window each stage is supposed to have, so the cabin's window
+        // drawn inside the hut (or the hut's inside the cabin) would have
+        // passed every assertion above.
+        expect(hut).not.toContain('data-window="open"');
+        expect(cabin).not.toContain('data-window="shuttered"');
     });
 
     /** Outside, no interior is drawn at all — never two at once. */
