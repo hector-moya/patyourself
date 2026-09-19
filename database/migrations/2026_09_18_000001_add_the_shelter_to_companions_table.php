@@ -40,6 +40,12 @@ return new class extends Migration
 
     public function down(): void
     {
+        // WARNING: safe in isolation, a footgun in composition. Once
+        // `2026_09_18_000002_salvage_granted_cabins` has run, dropping
+        // `salvaged_at` erases every mark of a converted account — and
+        // migrating back up would hand those accounts a second cabin's worth
+        // of planks, because the mark is the only thing telling a converted
+        // account apart from one that never had a cabin.
         Schema::table('companions', function (Blueprint $table): void {
             $table->dropColumn(['shelter', 'salvaged_at']);
         });

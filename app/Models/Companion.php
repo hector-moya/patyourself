@@ -62,7 +62,10 @@ class Companion extends Model
     protected function casts(): array
     {
         return [
-            'salvaged_at' => 'datetime',
+            // Immutable: written exactly once, by SalvageTheCabin, through
+            // forceFill, and never mutated after — the same write-once cast
+            // CompanionSkill::learned_at uses.
+            'salvaged_at' => 'immutable_datetime',
         ];
     }
 
