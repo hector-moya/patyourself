@@ -184,13 +184,16 @@ export const SCENES: Record<string, SceneSpec> = {
             //     12px of padding and 2px of border, so about 62px wide and
             //     16px tall.
             //   - The three grass tufts occupy x −70..−38, −26..6 and 36..68
-            //     below y=52, which leaves exactly one gap at x 6..36. At a
-            //     400px stage 62px is 22 room units, so a box centred at
-            //     x=20 spans 9..31 and sits inside that gap; at 300px it is
-            //     30 units and spans 5..35, which still clears both tufts.
+            //     below y=52, which leaves exactly one gap at x 6..36, thirty
+            //     units wide. At a 400px stage 62px is 22 room units, so a
+            //     box centred at x=21 spans 10..32 and sits comfortably
+            //     inside. At a 300px stage the same box is 30 units and
+            //     spans 6..36 — exactly the gap, with nothing to spare: the
+            //     tightest case, and the reason the label was shortened to
+            //     eight characters in the first place.
             //   - y=62 is below Blob's feet (FLOOR is 52) and above the
             //     room's own bottom edge at 76.
-            { node: 'salvage', at: [20, 62] },
+            { node: 'salvage', at: [21, 62] },
         ],
         // Back and to the right, against the treeline: a building belongs
         // behind the things you pick up rather than in front of them.
