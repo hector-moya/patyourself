@@ -189,3 +189,41 @@ describe('foliage', () => {
         expect(checked).toBeGreaterThan(0);
     });
 });
+
+describe('nodes and the shelter', () => {
+    /**
+     * The heap has a place to stand even though most clearings never have one.
+     * `scenes.ts` knows WHERE things are; whether a given clearing has one is
+     * the server's answer, and the page skips any spec the payload does not
+     * carry.
+     */
+    it('knows where the heap stands, whether or not one is there', () => {
+        expect(SCENES.forest.nodes.map((node) => node.node).sort()).toEqual([
+            'deadfall',
+            'reeds',
+            'salvage',
+            'trunk',
+        ]);
+    });
+
+    /** And where the shelter stands, which is outdoors and nowhere else. */
+    it('gives the forest somewhere to put a shelter, and the cabin none', () => {
+        expect(SCENES.forest.shelter).toBeDefined();
+        expect(SCENES.cabin.shelter).toBeUndefined();
+    });
+
+    /**
+     * No two things in the clearing share a point. This cannot prove they do
+     * not OVERLAP — jsdom has no layout engine and the labels are sized in
+     * fixed pixels — but it does catch the one mistake arithmetic can catch,
+     * which is two objects authored at the same place.
+     */
+    it('stands everything in the clearing somewhere different', () => {
+        const points = [
+            ...SCENES.forest.nodes.map((node) => `${node.at[0]},${node.at[1]}`),
+            `${SCENES.forest.shelter?.[0]},${SCENES.forest.shelter?.[1]}`,
+        ];
+
+        expect(new Set(points).size).toBe(points.length);
+    });
+});

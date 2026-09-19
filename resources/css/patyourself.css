@@ -1196,6 +1196,7 @@
 .c-node:focus-visible{outline:2px solid #F3E3C8;outline-offset:2px;}
 /* Once its skill is known. A mark that something happened, never a score. */
 .c-node.is-known{border-color:#E9B96B;}
+.c-shelter{border-color:#E9B96B;background:rgba(15,12,9,.78);color:#FFD9A8;}
 /* What is standing there, and only once something is. A zero would be a count
    of what you have not got. */
 .c-node i{font-style:normal;color:#FFD9A8;font-variant-numeric:tabular-nums;}

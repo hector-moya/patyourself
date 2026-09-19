@@ -560,6 +560,88 @@ describe('Companion screen', () => {
                 screen.getByRole('button', { name: 'the fallen trunk' }),
             ).toBeEnabled();
         });
+
+        /** What is standing there is clickable, and going inside is what it does. */
+        it('stands the shelter in the clearing and lets Blob go into it', () => {
+            render(
+                <CompanionPage
+                    bag={bag({
+                        shelter: {
+                            built: 'cabin',
+                            label: 'cabin',
+                            offer: null,
+                        },
+                    })}
+                    companion={companion({ scene: 'forest' })}
+                />,
+            );
+
+            const shelter = screen.getByRole('button', { name: /^cabin$/i });
+
+            expect(shelter).toHaveClass('c-shelter');
+
+            fireEvent.click(shelter);
+
+            expect(screen.getByRole('img')).toHaveAttribute(
+                'data-interior',
+                'cabin',
+            );
+        });
+
+        /** Nothing built, nothing standing. Not an outline, not a footprint. */
+        it('stands nothing in the clearing before anything is built', () => {
+            render(
+                <CompanionPage
+                    bag={bag()}
+                    companion={companion({ scene: 'forest' })}
+                />,
+            );
+
+            expect(document.querySelector('.c-shelter')).toBeNull();
+        });
+
+        /**
+         * The heap is a hotspot like any other, and it is there only because the
+         * payload says it is — the page draws a spec only where the server sent a
+         * node to match it.
+         */
+        it('stands the heap in the clearing only when there is one', () => {
+            const withoutHeap = render(
+                <CompanionPage
+                    bag={bag()}
+                    companion={companion({ scene: 'forest' })}
+                />,
+            );
+
+            expect(
+                screen.queryByRole('button', { name: /the heap/i }),
+            ).toBeNull();
+
+            withoutHeap.unmount();
+
+            render(
+                <CompanionPage
+                    bag={bag({
+                        nodes: [
+                            {
+                                node: 'salvage',
+                                label: 'the heap',
+                                available: 26,
+                                skill: null,
+                                met: true,
+                                known: true,
+                                usable: true,
+                            },
+                        ],
+                    })}
+                    companion={companion({ scene: 'forest' })}
+                />,
+            );
+
+            expect(
+                screen.getByRole('button', { name: /the heap/i }),
+            ).toBeInTheDocument();
+        });
     });
 
     describe('what Blob has to say', () => {

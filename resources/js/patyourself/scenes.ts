@@ -86,6 +86,13 @@ export interface SceneSpec {
     foliage: readonly FoliageSpec[];
     /** What can be gathered from here. Empty indoors. */
     nodes: readonly NodeSpec[];
+    /**
+     * Where a structure stands, when one has been built. Absent indoors.
+     *
+     * Placement only, exactly as `nodes` is: WHETHER anything is standing
+     * there, and which stage it is, both come from the server.
+     */
+    shelter?: readonly [number, number];
 }
 
 /**
@@ -163,7 +170,38 @@ export const SCENES: Record<string, SceneSpec> = {
             // labels are simply larger than the room at that scale, which is
             // a label-sizing question and not this coordinate's to answer.
             { node: 'trunk', at: [-24, 48] },
+            // The heap: the cabin an established record used to be given,
+            // in pieces. It stands in the one gap the grass leaves.
+            //
+            // The arithmetic, because BLOB.md trap 4 is that geometry cannot
+            // judge a visual and this coordinate is therefore a STARTING
+            // POINT that has to be looked at:
+            //   - Hotspot labels are real buttons at a fixed 8px font that
+            //     does NOT scale with the svg, so a box is the same pixel
+            //     size at every stage width and takes up more ROOM UNITS the
+            //     smaller the stage gets.
+            //   - "THE HEAP" is 8 characters: roughly 48px of glyphs plus
+            //     12px of padding and 2px of border, so about 62px wide and
+            //     16px tall.
+            //   - The three grass tufts occupy x −70..−38, −26..6 and 36..68
+            //     below y=52, which leaves exactly one gap at x 6..36. At a
+            //     400px stage 62px is 22 room units, so a box centred at
+            //     x=20 spans 9..31 and sits inside that gap; at 300px it is
+            //     30 units and spans 5..35, which still clears both tufts.
+            //   - y=62 is below Blob's feet (FLOOR is 52) and above the
+            //     room's own bottom edge at 76.
+            { node: 'salvage', at: [20, 62] },
         ],
+        // Back and to the right, against the treeline: a building belongs
+        // behind the things you pick up rather than in front of them.
+        //
+        // Same caveat and same arithmetic. "LEAN-TO" is the longest of the
+        // three stage labels at 7 characters — about 56px, or 20 room units
+        // at a 400px stage — so a box centred here spans x 34..54 and stays
+        // inside the room's right edge at 72. The reeds sit at [44, 36], 46
+        // units below, against box heights of 6 units at 400px and 8 at
+        // 300px: the two never come within 38 units of each other.
+        shelter: [44, -10],
     },
 
     cabin: {

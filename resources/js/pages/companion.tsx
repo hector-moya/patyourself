@@ -252,6 +252,7 @@ function RoomCard({
 }) {
     const [showRemark, setShowRemark] = useState(true);
     const part = partOfDay(hour, companion.room);
+    const shelterAt = sceneFor(companion.scene).shelter;
 
     return (
         <section className="pixel-frame c-panel">
@@ -353,6 +354,22 @@ function RoomCard({
                             />
                         );
                     })}
+
+                {/* What Blob built, standing where it was built. One at a
+                    time and never two: the stages replace one another, so
+                    there is only ever one thing here.
+
+                    A real button over the picture rather than a shape inside
+                    the svg, the same rule the node hotspots follow. */}
+                {!inside &&
+                    bag.shelter.built !== null &&
+                    shelterAt !== undefined && (
+                        <ShelterSpot
+                            label={bag.shelter.label ?? bag.shelter.built}
+                            at={roomOffset(shelterAt[0], shelterAt[1])}
+                            onClick={onToggleInside}
+                        />
+                    )}
             </div>
 
             {/* Never disabled, never on a timer, never counted: pressing one
@@ -497,6 +514,39 @@ function NodeSpot({
             {/* Only once there is something to take. A zero would be a count
                 of what you have not got. */}
             {available > 0 && <i>{available}</i>}
+        </button>
+    );
+}
+
+/**
+ * What Blob built, standing in the clearing.
+ *
+ * It says what it is and nothing else — no stage number, no "1 of 3", no hint
+ * of what it might become. A cabin is a cabin; that it used to be a lean-to is
+ * in the record panel, where history belongs.
+ *
+ * Clicking it goes inside, which is the same thing the plinth's own control
+ * does. Two ways in rather than one, for the same reason Poke is both the
+ * scene's own tap and a button: the obvious gesture should work, and it must
+ * not be the only one that does.
+ */
+function ShelterSpot({
+    label,
+    at,
+    onClick,
+}: {
+    label: string;
+    at: { left: string; top: string };
+    onClick: () => void;
+}) {
+    return (
+        <button
+            type="button"
+            className={cn('c-node', 'c-shelter')}
+            style={at}
+            onClick={onClick}
+        >
+            {label}
         </button>
     );
 }
