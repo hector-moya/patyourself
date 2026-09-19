@@ -689,4 +689,31 @@ describe('the shelter interior', () => {
         expect(markup).not.toContain('data-interior');
         expect(markup).toContain('scene-backdrop');
     });
+
+    /**
+     * ITEM 4: nothing else in this file catches two stages being drawn at
+     * once. The lean-to's own structure — its beam and its post — is gated on
+     * `stage === 'lean-to'` alone; loosening that to `stage !== 'nothing'`
+     * would draw it inside the hut and cabin too, and every case above would
+     * stay green, because none of them looks for the lean-to's markup
+     * anywhere but the lean-to.
+     */
+    it('draws the lean-to structure only in the lean-to, never in the hut or cabin', () => {
+        const leanTo = room({ scene: 'forest' }, 12, {
+            inside: true,
+            shelter: 'lean-to',
+        }).innerHTML;
+        const hut = room({ scene: 'forest' }, 12, {
+            inside: true,
+            shelter: 'hut',
+        }).innerHTML;
+        const cabin = room({ scene: 'forest' }, 12, {
+            inside: true,
+            shelter: 'cabin',
+        }).innerHTML;
+
+        expect(leanTo).toContain('data-room-shelter="lean-to"');
+        expect(hut).not.toContain('data-room-shelter="lean-to"');
+        expect(cabin).not.toContain('data-room-shelter="lean-to"');
+    });
 });

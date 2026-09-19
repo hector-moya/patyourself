@@ -204,7 +204,9 @@ class CompanionRulingsTest extends TestCase
             app(HarvestNode::class)->handle($user, 'reeds');
             $this->fail('a full bag should refuse rather than make room');
         } catch (CompanionEconomyException) {
-            // The refusal is the expected outcome; what matters is below.
+            // The refusal is the expected outcome — a recipe short of
+            // materials refuses the same way below, and the world's own
+            // stock is what the final assertion checks once both have run.
         }
 
         // A recipe short of its materials likewise refuses and consumes nothing.

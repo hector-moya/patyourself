@@ -155,6 +155,21 @@ describe('Companion screen', () => {
                             usable: true,
                         },
                     ],
+                    // The fixture's own shelter defaults to a null offer, which
+                    // leaves Shelter rendering null and this guard blind to it —
+                    // a section that renders null is a section the acceptance
+                    // criterion is not checking. A non-null offer so the shelter
+                    // row actually renders inside this assertion.
+                    shelter: {
+                        built: null,
+                        label: null,
+                        offer: {
+                            stage: 'lean-to',
+                            label: 'lean-to',
+                            recipe: { planks: 4 },
+                            buildable: false,
+                        },
+                    },
                 })}
                 companion={companion()}
             />,

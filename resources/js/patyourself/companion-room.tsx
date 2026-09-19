@@ -414,7 +414,10 @@ export function CompanionRoom({
                         is over Blob's head, not because it encloses
                         anything. */}
                     {stage === 'lean-to' && (
-                        <g className="room-shelter room-shelter--lean-to">
+                        <g
+                            className="room-shelter room-shelter--lean-to"
+                            data-room-shelter="lean-to"
+                        >
                             {/* A path rather than a `<polygon>`: its own
                                 attribute is a banned word's substring, which
                                 CompanionVocabularyTest reads as a hit. */}

@@ -3,6 +3,7 @@
 namespace Tests\Feature\Companion;
 
 use App\Actions\BuildItem;
+use App\Actions\HarvestNode;
 use App\Actions\MeetNode;
 use App\Models\ActionLog;
 use App\Models\Companion;
@@ -1094,5 +1095,79 @@ class CompanionBagTest extends TestCase
         $user->companion->items()->create(['item' => 'planks', 'quantity' => 4]);
 
         $this->assertTrue($offer()['buildable']);
+    }
+
+    /**
+     * ITEM 1: draining the heap must not withdraw the offer the player just
+     * finished gathering for.
+     *
+     * `HarvestNode` deletes a heap row the instant it drains, so a converted
+     * account whose only met node was `salvage` has NO node rows at all by
+     * the time the last plank lands in the bag — `met` is empty, not
+     * `['salvage']`. Held planks must still account for themselves, or the
+     * app withdraws the lean-to row at the exact moment it was earned.
+     */
+    public function test_the_lean_to_offer_survives_draining_the_heap(): void
+    {
+        $user = User::factory()->create();
+        $companion = $user->companion()->firstOrCreate([]);
+
+        // A basket first, so the whole heap fits in one pass — the point
+        // here is the heap's own row disappearing, not bag capacity.
+        $companion->items()->create(['item' => 'basket', 'quantity' => 1]);
+        $companion->nodes()->create(['node' => 'salvage', 'available' => 4]);
+
+        app(HarvestNode::class)->handle($user, 'salvage');
+
+        // The row is gone: this account has met nothing, by the letter of
+        // what `met` means elsewhere in this file.
+        $this->assertDatabaseMissing('companion_nodes', [
+            'companion_id' => $companion->id,
+            'node' => 'salvage',
+        ]);
+
+        $offer = $this->bag($user)['shelter']['offer'];
+
+        $this->assertNotNull($offer, 'holding the planks should still surface the lean-to offer once the heap is gone');
+        $this->assertSame('lean-to', $offer['stage']);
+    }
+
+    /**
+     * ITEM 3: the flip side of the fix above. Held planks make the ITEM
+     * knowable, but nothing has shown this account timber or a handsaw — so
+     * the planks RECIPE itself must stay off the list even though the
+     * material it makes is now accountable. Without this gate a converted
+     * account would see "planks — 1 timber, handsaw" having met no node and
+     * seen neither ingredient.
+     */
+    public function test_the_planks_recipe_stays_hidden_when_only_the_heap_was_met(): void
+    {
+        $user = User::factory()->create();
+        $companion = $user->companion()->firstOrCreate([]);
+
+        $companion->items()->create(['item' => 'basket', 'quantity' => 1]);
+        $companion->nodes()->create(['node' => 'salvage', 'available' => 4]);
+
+        app(HarvestNode::class)->handle($user, 'salvage');
+
+        $this->assertNotContains('planks', array_column($this->bag($user)['recipes'], 'item'));
+    }
+
+    /**
+     * The regression guard for Item 3's tightening: a normal account that
+     * reached `planks` by the ordinary RECIPE path — met trunk yields timber,
+     * met reeds yields fibre which makes rope knowable, and rope plus timber
+     * make the handsaw knowable — must still see it listed. If this fails,
+     * the new ingredient/tool gate in `recipes()` is stricter than the fixed
+     * point that feeds it, and it is withholding something it has no
+     * business withholding.
+     */
+    public function test_a_normal_account_still_sees_planks_once_its_ingredients_are_shown(): void
+    {
+        $user = User::factory()->create();
+        app(MeetNode::class)->handle($user, 'trunk');
+        app(MeetNode::class)->handle($user, 'reeds');
+
+        $this->assertContains('planks', array_column($this->bag($user)['recipes'], 'item'));
     }
 }

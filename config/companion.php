@@ -229,7 +229,9 @@ return [
             'kind' => 'ability',
             'name' => 'read',
             // Reading gives Blob somewhere to keep what it reads. An object is
-            // earned once and stays earned; the cabin is where it is drawn.
+            // earned once and stays earned; it is drawn in whatever stage is
+            // standing, lean-to included — a bookshelf under a lean-to is
+            // intended, not a bug.
             'roomObject' => 'bookshelf',
             'message' => '{name} can read. What it reads is unclear, but it holds the page the right way up.',
         ],
@@ -246,7 +248,7 @@ return [
             'kind' => 'ability',
             'name' => 'wave',
             // A rug to wave from. An object is earned once and stays earned;
-            // the cabin is where it is drawn.
+            // it is drawn in whatever stage is standing, whichever that is.
             'roomObject' => 'rug',
             'message' => '{name} can wave. It mostly waves at things that have not arrived yet.',
         ],
@@ -263,7 +265,8 @@ return [
             'kind' => 'ability',
             'name' => 'jump',
             // Somewhere to land the jump under. An object is earned once and
-            // stays earned; the cabin is where it is drawn.
+            // stays earned; it is drawn in whatever stage is standing,
+            // whichever that is.
             'roomObject' => 'lamp',
             'message' => '{name} can jump. Both feet leave the ground, briefly, and it lands where it started.',
         ],
@@ -283,7 +286,8 @@ return [
             'kind' => 'ability',
             'name' => 'carry',
             // Something to carry toward. An object is earned once and stays
-            // earned; the cabin is where it is drawn.
+            // earned; it is drawn in whatever stage is standing, whichever
+            // that is.
             'roomObject' => 'plant',
             'message' => '{name} can carry something. It has not settled on what.',
         ],

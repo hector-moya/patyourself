@@ -3,6 +3,7 @@
 namespace App\Services\Companion;
 
 use App\Actions\BuildItem;
+use App\Actions\HarvestNode;
 use App\Models\Companion;
 use App\Models\CompanionItem;
 use App\Models\CompanionNode;
@@ -91,7 +92,7 @@ final readonly class CompanionBag
         $learned = $companion->skills->pluck('name')->all();
         $held = $companion->items->keyBy(static fn (CompanionItem $item): string => $item->item);
 
-        $knowable = $this->knowable($met);
+        $knowable = $this->knowable($met, $held);
 
         return [
             'xp' => $balance,
@@ -305,10 +306,21 @@ final readonly class CompanionBag
      * changes what a pass is allowed to add, never how many passes there are,
      * so the loop still terminates for the same reason it always did.
      *
+     * SEEDED FROM WHAT IS HELD, AS WELL AS FROM MET NODES' YIELDS. A heap is
+     * removed from `companion_nodes` the instant it drains — see
+     * {@see HarvestNode} — so a converted account whose only met
+     * node was the heap loses that node from `$met` at the exact moment it
+     * finishes gathering. Without this seed, the last plank out of the heap
+     * would also take `planks` out of `knowable`, withdrawing the shelter
+     * offer the player just finished paying for. A thing Blob is actually
+     * carrying is self-evidently a thing Blob can account for, whether or not
+     * anything that yields it still stands in the clearing.
+     *
      * @param  list<string>  $met
+     * @param  Collection<string, CompanionItem>  $held
      * @return list<string>
      */
-    private function knowable(array $met): array
+    private function knowable(array $met, Collection $held): array
     {
         /** @var array<string, array<string, mixed>> $catalogue */
         $catalogue = (array) config('companion.bag', []);
@@ -324,6 +336,10 @@ final readonly class CompanionBag
             if (isset($nodes[$node]['yields'])) {
                 $known[(string) $nodes[$node]['yields']] = true;
             }
+        }
+
+        foreach ($held->keys() as $item) {
+            $known[(string) $item] = true;
         }
 
         do {
@@ -425,6 +441,18 @@ final readonly class CompanionBag
      * this can never quietly promise a build that BuildItem is about to
      * refuse.
      *
+     * LISTED ONLY WHEN ITS INGREDIENTS AND TOOL ARE THEMSELVES KNOWABLE, NOT
+     * JUST ITS OWN ITEM. For anything that entered `knowable()` through the
+     * RECIPE path this is a no-op by construction — the fixed point only ever
+     * adds an item once every ingredient (and named tool) is already known,
+     * so the check below always passes. It matters only for the SEED path:
+     * `knowable()` also seeds directly from held items, so a material that is
+     * both a node's yield and a recipe's output — `planks` is the first one —
+     * can be knowable purely because Blob is carrying it, with neither its
+     * ingredient nor its tool ever having been shown. Without this check a
+     * converted account would see "planks — 1 timber, handsaw" having met no
+     * node and seen neither.
+     *
      * @param  list<string>  $knowable
      * @param  Collection<string, CompanionItem>  $held
      * @return list<array{item: string, label: string, recipe: array<string, int>, tool: string|null, buildable: bool}>
@@ -445,6 +473,11 @@ final readonly class CompanionBag
             }
 
             $tool = (string) ($item['tool'] ?? '');
+
+            if (array_diff(array_keys($recipe), $knowable) !== []
+                || ($tool !== '' && ! in_array($tool, $knowable, true))) {
+                continue;
+            }
 
             // Held, not consumed. A tool is used and never used up, so this
             // asks whether it is in the bag and takes nothing from it.
