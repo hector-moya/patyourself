@@ -658,22 +658,23 @@ Every one of these has cost a round on this project.
 - **Node hotspot labels do not scale with the stage.** A fixed 8px font, so below roughly a 300px
   stage the labels are larger than the room. F3 added a fifth object to the clearing, which makes it
   urgent; it is a label-sizing problem and was deliberately left out of scope.
-- **Two of the clearing's coordinates were rendered this session and found wrong; `scenes.ts`'s own
-  comments argue at length that both are sound, with no hint that anyone has since disagreed.**
-  Checked by viewing the built page and photographing the labels moved in the live DOM; `scenes.ts`
-  itself was not changed, so both replacements below are proposals awaiting the human partner.
-  - **`THE FALLEN TRUNK` at `[-24, 48]` overlaps Blob.** F2 computed it against the other *labels* and
-    never against the *creature*. Proposed `[-40, 48]` — `y=48` must not move, since it is the only
-    value clearing both the grass line at 52 and the deadfall's label box, so the whole correction is
+- **Two of the clearing's coordinates were rendered this session, found wrong, and corrected.**
+  `scenes.ts`'s own comments had argued at length that both were sound, with no hint that anyone had
+  since disagreed. Checked by viewing the built page and photographing the labels moved in the live
+  DOM; both are now shipped in `scenes.ts`, with comments that record the render and not just the
+  arithmetic.
+  - **`THE FALLEN TRUNK` moved `[-24, 48]` → `[-40, 48]`.** It overlapped Blob: F2 computed it against
+    the other *labels* and never against the *creature*. `y=48` did not move — it is still the only
+    value clearing both the grass line at 52 and the deadfall's label box — so the whole correction is
     in x.
-  - **The shelter at `[44, -10]` floats in open sky** instead of standing on the ground; every other
-    clearing object sits at `y ∈ {36, 40, 48, 62}` in a room spanning `y −38..76`. Proposed `[44, 22]`,
-    which puts it where the treeline meets the grass and leaves a 6.3-unit gap to `THE REEDS` at
+  - **The shelter moved `[44, -10]` → `[44, 22]`.** It floated in open sky instead of standing on the
+    ground; every other clearing object sits at `y ∈ {36, 40, 48, 62}` in a room spanning `y −38..76`.
+    `[44, 22]` puts it where the treeline meets the grass and leaves a 6.3-unit gap to `THE REEDS` at
     `[44, 36]` even at a 300px stage.
   - **The trunk's fix is width-limited, and the residual is the label-sizing problem above, not a
     coordinate.** Solving "right edge clears Blob's silhouette" against "left edge stays inside the
     room" gives a feasible window only down to roughly a 303px stage; below that no x exists, because
-    the fixed-8px box is wider than the gap between Blob and the wall.
+    the fixed-8px box is wider than the gap between Blob and the wall. Still open.
   - **`THE HEAP` at `[21, 62]` was checked and is fine** — it renders cleanly in its gap between the
     middle and right grass tufts, with visible margin both sides. No label overlaps another label.
 - **Scarf, hat and glasses are still flat rects.** The worn-item pipeline in §7 covers them — except the
