@@ -98,7 +98,18 @@ describe('Companion screen', () => {
      * nothing anywhere that reads as a score.
      */
     it('never shows what has not happened', () => {
-        render(<CompanionPage bag={bag()} companion={companion()} />);
+        render(
+            <CompanionPage
+                // The clearing's shelter object renders only once something
+                // has been built, on a scene that names it a place to
+                // stand — the bare fixture and the default cabin scene both
+                // leave it absent, which would leave this guard blind to it.
+                bag={bag({
+                    shelter: { built: 'hut', label: 'hut', offer: null },
+                })}
+                companion={companion({ scene: 'forest' })}
+            />,
+        );
 
         expect(
             screen.queryByText(
@@ -156,13 +167,20 @@ describe('Companion screen', () => {
                         },
                     ],
                     // The fixture's own shelter defaults to a null offer, which
-                    // leaves Shelter rendering null and this guard blind to it —
-                    // a section that renders null is a section the acceptance
-                    // criterion is not checking. A non-null offer so the shelter
-                    // row actually renders inside this assertion.
+                    // leaves the bag's own Shelter section rendering null and
+                    // this guard blind to it — a section that renders null is
+                    // a section the acceptance criterion is not checking. A
+                    // non-null offer so that row actually renders inside this
+                    // assertion.
+                    //
+                    // `built` and `label` are non-null for the same reason:
+                    // the clearing's own shelter object (the room hotspot,
+                    // not this bag row) renders only once something has been
+                    // built, so this guard has to build something or it is
+                    // asserting over a scene the object is absent from.
                     shelter: {
-                        built: null,
-                        label: null,
+                        built: 'hut',
+                        label: 'hut',
                         offer: {
                             stage: 'lean-to',
                             label: 'lean-to',
@@ -171,7 +189,10 @@ describe('Companion screen', () => {
                         },
                     },
                 })}
-                companion={companion()}
+                // The clearing's shelter object also needs a scene that
+                // names it a place to stand — cabin (this fixture's default)
+                // never does, so it would still be absent without this.
+                companion={companion({ scene: 'forest' })}
             />,
         );
 
