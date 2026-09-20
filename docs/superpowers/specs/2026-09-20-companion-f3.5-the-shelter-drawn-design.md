@@ -111,22 +111,42 @@ pipeline.
 backdrops did and it worked there. It does not transfer: a style reference carries outline, shading
 and palette, and **not geometry**. Three generations will not land on one footprint.
 
-**Chosen — generate the lean-to, then state-edit forward.**
+**Chosen — generate the lean-to as an *object*, then state-edit forward.**
 
-1. `create_image_pro`, 32×32, `no_background: true`, for the **lean-to** — the simplest silhouette
-   and the base the others fill into. Under the 170px threshold, so four candidates per call.
-2. **Style reference `forest-day.png`, full default `style_copy` including the palette.**
-   Deliberately unlike the backdrops, which referenced Blob's own sheet and *excluded*
-   `color_palette` to stop the forest coming back earth-brown. The opposite is right here: a
-   building standing in this clearing should be native to it.
-3. **Generated in neutral light.** The scene's light is one overlay drawn last over backdrop,
-   foliage and Blob alike; anything lit for noon would be lit twice.
-4. **Chosen by eye from a composite** — the candidates over the real `forest-day.png` at the real
+**The tool constraint that decides this, found while planning rather than while building.**
+`create_object_state` takes an **`object_id`**. `create_image_pro` returns a **`job_id`** for a raw
+image. They are different registries, and no state edit can be applied to a `create_image_pro`
+result. The lean-to must therefore come from an object tool or the pipeline does not exist.
+
+1. `create_1_direction_object`, `view: 'sidescroller'`, for the **lean-to** — the simplest
+   silhouette and the base the others fill into. Returns an `object_id`.
+2. **Style reference: two 32×32 crops of `forest-day.png`**, passed as `style_images` (base64).
+   This tool takes no URL and — importantly — **`style_images` cannot be combined with `size`; the
+   largest style image determines the output size.** Two 32×32 crops therefore fix the output at
+   32×32 *and* carry the clearing's own palette, which is one constraint satisfying two
+   requirements. The crops, both verified:
+
+   ```bash
+   # the patch the building will actually stand in: treeline and sky
+   sips -c 32 32 --cropOffset 30 28 forest-day.png --out style-treeline.png
+   # the landmark tree's trunk and the ground: the wood and earth tones
+   sips -c 32 32 --cropOffset 38  8 forest-day.png --out style-trunk.png
+   ```
+
+   Two rather than one on purpose: a reference that is all foliage risks a tree-shaped building,
+   and the second patch is where the browns come from.
+3. **At size 32 the tool returns 64 candidates** in `review` status — the ≤42px tier — rather than
+   the four `create_image_pro` would give at this size. Inspect with `get_object`, keep with
+   `select_object_frames`, discard with `dismiss_review`.
+4. **Generated in neutral light.** The scene's light is one overlay drawn last over backdrop,
+   foliage and Blob alike; anything lit for noon would be lit twice. Nothing in the tool enforces
+   this — it lives in the description prose and is checked by eye.
+5. **Chosen by eye from a composite** — candidates over the real `forest-day.png` at the real
    position with the real Blob sprite, never on transparency. The tree's candidate 8 was chosen this
    way precisely because a thing that will never read right in place still looks fine as a cutout,
    and the shelter sits at the treeline where it competes with backdrop detail.
-5. `create_object_state` on the chosen lean-to → **hut** (walls close it in), then hut → **cabin**
-   (a window and a door).
+6. `create_object_state` on the chosen lean-to → **hut** (walls close it in), then on the hut →
+   **cabin** (a window and a door).
 
 **Why the state edit rather than generation.** BLOB.md §7 already records the equivalent finding for
 bodies: the forms are subtractions from the fullest one, and *two `create_character` attempts could
