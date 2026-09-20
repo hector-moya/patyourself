@@ -179,3 +179,91 @@ darkness around it, which is backwards. At night `#F2C572` washes to about `#9E8
 that washes to about `#1F2830` — the lamp is still by far the brightest and warmest thing in the
 room, so it still reads as lit. Excluding it would mean a special case that contradicts one filter
 over everything, for a difference of saturation.
+
+---
+
+# The shelter
+
+The structure the clearing gets, in the three states Blob's economy funds: an open lean-to, then a
+walled hut, then a windowed cabin. Unlike the backdrops and the foliage it is drawn once per stage,
+not looped — a structure holds still where the tree and the grass exist to carry wind. Nothing reads
+these files yet; the code that wires them into the room is later work.
+
+| File | Object | State | Candidate |
+| --- | --- | --- | --- |
+| `shelter-lean-to.png` | `ebd97551-a19d-4ca3-9fea-6a0d34dd81d9` | `base` | 0, of 16 (review `47317f9b-670f-4172-9b63-eb5191d20edd`) |
+| `shelter-hut.png` | `451c819a-949d-44f8-807f-4957b936cfcd` | `hut` | state edit — see below |
+| `shelter-cabin.png` | `061dd3a7-374a-49fe-b62b-ad0710ae11b8` | `cabin` | state edit, then hand-composited over the hut — see below |
+
+All three share group `5b74bd49-6407-4d95-b6c0-752f6a5ed340`; only the lean-to carries a tag
+(`f35-shelter`), because it's the one `list_objects` needs to find again. As with the backdrops and
+the foliage, Pixel Lab keeps no images library, so this directory is their only durable home.
+
+## One footprint, filled in
+
+The progression is **same footprint, filling in** — one silhouette across all three states, each
+stage continuing the last rather than replacing it, so the lean-to's slope should still be readable
+in the hut's roof. That rules out the obvious pipeline: three independent generations, even with a
+chained style reference the way the four backdrops were made, can't promise it. A style reference
+carries outline, shading and palette — not geometry.
+
+So the lean-to is generated once, as an *object* (`create_1_direction_object`), and the hut and the
+cabin are `create_object_state` edits on it, in sequence, lean-to → hut → cabin. A state edit
+preserves the object's registration, which is what makes "same footprint" structural rather than
+hoped for. `create_image_pro`, used for the four backdrops, returns a `job_id` instead of an
+`object_id` and cannot be state-edited at all — a different registry, and the reason this pipeline
+couldn't reuse that one.
+
+## How the lean-to was made, and two traps in doing it
+
+`create_1_direction_object`, `view: sidescroller`, with a single 48×48 style image passed as
+`style_images` (base64). Two things about that call cost time to learn:
+
+- **It forces a square output**, derived from the largest style image, and `style_images` cannot be
+  combined with `size`. Asked for 48×40 it returned 48×48 anyway.
+- **Base64 style arguments get truncated in transit**, and there's no URL variant. The reference
+  below went from ~4,850 base64 characters to ~1,200 after quantising to 32 colours — the difference
+  between a call that fails with `broken data stream ... TRUNCATED` and one that succeeds.
+
+A third fact decided the candidate count, not the correctness: **candidates fall as size rises.** 32px
+art sits in the ≤42 tier and returns 64 candidates; 48px sits in the ≤85 tier and returns 16. That is
+why there are two style crops in this history. The first, at 32×32, produced a review object
+(`0d52db24-c750-4f2e-9d6c-9f7de6205e36`, 64 candidates) that was abandoned unpicked — at that size
+every candidate was hard to tell from its neighbours, two independent shortlists over the same set
+agreed on nothing, and that disagreement was the evidence that decided the move to a larger cell. The
+crop that shipped is one 48×48 patch of `forest-day.png` at **PNG col 92, row 14** — `PNG col = x +
+72`, so the cell's left edge at room x = 20 is col 92 — the patch of ground the building actually
+stands on, not an arbitrary sample of forest. It returned 16 candidates (review
+`47317f9b-670f-4172-9b63-eb5191d20edd`), every one legible as a lean-to.
+
+The style crop itself wasn't a raw forest patch: the chosen 32px candidate was composited into it at
+its real offset before the 48px call, so one image carried the clearing's palette, its lighting and
+the chosen silhouette together, in context. A raw crop plus a separate cutout would have quantised
+the cutout's transparency to black and taught the model exactly that.
+
+## The cabin is hand-composited, not generated
+
+The lean-to → hut edit held the geometric promise exactly: same silhouette, walls closing the open
+side. The hut → cabin edit did not. Measured directly against the files in this directory: the
+generated cabin's opaque pixels span 40 of the hut's full 48 columns — about 17% narrower — which
+reads as the building shrinking at its final upgrade, the opposite of what "same footprint, filling
+in" promises.
+
+Registration itself was never lost. Every opaque pixel of the generated cabin falls inside the hut's
+silhouette — a 100% subset, checked pixel by pixel — so the fallback named in advance for exactly this
+case (the tree's rejected `animate_image` output is the precedent: measured, found wanting, replaced
+by something hand-built on the same grid) applied here too: layer the generated cabin over the hut
+rather than re-roll. The composite adds the window and the door without leaving a hole, and
+reproduces the hut's silhouette by construction rather than by luck. `shelter-cabin.png` and
+`shelter-hut.png` have **byte-identical alpha channels** — 848 opaque pixels in each, verified
+directly rather than assumed — and all three files occupy the same pixel rows, 8 through 43 of 48.
+
+A later reader should not assume all three came straight out of Pixel Lab. Two did. The cabin is the
+hut, re-skinned.
+
+## Single frame, because a structure holds still
+
+The tree and the grass are animated because this phase exists to give the clearing wind. The shelter
+is a building: it doesn't sway, and it has no states of its own that need a shared clock to read. Each
+stage is a single 48×48 frame, not a sheet — there's no `cell` narrower than the whole image to size,
+and nothing here for the frame-count checks the foliage sheets get.
