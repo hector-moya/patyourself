@@ -32,6 +32,7 @@ import {
     noCompanion,
     unlock,
 } from '@/patyourself/companion.fixture';
+import { renderClearing } from '@/patyourself/companion.harness';
 import { SCENES, SHELTER_CELL, SHELTER_SPRITES } from '@/patyourself/scenes';
 
 import CompanionPage from './companion';
@@ -100,18 +101,15 @@ describe('Companion screen', () => {
      * nothing anywhere that reads as a score.
      */
     it('never shows what has not happened', () => {
-        render(
-            <CompanionPage
-                // The clearing's shelter object renders only once something
-                // has been built, on a scene that names it a place to
-                // stand — the bare fixture and the default cabin scene both
-                // leave it absent, which would leave this guard blind to it.
-                bag={bag({
-                    shelter: { built: 'hut', label: 'hut', offer: null },
-                })}
-                companion={companion({ scene: 'forest' })}
-            />,
-        );
+        renderClearing({
+            // The clearing's shelter object renders only once something
+            // has been built, on a scene that names it a place to
+            // stand — the bare fixture and the default cabin scene both
+            // leave it absent, which would leave this guard blind to it.
+            bag: {
+                shelter: { built: 'hut', label: 'hut', offer: null },
+            },
+        });
 
         expect(
             screen.queryByText(
@@ -129,74 +127,68 @@ describe('Companion screen', () => {
      * surface the acceptance criterion never looked at.
      */
     it('still shows nothing that has not happened once the bag is open', () => {
-        render(
-            <CompanionPage
-                bag={bag({
-                    xp: 48,
-                    held: 3,
-                    capacity: 5,
-                    items: [
-                        {
-                            item: 'fibre',
-                            label: 'fibre',
-                            category: 'material',
-                            quantity: 3,
-                            droppable: true,
-                        },
-                    ],
-                    skills: [
-                        {
-                            skill: 'gather-fibre',
-                            label: 'gather fibre',
-                            price: 20,
-                            known: false,
-                            affordable: true,
-                        },
-                    ],
-                    // The fixture's own nodes default to available: 0, which
-                    // leaves Clearing rendering null and this guard blind to
-                    // it. At least one node standing and known so the
-                    // clearing group actually renders here.
-                    nodes: [
-                        {
-                            node: 'reeds',
-                            label: 'the reeds',
-                            available: 4,
-                            skill: 'gather-fibre',
-                            met: true,
-                            known: true,
-                            usable: true,
-                        },
-                    ],
-                    // The fixture's own shelter defaults to a null offer, which
-                    // leaves the bag's own Shelter section rendering null and
-                    // this guard blind to it — a section that renders null is
-                    // a section the acceptance criterion is not checking. A
-                    // non-null offer so that row actually renders inside this
-                    // assertion.
-                    //
-                    // `built` and `label` are non-null for the same reason:
-                    // the clearing's own shelter object (the room hotspot,
-                    // not this bag row) renders only once something has been
-                    // built, so this guard has to build something or it is
-                    // asserting over a scene the object is absent from.
-                    shelter: {
-                        built: 'hut',
-                        label: 'hut',
-                        offer: {
-                            stage: 'lean-to',
-                            label: 'lean-to',
-                            recipe: { planks: 4 },
-                            buildable: false,
-                        },
+        renderClearing({
+            bag: {
+                xp: 48,
+                held: 3,
+                capacity: 5,
+                items: [
+                    {
+                        item: 'fibre',
+                        label: 'fibre',
+                        category: 'material',
+                        quantity: 3,
+                        droppable: true,
                     },
-                })}
-                // The clearing's shelter object also needs a scene that
-                // names it a place to stand — cabin (this fixture's default)
-                // never does, so it would still be absent without this.
-                companion={companion({ scene: 'forest' })}
-            />,
-        );
+                ],
+                skills: [
+                    {
+                        skill: 'gather-fibre',
+                        label: 'gather fibre',
+                        price: 20,
+                        known: false,
+                        affordable: true,
+                    },
+                ],
+                // The fixture's own nodes default to available: 0, which
+                // leaves Clearing rendering null and this guard blind to
+                // it. At least one node standing and known so the
+                // clearing group actually renders here.
+                nodes: [
+                    {
+                        node: 'reeds',
+                        label: 'the reeds',
+                        available: 4,
+                        skill: 'gather-fibre',
+                        met: true,
+                        known: true,
+                        usable: true,
+                    },
+                ],
+                // The fixture's own shelter defaults to a null offer, which
+                // leaves the bag's own Shelter section rendering null and
+                // this guard blind to it — a section that renders null is
+                // a section the acceptance criterion is not checking. A
+                // non-null offer so that row actually renders inside this
+                // assertion.
+                //
+                // `built` and `label` are non-null for the same reason:
+                // the clearing's own shelter object (the room hotspot,
+                // not this bag row) renders only once something has been
+                // built, so this guard has to build something or it is
+                // asserting over a scene the object is absent from.
+                shelter: {
+                    built: 'hut',
+                    label: 'hut',
+                    offer: {
+                        stage: 'lean-to',
+                        label: 'lean-to',
+                        recipe: { planks: 4 },
+                        buildable: false,
+                    },
+                },
+            },
+        });
 
         fireEvent.click(screen.getByRole('button', { name: /bag/i }));
 
@@ -1201,5 +1193,27 @@ describe('Companion screen', () => {
 
         expect(screen.getByText('the hut')).toBeInTheDocument();
         expect(screen.queryByText('the forest')).toBeNull();
+    });
+});
+
+describe('the clearing harness', () => {
+    /**
+     * The guard's own guard. Without this, `renderClearing` could stop
+     * checking and nothing would notice — which is precisely the failure
+     * mode it exists to end.
+     *
+     * The mutation that turns this red: delete the `if` block in
+     * `companion.harness.tsx`.
+     */
+    it('refuses to hand back an interior', () => {
+        expect(() => renderClearing({ companion: { scene: 'cabin' } })).toThrow(
+            /the clearing did not render/,
+        );
+    });
+
+    it('renders the clearing without being told the scene', () => {
+        renderClearing();
+
+        expect(screen.getByRole('img')).toHaveAttribute('data-scene', 'forest');
     });
 });
