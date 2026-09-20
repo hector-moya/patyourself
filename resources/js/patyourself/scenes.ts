@@ -188,18 +188,20 @@ export const SCENES: Record<string, SceneSpec> = {
             // and the reeds are stuck sharing that column and can only be
             // separated vertically. At the shelter's new y=34 the two
             // collided at the reeds' old position, [44, 36], so the reeds
-            // move down and right to [58, 44] to clear it.
+            // move down and right to clear it.
             //
-            // The cost is real and measured, not free: hotspot labels are a
-            // fixed 8px font that does not scale with the SVG, so a label
-            // box occupies more room units the narrower the stage gets. At
-            // [58, 44] the reeds box touches the room's right wall at a
-            // 400px stage and overflows below it; at [44, 36] it did not.
-            // This is the known label-sizing problem docs/BLOB.md §12
-            // already records as open — and already true of the deadfall's
-            // "THE FALLEN BRANCHES" label against the room's LEFT wall at
-            // 320px — now extended to one more label. Accepted knowingly.
-            { node: 'reeds', at: [58, 44] },
+            // x=50, not 58: measured on the live page rather than predicted
+            // from box arithmetic. Hotspot labels are a fixed 8px font that
+            // does not scale with the SVG, so pushed toward the room's right
+            // wall the label does not overflow it — it WRAPS to a second
+            // line instead, which no box calculation on this branch models
+            // because every one of them models width, not reflow. Sweeping
+            // x on the rendered page, the label wraps at 58, 56, 54 and 52,
+            // and sits on one line from 50 leftward, so 50 is the rightmost
+            // value that keeps it whole. y still carries the clearance from
+            // the shelter — x never did — so [50, 44] loses nothing there
+            // while leaving 41px to the wall instead of 23.
+            { node: 'reeds', at: [50, 44] },
             // Low and near, between the tree's foot and the centre, so it
             // reads as foreground without standing where Blob does.
             //
