@@ -1194,6 +1194,69 @@ describe('Companion screen', () => {
         expect(screen.getByText('the hut')).toBeInTheDocument();
         expect(screen.queryByText('the forest')).toBeNull();
     });
+
+    /**
+     * A control that removes itself must not take the keyboard with it. Going
+     * inside unmounts `ShelterSpot`, and focus lands on <body>, so the next Tab
+     * restarts at the top of the document.
+     *
+     * Asserting "not body" rather than naming an element on purpose: the defect
+     * IS focus falling to the document, and pinning the replacement element
+     * would re-encode the implementation and fail the next time it moves.
+     *
+     * The mutation that turns this red: delete the `useEffect` block.
+     */
+    it('keeps the keyboard in the clearing when a hotspot unmounts under it', () => {
+        renderClearing({
+            bag: { shelter: { built: 'hut', label: 'hut', offer: null } },
+        });
+
+        const spot = screen.getByRole('button', { name: /go inside the hut/i });
+        spot.focus();
+        expect(document.activeElement).toBe(spot);
+
+        fireEvent.click(spot);
+
+        expect(
+            screen.queryByRole('button', { name: /go inside the hut/i }),
+        ).toBeNull();
+        expect(document.activeElement).not.toBe(document.body);
+    });
+
+    /**
+     * The other half, and the half that makes the fix safe: focus that SURVIVED
+     * the click is never stolen.
+     *
+     * Focus sits on the plinth's control while the SHELTER hotspot is clicked —
+     * `fireEvent.click` does not move focus, so this is a click that raises the
+     * recovery flag (the hotspot unmounts) while focus is somewhere perfectly
+     * good. Recovery must decline to act. Without that, the effect would drag
+     * focus to the stage after any qualifying click, which is a worse bug than
+     * the one being fixed.
+     *
+     * The mutation that turns this red: delete the
+     * `document.activeElement === document.body` condition, keeping the
+     * `recoverFocus.current` gate. Focus is then yanked to `.c-stage` and the
+     * final assertion fails.
+     */
+    it('does not steal focus that survived the click', () => {
+        renderClearing({
+            bag: { shelter: { built: 'hut', label: 'hut', offer: null } },
+        });
+
+        const plinth = screen.getByRole('button', { name: 'Go inside' });
+        const spot = screen.getByRole('button', { name: /go inside the hut/i });
+
+        plinth.focus();
+        fireEvent.click(spot);
+
+        expect(
+            screen.queryByRole('button', { name: /go inside the hut/i }),
+        ).toBeNull();
+        expect(document.activeElement).toBe(
+            screen.getByRole('button', { name: 'Go outside' }),
+        );
+    });
 });
 
 describe('the clearing harness', () => {

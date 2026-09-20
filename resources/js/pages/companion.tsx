@@ -1,5 +1,5 @@
 import { router } from '@inertiajs/react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { useSpriteClock } from '@/hooks/use-sprite-clock';
 import CoachLayout from '@/layouts/coach-layout';
@@ -254,6 +254,37 @@ function RoomCard({
     const part = partOfDay(hour, companion.room);
     const shelterAt = sceneFor(companion.scene).shelter;
 
+    const stage = useRef<HTMLDivElement>(null);
+    /**
+     * Set by a hotspot that is about to remove itself — going inside unmounts
+     * `ShelterSpot`, and draining the heap deletes its node row and with it
+     * `NodeSpot`. A ref rather than state: this must not cause a render of
+     * its own, it only has to survive until the next commit.
+     */
+    const recoverFocus = useRef(false);
+
+    /**
+     * No dependency array: this has to run after EVERY commit, because what it
+     * is watching for is an element disappearing rather than a value changing.
+     * The ref is the gate, so it costs a boolean check on renders that are not
+     * about focus.
+     *
+     * The condition is the whole safety of it. Focus is recovered only when it
+     * was actually LOST — a click that left focus somewhere real must not have
+     * it dragged back to the stage, which would be worse than the bug.
+     */
+    useEffect(() => {
+        if (!recoverFocus.current) {
+            return;
+        }
+
+        recoverFocus.current = false;
+
+        if (document.activeElement === document.body) {
+            stage.current?.focus();
+        }
+    });
+
     return (
         <section className="pixel-frame c-panel">
             {/* Where Blob is, and when — the one thing this screen never
@@ -289,8 +320,8 @@ function RoomCard({
                 </time>
             </div>
 
-            <div className="c-stage">
-{/* What just happened wins over what Blob had to say: one is
+            <div className="c-stage" ref={stage} tabIndex={-1}>
+                {/* What just happened wins over what Blob had to say: one is
                     about the click that was made a moment ago, the other is a
                     line the coach wrote some time ago. Both are Blob talking,
                     and there is one bubble. */}
@@ -383,7 +414,10 @@ function RoomCard({
                                 shelterAt[0],
                                 shelterAt[1] - SHELTER_CELL / 2,
                             )}
-                            onClick={onToggleInside}
+                            onClick={() => {
+                                recoverFocus.current = true;
+                                onToggleInside();
+                            }}
                         />
                     )}
             </div>
