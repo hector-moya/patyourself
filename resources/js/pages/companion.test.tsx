@@ -754,6 +754,27 @@ describe('Companion screen', () => {
         });
 
         /**
+         * `toHaveClass`, not `toContain` on the class string: a template literal that
+         * eats its leading space ships `class="c-nodec-node--art"`, and a substring
+         * check passes on exactly that.
+         *
+         * The mutation that turns this red: drop `roomSize(...)` from the style.
+         */
+        it('sizes the shelter control to its art', () => {
+            renderClearing({
+                bag: { shelter: { built: 'hut', label: 'hut', offer: null } },
+            });
+
+            const spot = screen.getByRole('button', {
+                name: /go inside the hut/i,
+            });
+
+            expect(spot).toHaveClass('c-node', 'c-shelter', 'c-node--art');
+            expect(spot.style.width).not.toBe('');
+            expect(spot.style.height).not.toBe('');
+        });
+
+        /**
          * The heap is a hotspot like any other, and it is there only because the
          * payload says it is — the page draws a spec only where the server sent a
          * node to match it.

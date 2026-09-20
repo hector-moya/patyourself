@@ -55,6 +55,28 @@ export function roomOffset(
         top: `${((y - ROOM.y) / ROOM.h) * 100}%`,
     };
 }
+
+/**
+ * A box in the room's own units, as a CSS size over the drawing.
+ *
+ * The companion of `roomOffset` above, and exported for the same reason: the
+ * hotspots are laid out by the PAGE, over an `<svg>` that scales with its
+ * container, so their size has to be a share of that box rather than a pixel
+ * count that is only right at one width.
+ *
+ * It replaces four hand-computed magic numbers — `.c-shelter--art` carried
+ * `33.333%` and `42.105%`, which are 48/144 and 48/114 worked out by hand and
+ * written down. Four node cells were about to add eight more.
+ */
+export function roomSize(
+    width: number,
+    height: number,
+): { width: string; height: string } {
+    return {
+        width: `${(width / ROOM.w) * 100}%`,
+        height: `${(height / ROOM.h) * 100}%`,
+    };
+}
 const ROOM_VIEWBOX = `${ROOM.x} ${ROOM.y} ${ROOM.w} ${ROOM.h}`;
 
 const INK = '#2A2622';

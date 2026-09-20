@@ -1197,10 +1197,16 @@
 /* Once its skill is known. A mark that something happened, never a score. */
 .c-node.is-known{border-color:#E9B96B;}
 .c-shelter{border-color:#E9B96B;background:rgba(15,12,9,.78);color:#FFD9A8;}
-/* Sized to the art it covers, not to a word. The picture is the affordance;
-   the outline is how a pointer and a keyboard find it. */
-.c-shelter--art{width:33.333%;height:42.105%;padding:0;background:transparent;border-color:transparent;}
-.c-shelter--art:hover{background:rgba(15,12,9,.28);border-color:#FFD9A8;}
+/* Sized to the art it covers, not to a word — and sized in JS, from the cell
+   the sprite is drawn on, because `roomSize` already knows that arithmetic and
+   four node cells would otherwise put eight more magic percentages here.
+
+   The picture is the affordance; the outline is how a pointer and a keyboard
+   find it. The floor is WCAG 2.5.8 (AA), 24x24 CSS px: a net, not a target,
+   because a fixed-pixel box that grows in room units as the stage shrinks is
+   exactly the label problem this phase exists to retire. */
+.c-node--art{padding:0;background:transparent;border-color:transparent;min-width:24px;min-height:24px;}
+.c-node--art:hover{background:rgba(15,12,9,.28);border-color:#FFD9A8;}
 /* What is standing there, and only once something is. A zero would be a count
    of what you have not got. */
 .c-node i{font-style:normal;color:#FFD9A8;font-variant-numeric:tabular-nums;}

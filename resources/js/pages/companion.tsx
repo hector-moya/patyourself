@@ -18,7 +18,11 @@ import type {
 import type { AnimationName } from '@/patyourself/companion-animations';
 import { CompanionBag } from '@/patyourself/companion-bag';
 import { CompanionGlyph } from '@/patyourself/companion-glyph';
-import { CompanionRoom, roomOffset } from '@/patyourself/companion-room';
+import {
+    CompanionRoom,
+    roomOffset,
+    roomSize,
+} from '@/patyourself/companion-room';
 import { partOfDay } from '@/patyourself/part-of-day';
 import { sceneFor, SHELTER_CELL, shelterSprite } from '@/patyourself/scenes';
 import { store as touchNodeRoute } from '@/routes/companion/nodes';
@@ -605,8 +609,8 @@ function ShelterSpot({
     return (
         <button
             type="button"
-            className={cn('c-node', 'c-shelter', 'c-shelter--art')}
-            style={at}
+            className={cn('c-node', 'c-shelter', 'c-node--art')}
+            style={{ ...at, ...roomSize(SHELTER_CELL, SHELTER_CELL) }}
             // The picture says what it is; the name says what pressing does.
             aria-label={`Go inside the ${label}`}
             onClick={onClick}

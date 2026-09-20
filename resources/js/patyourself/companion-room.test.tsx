@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { __resetSpriteClock, useSpriteClock } from '@/hooks/use-sprite-clock';
 
 import { ANIMATIONS } from './companion-animations';
-import { CompanionRoom } from './companion-room';
+import { CompanionRoom, roomSize } from './companion-room';
 import { companion } from './companion.fixture';
 import { SCENES, sceneFor } from './scenes';
 
@@ -771,5 +771,25 @@ describe('the shelter standing in the clearing', () => {
         expect(drawn).toHaveAttribute('y', '-14');
         expect(drawn).toHaveAttribute('width', '48');
         expect(drawn).toHaveAttribute('height', '48');
+    });
+});
+
+describe('roomSize', () => {
+    /**
+     * The same arithmetic `roomOffset` does for a point, for a box. Both exist so
+     * a real HTML button can be laid over a scaling `<svg>` and track it: a
+     * percentage follows the picture at every width, and an absolute pixel size
+     * would be right at exactly one.
+     *
+     * The mutation that turns this red: divide by ROOM.h in the width (the two
+     * are 144 and 114, so a swap is not caught by a square case — which is why
+     * the case below is deliberately NOT square).
+     */
+    it('sizes a box over the picture as a share of the room', () => {
+        expect(roomSize(48, 114)).toEqual({
+            width: '33.33333333333333%',
+            height: '100%',
+        });
+        expect(roomSize(144, 57)).toEqual({ width: '100%', height: '50%' });
     });
 });
