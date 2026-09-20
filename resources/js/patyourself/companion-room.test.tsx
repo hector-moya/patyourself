@@ -724,3 +724,52 @@ describe('the shelter interior', () => {
         expect(cabin).not.toContain('data-room-shelter="lean-to"');
     });
 });
+
+describe('the shelter standing in the clearing', () => {
+    // `scene: 'forest'` is required on every case here, matching every other
+    // outdoor-branch test in this file: the default fixture's scene is
+    // 'cabin', and `indoors = inside || scene.name === 'cabin'` makes that
+    // scene indoors unconditionally, so a bare `room({}, ...)` never reaches
+    // the branch `ShelterLayer` is drawn in.
+    it('draws the stage that is standing', () => {
+        const container = room({ scene: 'forest' }, 12, { shelter: 'hut' });
+        const drawn = container.querySelector('[data-shelter]');
+
+        expect(drawn).not.toBeNull();
+        expect(drawn).toHaveAttribute('data-shelter', 'hut');
+    });
+
+    it('draws one stage and never two', () => {
+        for (const stage of ['lean-to', 'hut', 'cabin']) {
+            const container = room({ scene: 'forest' }, 12, { shelter: stage });
+
+            expect(container.querySelectorAll('[data-shelter]')).toHaveLength(1);
+        }
+    });
+
+    it('draws nothing before anything is built', () => {
+        const container = room({ scene: 'forest' }, 12, { shelter: null });
+
+        expect(container.querySelector('[data-shelter]')).toBeNull();
+    });
+
+    it('draws nothing indoors, because you are looking at the inside of it', () => {
+        const container = room({ scene: 'forest' }, 12, {
+            shelter: 'cabin',
+            inside: true,
+        });
+
+        expect(container.querySelector('[data-shelter]')).toBeNull();
+    });
+
+    it('stands the cell on the ground line, bottom-aligned on the base centre', () => {
+        const container = room({ scene: 'forest' }, 12, { shelter: 'lean-to' });
+        const drawn = container.querySelector('[data-shelter]');
+
+        // shelter is [44, 34], CELL is 48; top-left is (x - CELL/2, y - CELL).
+        expect(drawn).toHaveAttribute('x', '20');
+        expect(drawn).toHaveAttribute('y', '-14');
+        expect(drawn).toHaveAttribute('width', '48');
+        expect(drawn).toHaveAttribute('height', '48');
+    });
+});

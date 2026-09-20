@@ -24,7 +24,7 @@ import type { AnimationName } from '@/patyourself/companion-animations';
 import { ANIMATIONS } from '@/patyourself/companion-animations';
 import { partOfDay } from '@/patyourself/part-of-day';
 import type { RoomPalette } from '@/patyourself/part-of-day';
-import { sceneFor } from '@/patyourself/scenes';
+import { sceneFor, SHELTER_CELL, shelterSprite } from '@/patyourself/scenes';
 import type { FoliageSpec } from '@/patyourself/scenes';
 
 /**
@@ -244,6 +244,38 @@ function FoliageLayer({ layer }: { layer: FoliageSpec }) {
     );
 }
 
+/**
+ * What Blob built, standing where the scene says it stands.
+ *
+ * A plain `<image>` rather than a `FoliageLayer`: the tree and the grass are
+ * sheets read by the one shared clock because they exist to carry wind, and a
+ * structure exists to be permanent. One frame, no clock, no phase.
+ *
+ * Drawn in the outdoor branch so it inherits the light wash. The sprites are
+ * generated in neutral light, so a layer that escaped the overlay would stay
+ * at noon all night — the same reason the foliage sits here.
+ */
+function ShelterLayer({ stage, at }: { stage: string; at: readonly [number, number] }) {
+    const sprite = shelterSprite(stage);
+
+    if (sprite === undefined) {
+        return null;
+    }
+
+    return (
+        <image
+            data-shelter={stage}
+            href={sprite}
+            // `at` is the base centre, so the cell hangs up and left of it.
+            x={at[0] - SHELTER_CELL / 2}
+            y={at[1] - SHELTER_CELL}
+            width={SHELTER_CELL}
+            height={SHELTER_CELL}
+            style={{ imageRendering: 'pixelated' }}
+        />
+    );
+}
+
 export function CompanionRoom({
     companion,
     animation,
@@ -355,6 +387,9 @@ export function CompanionRoom({
                             layer={layer}
                         />
                     ))}
+                    {shelter !== null && scene.shelter !== undefined && (
+                        <ShelterLayer stage={shelter} at={scene.shelter} />
+                    )}
                 </>
             )}
 
