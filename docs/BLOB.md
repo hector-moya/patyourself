@@ -720,6 +720,14 @@ Every one of these has cost a round on this project.
     overlaps another label. The clearing also carries the shelter's 48×48 sprite cell and its own
     control's hit region now, which this bullet never claimed anything about — `scenes.test.ts` checks
     those separately, derived from `SHELTER_CELL`, not by a spot check on the heap.
+  - **`THE REEDS` moved `[44, 36]` → `[50, 44]`.** The shelter's move to `y=34` put its 48-wide cell
+    over the reeds' old position, and the clearing's right-hand column is too narrow to separate the
+    two sideways — so `y` carries the clearance and always did. `x` moved for a different reason and
+    was measured, not computed: pushed toward the right wall the label does not overflow it, it
+    **wraps to a second line**, and no box arithmetic on this branch models reflow. Sweeping `x` on
+    the rendered page, the label wrapped at 58, 56, 54 and 52 and sat on one line from 50 leftward,
+    so 50 is the rightmost value that keeps it whole. F3.6 deletes the label, which retires the
+    constraint that decided `x` — `y`'s clearance from the shelter outlives it.
 - **Scarf, hat and glasses are still flat rects.** The worn-item pipeline in §7 covers them — except the
   hat, which occludes and therefore needs a different answer.
 - **Phases B, C and D1/D2 have never been verified in production** — mail arriving, one-click links on a
