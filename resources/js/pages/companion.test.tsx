@@ -740,7 +740,11 @@ describe('Companion screen', () => {
             render(
                 <CompanionPage
                     bag={bag({
-                        shelter: { built: 'cabin', label: 'cabin', offer: null },
+                        shelter: {
+                            built: 'cabin',
+                            label: 'cabin',
+                            offer: null,
+                        },
                     })}
                     companion={companion({ scene: 'forest' })}
                 />,

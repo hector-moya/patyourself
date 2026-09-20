@@ -255,7 +255,13 @@ function FoliageLayer({ layer }: { layer: FoliageSpec }) {
  * generated in neutral light, so a layer that escaped the overlay would stay
  * at noon all night — the same reason the foliage sits here.
  */
-function ShelterLayer({ stage, at }: { stage: string; at: readonly [number, number] }) {
+function ShelterLayer({
+    stage,
+    at,
+}: {
+    stage: string;
+    at: readonly [number, number];
+}) {
     const sprite = shelterSprite(stage);
 
     if (sprite === undefined) {
