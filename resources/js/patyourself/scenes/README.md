@@ -186,8 +186,9 @@ over everything, for a difference of saturation.
 
 The structure the clearing gets, in the three states Blob's economy funds: an open lean-to, then a
 walled hut, then a windowed cabin. Unlike the backdrops and the foliage it is drawn once per stage,
-not looped — a structure holds still where the tree and the grass exist to carry wind. Nothing reads
-these files yet; the code that wires them into the room is later work.
+not looped — a structure holds still where the tree and the grass exist to carry wind. `scenes.ts`'s
+`shelterSprite()` reads these files by stage, and `companion-room.tsx`'s `ShelterLayer` draws whichever
+one is standing.
 
 | File | Object | State | Candidate |
 | --- | --- | --- | --- |
@@ -267,3 +268,45 @@ The tree and the grass are animated because this phase exists to give the cleari
 is a building: it doesn't sway, and it has no states of its own that need a shared clock to read. Each
 stage is a single 48×48 frame, not a sheet — there's no `cell` narrower than the whole image to size,
 and nothing here for the frame-count checks the foliage sheets get.
+
+## Running this pipeline again
+
+F3.6 generates twelve more sprites with this tooling. Everything above is the post-mortem — why each
+choice was made. This is the runbook: what to actually type and call.
+
+**1. The crop command.** The prose above gives a style crop's location as "PNG col, row" — `sips
+--cropOffset` takes the same two numbers **in the opposite order, row then column**. Get this backwards
+and the crop is silently taken from the wrong patch of forest; this branch already paid once for
+confusing a room `x` with a PNG column. For the 48×48 patch at PNG col 92, row 14:
+
+```bash
+sips -c 48 48 --cropOffset 14 92 forest-day.png --out style-spot.png
+```
+
+**2. The quantise step.** `style_images` is passed as base64 and gets truncated in transit past roughly
+1KB — there's no URL variant. The fix used throughout this phase is Pillow's palette quantiser,
+`Image.quantize(colors=32)` (`colors=24` was enough for a smaller 32×32 crop), which took one reference
+from ~4,850 base64 characters to ~1,200. **Quantise the composited reference, never a transparent
+cutout on its own** — quantising a PNG that is still transparent turns the transparency black, and
+teaches the model to draw a black backing behind the object.
+
+**3. The candidate-selection rule**, which spec §4 makes binding: judge candidates **composited over
+the real backdrop, at the real position, with the real Blob sprite** — never cutouts floating on
+transparency, where a shape that will never read correctly in place still looks fine. This is why the
+tree's candidate 8 and the lean-to's candidate 0 were both chosen from composites, not from a bare
+grid of the raw generations.
+
+**4. The review-object lifecycle.** A generation returns a review object holding every candidate in
+`review` status. `get_object` inspects it (list or fetch one candidate); `select_object_frames` keeps
+the one chosen, promoting it out of review; `dismiss_review` discards the rest. Nothing here is
+automatic — an object left in review is not otherwise cleaned up.
+
+**5. Budget roughly 8 minutes per generation job**, and do not poll it in a tight loop. This phase's
+most expensive lesson cost 107k tokens to a poll-wait loop with no working sleep primitive in this
+environment, and it lives only in this phase's SDD ledger, which gets deleted after merge — nowhere
+durable records it otherwise. Start the job, do something else, come back.
+
+**6. `SendUserFile` is not available to a subagent.** A task brief that names it as the way to show the
+owner a candidate sheet will fail for that reason alone, repeatedly, on this branch's own history. Use
+`Artifact` instead — publish an HTML page with the composites — and say so if the brief you were given
+named the other tool.

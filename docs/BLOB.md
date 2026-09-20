@@ -292,8 +292,8 @@ every offset table and fails the moment one of them stops being zero.
 
 ## 7. How the art is made
 
-Four asset classes, three different pipelines. All of it is committed, so a Pixel Lab outage can never
-affect the running app.
+Four asset classes, four pipelines. All of it is committed, so a Pixel Lab outage can never affect the
+running app.
 
 ### Bodies — character states
 
@@ -344,6 +344,25 @@ Foliage is separate layers over the static backdrop, because `animate_image` cap
 centroid 0.69px while recolouring 20–40% of its pixels every frame — leaves sparkling, not air moving.
 The shear introduces no new colours, drops no pixels, and loops exactly. The grass kept its generated
 frames, because on a 32px sprite the blades genuinely reshape.
+
+### The shelter — one object, edited through its states
+
+**F3.5's pipeline, and the fourth one.** `create_1_direction_object` once, as the lean-to, then
+`create_object_state` twice — hut, then cabin — because a state edit keeps one registration across all
+three, which is what makes "same footprint, filling in" structural rather than hoped for.
+`create_image_pro`, used for the backdrops, returns a `job_id` and cannot be state-edited at all — a
+different registry, and the reason that pipeline could not be reused here.
+
+Three tool facts cost time to learn: `style_images` forces a **square** output; candidate counts fall
+sharply as the style image grows (64 candidates at 32px, 16 at 48px); and a base64 style argument
+truncates in transit past roughly 1KB, fixed by quantising the reference first. One state edit (hut →
+cabin) did not hold the geometric promise and was hand-composited over its predecessor rather than
+re-rolled — the same measured-and-replaced move the tree's rejected `animate_image` output set as
+precedent in the scenes pipeline above.
+
+Full detail — the exact crop and quantise commands, the candidate-selection rule, the review-object
+lifecycle — lives in `scenes/README.md`'s "Running this pipeline again", not here: F3.6 runs this
+pipeline twelve more times, and that is the runbook it reads first.
 
 ### UI chrome — panels as nine-slices
 
@@ -569,7 +588,8 @@ resources/js/patyourself/
   companion.tsx                         payload types, ambientFor, selfStartedFor, actionsFor
   companion-bag.tsx                     the bag modal: contents, the build list, the skill list
   companion-animations.ts               the animation registry
-  companion-room.tsx                    the scene compositor and the light; takes inside and shelter
+  companion-room.tsx                    the scene compositor and the light; takes inside and shelter,
+                                        draws the standing structure
   companion-glyph.tsx                   the 8x8 mark beside a record line: sprout, crate, spark
   blob-renderer.tsx                     both renderers, worn items, ability props
   sprite-layout.ts                      forms, cells, the 231 anchors
@@ -577,7 +597,7 @@ resources/js/patyourself/
   scenes.ts                             the scene registry; each scene may carry a shelter coordinate
   part-of-day.ts                        partOfDay, asleepAt(), wakingAt()
   sprites/   + README.md                bodies, worn-item sheets, every measurement
-  scenes/    + README.md                backdrops, foliage, the light's reasoning
+  scenes/    + README.md                backdrops, foliage, the shelter sprites, the light's reasoning
   ui/        + README.md                the pixel frame and buttons
 resources/css/patyourself.css           .pixel-frame, .pixel-button, transition rules
 resources/js/pages/companion.tsx        the screen
@@ -610,6 +630,7 @@ Each of these was settled with evidence. The cost column is what getting it wron
 | **A node without a skill is a heap, not the world** | One property drives three behaviours: it is absent until placed, the record never stocks it, and it needs nothing learned. Stocking one would rebuild a cabin out of nothing, one outcome at a time. | A salvage pile in front of an account that never had a cabin, or a heap that regrows forever. |
 | **The shelter is not a `bag` category** | This departs from arc §5's taxonomy table, deliberately. A recipe in `bag` becomes knowable from its ingredients, so all three stages would list at once — and only the next stage is ever listed. A structure also does not stack in `companion_items`. | The build list becomes a checklist of three, which is the one thing the arc forbids. |
 | **The salvage is 26 planks, and 26 is not self-sufficient** | 4 + 8 + 14 is what the arc costs, but the cabin is consumed in one act of fourteen and the bag holds five plus five per container — so two crates, eight more planks, stand between the heap and the cabin. An established account reaches the hut and then has to play the economy for the rest. That is consistent with the cabin being something you build rather than something you are given; it is *not* what spec §6's own sentence claims. | An established account is told it can rebuild what it had and finds it cannot without gathering. |
+| **The shelter's `y=34` is chosen, not measured** | The measured ground line (PNG row 62 → `y=24`) is the clearing's *back wall*, not its open floor — a building standing on it reads as standing among the trunks rather than in the clearing. Four heights were rendered past that measured line before `y=34` was picked as the one that actually stands in it. | A later "correction" back onto the measured line puts the shelter back in the trees, with the render evidence that ruled it out gone unless this row is read first. |
 
 ## 11. Traps that have already bitten
 
@@ -650,14 +671,17 @@ Every one of these has cost a round on this project.
 
 ## 12. What is not done
 
-- **F4 (depth)** is what remains. F1 (the bag), F2 (the tools) and F3 (the shelter) are built; the
-  reasoning behind the whole arc, and what F4 is sketched to cover, lives in
-  `docs/superpowers/specs/2026-09-17-companion-progression-arc-design.md`.
+- **F4 (depth)** is what remains. F1 (the bag), F2 (the tools), F3 (the shelter's economy) and F3.5
+  (the shelter drawn) are built; the reasoning behind the whole arc, and what F4 is sketched to cover,
+  lives in `docs/superpowers/specs/2026-09-17-companion-progression-arc-design.md`.
 - ~~A full bag of timber has no exit.~~ **Closed by F3**: a harvest can take less than a bagful, and
   a carried stack can be tipped out. Both are the player's act; nothing discards on their behalf.
 - **Node hotspot labels do not scale with the stage.** A fixed 8px font, so below roughly a 300px
   stage the labels are larger than the room. F3 added a fifth object to the clearing, which makes it
-  urgent; it is a label-sizing problem and was deliberately left out of scope.
+  urgent; it is a label-sizing problem and was deliberately left out of scope. **First behavioural fact
+  on it, from F3.5:** a squeezed label **wraps before it overflows**. The reeds' label wraps at `x=52`
+  and sits on one line from `x=50` leftward, measured live at a 522px stage — reflow, not overflow, is
+  the failure mode actually open here, and nothing on this branch's box arithmetic models reflow.
 - **Two of the clearing's coordinates were rendered this session, found wrong, and corrected.**
   `scenes.ts`'s own comments had argued at length that both were sound, with no hint that anyone had
   since disagreed. Checked by viewing the built page and photographing the labels moved in the live
@@ -667,16 +691,35 @@ Every one of these has cost a round on this project.
     the other *labels* and never against the *creature*. `y=48` did not move — it is still the only
     value clearing both the grass line at 52 and the deadfall's label box — so the whole correction is
     in x.
-  - **The shelter moved `[44, -10]` → `[44, 22]`.** It floated in open sky instead of standing on the
-    ground; every other clearing object sits at `y ∈ {36, 40, 48, 62}` in a room spanning `y −38..76`.
-    `[44, 22]` puts it where the treeline meets the grass and leaves a 6.3-unit gap to `THE REEDS` at
-    `[44, 36]` even at a 300px stage.
+  - **The shelter's final position is `[44, 34]`, not `[44, 22]`.** The bullet that used to occupy this
+    line recorded `[44, -10]` → `[44, 22]` as the fix, and reasoned that `[44, 22]` put the shelter
+    "where the treeline meets the grass" — which is the exact placement the owner rejected: standing
+    where the treeline meets the grass reads as standing *in* the trees, not beside them. Every number
+    in that bullet was superseded before this phase shipped, and its reasoning was the trap `scenes.ts`
+    itself warns about elsewhere — a coordinate argued sound at length, with no hint anyone had since
+    disagreed — sitting inside the warning.
+
+    What actually decided it: PNG row 62 (`PNG row = y + 38`, giving `y=24`) is the backdrop's
+    *measured* ground line, identical across all four parts of day — but it is the clearing's **back
+    wall**, not its open floor, so a structure standing on it reads as standing among the trunks. Four
+    heights were rendered past that line; `y=34` is the one that actually stands in the clearing, and
+    `scenes.ts`'s own comment on `SceneSpec.shelter` now records the render, not just the arithmetic.
+
+    One rule was set aside knowingly, not missed: spec §3 nominates the vector renderer's declared body
+    (`BODY.w = 44`, so ±22) as the conservative clearance bound. The shipped `x=44` does not clear it —
+    the cell's left edge at `x=20` overlaps that declared box by 2 units. It clears the renderer that
+    actually draws instead (the sprite renderer, `config('companion.renderer')`'s default, measured
+    narrower at roughly ±15) by 5 units. `scenes.ts`'s own comment is candid about the trade; this file
+    should be too, rather than let a reader assume the stated conservative bound was met.
   - **The trunk's fix is width-limited, and the residual is the label-sizing problem above, not a
     coordinate.** Solving "right edge clears Blob's silhouette" against "left edge stays inside the
     room" gives a feasible window only down to roughly a 303px stage; below that no x exists, because
     the fixed-8px box is wider than the gap between Blob and the wall. Still open.
   - **`THE HEAP` at `[21, 62]` was checked and is fine** — it renders cleanly in its gap between the
-    middle and right grass tufts, with visible margin both sides. No label overlaps another label.
+    middle and right grass tufts, with visible margin both sides. **Scoped to labels**: no *label*
+    overlaps another label. The clearing also carries the shelter's 48×48 sprite cell and its own
+    control's hit region now, which this bullet never claimed anything about — `scenes.test.ts` checks
+    those separately, derived from `SHELTER_CELL`, not by a spot check on the heap.
 - **Scarf, hat and glasses are still flat rects.** The worn-item pipeline in §7 covers them — except the
   hat, which occludes and therefore needs a different answer.
 - **Phases B, C and D1/D2 have never been verified in production** — mail arriving, one-click links on a
