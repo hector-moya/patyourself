@@ -1197,6 +1197,10 @@
 /* Once its skill is known. A mark that something happened, never a score. */
 .c-node.is-known{border-color:#E9B96B;}
 .c-shelter{border-color:#E9B96B;background:rgba(15,12,9,.78);color:#FFD9A8;}
+/* Sized to the art it covers, not to a word. The picture is the affordance;
+   the outline is how a pointer and a keyboard find it. */
+.c-shelter--art{width:33.333%;height:42.105%;padding:0;background:transparent;border-color:transparent;}
+.c-shelter--art:hover{background:rgba(15,12,9,.28);border-color:#FFD9A8;}
 /* What is standing there, and only once something is. A zero would be a count
    of what you have not got. */
 .c-node i{font-style:normal;color:#FFD9A8;font-variant-numeric:tabular-nums;}

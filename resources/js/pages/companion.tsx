@@ -20,7 +20,7 @@ import { CompanionBag } from '@/patyourself/companion-bag';
 import { CompanionGlyph } from '@/patyourself/companion-glyph';
 import { CompanionRoom, roomOffset } from '@/patyourself/companion-room';
 import { partOfDay } from '@/patyourself/part-of-day';
-import { sceneFor } from '@/patyourself/scenes';
+import { sceneFor, SHELTER_CELL } from '@/patyourself/scenes';
 import { store as touchNodeRoute } from '@/routes/companion/nodes';
 
 interface CompanionPageProps {
@@ -366,7 +366,14 @@ function RoomCard({
                     shelterAt !== undefined && (
                         <ShelterSpot
                             label={bag.shelter.label ?? bag.shelter.built}
-                            at={roomOffset(shelterAt[0], shelterAt[1])}
+                            // The art's centre, not the base centre `shelterAt`
+                            // names: `.c-node` is translated by -50%,-50%, and
+                            // the art sits above the point the structure
+                            // stands on rather than around it.
+                            at={roomOffset(
+                                shelterAt[0],
+                                shelterAt[1] - SHELTER_CELL / 2,
+                            )}
                             onClick={onToggleInside}
                         />
                     )}
@@ -508,6 +515,11 @@ function NodeSpot({
             type="button"
             className={cn('c-node', known && 'is-known')}
             style={at}
+            // Named explicitly rather than left to fall out of the text
+            // content: today the two agree, but F3.6 replaces this button's
+            // text with a sprite, and the accessible name must not go with
+            // it.
+            aria-label={label}
             onClick={onClick}
         >
             {label}
@@ -519,11 +531,16 @@ function NodeSpot({
 }
 
 /**
- * What Blob built, standing in the clearing.
+ * The doorway into what Blob built, laid over its own art in the clearing.
  *
- * It says what it is and nothing else — no stage number, no "1 of 3", no hint
- * of what it might become. A cabin is a cabin; that it used to be a lean-to is
- * in the record panel, where history belongs.
+ * Sized to that art rather than to a word, and carrying no text of its own —
+ * the art already says what is standing there, so printing its name again
+ * (a stage number, "1 of 3", the label itself) would be this button
+ * narrating the picture instead of sitting quietly over it. `aria-label`
+ * carries the one thing the picture cannot: what pressing it does.
+ *
+ * A real `<button>` over the picture rather than a shape inside the svg, the
+ * same rule `NodeSpot` follows and does not change here.
  *
  * Clicking it goes inside, which is the same thing the plinth's own control
  * does. Two ways in rather than one, for the same reason Poke is both the
@@ -542,12 +559,12 @@ function ShelterSpot({
     return (
         <button
             type="button"
-            className={cn('c-node', 'c-shelter')}
+            className={cn('c-node', 'c-shelter', 'c-shelter--art')}
             style={at}
+            // The picture says what it is; the name says what pressing does.
+            aria-label={`Go inside the ${label}`}
             onClick={onClick}
-        >
-            {label}
-        </button>
+        />
     );
 }
 

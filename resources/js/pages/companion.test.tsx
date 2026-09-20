@@ -597,7 +597,9 @@ describe('Companion screen', () => {
                 />,
             );
 
-            const shelter = screen.getByRole('button', { name: /^cabin$/i });
+            const shelter = screen.getByRole('button', {
+                name: /go inside the cabin/i,
+            });
 
             expect(shelter).toHaveClass('c-shelter');
 
@@ -607,6 +609,48 @@ describe('Companion screen', () => {
                 'data-interior',
                 'cabin',
             );
+        });
+
+        /**
+         * The picture already says what is standing there — the label lives
+         * on the art now, not on the button. The button's only job is to
+         * name what pressing it does.
+         */
+        it('names the way into what Blob built, without printing a word on the picture', () => {
+            render(
+                <CompanionPage
+                    bag={bag({
+                        shelter: { built: 'hut', label: 'hut', offer: null },
+                    })}
+                    companion={companion({ scene: 'forest' })}
+                />,
+            );
+
+            const control = screen.getByRole('button', {
+                name: /go inside the hut/i,
+            });
+
+            expect(control).toBeEnabled();
+            // The art says what it is. The control must not also say it.
+            expect(control).toHaveTextContent('');
+        });
+
+        /**
+         * `NodeSpot` still has no art to sit over — the label is still its
+         * text content. What this pins is the explicit name, so the accessible
+         * name survives the day F3.6 puts a sprite where the text is now.
+         */
+        it('still names each thing in the clearing for a screen reader', () => {
+            render(
+                <CompanionPage
+                    bag={bag()}
+                    companion={companion({ scene: 'forest' })}
+                />,
+            );
+
+            expect(
+                screen.getByRole('button', { name: /the reeds/i }),
+            ).toHaveAttribute('aria-label', 'the reeds');
         });
 
         /** Nothing built, nothing standing. Not an outline, not a footprint. */
@@ -951,7 +995,7 @@ describe('Companion screen', () => {
             />,
         );
 
-        expect(screen.queryByRole('button', { name: /go inside/i })).toBeNull();
+        expect(screen.queryByRole('button', { name: 'Go inside' })).toBeNull();
     });
 
     it('goes inside what was built, and comes back out again', () => {
@@ -971,7 +1015,10 @@ describe('Companion screen', () => {
         expect(screen.getByRole('img')).toHaveAttribute('data-scene', 'forest');
         expect(screen.getByRole('img')).not.toHaveAttribute('data-interior');
 
-        fireEvent.click(screen.getByRole('button', { name: /go inside/i }));
+        // Exact name, not a /go inside/i pattern: ShelterSpot's own control
+        // is also named "Go inside the <label>" now, and a loose match finds
+        // both of them.
+        fireEvent.click(screen.getByRole('button', { name: 'Go inside' }));
 
         // The scene underneath is unchanged: the forest is always the world.
         expect(screen.getByRole('img')).toHaveAttribute('data-scene', 'forest');
@@ -998,7 +1045,7 @@ describe('Companion screen', () => {
         };
 
         const first = render(<CompanionPage {...props} />);
-        fireEvent.click(screen.getByRole('button', { name: /go inside/i }));
+        fireEvent.click(screen.getByRole('button', { name: 'Go inside' }));
         expect(screen.getByRole('img')).toHaveAttribute(
             'data-interior',
             'cabin',
@@ -1036,7 +1083,7 @@ describe('Companion screen', () => {
             screen.getByRole('button', { name: /the reeds/i }),
         ).toBeInTheDocument();
 
-        fireEvent.click(screen.getByRole('button', { name: /go inside/i }));
+        fireEvent.click(screen.getByRole('button', { name: 'Go inside' }));
 
         expect(screen.queryByRole('button', { name: /the reeds/i })).toBeNull();
     });
@@ -1054,7 +1101,7 @@ describe('Companion screen', () => {
 
         expect(screen.getByText('the forest')).toBeInTheDocument();
 
-        fireEvent.click(screen.getByRole('button', { name: /go inside/i }));
+        fireEvent.click(screen.getByRole('button', { name: 'Go inside' }));
 
         expect(screen.getByText('the hut')).toBeInTheDocument();
         expect(screen.queryByText('the forest')).toBeNull();
