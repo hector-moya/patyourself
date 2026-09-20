@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 import { ANIMATIONS } from './companion-animations';
-import { SCENES, sceneFor } from './scenes';
+import { SCENES, sceneFor, SHELTER_CELL, SHELTER_SPRITES, shelterSprite } from './scenes';
 
 /**
  * Imported assets resolve to a root-relative URL under Vite, and this file
@@ -225,5 +225,36 @@ describe('nodes and the shelter', () => {
         ];
 
         expect(new Set(points).size).toBe(points.length);
+    });
+});
+
+describe('the shelter sprites', () => {
+    it('draws every stage on the same 48x48 cell', () => {
+        for (const [stage, sheet] of Object.entries(SHELTER_SPRITES)) {
+            const { width, height } = sheetSize(sheet);
+
+            expect(`${stage}: ${width}x${height}`).toBe(`${stage}: ${SHELTER_CELL}x${SHELTER_CELL}`);
+        }
+    });
+
+    it('has a sprite for every stage the shelter config can reach', () => {
+        expect(Object.keys(SHELTER_SPRITES).sort()).toEqual(['cabin', 'hut', 'lean-to']);
+    });
+
+    it('does not resolve a stage it has no sprite for', () => {
+        // `constructor` resolves to a truthy function through the prototype
+        // chain on a bare lookup. BLOB.md §12 records that ROOM_OBJECTS and
+        // SPRITE_ITEMS still carry that bug and only scenes.ts was fixed.
+        expect(shelterSprite('constructor')).toBeUndefined();
+        expect(shelterSprite('mansion')).toBeUndefined();
+    });
+
+    it('stands the shelter on the measured ground line', () => {
+        // The measured ground line (PNG row 62, where PNG row = y + 38) is
+        // y=24 — but a render showed a building standing there reads as
+        // being IN the trees, because that line is the clearing's back wall
+        // rather than its open floor. Four heights were rendered; y=34 is
+        // the one the owner picked as actually standing in the clearing.
+        expect(SCENES.forest.shelter).toEqual([44, 34]);
     });
 });

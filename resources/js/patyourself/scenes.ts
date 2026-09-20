@@ -19,6 +19,9 @@ import forestDay from './scenes/forest-day.png';
 import forestDusk from './scenes/forest-dusk.png';
 import forestNight from './scenes/forest-night.png';
 import forestSunrise from './scenes/forest-sunrise.png';
+import shelterCabin from './scenes/shelter-cabin.png';
+import shelterHut from './scenes/shelter-hut.png';
+import shelterLeanTo from './scenes/shelter-lean-to.png';
 
 /**
  * A layer of moving foliage over a backdrop: one sheet, one row, uniform
@@ -91,9 +94,41 @@ export interface SceneSpec {
      *
      * Placement only, exactly as `nodes` is: WHETHER anything is standing
      * there, and which stage it is, both come from the server.
+     *
+     * Unlike `FoliageSpec.at`, which is a cell's top-left, this is the base
+     * centre — where the building *stands*. Foliage is a cell placed on a
+     * grid; a structure stands somewhere. The art's top-left derives as
+     * `(x − SHELTER_CELL/2, y − SHELTER_CELL)`.
      */
     shelter?: readonly [number, number];
 }
+
+/**
+ * One cell for all three stages, so the size is a constant rather than
+ * per-scene data. If a later scene ever needs a different one, that is when
+ * it earns a field on `SceneSpec`.
+ */
+export const SHELTER_CELL = 48;
+
+const SHELTER_SPRITES: Record<string, string> = {
+    'lean-to': shelterLeanTo,
+    hut: shelterHut,
+    cabin: shelterCabin,
+};
+
+/**
+ * The sprite for a built stage, or nothing.
+ *
+ * `Object.hasOwn` rather than a bare lookup: `SHELTER_SPRITES['constructor']`
+ * resolves to a function through the prototype chain, and a truthy value here
+ * would be passed to `<image href>`. BLOB.md §12 records that `ROOM_OBJECTS`
+ * and `SPRITE_ITEMS` still carry exactly that bug.
+ */
+export function shelterSprite(stage: string): string | undefined {
+    return Object.hasOwn(SHELTER_SPRITES, stage) ? SHELTER_SPRITES[stage] : undefined;
+}
+
+export { SHELTER_SPRITES };
 
 /**
  * `forest` is declared first: an unknown scene name falls back to whichever
@@ -148,7 +183,23 @@ export const SCENES: Record<string, SceneSpec> = {
         // grass line at y=52 so a hotspot never lands on a moving tuft.
         nodes: [
             { node: 'deadfall', at: [-46, 40] },
-            { node: 'reeds', at: [44, 36] },
+            // The shelter's 48-wide cell only fits between x=40 and x=48
+            // before overflowing the room's right edge at 72, so the shelter
+            // and the reeds are stuck sharing that column and can only be
+            // separated vertically. At the shelter's new y=34 the two
+            // collided at the reeds' old position, [44, 36], so the reeds
+            // move down and right to [58, 44] to clear it.
+            //
+            // The cost is real and measured, not free: hotspot labels are a
+            // fixed 8px font that does not scale with the SVG, so a label
+            // box occupies more room units the narrower the stage gets. At
+            // [58, 44] the reeds box touches the room's right wall at a
+            // 400px stage and overflows below it; at [44, 36] it did not.
+            // This is the known label-sizing problem docs/BLOB.md §12
+            // already records as open — and already true of the deadfall's
+            // "THE FALLEN BRANCHES" label against the room's LEFT wall at
+            // 320px — now extended to one more label. Accepted knowingly.
+            { node: 'reeds', at: [58, 44] },
             // Low and near, between the tree's foot and the centre, so it
             // reads as foreground without standing where Blob does.
             //
@@ -219,26 +270,25 @@ export const SCENES: Record<string, SceneSpec> = {
         // Back and to the right, against the treeline: a building belongs
         // behind the things you pick up rather than in front of them.
         //
-        // "LEAN-TO" is the longest of the three stage labels at 7 characters
-        // — about 56px, or 20 room units at a 400px stage — so a box centred
-        // at x=44 spans 34..54 and stays inside the room's right edge at 72.
-        // That reasoning is still correct and x stays at 44.
+        // This is the base centre the sprite stands on, not a label's centre
+        // — see `SceneSpec.shelter`'s docblock. The art's top-left derives as
+        // (x − SHELTER_CELL/2, y − SHELTER_CELL) = (20, −14).
         //
-        // y did not. [44, -10] was argued only against THE REEDS' label, 46
-        // units below at box heights of 6 units at 400px and 8 at 300px —
-        // never against the ground. A render this session — the built page
-        // viewed, the label dragged in the live DOM, the result photographed
-        // — showed it floating in open sky: every other object in the
-        // clearing sits at y ∈ {36, 40, 48, 62} in a room whose viewBox spans
-        // y −38..76, and −10 alone sat up among the landmark tree's canopy.
+        // x=44: the 48-wide cell only fits between about x=40 and x=48
+        // before its right edge overflows the room's right wall at 72 (here,
+        // 44 + 24 = 68, clear by 4). That window is narrow enough that
+        // nothing sharing it can be separated from the shelter sideways —
+        // which is why the reeds, which used to sit at this same x, moved
+        // instead; see the `reeds` node above.
         //
-        // 22 puts it where the treeline meets the grass at the back of the
-        // clearing — still behind the things you pick up, now standing on
-        // the ground instead of above it. THE REEDS sits at [44, 36], the
-        // same x; the vertical gap between the two label boxes is ~4.5 room
-        // units tall at a 508px stage and ~7.7 at 300px, so at y=22 the two
-        // clear each other by about 6.3 units even in the tightest case.
-        shelter: [44, 22],
+        // y=34, not the measured ground line. PNG row 62 is the backdrop's
+        // ground line in all four sprites (PNG row = y + 38), which gives
+        // y=24 — but rendered there a building reads as standing IN the
+        // trees: the measured ground line is the clearing's BACK WALL, not
+        // its open floor, so anything planted on it sits among the trunks
+        // rather than in the clearing. Four heights were rendered and y=34
+        // is the one that actually stands in the clearing.
+        shelter: [44, 34],
     },
 
     cabin: {
