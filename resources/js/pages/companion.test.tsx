@@ -25,12 +25,14 @@ vi.mock('@inertiajs/react', async (importOriginal) => {
     };
 });
 
+import { roomOffset } from '@/patyourself/companion-room';
 import {
     bag,
     companion,
     noCompanion,
     unlock,
 } from '@/patyourself/companion.fixture';
+import { SCENES, SHELTER_CELL, SHELTER_SPRITES } from '@/patyourself/scenes';
 
 import CompanionPage from './companion';
 
@@ -632,25 +634,46 @@ describe('Companion screen', () => {
 
             expect(control).toBeEnabled();
             // The art says what it is. The control must not also say it.
-            expect(control).toHaveTextContent('');
+            // `toBeEmptyDOMElement()`, not `toHaveTextContent('')`: jest-dom
+            // prints a warning on the latter's failure that reads as an
+            // invitation to delete the assertion rather than fix it.
+            expect(control).toBeEmptyDOMElement();
         });
 
         /**
          * `NodeSpot` still has no art to sit over — the label is still its
          * text content. What this pins is the explicit name, so the accessible
          * name survives the day F3.6 puts a sprite where the text is now.
+         *
+         * A stocked node, not the bare fixture: every node there defaults to
+         * `available: 0`, and an explicit `aria-label` overrides the subtree
+         * entirely — so a bare-fixture render cannot see the count drop out
+         * of the accessible name the way it would for a sighted user reading
+         * the visible `<i>4</i>`.
          */
-        it('still names each thing in the clearing for a screen reader', () => {
+        it('still names each thing in the clearing for a screen reader, count included', () => {
             render(
                 <CompanionPage
-                    bag={bag()}
+                    bag={bag({
+                        nodes: [
+                            {
+                                node: 'reeds',
+                                label: 'the reeds',
+                                available: 4,
+                                skill: 'gather-fibre',
+                                met: true,
+                                known: true,
+                                usable: true,
+                            },
+                        ],
+                    })}
                     companion={companion({ scene: 'forest' })}
                 />,
             );
 
             expect(
                 screen.getByRole('button', { name: /the reeds/i }),
-            ).toHaveAttribute('aria-label', 'the reeds');
+            ).toHaveAttribute('aria-label', 'the reeds, 4');
         });
 
         /** Nothing built, nothing standing. Not an outline, not a footprint. */
@@ -663,6 +686,75 @@ describe('Companion screen', () => {
             );
 
             expect(document.querySelector('.c-shelter')).toBeNull();
+        });
+
+        /**
+         * `CompanionBag::shelter()` deliberately keeps forwarding a stage
+         * config no longer defines — nothing about Blob is ever taken
+         * because an author edited a list. `ShelterLayer` already handles
+         * that (`shelterSprite` returns `undefined` and it draws nothing);
+         * `ShelterSpot` used to be gated only on `bag.shelter.built !==
+         * null`, which left an invisible, unlabelled 174×174 button
+         * standing over the clearing — worse than the retired stage it
+         * covered, because it swallowed clicks meant for whatever else was
+         * under it.
+         */
+        it('stands no shelter control over a stage the sprite sheet no longer knows', () => {
+            const retiredStage = 'yurt';
+            // Guards the test itself: if a future stage were ever named
+            // `yurt`, this case would stop exercising the retired-stage path
+            // and ought to fail here rather than pass for the wrong reason.
+            expect(Object.hasOwn(SHELTER_SPRITES, retiredStage)).toBe(false);
+
+            render(
+                <CompanionPage
+                    bag={bag({
+                        shelter: {
+                            built: retiredStage,
+                            label: retiredStage,
+                            offer: null,
+                        },
+                    })}
+                    companion={companion({ scene: 'forest' })}
+                />,
+            );
+
+            expect(document.querySelector('[data-shelter]')).toBeNull();
+            expect(document.querySelector('.c-shelter')).toBeNull();
+        });
+
+        /**
+         * The control sits on the art's own centre, not the base centre
+         * `SCENES.forest.shelter` names — `.c-node` is translated by
+         * -50%,-50%, and the art hangs above the point the structure stands
+         * on rather than around it. Derived from `SCENES.forest.shelter` and
+         * `SHELTER_CELL` rather than pasted, so this only fails on a wrong
+         * derivation and survives a deliberate coordinate change.
+         *
+         * A mutated offset here is not a cosmetic miss: shifting the box
+         * down by `SHELTER_CELL` moves it over the reeds' and the heap's own
+         * labels and, being last in DOM order among `.c-node` siblings at the
+         * same z-index, paints over their hit targets.
+         */
+        it('positions the shelter control on the art, not on the base it stands on', () => {
+            render(
+                <CompanionPage
+                    bag={bag({
+                        shelter: { built: 'cabin', label: 'cabin', offer: null },
+                    })}
+                    companion={companion({ scene: 'forest' })}
+                />,
+            );
+
+            const [shelterX, shelterY] = SCENES.forest.shelter!;
+            const expected = roomOffset(shelterX, shelterY - SHELTER_CELL / 2);
+
+            const control = screen.getByRole('button', {
+                name: /go inside the cabin/i,
+            });
+
+            expect(control.style.left).toBe(expected.left);
+            expect(control.style.top).toBe(expected.top);
         });
 
         /**

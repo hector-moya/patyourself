@@ -226,6 +226,43 @@ describe('nodes and the shelter', () => {
 
         expect(new Set(points).size).toBe(points.length);
     });
+
+    /**
+     * Distinctness alone lets a node move back onto the shelter's own
+     * footprint, as long as it lands on a point that is not the shelter's
+     * exact `at` — the reeds' pre-phase position, `[44, 36]`, is such a
+     * point, and it is why the reeds sit at `[50, 44]` now. This expresses
+     * the rule the move exists to keep, derived from `SCENES.forest.shelter`
+     * and `SHELTER_CELL` rather than pasted, so it survives a deliberate
+     * coordinate change and only fails on a wrong derivation — and, unlike
+     * overlap, is a structural property jsdom can actually check.
+     */
+    it('keeps every node clear of the shelter\'s own cell', () => {
+        const [shelterX, shelterY] = SCENES.forest.shelter!;
+        // The cell `ShelterLayer` actually draws: top-left
+        // `(shelterX − SHELTER_CELL/2, shelterY − SHELTER_CELL)`, `SHELTER_CELL`
+        // square — see `scenes.ts`'s own docblock on `SceneSpec.shelter`.
+        const cell = {
+            minX: shelterX - SHELTER_CELL / 2,
+            maxX: shelterX + SHELTER_CELL / 2,
+            minY: shelterY - SHELTER_CELL,
+            maxY: shelterY,
+        };
+
+        for (const node of SCENES.forest.nodes) {
+            const [x, y] = node.at;
+            const insideTheCell =
+                x >= cell.minX &&
+                x <= cell.maxX &&
+                y >= cell.minY &&
+                y <= cell.maxY;
+
+            expect({ node: node.node, insideTheCell }).toEqual({
+                node: node.node,
+                insideTheCell: false,
+            });
+        }
+    });
 });
 
 describe('the shelter sprites', () => {
@@ -239,6 +276,21 @@ describe('the shelter sprites', () => {
 
     it('has a sprite for every stage the shelter config can reach', () => {
         expect(Object.keys(SHELTER_SPRITES).sort()).toEqual(['cabin', 'hut', 'lean-to']);
+    });
+
+    /**
+     * Which sheet, not just that one exists: the key set alone, the PNG
+     * header (identical for all three by construction) and `data-shelter`
+     * (which echoes the stage name, not the file) all stay green if
+     * `'lean-to'` and `'cabin'` swap sheets — the clearing would then draw a
+     * cabin when the lean-to goes up and a lean-to when the cabin is
+     * finished, the upgrade arc running backwards. The Vite-resolved URL is
+     * the one thing that carries the filename.
+     */
+    it('draws the stage it names, not a different one wearing its key', () => {
+        expect(shelterSprite('lean-to')).toContain('shelter-lean-to');
+        expect(shelterSprite('hut')).toContain('shelter-hut');
+        expect(shelterSprite('cabin')).toContain('shelter-cabin');
     });
 
     it('does not resolve a stage it has no sprite for', () => {

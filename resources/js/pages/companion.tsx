@@ -20,7 +20,7 @@ import { CompanionBag } from '@/patyourself/companion-bag';
 import { CompanionGlyph } from '@/patyourself/companion-glyph';
 import { CompanionRoom, roomOffset } from '@/patyourself/companion-room';
 import { partOfDay } from '@/patyourself/part-of-day';
-import { sceneFor, SHELTER_CELL } from '@/patyourself/scenes';
+import { sceneFor, SHELTER_CELL, shelterSprite } from '@/patyourself/scenes';
 import { store as touchNodeRoute } from '@/routes/companion/nodes';
 
 interface CompanionPageProps {
@@ -363,7 +363,16 @@ function RoomCard({
                     the svg, the same rule the node hotspots follow. */}
                 {!inside &&
                     bag.shelter.built !== null &&
-                    shelterAt !== undefined && (
+                    shelterAt !== undefined &&
+                    // `CompanionBag::shelter()` deliberately keeps forwarding
+                    // a stage config no longer defines — nothing about Blob
+                    // is ever taken because an author edited a list. Gated
+                    // here on the sprite resolving so this control agrees
+                    // with `ShelterLayer`, which already draws nothing for
+                    // that stage: without this, a retired stage leaves an
+                    // invisible, unlabelled hit region standing in the
+                    // clearing.
+                    shelterSprite(bag.shelter.built) !== undefined && (
                         <ShelterSpot
                             label={bag.shelter.label ?? bag.shelter.built}
                             // The art's centre, not the base centre `shelterAt`
@@ -518,8 +527,11 @@ function NodeSpot({
             // Named explicitly rather than left to fall out of the text
             // content: today the two agree, but F3.6 replaces this button's
             // text with a sprite, and the accessible name must not go with
-            // it.
-            aria-label={label}
+            // it. An explicit `aria-label` overrides the subtree entirely,
+            // so the count has to be folded into it by hand or a sighted
+            // user keeps seeing the number while a screen reader stops
+            // hearing it.
+            aria-label={available > 0 ? `${label}, ${available}` : label}
             onClick={onClick}
         >
             {label}
