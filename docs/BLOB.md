@@ -682,11 +682,11 @@ Every one of these has cost a round on this project.
   on it, from F3.5:** a squeezed label **wraps before it overflows**. The reeds' label wraps at `x=52`
   and sits on one line from `x=50` leftward, measured live at a 522px stage — reflow, not overflow, is
   the failure mode actually open here, and nothing on this branch's box arithmetic models reflow.
-- **Two of the clearing's coordinates were rendered this session, found wrong, and corrected.**
-  `scenes.ts`'s own comments had argued at length that both were sound, with no hint that anyone had
-  since disagreed. Checked by viewing the built page and photographing the labels moved in the live
-  DOM; both are now shipped in `scenes.ts`, with comments that record the render and not just the
-  arithmetic.
+- **Three of the clearing's coordinates were rendered this session, found wrong, and corrected.**
+  `scenes.ts`'s own comments had argued at length that all three were sound, with no hint that
+  anyone had since disagreed. Checked by viewing the built page and photographing the labels moved
+  in the live DOM; all three are now shipped in `scenes.ts`, with comments that record the render
+  and not just the arithmetic.
   - **`THE FALLEN TRUNK` moved `[-24, 48]` → `[-40, 48]`.** It overlapped Blob: F2 computed it against
     the other *labels* and never against the *creature*. `y=48` did not move — it is still the only
     value clearing both the grass line at 52 and the deadfall's label box — so the whole correction is
