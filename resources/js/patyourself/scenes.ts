@@ -274,12 +274,26 @@ export const SCENES: Record<string, SceneSpec> = {
         // — see `SceneSpec.shelter`'s docblock. The art's top-left derives as
         // (x − SHELTER_CELL/2, y − SHELTER_CELL) = (20, −14).
         //
-        // x=44: the 48-wide cell only fits between about x=40 and x=48
-        // before its right edge overflows the room's right wall at 72 (here,
-        // 44 + 24 = 68, clear by 4). That window is narrow enough that
-        // nothing sharing it can be separated from the shelter sideways —
-        // which is why the reeds, which used to sit at this same x, moved
-        // instead; see the `reeds` node above.
+        // x=44, inside a window bounded on both sides by different things:
+        //   - Upper bound, from the wall: the cell's right edge must clear
+        //     the room's right wall at 72, so x + SHELTER_CELL/2 ≤ 72 gives
+        //     x ≤ 48. Nothing else produces this number.
+        //   - Lower bound, from Blob — and WHICH Blob matters, because the
+        //     two renderers disagree about how wide it is. `blob-renderer.tsx`
+        //     declares `BODY.w = 44` for the vector renderer, so its box
+        //     spans ±22 and the cell clears it at x ≥ 46. The sprite
+        //     renderer — what `config('companion.renderer')` defaults to,
+        //     and so what actually ships — draws a visibly narrower
+        //     silhouette, measured off a render at roughly ±15, clearing at
+        //     x ≥ 39 instead. Any clearance measured against "Blob" has to
+        //     say which of the two it used.
+        // At x=44 the cell's left edge is 20: it clears the drawn sprite (the
+        // one that renders) by 5 units, while overlapping the vector body's
+        // declared box by 2 — harmless only because the vector renderer is
+        // not what draws. Either way the window between the wall and Blob is
+        // narrow, which is why nothing sharing it can be separated from the
+        // shelter sideways, and why the reeds, which used to sit at this
+        // same x, moved instead; see the `reeds` node above.
         //
         // y=34, not the measured ground line. PNG row 62 is the backdrop's
         // ground line in all four sprites (PNG row = y + 38), which gives

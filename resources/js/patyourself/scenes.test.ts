@@ -249,7 +249,7 @@ describe('the shelter sprites', () => {
         expect(shelterSprite('mansion')).toBeUndefined();
     });
 
-    it('stands the shelter on the measured ground line', () => {
+    it('stands the shelter in the clearing, above the measured ground line', () => {
         // The measured ground line (PNG row 62, where PNG row = y + 38) is
         // y=24 — but a render showed a building standing there reads as
         // being IN the trees, because that line is the clearing's back wall
