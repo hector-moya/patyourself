@@ -66,7 +66,7 @@ grass are sheets read by the one shared clock, because they exist to carry wind.
 to be permanent. It subscribes to no clock, owns no `phase`, and has no row in
 `companion-animations.ts`.
 
-**Cell 32×32, bottom-aligned, base on the measured ground line.**
+**Cell 48×48, bottom-aligned, base on the measured ground line.**
 
 Everything below is derived from numbers already recorded in `scenes/README.md`, not chosen:
 
@@ -77,11 +77,27 @@ backdrop ground     PNG row 62           identical in all four, measured
 ```
 
 The cell's **bottom edge sits at y = 24**, so with the shelter standing at x = 44 the cell spans
-**x 28..60, y −8..24**. Two clearances, both checked:
+**x 20..68, y −24..24** — PNG cols 92..140, rows 14..62. Two clearances:
 
-- the room's right edge is at 72, so twelve units spare;
+- the room's right edge is at 72, so **four units spare**. That is tight, and it is stated rather
+  than glossed: the building sits deliberately at the right-hand treeline and a wider cell would
+  overhang the room.
 - the reeds stand at y = 36, twelve units **in front of** the building, which is the correct
-  relationship for something at the treeline.
+  relationship for something at the treeline. The reeds' hotspot box and the shelter's cell do not
+  overlap vertically at any stage width.
+
+**Why 48 and not the 32 first specced.** 32 was chosen from arithmetic. It was then generated,
+composited over the real backdrop and looked at, and two independent passes over the same 64
+candidates produced **shortlists with no overlap at all** — which turned out to be the finding: the
+art was too small to carry the distinctions being judged. Regenerated at 48, every candidate read
+unambiguously as a lean-to. If a *lean-to* could not be told from a plank pile at 32px, three stages
+that must differ visibly — open side, then walls, then a window — had no chance of carrying it.
+
+**The square is the tool's, not a choice.** `create_1_direction_object` derives its output size from
+the largest style image and **forces it square**; asked for 48×40 it returned 48×48. The art
+occupies roughly the lower 40 rows and the top is transparent, exactly as the landmark tree's art
+occupies only x 3..44 of its 48-wide cell. A true 48×40 would mean `create_image_pro`, which returns
+a `job_id` rather than an `object_id` and therefore costs the state-edit pipeline §4 rests on.
 
 Art need not fill the cell. Transparent rows at the top are expected, exactly as the tree's art
 occupies only x 3..44 of its 48-wide cell.
@@ -120,24 +136,32 @@ result. The lean-to must therefore come from an object tool or the pipeline does
 
 1. `create_1_direction_object`, `view: 'sidescroller'`, for the **lean-to** — the simplest
    silhouette and the base the others fill into. Returns an `object_id`.
-2. **Style reference: two 32×32 crops of `forest-day.png`**, passed as `style_images` (base64).
-   This tool takes no URL and — importantly — **`style_images` cannot be combined with `size`; the
-   largest style image determines the output size.** Two 32×32 crops therefore fix the output at
-   32×32 *and* carry the clearing's own palette, which is one constraint satisfying two
-   requirements. The crops, both verified:
+2. **Style reference: one 48×48 image**, passed as `style_images` (base64). This tool takes no URL
+   and — importantly — **`style_images` cannot be combined with `size`; the largest style image
+   determines the output size** (and squares it). The reference is a crop of `forest-day.png` at the
+   patch the building actually stands in, **PNG cols 92..140, rows 14..62**:
 
    ```bash
-   # the patch the building will actually stand in: treeline and sky
-   sips -c 32 32 --cropOffset 30 28 forest-day.png --out style-treeline.png
-   # the landmark tree's trunk and the ground: the wood and earth tones
-   sips -c 32 32 --cropOffset 38  8 forest-day.png --out style-trunk.png
+   sips -c 48 48 --cropOffset 14 92 forest-day.png --out style-spot.png
    ```
 
-   Two rather than one on purpose: a reference that is all foliage risks a tree-shaped building,
-   and the second patch is where the browns come from.
-3. **At size 32 the tool returns 64 candidates** in `review` status — the ≤42px tier — rather than
-   the four `create_image_pro` would give at this size. Inspect with `get_object`, keep with
-   `select_object_frames`, discard with `dismiss_review`.
+   **Get the column right.** PNG col = x + 72, so the cell's left edge at room x = 20 is **col 92**,
+   not col 20. An earlier draft of this spec said col 28 — conflating a room x with a PNG column —
+   and it survived into the plan and a dispatch before a composite caught it.
+
+   **One composited reference beats several raw ones.** Once a candidate has been chosen, composite
+   it *into* that forest crop at its real offset and pass the single result. It then carries palette,
+   lighting and the chosen silhouette together, in context. Passing the chosen sprite on its own
+   alongside a forest crop is worse than it looks: quantising a transparent PNG to shrink it turns
+   the background **black** and teaches the model exactly that.
+
+   **Base64 arguments get truncated.** A first attempt failed with
+   `broken data stream ... the value was TRUNCATED`; the tool's own docs warn that MCP clients cut
+   large arguments, and `style_images` has no URL variant. Quantising to 32 colours took the
+   reference from ~4,850 base64 characters to ~1,200, which goes through.
+3. **Candidate count is a function of size, and bigger art buys fewer options.** 32px sits in the
+   ≤42 tier and returns **64** candidates; 48px sits in the ≤85 tier and returns **16**. Inspect with
+   `get_object`, keep with `select_object_frames`, discard with `dismiss_review`.
 4. **Generated in neutral light.** The scene's light is one overlay drawn last over backdrop,
    foliage and Blob alike; anything lit for noon would be lit twice. Nothing in the tool enforces
    this — it lives in the description prose and is checked by eye.

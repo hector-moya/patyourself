@@ -4,7 +4,7 @@
 
 **Goal:** Replace the shelter's text label with three drawn structures standing in the forest clearing, so the thing Blob built is visible.
 
-**Architecture:** Three single-frame 32×32 PNGs, generated as one Pixel Lab *object* and two state-edits of it so the footprint is preserved structurally. A static `<image>` layer in `CompanionRoom` draws the standing stage over the backdrop and under Blob, inheriting the light wash. `ShelterSpot` stops being the art and becomes a transparent, accessibly-named control sized to it.
+**Architecture:** Three single-frame 48×48 PNGs, generated as one Pixel Lab *object* and two state-edits of it so the footprint is preserved structurally. A static `<image>` layer in `CompanionRoom` draws the standing stage over the backdrop and under Blob, inheriting the light wash. `ShelterSpot` stops being the art and becomes a transparent, accessibly-named control sized to it.
 
 **Tech Stack:** React 19, Inertia v3, Vitest + Testing Library, TypeScript, Pixel Lab MCP, `sips` (macOS, for crops).
 
@@ -37,39 +37,37 @@ Art first, unlike F1–F3. The phase's whole risk is here, and Batch 2's tests a
 ### Task 1: Generate the lean-to, and present the candidates
 
 **Files:**
-- Create (scratch, not committed): two 32×32 style crops in your scratch directory.
+- Create (scratch, not committed): one 48×48 style crop in your scratch directory.
 
 **Interfaces:**
 - Produces: a Pixel Lab `object_id` for the lean-to, and the owner's chosen candidate index. Task 2 consumes both.
 
-- [ ] **Step 1: Make the two style crops**
+- [ ] **Step 1: Make the style crop**
 
-`create_1_direction_object` takes `style_images` as base64 and **cannot be combined with `size`** — the largest style image determines the output size. Two 32×32 crops therefore fix the output at 32×32 *and* carry the clearing's palette.
+`create_1_direction_object` takes `style_images` as base64 and **cannot be combined with `size`** — the largest style image determines the output size. A 48×48 crop therefore fixes the output at 48×48 *and* carries the clearing's palette. The tool **forces the output square** — asked for 48×40 it returns 48×48.
 
 ```bash
 cd resources/js/patyourself/scenes
-sips -c 32 32 --cropOffset 30 28 forest-day.png --out /tmp/style-treeline.png
-sips -c 32 32 --cropOffset 38  8 forest-day.png --out /tmp/style-trunk.png
-sips -g pixelWidth -g pixelHeight /tmp/style-treeline.png
-sips -g pixelWidth -g pixelHeight /tmp/style-trunk.png
+sips -c 48 48 --cropOffset 14 92 forest-day.png --out /tmp/style-spot.png
+sips -g pixelWidth -g pixelHeight /tmp/style-spot.png
 ```
 
-Expected: both report `pixelWidth: 32`, `pixelHeight: 32`.
+Expected: `pixelWidth: 48`, `pixelHeight: 48`.
 
-Both offsets are verified. The first is the patch the building will actually stand in — treeline and sky. The second is the landmark tree's trunk and the ground, and it exists because a reference that is all foliage risks producing a tree-shaped building; the browns come from this one.
+The offset is verified: PNG col 92, row 14 is the patch the building actually stands in. **PNG col = x + 72**, so the cell's left edge at room x=20 is col 92 — an earlier draft said col 28, conflating the room x with the column, and it reached a dispatch before a composite caught it.
 
-Write them outside the repo. They are inputs, not assets.
+Write it outside the repo. It is an input, not an asset.
 
 - [ ] **Step 2: Generate the lean-to as an object**
 
 Use `mcp__claude_ai_Pixel_Lab__create_1_direction_object` with:
 
 - `view: 'sidescroller'`
-- `style_images`: both crops, each `{ "base64": "<png bytes>", "format": "png" }`
+- `style_images`: the one crop, as `{ "base64": "<png bytes>", "format": "png" }`. **Quantise it first** — base64 arguments get truncated in transit and the tool has no URL variant; 32 colours takes it from ~4,850 characters to ~1,200.
 - **no `size`** — it is mutually exclusive with `style_images`
 - `description`: a lean-to of rough planks leaned against each other, open on one side, standing on grass at the edge of a forest clearing. **State neutral, even, flat daylight with no cast shadows and no time-of-day colour** — the scene's light is one overlay drawn last over backdrop, foliage and Blob alike, so anything lit for dusk gets lit twice. Nothing in the tool enforces this; it lives in the prose.
 
-At 32px (the ≤42 tier) this returns **64 candidates** in `review` status.
+At 48px (the ≤85 tier) this returns **16 candidates** in `review` status. Candidate count falls as size rises: 32px would give 64.
 
 - [ ] **Step 3: Inspect the candidates**
 
@@ -79,11 +77,11 @@ At 32px (the ≤42 tier) this returns **64 candidates** in `review` status.
 
 **This step is the one that matters and it is easy to skip.** The tree's candidate 8 was chosen from a composite over the real `forest-day.png` with the real Blob sprite at its real position, and the README records why: *a tree that will never read correctly in place still looks fine on cutouts over transparency.* The shelter sits at the treeline where it competes with backdrop detail, so it matters more here.
 
-Build a contact sheet placing each candidate at its real position — top-left `(28, -8)` in room coordinates, which is **PNG col 28, row 30** — over `forest-day.png`, with Blob's sprite at its real position. Scale the sheet up (6× or 8×) so 32px art is judgeable.
+Build a contact sheet placing each candidate at its real position — top-left `(20, -24)` in room coordinates, which is **PNG col 92, row 14** — PNG col = x + 72, so do not mistake the room x for the column — over `forest-day.png`, with Blob's sprite at its real position. Scale the sheet up (5× or more) so 48px art is judgeable.
 
 - [ ] **Step 5: Send the sheet to the owner and STOP**
 
-Use `SendUserFile`. Say which candidate indices you would shortlist and why, in terms of: does it read as a shelter at 32px, does it sit on the ground line, is it lit flat, and does its silhouette leave room to be filled in twice without changing footprint.
+Use `SendUserFile`. Say which candidate indices you would shortlist and why, in terms of: does it read as a shelter at 48px, does it sit on the ground line, is it lit flat, and does its silhouette leave room to be filled in twice without changing footprint.
 
 **Do not choose. Do not proceed to Task 2.** The choice is the owner's.
 
@@ -141,7 +139,7 @@ Say plainly whether the footprint held. If a stage drifted, say so and propose t
 - Create: `resources/js/patyourself/scenes/shelter-cabin.png`
 - Modify: `resources/js/patyourself/scenes/README.md`
 
-- [ ] **Step 1: Download all three at 32×32**
+- [ ] **Step 1: Download all three at 48×48**
 
 Fetch each state's PNG. Then verify, because the tool's output size is inferred rather than set:
 
@@ -152,7 +150,7 @@ for f in shelter-lean-to.png shelter-hut.png shelter-cabin.png; do
 done
 ```
 
-Expected: every one reports `pixelWidth: 32`, `pixelHeight: 32`. **If any differ, stop and report** — Task 4's test asserts 32×32 and a mismatch means the pipeline produced something other than what was specced. Do not resize to make it fit.
+Expected: every one reports `pixelWidth: 48`, `pixelHeight: 48`. **If any differ, stop and report** — Task 4's test asserts 48×48 and a mismatch means the pipeline produced something other than what was specced. Do not resize to make it fit.
 
 - [ ] **Step 2: Confirm transparency**
 
@@ -182,7 +180,7 @@ git commit -m "feat(companion): draw the three shelters Blob can build"
 
 ## Batch 1 review checkpoint
 
-**Stop.** Report to the owner: the three PNGs at 32×32 with alpha, the composite showing the shared footprint, and every job id recorded. Nothing renders yet — Batch 2 wires it.
+**Stop.** Report to the owner: the three PNGs at 48×48 with alpha, the composite showing the shared footprint, and every job id recorded. Nothing renders yet — Batch 2 wires it.
 
 ---
 
@@ -197,7 +195,7 @@ git commit -m "feat(companion): draw the three shelters Blob can build"
 - Test: `resources/js/patyourself/scenes.test.ts`
 
 **Interfaces:**
-- Produces: `SHELTER_CELL: number` (32), `SHELTER_SPRITES: Record<string, string>`, `shelterSprite(stage: string): string | undefined`. `SceneSpec.shelter` changes meaning to the base centre and its value becomes `[44, 24]`. Task 5 consumes all of these.
+- Produces: `SHELTER_CELL: number` (48), `SHELTER_SPRITES: Record<string, string>`, `shelterSprite(stage: string): string | undefined`. `SceneSpec.shelter` changes meaning to the base centre and its value becomes `[44, 24]`. Task 5 consumes all of these.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -205,7 +203,7 @@ Append to `resources/js/patyourself/scenes.test.ts`. **Read the file's existing 
 
 ```ts
 describe('the shelter sprites', () => {
-    it('draws every stage on the same 32x32 cell', () => {
+    it('draws every stage on the same 48x48 cell', () => {
         for (const [stage, sheet] of Object.entries(SHELTER_SPRITES)) {
             const { width, height } = sheetSize(sheet);
 
@@ -233,7 +231,7 @@ describe('the shelter sprites', () => {
 });
 ```
 
-The first case interpolates the stage name into the compared string deliberately: a bare `expect(width).toBe(32)` inside a loop reports `expected 48 to be 32` without saying *which* stage failed.
+The first case interpolates the stage name into the compared string deliberately: a bare `expect(width).toBe(48)` inside a loop reports `expected 32 to be 48` without saying *which* stage failed.
 
 - [ ] **Step 2: Run them and watch them fail**
 
@@ -258,7 +256,7 @@ Then, near `SCENES`:
  * per-scene data. If a later scene ever needs a different one, that is when
  * it earns a field on `SceneSpec`.
  */
-export const SHELTER_CELL = 32;
+export const SHELTER_CELL = 48;
 
 const SHELTER_SPRITES: Record<string, string> = {
     'lean-to': shelterLeanTo,
@@ -361,11 +359,11 @@ describe('the shelter standing in the clearing', () => {
         const container = room({}, 12, { shelter: 'lean-to' });
         const drawn = container.querySelector('[data-shelter]');
 
-        // shelter is [44, 24]; top-left is (x - CELL/2, y - CELL).
-        expect(drawn).toHaveAttribute('x', '28');
-        expect(drawn).toHaveAttribute('y', '-8');
-        expect(drawn).toHaveAttribute('width', '32');
-        expect(drawn).toHaveAttribute('height', '32');
+        // shelter is [44, 24], CELL is 48; top-left is (x - CELL/2, y - CELL).
+        expect(drawn).toHaveAttribute('x', '20');
+        expect(drawn).toHaveAttribute('y', '-24');
+        expect(drawn).toHaveAttribute('width', '48');
+        expect(drawn).toHaveAttribute('height', '48');
     });
 });
 ```
@@ -516,7 +514,7 @@ function ShelterSpot({
 }
 ```
 
-At its call site, the position must be the **art's centre**, not the base centre, because `.c-node` is translated by `-50%, -50%`. With `shelter` at `[44, 24]` and a 32 cell, the art's centre is `[44, 8]`:
+At its call site, the position must be the **art's centre**, not the base centre, because `.c-node` is translated by `-50%, -50%`. With `shelter` at `[44, 24]` and a 48 cell, the art's centre is `[44, 0]`:
 
 ```tsx
 at={roomOffset(shelterAt[0], shelterAt[1] - SHELTER_CELL / 2)}
@@ -533,11 +531,11 @@ Append to `resources/css/patyourself.css`, matching the house style exactly — 
 ```css
 /* Sized to the art it covers, not to a word. The picture is the affordance;
    the outline is how a pointer and a keyboard find it. */
-.c-shelter--art{width:22.222%;height:28.070%;padding:0;background:transparent;border-color:transparent;}
+.c-shelter--art{width:33.333%;height:42.105%;padding:0;background:transparent;border-color:transparent;}
 .c-shelter--art:hover{background:rgba(15,12,9,.28);border-color:#FFD9A8;}
 ```
 
-`22.222%` is `SHELTER_CELL / 144` and `28.070%` is `SHELTER_CELL / 114` — the cell as a fraction of the room's own box, so it tracks the stage at any width exactly as `roomOffset` does. `.c-node:focus-visible` already supplies the focus outline and is inherited.
+`33.333%` is `SHELTER_CELL / 144` and `42.105%` is `SHELTER_CELL / 114` — the cell as a fraction of the room's own box, so it tracks the stage at any width exactly as `roomOffset` does. `.c-node:focus-visible` already supplies the focus outline and is inherited.
 
 - [ ] **Step 6: Widen the shared fixture, in this task**
 
@@ -649,7 +647,7 @@ Expected: clean.
 | --- | --- |
 | §1 the split; F3.5 is the machine | the batch structure; §6's inheritance is untouched here |
 | §2 band logic deferred; `NodeSpot` keeps its label | 6 (Step 4 is the only change it gets) |
-| §3 the sprite, 32×32, base on the ground line | 1, 3, 4, 5 |
+| §3 the sprite, 48×48, base on the ground line | 1, 3, 4, 5 |
 | §4 the pipeline, object-then-state-edit | 1, 2, 3 |
 | §5 static layer, not a foliage layer | 5 |
 | §5 one coordinate, two derivations, meaning change | 4 (Steps 3–4), 5, 6 (Step 3) |
