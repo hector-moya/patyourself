@@ -24,7 +24,13 @@ import {
     roomSize,
 } from '@/patyourself/companion-room';
 import { partOfDay } from '@/patyourself/part-of-day';
-import { sceneFor, SHELTER_CELL, shelterSprite } from '@/patyourself/scenes';
+import {
+    nodeCell,
+    nodeSprite,
+    sceneFor,
+    SHELTER_CELL,
+    shelterSprite,
+} from '@/patyourself/scenes';
 import { store as touchNodeRoute } from '@/routes/companion/nodes';
 
 interface CompanionPageProps {
@@ -374,18 +380,23 @@ function RoomCard({
                         const node = bag.nodes.find(
                             (candidate) => candidate.node === spec.node,
                         );
+                        const cell = nodeCell(spec.node);
 
-                        // A heap (no skill) is not part of the world the way
-                        // the other three are: `CompanionBag::nodes()` only
-                        // ever sends one once something has actually been
-                        // left there, never at zero. The fixture's own
-                        // default salvage row keeps `available: 0` so tests
-                        // can still find the row, so this guard is what keeps
-                        // that row from drawing a hotspot no real payload
-                        // could ever produce.
+                        // `CompanionBag::nodes()` deliberately keeps sending
+                        // the heap at `available: 0` with no band, so tests
+                        // can still find the row — nothing about the world is
+                        // taken away because nothing has been left there yet.
+                        // Gated here on the sprite resolving so this control
+                        // agrees with `NodeLayer`, which already draws
+                        // nothing for a band with no art: without this, an
+                        // empty heap (or any future node whose band has no
+                        // art) leaves an invisible, unlabelled hit region
+                        // standing in the clearing — the defect 15e893a
+                        // fixed for the shelter.
                         if (
                             node === undefined ||
-                            (node.skill === null && node.available === 0)
+                            cell === undefined ||
+                            nodeSprite(spec.node, node.band) === undefined
                         ) {
                             return null;
                         }
@@ -395,9 +406,22 @@ function RoomCard({
                                 key={spec.node}
                                 label={node.label}
                                 available={node.available}
-                                known={node.known}
-                                at={roomOffset(spec.at[0], spec.at[1])}
-                                onClick={() => onTouchNode(spec.node)}
+                                cell={cell}
+                                // The art's centre, not the base centre `at`
+                                // names: `.c-node` is translated by
+                                // -50%,-50%, and the art sits above the point
+                                // the thing stands on rather than around it.
+                                at={roomOffset(
+                                    spec.at[0],
+                                    spec.at[1] - cell[1] / 2,
+                                )}
+                                onClick={() => {
+                                    // A drained heap is deleted, so this
+                                    // control can remove itself — the same
+                                    // shape `ShelterSpot` has.
+                                    recoverFocus.current = true;
+                                    onTouchNode(spec.node);
+                                }}
                             />
                         );
                     })}
@@ -546,49 +570,53 @@ function Record({ companion }: { companion: CompanionData }) {
 }
 
 /**
- * One thing standing in the clearing.
+ * One thing standing in the clearing, as a control over its own picture.
  *
- * A real `<button>` over the picture rather than a shape inside the svg, so it
- * is focusable, announced, and reachable without a mouse.
+ * A real `<button>` laid over the svg rather than a shape inside it, so it is
+ * focusable, announced, and reachable without a mouse — the same rule
+ * `ShelterSpot` follows and the reason neither is a `<foreignObject>`.
  *
- * What it shows is what is THERE: its name always, and a count only once
- * something has actually accrued. No lock, no "requires", no price — the price
- * lives in the bag, which the encounter opens. A node you cannot use looks
- * exactly like one you can, because that is the whole mechanic.
+ * IT CARRIES NO TEXT. The art says what is standing there and how much of it,
+ * so printing the name again would be this button narrating the picture. That
+ * also retires the label-sizing problem BLOB.md §12 has carried since F1: the
+ * labels were a fixed 8px font that did not scale with the svg, so below
+ * roughly a 300px stage they wrapped to a second line. The box is measured in
+ * room units now and scales with the picture.
+ *
+ * NO `is-known` EITHER, and that RESTORES a rule rather than dropping one: a
+ * node you cannot use is supposed to look exactly like one you can, because
+ * that sameness IS the mechanic, and the border this used to grow when a
+ * skill was bought quietly contradicted it. Putting the distinction on the
+ * art instead would be worse — a fact about the record drawn into the world.
+ *
+ * `aria-label` carries the one thing the picture cannot: the exact amount. It
+ * overrides the subtree entirely, so the number has to be folded in by hand —
+ * otherwise deleting the text takes it away from a screen reader while
+ * leaving it in the picture for everyone else.
  */
 function NodeSpot({
     label,
     available,
-    known,
+    cell,
     at,
     onClick,
 }: {
     label: string;
     available: number;
-    known: boolean;
+    cell: readonly [number, number];
     at: { left: string; top: string };
     onClick: () => void;
 }) {
     return (
         <button
             type="button"
-            className={cn('c-node', known && 'is-known')}
-            style={at}
-            // Named explicitly rather than left to fall out of the text
-            // content: today the two agree, but F3.6 replaces this button's
-            // text with a sprite, and the accessible name must not go with
-            // it. An explicit `aria-label` overrides the subtree entirely,
-            // so the count has to be folded into it by hand or a sighted
-            // user keeps seeing the number while a screen reader stops
-            // hearing it.
+            className={cn('c-node', 'c-node--art')}
+            style={{ ...at, ...roomSize(cell[0], cell[1]) }}
+            // Only once there is something to take. A zero would be a count
+            // of what you have not got.
             aria-label={available > 0 ? `${label}, ${available}` : label}
             onClick={onClick}
-        >
-            {label}
-            {/* Only once there is something to take. A zero would be a count
-                of what you have not got. */}
-            {available > 0 && <i>{available}</i>}
-        </button>
+        />
     );
 }
 

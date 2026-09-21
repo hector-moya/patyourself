@@ -102,12 +102,35 @@ describe('Companion screen', () => {
      */
     it('never shows what has not happened', () => {
         renderClearing({
-            // The clearing's shelter object renders only once something
-            // has been built, on a scene that names it a place to
-            // stand — the bare fixture and the default cabin scene both
-            // leave it absent, which would leave this guard blind to it.
             bag: {
+                // The clearing's shelter object renders only once something
+                // has been built, on a scene that names it a place to
+                // stand — the bare fixture and the default cabin scene both
+                // leave it absent, which would leave this guard blind to it.
                 shelter: { built: 'hut', label: 'hut', offer: null },
+                // The fixture's own nodes all sit at `available: 0`, which is
+                // real art (the `bare` band) but never the art this guard has
+                // to cover — mapping over the fixture's rows, rather than
+                // replacing the array, keeps the heap in place with nothing
+                // standing at it (its `band: ''` has no sprite, so it stays
+                // undrawn, which is the right clearing for an account that
+                // never had a cabin) while giving the other three something
+                // standing: reeds a `plenty`, the rest a `some`, so the guard
+                // sees each drawn band at least once.
+                nodes: bag().nodes.map((node) => {
+                    if (node.node === 'salvage') {
+                        return node;
+                    }
+
+                    return node.node === 'reeds'
+                        ? {
+                              ...node,
+                              available: 27,
+                              band: 'plenty',
+                              known: true,
+                          }
+                        : { ...node, available: 3, band: 'some', known: true };
+                }),
             },
         });
 
@@ -151,21 +174,30 @@ describe('Companion screen', () => {
                     },
                 ],
                 // The fixture's own nodes default to available: 0, which
-                // leaves Clearing rendering null and this guard blind to
-                // it. At least one node standing and known so the
-                // clearing group actually renders here.
-                nodes: [
-                    {
-                        node: 'reeds',
-                        label: 'the reeds',
-                        available: 4,
-                        band: 'some',
-                        skill: 'gather-fibre',
-                        met: true,
-                        known: true,
-                        usable: true,
-                    },
-                ],
+                // leaves Clearing rendering null and this guard blind to it.
+                // Mapping over the fixture's rows, rather than replacing the
+                // array with one node, keeps the heap in place with nothing
+                // standing at it (its `band: ''` has no sprite, so it stays
+                // undrawn — the right clearing for an account that never had
+                // a cabin) while giving the other three something standing:
+                // reeds a `plenty`, the rest a `some`, so the guard sees each
+                // drawn band at least once. Replacing the array here rather
+                // than mapping is trap 9 committed while fixing trap 9 — it
+                // silently drops the other three out of this very guard.
+                nodes: bag().nodes.map((node) => {
+                    if (node.node === 'salvage') {
+                        return node;
+                    }
+
+                    return node.node === 'reeds'
+                        ? {
+                              ...node,
+                              available: 27,
+                              band: 'plenty',
+                              known: true,
+                          }
+                        : { ...node, available: 3, band: 'some', known: true };
+                }),
                 // The fixture's own shelter defaults to a null offer, which
                 // leaves the bag's own Shelter section rendering null and
                 // this guard blind to it — a section that renders null is
@@ -429,7 +461,16 @@ describe('Companion screen', () => {
             expect(post.mock.calls[0][0]).toContain('/companion/nodes/reeds');
         });
 
-        /** What is standing there, once something is. */
+        /**
+         * What is standing there, once something is. The art carries the
+         * picture now, so the count lives only in the accessible name —
+         * `NodeSpot` carries no text content at all.
+         *
+         * The mutation that turns this red: drop the `available > 0` guard
+         * so a zero prints a count of what has not accrued — the fallen
+         * branches' name would then be "the fallen branches, 0" and the
+         * exact-name lookup below would stop finding it.
+         */
         it('shows what has accrued, and nothing when nothing has', () => {
             render(
                 <CompanionPage
@@ -462,12 +503,12 @@ describe('Companion screen', () => {
             );
 
             expect(
-                screen.getByRole('button', { name: /the reeds/i }),
-            ).toHaveTextContent('4');
+                screen.getByRole('button', { name: 'the reeds, 4' }),
+            ).toBeInTheDocument();
             // A zero would be a count of what you have not got.
             expect(
-                screen.getByRole('button', { name: /the fallen branches/i }),
-            ).toHaveTextContent(/^the fallen branches$/i);
+                screen.getByRole('button', { name: 'the fallen branches' }),
+            ).toBeInTheDocument();
         });
 
         /** Indoors there is no clearing, so there is nothing to touch. */
@@ -1286,6 +1327,113 @@ describe('Companion screen', () => {
         expect(document.activeElement).toBe(
             screen.getByRole('button', { name: 'Go outside' }),
         );
+    });
+});
+
+describe('the clearing has no words in it', () => {
+    /**
+     * The phase's own acceptance criterion. Every node's name was printed in
+     * the clearing at a fixed 8px font that did not scale with the svg, which
+     * is the label-sizing problem BLOB.md §12 has carried since F1. It is
+     * retired by deletion, not by a font rule.
+     *
+     * The mutation that turns this red: put `{label}` back in the button.
+     */
+    it('prints no node name over the picture', () => {
+        renderClearing();
+
+        expect(screen.queryByText('the reeds')).toBeNull();
+        expect(screen.queryByText('the fallen branches')).toBeNull();
+        expect(screen.queryByText('the fallen trunk')).toBeNull();
+    });
+
+    /**
+     * And no amount either — the art carries it. A digit over the picture is
+     * the number this phase exists to stop printing.
+     *
+     * The mutation that turns this red: restore the `<i>{available}</i>`.
+     */
+    it('prints no amount over the picture', () => {
+        renderClearing({
+            bag: {
+                nodes: [
+                    {
+                        node: 'reeds',
+                        label: 'the reeds',
+                        available: 27,
+                        band: 'plenty',
+                        skill: 'gather-fibre',
+                        met: true,
+                        known: true,
+                        usable: true,
+                    },
+                ],
+            },
+        });
+
+        expect(screen.queryByText('27')).toBeNull();
+    });
+
+    /**
+     * What a screen reader hears is the one thing that does NOT change. The
+     * picture is a band; the name is the number behind it, which AT users have
+     * today and must not lose to a redraw they cannot see.
+     *
+     * The mutation that turns this red: drop `, ${available}` from the label,
+     * or swap it for the band word.
+     */
+    it('still tells a screen reader exactly how much is standing', () => {
+        renderClearing({
+            bag: {
+                nodes: [
+                    {
+                        node: 'reeds',
+                        label: 'the reeds',
+                        available: 27,
+                        band: 'plenty',
+                        skill: 'gather-fibre',
+                        met: true,
+                        known: true,
+                        usable: true,
+                    },
+                ],
+            },
+        });
+
+        expect(
+            screen.getByRole('button', { name: 'the reeds, 27' }),
+        ).toBeInTheDocument();
+    });
+
+    /**
+     * A node with nothing at it is named without a number. A zero would be a
+     * count of what you have not got — the rule the old `available > 0` guard
+     * on the printed count already followed, carried over to the name.
+     */
+    it('names an empty node without a number', () => {
+        renderClearing();
+
+        expect(
+            screen.getByRole('button', { name: 'the reeds' }),
+        ).toBeInTheDocument();
+    });
+
+    /**
+     * The control is sized to the art it covers, so it scales with the stage
+     * rather than being right at one width. `toHaveClass`, not `toContain`,
+     * because a template literal that eats its leading space ships
+     * `class="c-nodec-node--art"` and a substring check passes on that.
+     *
+     * The mutation that turns this red: drop `roomSize(...)` from the style.
+     */
+    it('sizes each node control to its own art', () => {
+        renderClearing();
+
+        const spot = screen.getByRole('button', { name: 'the reeds' });
+
+        expect(spot).toHaveClass('c-node', 'c-node--art');
+        expect(spot).not.toHaveClass('is-known');
+        expect(spot.style.width).not.toBe('');
     });
 });
 
