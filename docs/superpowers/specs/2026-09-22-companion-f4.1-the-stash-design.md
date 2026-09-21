@@ -191,10 +191,20 @@ column would require index surgery on a table three phases of code already depen
 
 Both actions are transactional, following `BuildItem` and `DropItem`.
 
-**`UnstashItem` respects capacity.** A withdrawal that will not fit is refused with
-`CompanionCapacityException` — the refusal that already exists for precisely this case, *"a room
-refusal, never a shortage"*. Nothing is destroyed and nothing is partially moved: the stash keeps
-what would not fit, exactly as a node keeps what a full bag could not take.
+**`UnstashItem` respects capacity, and it mirrors `HarvestNode` exactly** rather than inventing a
+second answer to the same question:
+
+- A bag with **no room at all** refuses, and nothing moves.
+- Otherwise it moves `min(stashed, room, wanted)` and **the remainder stays in the chest.**
+
+A partial withdrawal is therefore the normal case, not an edge one — which is the behaviour a
+player already knows from taking less than a bagful at a node. The chest is the same promise from
+the other side: what will not fit is still there.
+
+The refusal reuses `CompanionEconomyException::bagIsFull()` rather than a new factory, because it
+is the same sentence about the same thing — there is no room, and what you were reaching for stays
+where it was. `noRoomFor()` and its `CompanionCapacityException` subclass stay what they are: a
+*build* that priced out fine with nowhere to put the result.
 
 **`StashItem` needs no capacity check**, because the stash is uncapped.
 
@@ -325,8 +335,9 @@ result recorded.
 | --- | --- | --- |
 | The second builder carries `stash` | delete the `stash` key from `worldBeforeAnythingHappened()` | a brand-new account rendering `/companion` |
 | Storage is a separate table | point the stash query at `companion_items` | a `held()` or `capacity()` assertion with something stashed |
-| Withdrawal respects capacity | remove the capacity check in `UnstashItem` | an over-withdraw test |
-| Withdrawal refuses atomically | make the refusal partial-move instead | a test asserting the stash is unchanged after a refused withdrawal |
+| Withdrawal respects capacity | remove the `room` clamp in `UnstashItem` | an over-withdraw test asserting the bag never exceeds capacity |
+| A full bag refuses, moving nothing | return 0 instead of throwing when `room === 0` | a test asserting the refusal and an untouched stash |
+| The remainder stays in the chest | delete the stash row after a partial withdrawal | a test asserting what was left over is still at home |
 | The stash is uncapped | add a ceiling | a large-deposit test |
 | A structure stands once | remove the `BuildItem` refusal | a second-build test |
 | The listing agrees with the refusal | stop excluding a standing structure from `recipes()` | a test asserting the chest leaves the build list once built |
