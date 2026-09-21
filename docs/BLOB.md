@@ -292,8 +292,12 @@ every offset table and fails the moment one of them stops being zero.
 
 ## 7. How the art is made
 
-Four asset classes, four pipelines. All of it is committed, so a Pixel Lab outage can never affect the
-running app.
+Five asset classes. All of it is committed, so a Pixel Lab outage can never affect the running app.
+
+**Not five pipelines, though — the count stopped being useful at F3.6.** The nodes were planned as a
+fifth single pipeline and needed three different ones between four objects, decided by measurement
+rather than by kind. Treat the sections below as worked cases, not as a taxonomy to file a new asset
+under.
 
 ### Bodies — character states
 
@@ -361,8 +365,41 @@ re-rolled — the same measured-and-replaced move the tree's rejected `animate_i
 precedent in the scenes pipeline above.
 
 Full detail — the exact crop and quantise commands, the candidate-selection rule, the review-object
-lifecycle — lives in `scenes/README.md`'s "Running this pipeline again", not here: F3.6 runs this
-pipeline twelve more times, and that is the runbook it reads first.
+lifecycle — lives in `scenes/README.md`'s "Running this pipeline again", not here. That section is
+the runbook F3.6 read first.
+
+### The nodes — one pipeline expected, three needed
+
+**F3.6, and the finding is that "generate the lowest band, then state-edit upward" is not one
+pipeline but three.** Eleven sprites, not twelve: the three world nodes get `bare`, `some` and
+`plenty`; the heap gets two, because a drained heap is deleted and the client never receives one at
+nothing-at-all, so a `bare` heap would be art for a state the system cannot produce.
+
+- **The branches use three independent candidates AS the three bands, with no state edit.** Their
+  sixteen candidates share one palette and differ only in quantity, so three ordered by mass already
+  are three amounts of one thing — 183, 353 and 437 opaque pixels.
+- **The reeds cannot do that.** Their candidates are sixteen different beds in different palettes,
+  and apparent quantity follows palette rather than pixel count: one at 1273 opaque pixels in pale
+  straw reads as *fewer* reeds than one at 741 in dark green. Their lower bands are a **deterministic
+  top-cut** of the chosen bed instead — each stalk column loses a share of its height, the base row
+  untouched. No new colours, ground line immovable, exact mass. A state edit was tried first and
+  returned an eighth of the reduction asked for.
+- **The trunk's additive edits held exactly**, which the shelter's did not: zero opaque pixels lost
+  from `bare` into `some`, two from `some` into `plenty`. The log is the same log in all three and
+  only the cut timber beside it grows — which is what its band model requires, since the trunk is the
+  world and the world does not change shape when you take something from it.
+- **The heap's downward edit worked** (1084 → 301), so the hand-composite fallback named in advance
+  was not needed.
+
+**Bands are cropped to one shared box per node, and bottom-aligned first only where alignment is
+right.** Align bands that share no registration (the branches) and a state edit that genuinely moved
+the base (the heap's `some`, three rows low). Never align a state edit that added material *below* an
+existing silhouette: the trunk's `some` grew billets beneath the log, dropping the bbox floor ten
+rows, and aligning on that pushed `bare`'s log down to meet billets it does not have. That shipped
+once and was caught by a review — **the bbox cannot tell "the floor moved" from "material appeared
+below the floor"**, so the judgement is per node and is checked by rendering the bands in sequence and
+watching whether the object holds still. Every cell size, opaque count and monotonicity check stayed
+correct while the trunk was visibly broken.
 
 ### UI chrome — panels as nine-slices
 
@@ -676,13 +713,32 @@ Every one of these has cost a round on this project.
   lives in `docs/superpowers/specs/2026-09-17-companion-progression-arc-design.md`.
 - ~~A full bag of timber has no exit.~~ **Closed by F3**: a harvest can take less than a bagful, and
   a carried stack can be tipped out. Both are the player's act; nothing discards on their behalf.
-- **Node hotspot labels do not scale with the stage.** A fixed 8px font, so below roughly a 300px
-  stage the labels are larger than the room. F3 added a fifth object to the clearing, which makes it
-  urgent; it is a label-sizing problem and was deliberately left out of scope. **First behavioural fact
-  on it, from F3.5:** a squeezed label **wraps before it overflows**. The reeds' label wraps at `x=52`
-  and sits on one line from `x=50` leftward, measured live at a 522px stage — reflow, not overflow, is
-  the failure mode actually open here, and nothing on this branch's box arithmetic models reflow.
-- **Three of the clearing's coordinates were rendered this session, found wrong, and corrected.**
+- ~~Node hotspot labels do not scale with the stage.~~ **Closed by F3.6, by deletion rather than by a
+  font rule.** The labels were a fixed 8px font that did not scale with the svg, so below roughly a
+  300px stage they wrapped to a second line — reflow, not overflow, was the failure mode, and no box
+  arithmetic on that branch modelled reflow. F3.6 draws the nodes instead, so there is no text in the
+  clearing to size. The replacement hit region is the art's own cell, measured in room units and
+  scaling with the picture, with a 24px floor (WCAG 2.5.8 AA) that in practice never binds. **The
+  trunk's width-limited residual closed with it**, since it was the same fixed box seen from the other
+  side.
+- **The clearing's four node coordinates were all re-decided in F3.6, and the arithmetic that chose
+  the old ones is gone rather than amended.** Every one of them reasoned about label boxes that no
+  longer exist. The measurement that replaced them: the four cells are 48x41, 44x36, 48x47 and 46x35,
+  so they need **186 units of width in a 144-unit room** — before Blob's drawn silhouette (about
+  x −15..15) and the shelter's 48-wide cell are counted. No arrangement stands four objects that size
+  apart, so **overlap is forced rather than chosen**, and the only question is which overlaps read as
+  depth and which read as collision. The rule taken from renders: nearer things sit lower and overlap
+  further things. **Array order in `scenes.ts` is now paint order** and runs back to front — trunk
+  (y=42), heap (70), branches (74), reeds (76) — which the page's hotspot loop follows too, so the
+  nearer control sits above the further one where hit regions overlap. What the old coordinates
+  actually did, measured: the branches and the trunk shared **40x36 units**, which left the branches
+  invisible inside the log; the reeds covered the hut by **42x31** and overhung the right wall by 2.
+  **The heap is the one node that cannot be placed cleanly** — its 46-wide cell needs `|x| >= 38` to
+  clear Blob, and both such positions collide with another node instead, so it overlaps Blob by 30x30
+  at `[6, 70]` deliberately, sitting at Blob's feet and in front. It is also the only node that
+  expires: a heap exists solely for an account handed a cabin, is never restocked, and is deleted when
+  drained.
+- **Three of the clearing's coordinates were rendered in F3.5, found wrong, and corrected.**
   `scenes.ts`'s own comments had argued at length that all three were sound, with no hint that
   anyone had since disagreed. Checked by viewing the built page and photographing the labels moved
   in the live DOM; all three are now shipped in `scenes.ts`, with comments that record the render
@@ -711,10 +767,9 @@ Every one of these has cost a round on this project.
     actually draws instead (the sprite renderer, `config('companion.renderer')`'s default, measured
     narrower at roughly ±15) by 5 units. `scenes.ts`'s own comment is candid about the trade; this file
     should be too, rather than let a reader assume the stated conservative bound was met.
-  - **The trunk's fix is width-limited, and the residual is the label-sizing problem above, not a
-    coordinate.** Solving "right edge clears Blob's silhouette" against "left edge stays inside the
-    room" gives a feasible window only down to roughly a 303px stage; below that no x exists, because
-    the fixed-8px box is wider than the gap between Blob and the wall. Still open.
+  - ~~The trunk's fix is width-limited.~~ **Closed by F3.6 with the labels themselves** — the
+    feasible window shrank below a ~303px stage only because the fixed-8px box grew in room units as
+    the stage shrank. An art cell does not.
   - **`THE HEAP` at `[21, 62]` was checked and is fine** — it renders cleanly in its gap between the
     middle and right grass tufts, with visible margin both sides. **Scoped to labels**: no *label*
     overlaps another label. The clearing also carries the shelter's 48×48 sprite cell and its own

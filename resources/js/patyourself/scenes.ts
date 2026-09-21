@@ -254,97 +254,69 @@ export const SCENES: Record<string, SceneSpec> = {
                 phase: 5,
             },
         ],
-        // The deadfall sits under the tree, whose cell ends at y=32, so this
-        // clears its trunk. The reeds sit off to the right, away from both the
-        // tree and Blob's own footprint at the centre. Both are clear of the
-        // grass line at y=52 so a hotspot never lands on a moving tuft.
+        // WHERE THE FOUR NODES STAND, AND WHY THEY OVERLAP ON PURPOSE.
+        //
+        // Every coordinate here was re-decided in F3.6 and the reasoning that
+        // used to sit in this block is gone rather than amended, because all of
+        // it argued about LABEL BOXES — fixed 8px text that no longer exists.
+        // Reading the old numbers as if they still meant something is the trap
+        // this file has warned about elsewhere and then fallen into twice.
+        //
+        // The measurement that decides the whole layout: the four cells are
+        // 48x41, 44x36, 48x47 and 46x35, so they need 186 units of width in a
+        // room that is 144 wide — before Blob's own silhouette (roughly x
+        // -15..15 as drawn) and the shelter's 48-wide cell are counted. There
+        // is no arrangement in which four objects this size stand apart. So
+        // overlap is not a placement mistake here, it is forced, and the
+        // question is only which overlaps read as depth and which read as a
+        // collision.
+        //
+        // The answer, chosen from renders rather than arithmetic: nearer things
+        // sit lower and overlap further things. A branch crossing in front of a
+        // log is depth; a branch INSIDE a log is a bug. At the previous
+        // coordinates the branches and the trunk overlapped by 40x36 units,
+        // which meant the branches were effectively invisible, and the reeds
+        // covered the hut by 42x31 while clipping the room's right wall.
+        //
+        // ORDER IN THIS ARRAY IS PAINT ORDER and now carries meaning:
+        // `NodeLayer` draws them in sequence, so this list runs back to front —
+        // trunk (y=42), heap (70), branches (74), reeds (76). The page's
+        // hotspot loop walks the same order, so the nearer control also sits
+        // above the further one where two hit regions overlap.
         nodes: [
-            { node: 'deadfall', at: [-46, 40] },
-            // The shelter's 48-wide cell only fits between x=40 and x=48
-            // before overflowing the room's right edge at 72, so the shelter
-            // and the reeds are stuck sharing that column and can only be
-            // separated vertically. At the shelter's new y=34 the two
-            // collided at the reeds' old position, [44, 36], so the reeds
-            // move down and right to clear it.
+            // THE FALLEN TRUNK, furthest back of the four and drawn first.
+            // x=-44 puts its 48-wide cell at -68..-20, which clears the room's
+            // left wall by 4 and clears Blob's drawn silhouette (-15) by 5.
+            // y=42 stands it in the open floor rather than on the backdrop's
+            // measured ground line at y=24 — that line is the clearing's BACK
+            // WALL, and the shelter's own comment below records the four
+            // heights rendered before that was believed.
+            { node: 'trunk', at: [-44, 42] },
+            // THE HEAP, and the one node that cannot be placed cleanly. Its
+            // 46-wide cell needs |x| >= 38 to clear Blob, and both such
+            // positions collide with another node instead: at x=-40 it runs
+            // into the trunk and the branches, at x=40 into the reeds by
+            // 43x35. The room has no third place for an object this wide.
             //
-            // x=50, not 58: measured on the live page rather than predicted
-            // from box arithmetic. Hotspot labels are a fixed 8px font that
-            // does not scale with the SVG, so pushed toward the room's right
-            // wall the label does not overflow it — it WRAPS to a second
-            // line instead, which no box calculation on this branch models
-            // because every one of them models width, not reflow. Sweeping
-            // x on the rendered page, the label wraps at 58, 56, 54 and 52,
-            // and sits on one line from 50 leftward, so 50 is the rightmost
-            // value that keeps it whole. y still carries the clearance from
-            // the shelter — x never did — so [50, 44] loses nothing there
-            // while leaving 41px to the wall instead of 23.
-            { node: 'reeds', at: [50, 44] },
-            // Low and near, between the tree's foot and the centre, so it
-            // reads as foreground without standing where Blob does.
-            //
-            // y=48 clears TWO constraints, not one — the previous y=44 only
-            // ever recorded the first of these, which is exactly how it
-            // collided with the second:
-            //   1. Above the grass line at y=52, same as the other two, so
-            //      the hotspot never lands on a moving tuft.
-            //   2. Clear of the deadfall's label box. Hotspot labels are real
-            //      buttons at a fixed 8px font that does not scale with the
-            //      SVG, so at [-24, 44] the trunk's "THE FALLEN TRUNK" box
-            //      overlapped the deadfall's "THE FALLEN BRANCHES" box by
-            //      roughly 31x2.4px on desktop (up to 64x8px on a 390px
-            //      phone) and DOM order let the trunk paint over the
-            //      deadfall's hit target.
-            // Both constraints on y are still correct and y stays at 48.
-            //
-            // x did not. [-24, 48] was computed against the other labels and
-            // never against Blob, and a render this session — the built page
-            // viewed, the label dragged in the live DOM, the result
-            // photographed — showed it sitting on Blob's left arm: Blob's
-            // silhouette spans roughly x −15..15 around the centre, and a
-            // box centred at −24 that is ~16 room units half-wide at a 508px
-            // stage reaches −7.7, well inside it.
-            //
-            // −40 solves the two constraints that now bind: the right edge
-            // clears Blob's silhouette (≈ −15, with a margin), and the left
-            // edge stays inside the room's left wall at −72. That gives a
-            // feasible window of roughly −55.7 ≤ x ≤ −33.6 at a 508px stage.
-            // −40 sits inside it, clears Blob by about 8 room units (~30px),
-            // and keeps a visible 6-unit offset from the deadfall's label at
-            // −46 rather than stacking directly under it.
-            //
-            // The caveat still holds, and is sharper now the window is
-            // known: because the label is a fixed 8px font that does not
-            // scale with the SVG, its width in ROOM UNITS grows as the stage
-            // shrinks. Below roughly a 303px stage the window above is EMPTY
-            // — twice the box's half-width exceeds the space between Blob
-            // and the wall, so no x clears both constraints at once. That is
-            // the label-sizing problem the feature has deliberately left
-            // open, not something this coordinate can answer.
-            { node: 'trunk', at: [-40, 48] },
-            // The heap: the cabin an established record used to be given,
-            // in pieces. It stands in the one gap the grass leaves.
-            //
-            // The arithmetic, because BLOB.md trap 4 is that geometry cannot
-            // judge a visual and this coordinate is therefore a STARTING
-            // POINT that has to be looked at:
-            //   - Hotspot labels are real buttons at a fixed 8px font that
-            //     does NOT scale with the svg, so a box is the same pixel
-            //     size at every stage width and takes up more ROOM UNITS the
-            //     smaller the stage gets.
-            //   - "THE HEAP" is 8 characters: roughly 48px of glyphs plus
-            //     12px of padding and 2px of border, so about 62px wide and
-            //     16px tall.
-            //   - The three grass tufts occupy x −70..−38, −26..6 and 36..68
-            //     below y=52, which leaves exactly one gap at x 6..36, thirty
-            //     units wide. At a 400px stage 62px is 22 room units, so a
-            //     box centred at x=21 spans 10..32 and sits comfortably
-            //     inside. At a 300px stage the same box is 30 units and
-            //     spans 6..36 — exactly the gap, with nothing to spare: the
-            //     tightest case, and the reason the label was shortened to
-            //     eight characters in the first place.
-            //   - y=62 is below Blob's feet (FLOOR is 52) and above the
-            //     room's own bottom edge at 76.
-            { node: 'salvage', at: [21, 62] },
+            // So it overlaps Blob by 30x30 at [6, 70], deliberately, and that
+            // is the least bad of the three: it sits at Blob's feet and in
+            // FRONT, which reads as a pile Blob is standing behind. It is also
+            // the only node that is transient — a heap exists solely for an
+            // account that was handed a cabin, is never restocked, and is
+            // deleted the moment it is drained — so of the four, it is the one
+            // whose imperfect placement expires on its own.
+            { node: 'salvage', at: [6, 70] },
+            // THE FALLEN BRANCHES, crossing low in front of the trunk. The
+            // 36x4 overlap with the trunk's cell is the depth cue, not a
+            // collision: at the old [-46, 40] the two shared 40x36 units and
+            // the branches were lost inside the log.
+            { node: 'deadfall', at: [-34, 74] },
+            // THE REEDS, nearest and drawn last. [44, 76] puts the cell at
+            // x 20..68, y 35..76: inside the right wall with 4 to spare, and
+            // starting one unit BELOW the shelter's cell, which ends at y=34.
+            // That single unit is what stops the reeds covering the hut — at
+            // the old [50, 44] they hid it by 42x31 and overhung the wall by 2.
+            { node: 'reeds', at: [44, 76] },
         ],
         // Back and to the right, against the treeline: a building belongs
         // behind the things you pick up rather than in front of them.
