@@ -676,6 +676,16 @@ Every one of these has cost a round on this project.
 1. **A test written against a fixture's default asserts nothing.** Five have shipped here. One asserted
    no bookshelf appears outdoors — against a fixture defaulting `room_objects` to `[]`. If you cannot
    name the mutation that turns a test red, it is decoration.
+
+   **F3.6 sharpened this: naming the mutation is not enough — you have to RUN it.** Three stated
+   mutations on that one branch were false or overstated, every one of them written by the author of
+   the plan and believed until somebody applied it. One test clicked a control that never reached the
+   condition it claimed to pin, and passed with or without that condition. Another asserted a guard
+   against a prototype-chain lookup using a key the prototype chain does not produce, so the guard
+   could be deleted with the file still green. A third claimed five tests would redden where only two
+   could, because the other three asserted that *nothing* was drawn and "draw even less" cannot
+   falsify them. A stated mutation nobody has executed is a second thing to believe, not evidence —
+   and it is more dangerous than no comment at all, because it stops the next reader checking.
 2. **`assertDatabaseMissing` on a column that does not exist is a constant-false predicate.** SQLite
    degrades the unresolvable identifier to a string literal, so it passes forever. On MySQL it errors
    outright — and tests here are SQLite while production is MySQL.
