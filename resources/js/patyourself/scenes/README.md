@@ -326,8 +326,8 @@ nothing-at-all, and a `bare` heap would be art for a state the system cannot pro
 
 | File | Cell | Object | State | Source |
 | --- | --- | --- | --- | --- |
-| `node-reeds-bare.png` | 48x41 | — | — | top-cut of `plenty`, 0.62 |
-| `node-reeds-some.png` | 48x41 | — | — | top-cut of `plenty`, 0.35 |
+| `node-reeds-bare.png` | 48x41 | — | — | top-cut of `plenty`, 0.62 requested (0.630 realised) |
+| `node-reeds-some.png` | 48x41 | — | — | top-cut of `plenty`, 0.35 requested (0.381 realised) |
 | `node-reeds-plenty.png` | 48x41 | `92e16390-da65-4a69-96b7-6e9555825e0e` | base | candidate 1 of 16, review `476665e9-e647-4b9f-b3c8-b45e962eab99` |
 | `node-deadfall-bare.png` | 44x36 | `58e87787-b039-4240-856c-e9cefb668c89` | base | candidate 0 of 16, review `baa662f5-c396-4b41-a904-cb192889ca05` |
 | `node-deadfall-some.png` | 44x36 | `4a5d37e2-a304-477a-b4a6-5c0e6592edca` | base | candidate 2, same review |
@@ -380,18 +380,35 @@ pixel by pixel — and `some` into `plenty` loses two. Shared pixels move by a m
 only the cut timber beside it grows, which is what the trunk's band model requires: the node is the
 world, and the world does not change shape when you take something from it.
 
-## Bottom-align, then crop to one shared box
+## Crop to one shared box — and align first only where alignment is right
 
-Two steps, in that order, and the order is load-bearing.
+All bands of a node are cropped to **one** box, the union of their bounds. Cropping each to its own
+would lose registration and the object would slide between bands — the same property that makes the
+shelter's three stages share a byte-identical alpha channel.
 
-A state edit preserves registration but not scale — and not the ground line either. The heap's `some`
-came back with its lowest row three below its own source's. Cropping straight to a shared box would
-leave `plenty` floating three units while `some` sat on the grass, so the pile would hop as it grew.
-Every band therefore has its lowest opaque row put on one floor first.
+Whether to bottom-align *before* that crop is per-node, and getting it wrong once is what this
+section exists to prevent.
 
-Only then are all bands of a node cropped to **one** box, the union of their bounds. Cropping each to
-its own would lose registration and the pile would slide sideways between bands — the same property
-that makes the shelter's three stages share a byte-identical alpha channel.
+**Align bands that share no registration.** The branches are three independent generations; nothing
+relates their cells, so their lowest opaque rows are put on one floor first. The heap's two bands are
+a state edit, but that edit genuinely moved the base — `some` came back with its lowest row three
+below its source's — so it is aligned too.
+
+**Do NOT align bands that are state edits of one another, or cuts of one image.** They already share
+a registration by construction, and that is the entire reason the state pipeline exists.
+
+**The trunk is the worked example of getting this wrong**, and it shipped wrong once before a review
+caught it. Its `some` grew cut billets *beneath* the log, which dropped the cell's bbox floor from
+row 37 to row 47. Bottom-aligning on that pushed `bare`'s log down ten rows to meet billets that only
+exist in the other two bands — so the log jumped down when the trunk was emptied, which is precisely
+the hop alignment is meant to prevent. Measured on the shipped files at the time: 174 of `bare`'s 1034
+opaque pixels had no counterpart in `some`. Unaligned, that number is zero.
+
+**The bbox cannot tell you which case you are in.** "The floor moved" and "material appeared below
+the floor" look identical to it. So this is a judgement made once per node, recorded here, and
+checked by rendering the bands in sequence and watching whether the object holds still. The check is
+cheap and it is the only thing that catches the error — every count and cell dimension stayed
+correct while the trunk was broken.
 
 The shipped cell is whatever that shared box measures, and is deliberately not chosen in advance:
 `create_1_direction_object` forces a 48x48 square, and four 48-wide cells cannot stand in a 144-wide
