@@ -290,7 +290,13 @@ export const SCENES: Record<string, SceneSpec> = {
             // y=42 stands it in the open floor rather than on the backdrop's
             // measured ground line at y=24 — that line is the clearing's BACK
             // WALL, and the shelter's own comment below records the four
-            // heights rendered before that was believed.
+            // heights rendered before that was believed. True for `some` and
+            // `plenty` only: the trunk is deliberately NOT bottom-aligned
+            // (see the trunk's own note in `scenes/README.md`), so at `bare`
+            // — the band an unmet node sits in, and so the most-seen of the
+            // eleven bands this file draws — the log's lowest opaque row
+            // sits 10 units above the cell floor, and its visible base reads
+            // nearer y≈32.
             { node: 'trunk', at: [-44, 42] },
             // THE HEAP, and the one node that cannot be placed cleanly. Its
             // 46-wide cell needs |x| >= 38 to clear Blob, and both such

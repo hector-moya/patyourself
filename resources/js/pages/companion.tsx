@@ -382,17 +382,20 @@ function RoomCard({
                         );
                         const cell = nodeCell(spec.node);
 
-                        // `CompanionBag::nodes()` deliberately keeps sending
-                        // the heap at `available: 0` with no band, so tests
-                        // can still find the row — nothing about the world is
-                        // taken away because nothing has been left there yet.
-                        // Gated here on the sprite resolving so this control
-                        // agrees with `NodeLayer`, which already draws
-                        // nothing for a band with no art: without this, an
-                        // empty heap (or any future node whose band has no
-                        // art) leaves an invisible, unlabelled hit region
-                        // standing in the clearing — the defect 15e893a
-                        // fixed for the shelter.
+                        // `available: 0` with an empty band is a FIXTURE-only
+                        // shape, kept so tests can still find the heap's row —
+                        // the server cannot actually send it.
+                        // `CompanionBag::nodes()` skips a skill-less node with
+                        // nothing standing at it rather than sending one at
+                        // zero, and were a heap ever sent at `available: 0`
+                        // its band would be `bandFor(0)`, which resolves to
+                        // `'bare'`, not `''`. Gated here on the sprite
+                        // resolving so this control agrees with `NodeLayer`,
+                        // which already draws nothing for a band with no art:
+                        // without this, an empty heap (or any future node
+                        // whose band has no art) leaves an invisible,
+                        // unlabelled hit region standing in the clearing —
+                        // the defect 15e893a fixed for the shelter.
                         if (
                             node === undefined ||
                             cell === undefined ||

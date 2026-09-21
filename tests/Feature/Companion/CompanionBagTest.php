@@ -1247,8 +1247,13 @@ class CompanionBagTest extends TestCase
 
     /**
      * The top threshold is `capacity.base`, and it means "one trip can no
-     * longer take it all". Read from config rather than pasted, so moving the
-     * threshold moves this case with it and only a wrong DERIVATION fails.
+     * longer take it all". Nothing DERIVES one of these from the other —
+     * both are independently authored literals in `config/companion.php` —
+     * so this test is what keeps them equal rather than a guard that a
+     * derivation stayed correct: change either value without the other and
+     * this reddens, which is the point, since `node_bands.plenty` meaning
+     * anything other than a bagful is exactly what that pairing must not be
+     * allowed to drift into.
      */
     public function test_the_top_band_begins_at_a_bagful(): void
     {

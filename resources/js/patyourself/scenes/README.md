@@ -368,10 +368,10 @@ asked for "about half as many stalks" it returned 1160 against 1259 — an eight
 requested. Whatever that edit is good at, thinning fine repeated detail is not it.
 
 **The heap needed a downward state edit and got a good one.** No candidate could serve as its lower
-band: all sixteen cluster between 1009 and 1388 opaque pixels, and the smallest is a twentieth under
-the chosen one. The edit down returned 301 against 1084 — a stack of a few boards where a pile had
-been. The plan had named a hand-composite fallback here, expecting the downward direction to fail. It
-did not.
+band: all sixteen cluster between 1009 and 1388 opaque pixels, and the smallest is 1009 against the
+chosen one's 1084 — a fifteenth under it, not the twentieth once claimed here. The edit down returned
+301 against 1084 — a stack of a few boards where a pile had been. The plan had named a hand-composite
+fallback here, expecting the downward direction to fail. It did not.
 
 **The trunk's additive edits held the geometric promise exactly**, which is worth recording because the
 shelter's did not. Every opaque pixel of `bare` survives into `some` — a zero-loss superset, checked

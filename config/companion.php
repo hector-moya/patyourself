@@ -587,11 +587,14 @@ return [
     | every adjustment at the higher of the two.
     |
     | Read as "the least `available` that reaches this band", ascending, and
-    | resolved by taking the LAST band that has begun — the same shape
-    | `partOfDay()` uses to let night wrap past midnight without a fifth state
-    | describing 3am. One answer in this app to "map a scalar onto named
-    | bands" is enough; a second with different edge behaviour would be a
-    | second opinion.
+    | resolved by taking the LAST band that has begun — the same sort,
+    | filter and take-last shape `partOfDay()` uses to let night wrap past
+    | midnight without a fifth state describing 3am. The two part company at
+    | the EMPTY-RESULT edge, though: below every part's `from`, `partOfDay()`
+    | wraps around to the last entry, while below every band's floor
+    | `bandFor()` names no band at all and returns `''` (see its own
+    | docblock) — a deliberate divergence, not an oversight, because
+    | guessing a band here would draw art for an amount no author described.
     |
     | `plenty` is `capacity.base` and means ONE TRIP CAN NO LONGER TAKE IT
     | ALL — the one threshold a player could infer from play rather than be

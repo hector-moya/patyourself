@@ -78,6 +78,15 @@ export function bag(overrides: Partial<CompanionBagData> = {}): CompanionBagData
             // shape a test gets by default, and a test about the heap has to
             // say what is in it. The DEFAULT here must not draw a heap, or
             // every clearing case in the suite silently gains a fifth object.
+            //
+            // This IS the impossible payload the warning above describes —
+            // the server never sends a heap at `available: 0` with an empty
+            // band; `CompanionBag::nodes()` skips a skill-less node with
+            // nothing standing rather than sending one at zero. Kept anyway
+            // because it is what buys the other two things this row exists
+            // for: every test can FIND a heap row to override, and an empty
+            // band has no sprite, so the default clearing stays at four
+            // authored nodes instead of quietly drawing a fifth.
             {
                 node: 'salvage',
                 label: 'the heap',
