@@ -150,6 +150,47 @@ class CompanionBagTest extends TestCase
         $this->assertDatabaseCount('companions', 0);
     }
 
+    /**
+     * `worldBeforeAnythingHappened()` is the ONLY path an account with no
+     * `companions` row at all can reach — there is no companion to read
+     * `nodes` from, so this is a second place building the same list `nodes()`
+     * builds for everyone else. Two branches building one payload can drift
+     * into two shapes, and `band` is exactly the kind of field a later change
+     * could add to one and forget on the other.
+     *
+     * What breaks without it: a brand-new account's very first visit to the
+     * clearing draws through THIS path, not `nodes()`. The client's sprite
+     * lookup resolves a missing or unmatched `band` to nothing and paints
+     * nothing — so a first-time player would see an empty clearing with none
+     * of the three world nodes standing in it, which is the opposite of F1's
+     * whole point that all three are there from the start. `bare` is also the
+     * band every unmet node stands in, so this is the single most-seen band
+     * in the feature, and this is where it would first go missing.
+     *
+     * The mutation that turns this red: deleting the `'band' => ...` line
+     * from the row built in `worldBeforeAnythingHappened()`. Confirmed by
+     * hand — restoring that removed line is what makes this test pass again.
+     */
+    public function test_the_world_before_anything_happened_carries_a_band_too(): void
+    {
+        $user = User::factory()->create();
+
+        $bag = app(CompanionBag::class);
+
+        // Read through the same private method `nodes()` calls, rather than
+        // hardcoding 'bare' here: the point is that both paths agree with
+        // EACH OTHER, not that both agree with a number pasted into a test.
+        $expected = (new \ReflectionMethod($bag, 'bandFor'))->invoke($bag, 0);
+
+        $bands = array_column($this->bag($user)['nodes'], 'band');
+
+        $this->assertNotEmpty($bands);
+        $this->assertSame(array_fill(0, count($bands), $expected), $bands);
+
+        // Reached the branch this test is actually about, not the other one.
+        $this->assertDatabaseCount('companions', 0);
+    }
+
     /** The balance, and nothing about a target. */
     public function test_the_balance_is_what_the_record_has_paid_less_what_was_spent(): void
     {

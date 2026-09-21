@@ -165,7 +165,7 @@ final readonly class CompanionBag
      *
      * @param  list<string>  $met
      * @param  list<string>  $learned
-     * @return list<array{node: string, label: string, available: int, skill: string|null, met: bool, known: bool, usable: bool}>
+     * @return list<array{node: string, label: string, available: int, band: string, skill: string|null, met: bool, known: bool, usable: bool}>
      */
     private function worldBeforeAnythingHappened(): array
     {
@@ -183,6 +183,11 @@ final readonly class CompanionBag
                 'node' => $name,
                 'label' => (string) $entry['label'],
                 'available' => 0,
+                // Derived through bandFor() rather than hardcoded 'bare': if
+                // an author ever moves the bottom threshold off zero, a
+                // literal here would silently disagree with every other path
+                // that reads the same amount through the same function.
+                'band' => $this->bandFor(0),
                 'skill' => (string) $entry['skill'],
                 'met' => false,
                 'known' => false,
