@@ -4,6 +4,7 @@ namespace Tests\Feature\Companion;
 
 use App\Actions\BuildItem;
 use App\Actions\HarvestNode;
+use App\Actions\LearnSkill;
 use App\Actions\MeetNode;
 use App\Models\ActionLog;
 use App\Models\Companion;
@@ -244,6 +245,7 @@ class CompanionBagTest extends TestCase
                 'node' => 'reeds',
                 'label' => 'the reeds',
                 'available' => 4,
+                'band' => 'some',
                 'skill' => 'gather-fibre',
                 'met' => true,
                 'known' => true,
@@ -255,6 +257,7 @@ class CompanionBagTest extends TestCase
                 'node' => 'deadfall',
                 'label' => 'the fallen branches',
                 'available' => 0,
+                'band' => 'bare',
                 'skill' => 'gather-wood',
                 'met' => false,
                 'known' => false,
@@ -264,6 +267,7 @@ class CompanionBagTest extends TestCase
                 'node' => 'trunk',
                 'label' => 'the fallen trunk',
                 'available' => 0,
+                'band' => 'bare',
                 'skill' => 'chop-wood',
                 'met' => false,
                 'known' => false,
@@ -326,6 +330,7 @@ class CompanionBagTest extends TestCase
             'node' => 'salvage',
             'label' => 'the heap',
             'available' => 26,
+            'band' => 'plenty',
             // Null rather than '': a heap is not a thing you learn to use.
             'skill' => null,
             // The row exists, so it has been placed — and a heap is placed
@@ -1169,5 +1174,65 @@ class CompanionBagTest extends TestCase
         app(MeetNode::class)->handle($user, 'reeds');
 
         $this->assertContains('planks', array_column($this->bag($user)['recipes'], 'item'));
+    }
+
+    /**
+     * The picture in the clearing is a band, not a number, so the band is what
+     * the payload has to carry. It is computed HERE and not in the client
+     * because the thresholds are authored in config and the client cannot read
+     * config — the alternative is the numbers existing twice, and two opinions
+     * about what "plenty" means will eventually disagree.
+     */
+    public function test_a_node_carries_the_band_its_amount_falls_in(): void
+    {
+        $user = $this->richUser();
+        app(MeetNode::class)->handle($user, 'reeds');
+        app(LearnSkill::class)->handle($user, 'gather-fibre');
+
+        $companion = Companion::query()->where('user_id', $user->id)->sole();
+
+        foreach ([0 => 'bare', 1 => 'some', 4 => 'some', 5 => 'plenty', 300 => 'plenty'] as $available => $band) {
+            $companion->nodes()->updateOrCreate(
+                ['node' => 'reeds'],
+                ['available' => $available],
+            );
+
+            $reeds = collect($this->bag($user->fresh()))['nodes'];
+            $row = collect($reeds)->firstWhere('node', 'reeds');
+
+            $this->assertSame($band, $row['band'], "at {$available}");
+        }
+    }
+
+    /**
+     * The top threshold is `capacity.base`, and it means "one trip can no
+     * longer take it all". Read from config rather than pasted, so moving the
+     * threshold moves this case with it and only a wrong DERIVATION fails.
+     */
+    public function test_the_top_band_begins_at_a_bagful(): void
+    {
+        $this->assertSame(
+            (int) config('companion.capacity.base'),
+            (int) config('companion.node_bands.plenty'),
+        );
+    }
+
+    /**
+     * A band the table does not reach resolves to nothing rather than to the
+     * lowest one. The client looks the name up in a sprite record, so an empty
+     * string draws nothing — which is the safe failure. Guessing `bare` would
+     * draw a full reed bed for an amount the author never described.
+     */
+    public function test_an_amount_below_every_band_names_none(): void
+    {
+        config()->set('companion.node_bands', ['some' => 1, 'plenty' => 5]);
+
+        $user = $this->richUser();
+        app(MeetNode::class)->handle($user, 'reeds');
+        app(LearnSkill::class)->handle($user, 'gather-fibre');
+
+        $row = collect($this->bag($user)['nodes'])->firstWhere('node', 'reeds');
+
+        $this->assertSame('', $row['band']);
     }
 }
