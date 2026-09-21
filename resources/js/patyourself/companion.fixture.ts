@@ -28,11 +28,20 @@ export function bag(overrides: Partial<CompanionBagData> = {}): CompanionBagData
         // All three nodes stand in the clearing from the start, unmet and unusable —
         // the one list the server does NOT filter by what has happened, because
         // a node being there is not a preview of anything.
+        //
+        // `bare` is the band an unmet node sits in and stays in: nothing stocks
+        // a node whose skill has not been bought, so this is what a new record
+        // actually sees, for as long as it takes to buy one. A test that wants
+        // a node with something at it must set BOTH `available` and `band` —
+        // they are the payload's two views of one fact and the server keeps
+        // them in step, so a fixture that moves one alone is describing a
+        // payload the server cannot send.
         nodes: [
             {
                 node: 'deadfall',
                 label: 'the fallen branches',
                 available: 0,
+                band: 'bare',
                 skill: 'gather-wood',
                 met: false,
                 known: false,
@@ -42,6 +51,7 @@ export function bag(overrides: Partial<CompanionBagData> = {}): CompanionBagData
                 node: 'reeds',
                 label: 'the reeds',
                 available: 0,
+                band: 'bare',
                 skill: 'gather-fibre',
                 met: false,
                 known: false,
@@ -51,6 +61,7 @@ export function bag(overrides: Partial<CompanionBagData> = {}): CompanionBagData
                 node: 'trunk',
                 label: 'the fallen trunk',
                 available: 0,
+                band: 'bare',
                 skill: 'chop-wood',
                 met: false,
                 known: false,

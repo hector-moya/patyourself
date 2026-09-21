@@ -71,6 +71,18 @@ export interface BagNodeData {
      * `known` exactly when a node names a tool Blob is not carrying yet.
      */
     usable: boolean;
+    /**
+     * Which band the amount falls in — what the clearing actually draws, since
+     * the art carries the amount and no number is printed out there.
+     *
+     * A plain string, not a union of the three names. The bands are authored
+     * in `config('companion.node_bands')`, and a union here would be a second
+     * declaration of which bands exist, in a language that cannot read the
+     * first. `nodeSprite()` resolves a name it does not know to `undefined`
+     * and draws nothing, which is the same contract every other registry in
+     * this feature follows.
+     */
+    band: string;
 }
 
 /**
