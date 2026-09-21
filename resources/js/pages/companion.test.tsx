@@ -25,7 +25,7 @@ vi.mock('@inertiajs/react', async (importOriginal) => {
     };
 });
 
-import { roomOffset } from '@/patyourself/companion-room';
+import { roomOffset, roomSize } from '@/patyourself/companion-room';
 import {
     bag,
     companion,
@@ -33,7 +33,12 @@ import {
     unlock,
 } from '@/patyourself/companion.fixture';
 import { renderClearing } from '@/patyourself/companion.harness';
-import { SCENES, SHELTER_CELL, SHELTER_SPRITES } from '@/patyourself/scenes';
+import {
+    nodeCell,
+    SCENES,
+    SHELTER_CELL,
+    SHELTER_SPRITES,
+} from '@/patyourself/scenes';
 
 import CompanionPage from './companion';
 
@@ -139,6 +144,17 @@ describe('Companion screen', () => {
                 /locked|next up|to unlock|remaining|streak|congratulation|\d+\s*%|\d+ of \d+/i,
             ),
         ).toBeNull();
+
+        // The guard above walks the HOTSPOT loop, which a mutation to
+        // `NodeSpot` (rendering `{available} of {total}` as visible text)
+        // already reddens — but nothing here proves `CompanionRoom` ever
+        // received `bag.nodes` at all. Deleting `nodes={bag.nodes}` from
+        // `companion.tsx` leaves `CompanionRoom.nodes` at its `[]` default,
+        // the clearing draws no node art, and every assertion above still
+        // passes. Three of the four rows set up above resolve a sprite
+        // (reeds `plenty`, deadfall and trunk `some`); the heap stays at
+        // `band: ''`, which has none, so it never draws.
+        expect(document.querySelectorAll('[data-node]')).toHaveLength(3);
     });
 
     /**
@@ -231,6 +247,14 @@ describe('Companion screen', () => {
                 /locked|next up|to unlock|remaining|streak|congratulation|\d+\s*%|\d+ of \d+/i,
             ),
         ).toBeNull();
+
+        // Same gap as the guard above, checked with the bag open: deleting
+        // `nodes={bag.nodes}` from `companion.tsx` leaves the clearing behind
+        // the dialog drawing no node art at all, and nothing above would
+        // notice. Three of the four rows set up above resolve a sprite
+        // (reeds `plenty`, deadfall and trunk `some`); the heap stays at
+        // `band: ''`, which has none, so it never draws.
+        expect(document.querySelectorAll('[data-node]')).toHaveLength(3);
     });
 
     it('relays what Blob has to say, near Blob', () => {
@@ -1419,12 +1443,21 @@ describe('the clearing has no words in it', () => {
     });
 
     /**
-     * The control is sized to the art it covers, so it scales with the stage
-     * rather than being right at one width. `toHaveClass`, not `toContain`,
-     * because a template literal that eats its leading space ships
-     * `class="c-nodec-node--art"` and a substring check passes on that.
+     * The control sits on the art's own centre, not the base centre
+     * `spec.at` names — `.c-node` is translated by -50%,-50%, and the art
+     * hangs above the point the thing stands on rather than around it, the
+     * same contract `positions the shelter control on the art` above pins
+     * for the shelter's own hotspot. It is also sized to its OWN cell, so it
+     * scales with the stage rather than being right at one width. Both are
+     * derived from `SCENES.forest.nodes` and `nodeCell` rather than pasted,
+     * so this only fails on a wrong derivation and survives a deliberate
+     * coordinate change. `toHaveClass`, not `toContain`, because a template
+     * literal that eats its leading space ships `class="c-nodec-node--art"`
+     * and a substring check passes on that.
      *
-     * The mutation that turns this red: drop `roomSize(...)` from the style.
+     * The mutations that turn this red: shift every node hotspot 20 room
+     * units right, or size every hotspot with
+     * `roomSize(SHELTER_CELL, SHELTER_CELL)` instead of its own cell.
      */
     it('sizes each node control to its own art', () => {
         renderClearing();
@@ -1433,7 +1466,16 @@ describe('the clearing has no words in it', () => {
 
         expect(spot).toHaveClass('c-node', 'c-node--art');
         expect(spot).not.toHaveClass('is-known');
-        expect(spot.style.width).not.toBe('');
+
+        const spec = SCENES.forest.nodes.find((node) => node.node === 'reeds')!;
+        const cell = nodeCell('reeds')!;
+        const expectedAt = roomOffset(spec.at[0], spec.at[1] - cell[1] / 2);
+        const expectedSize = roomSize(cell[0], cell[1]);
+
+        expect(spot.style.left).toBe(expectedAt.left);
+        expect(spot.style.top).toBe(expectedAt.top);
+        expect(spot.style.width).toBe(expectedSize.width);
+        expect(spot.style.height).toBe(expectedSize.height);
     });
 });
 

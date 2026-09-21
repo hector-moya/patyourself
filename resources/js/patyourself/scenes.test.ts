@@ -389,12 +389,21 @@ describe('the node sprites', () => {
 
     /**
      * Both levels of the lookup, because both are records keyed by a string
-     * that arrives from outside. `constructor` resolves to a truthy function
-     * through the prototype chain on a bare lookup, and BLOB.md §12 records
-     * that ROOM_OBJECTS and SPRITE_ITEMS still carry exactly that bug.
+     * that arrives from outside. `nodeSprite('constructor', 'name')` is the
+     * one that actually discriminates the outer guard: `NODE_SPRITES` has no
+     * own `'constructor'`, but a bare lookup resolves it through the
+     * prototype chain to the `Object` function, and `Object.name` — an OWN
+     * property of every function — is the truthy string `'Object'`. Without
+     * `Object.hasOwn(NODE_SPRITES, node)`, that string would reach
+     * `<image href>`. (`nodeSprite('constructor', 'bare')` does not tell
+     * these apart: `Object` has no `bare` property either way, so it stays
+     * `undefined` whether or not the outer guard runs.) The inner guard is
+     * checked the same way, one level down: `reeds`' own bands object has no
+     * `'constructor'` either. BLOB.md §12 records that ROOM_OBJECTS and
+     * SPRITE_ITEMS still carry exactly that bug.
      */
     it('resolves neither a node nor a band it has no sprite for', () => {
-        expect(nodeSprite('constructor', 'bare')).toBeUndefined();
+        expect(nodeSprite('constructor', 'name')).toBeUndefined();
         expect(nodeSprite('reeds', 'constructor')).toBeUndefined();
         expect(nodeSprite('reeds', '')).toBeUndefined();
         expect(nodeSprite('swamp', 'bare')).toBeUndefined();

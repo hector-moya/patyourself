@@ -805,6 +805,36 @@ describe('the nodes in the clearing', () => {
     });
 
     /**
+     * `data-band` above only echoes the prop straight back — it would read
+     * correctly even if `NodeLayer` loaded the wrong file underneath it. This
+     * pins the actual `href`, at a band other than `plenty`, so the two
+     * cannot drift apart unnoticed.
+     *
+     * The mutation that turns this red: hardcode
+     * `nodeSprite(node, 'plenty')` in `NodeLayer`, ignoring the band it was
+     * passed. `toContain` rather than an exact match: Vite resolves the PNG
+     * import to a hashed URL.
+     */
+    it('loads the file the band names, not just the attribute that echoes it', () => {
+        const { container } = render(
+            <CompanionRoom
+                companion={companion({ scene: 'forest' })}
+                animation="idle"
+                frame={0}
+                hour={12}
+                nodes={[{ node: 'reeds', band: 'bare' }]}
+            />,
+        );
+
+        const href = container
+            .querySelector('[data-node="reeds"]')
+            ?.getAttribute('href');
+
+        expect(href).toContain('node-reeds-bare');
+        expect(href).not.toContain('node-reeds-plenty');
+    });
+
+    /**
      * A node the payload does not carry is not drawn. This is how the heap
      * disappears when it is drained: `HarvestNode` deletes the row, so
      * `CompanionBag::nodes()` stops sending it, even though `scenes.ts` still
