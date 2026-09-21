@@ -19,6 +19,17 @@ import forestDay from './scenes/forest-day.png';
 import forestDusk from './scenes/forest-dusk.png';
 import forestNight from './scenes/forest-night.png';
 import forestSunrise from './scenes/forest-sunrise.png';
+import nodeDeadfallBare from './scenes/node-deadfall-bare.png';
+import nodeDeadfallPlenty from './scenes/node-deadfall-plenty.png';
+import nodeDeadfallSome from './scenes/node-deadfall-some.png';
+import nodeReedsBare from './scenes/node-reeds-bare.png';
+import nodeReedsPlenty from './scenes/node-reeds-plenty.png';
+import nodeReedsSome from './scenes/node-reeds-some.png';
+import nodeSalvagePlenty from './scenes/node-salvage-plenty.png';
+import nodeSalvageSome from './scenes/node-salvage-some.png';
+import nodeTrunkBare from './scenes/node-trunk-bare.png';
+import nodeTrunkPlenty from './scenes/node-trunk-plenty.png';
+import nodeTrunkSome from './scenes/node-trunk-some.png';
 import shelterCabin from './scenes/shelter-cabin.png';
 import shelterHut from './scenes/shelter-hut.png';
 import shelterLeanTo from './scenes/shelter-lean-to.png';
@@ -63,17 +74,19 @@ export interface FoliageSpec {
  *
  * Positions are fixed for the same reason the room objects' are: a clearing
  * that rearranges itself between visits stops being a place.
- *
- * F1 SHIPS THESE AS LABELLED HOTSPOTS RATHER THAN SPRITES, which is the
- * treatment the layout was signed off on. `docs/BLOB.md` §7 is clear that art
- * is the slowest and least predictable part of this feature, and nothing about
- * the mechanism needs a sprite to work — F2 can draw over these without
- * touching a line of it.
  */
 export interface NodeSpec {
     /** Matches the key in `config('companion.nodes')`. */
     node: string;
-    /** The hotspot's centre, in the room's own coordinates. */
+    /**
+     * Where the thing STANDS — its base centre, in the room's own coordinates.
+     *
+     * This was the hotspot's centre while a node was a label, and F3.6 changed
+     * it along with the label, the same way `SceneSpec.shelter` changed in
+     * F3.5 and for the same reason: foliage is a cell placed on a grid, and a
+     * node, like a structure, stands somewhere. The art's top-left derives as
+     * `(x − w/2, y − h)` from `NODE_CELLS`.
+     */
     at: readonly [number, number];
 }
 
@@ -129,6 +142,70 @@ export function shelterSprite(stage: string): string | undefined {
 }
 
 export { SHELTER_SPRITES };
+
+/**
+ * The cell each node's art is drawn on, in the room's own units.
+ *
+ * Per-node and not square, following `FoliageSpec.cell` rather than
+ * `SHELTER_CELL`: the sprites are GENERATED at 48x48 because
+ * `create_1_direction_object` forces a square derived from its style image,
+ * and then cropped to the art's real bounds before they ship. Four 48-wide
+ * cells plus the shelter's 48 need 240 units of a 144-unit room, so square
+ * cells were never going to stand in this clearing at once.
+ *
+ * Every band of one node shares one cell, because all of them were cropped to
+ * one box — the union of their bounds. Cropping each to its own would lose
+ * registration and the pile would jump sideways as it grew.
+ */
+export const NODE_CELLS: Record<string, readonly [number, number]> = {
+    reeds: [48, 41],
+    deadfall: [44, 36],
+    trunk: [48, 47],
+    salvage: [46, 35],
+};
+
+/**
+ * Node, then band, to the art.
+ *
+ * THE HEAP HAS NO `bare`. A node without a skill is a heap rather than the
+ * world (BLOB.md §10): it is absent until something places it, nothing
+ * restocks it, and `HarvestNode` deletes it once drained — so
+ * `CompanionBag::nodes()` never sends one at zero and a `bare` heap is a state
+ * the system cannot reach. Drawing one would be art for a state nothing can
+ * produce, and BLOB.md §12 records what guarding an unreachable state costs.
+ */
+const NODE_SPRITES: Record<string, Record<string, string>> = {
+    reeds: { bare: nodeReedsBare, some: nodeReedsSome, plenty: nodeReedsPlenty },
+    deadfall: { bare: nodeDeadfallBare, some: nodeDeadfallSome, plenty: nodeDeadfallPlenty },
+    trunk: { bare: nodeTrunkBare, some: nodeTrunkSome, plenty: nodeTrunkPlenty },
+    salvage: { some: nodeSalvageSome, plenty: nodeSalvagePlenty },
+};
+
+/**
+ * The art for one node at one band, or nothing.
+ *
+ * `Object.hasOwn` at BOTH levels: each is a record keyed by a string that came
+ * from the server, and a bare lookup resolves `'constructor'` to a truthy
+ * function through the prototype chain — which would then be handed to
+ * `<image href>`. BLOB.md §12 records that `ROOM_OBJECTS` and `SPRITE_ITEMS`
+ * still carry that bug and only this file was fixed.
+ */
+export function nodeSprite(node: string, band: string): string | undefined {
+    if (!Object.hasOwn(NODE_SPRITES, node)) {
+        return undefined;
+    }
+
+    const bands = NODE_SPRITES[node];
+
+    return Object.hasOwn(bands, band) ? bands[band] : undefined;
+}
+
+/** The cell a node's art is drawn on, or nothing. */
+export function nodeCell(node: string): readonly [number, number] | undefined {
+    return Object.hasOwn(NODE_CELLS, node) ? NODE_CELLS[node] : undefined;
+}
+
+export { NODE_SPRITES };
 
 /**
  * `forest` is declared first: an unknown scene name falls back to whichever

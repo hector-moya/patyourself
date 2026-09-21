@@ -5,7 +5,17 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 import { ANIMATIONS } from './companion-animations';
-import { SCENES, sceneFor, SHELTER_CELL, SHELTER_SPRITES, shelterSprite } from './scenes';
+import {
+    NODE_CELLS,
+    nodeCell,
+    NODE_SPRITES,
+    nodeSprite,
+    SCENES,
+    sceneFor,
+    SHELTER_CELL,
+    SHELTER_SPRITES,
+    shelterSprite,
+} from './scenes';
 
 /**
  * Imported assets resolve to a root-relative URL under Vite, and this file
@@ -308,5 +318,94 @@ describe('the shelter sprites', () => {
         // rather than its open floor. Four heights were rendered; y=34 is
         // the one the owner picked as actually standing in the clearing.
         expect(SCENES.forest.shelter).toEqual([44, 34]);
+    });
+});
+
+describe('the node sprites', () => {
+    /**
+     * Every node the clearing stands somewhere has art for every band the
+     * server can send it — except the heap, which has no `bare` because
+     * `HarvestNode` deletes a drained heap and `CompanionBag::nodes()` skips a
+     * skill-less node with no row. A `bare` heap is a state the system cannot
+     * reach, and BLOB.md §12 records what asserting over an unreachable state
+     * costs: the `blob` form's sleep row lost its breath to exactly that.
+     */
+    it('draws every band the server can send, and no band it cannot', () => {
+        expect(Object.keys(NODE_SPRITES.reeds).sort()).toEqual(['bare', 'plenty', 'some']);
+        expect(Object.keys(NODE_SPRITES.deadfall).sort()).toEqual(['bare', 'plenty', 'some']);
+        expect(Object.keys(NODE_SPRITES.trunk).sort()).toEqual(['bare', 'plenty', 'some']);
+        expect(Object.keys(NODE_SPRITES.salvage).sort()).toEqual(['plenty', 'some']);
+    });
+
+    /**
+     * Every node `SCENES.forest` stands somewhere has both a sprite record and
+     * a cell. A node with a place to stand and no art is an invisible control
+     * over nothing — the defect F3.5 fixed in 15e893a for a retired shelter
+     * stage, arriving from the other direction.
+     */
+    it('gives every node in the clearing art and a cell', () => {
+        for (const spec of SCENES.forest.nodes) {
+            expect(Object.hasOwn(NODE_SPRITES, spec.node)).toBe(true);
+            expect(nodeCell(spec.node)).toBeDefined();
+        }
+    });
+
+    /**
+     * ALL BANDS OF ONE NODE SHARE ONE CROP BOX. Cropping each band to its own
+     * bounds loses registration and the pile jumps sideways as it grows —
+     * which is the failure the shelter's shared registration exists to
+     * prevent, and why `shelter-cabin.png` and `shelter-hut.png` have
+     * byte-identical alpha channels.
+     *
+     * The mutation that turns this red: re-crop one band to its own bbox.
+     */
+    it('draws every band of a node on one cell', () => {
+        for (const [node, bands] of Object.entries(NODE_SPRITES)) {
+            const cell = nodeCell(node)!;
+
+            for (const [band, sheet] of Object.entries(bands)) {
+                const { width, height } = sheetSize(sheet);
+
+                expect(`${node}/${band}: ${width}x${height}`).toBe(
+                    `${node}/${band}: ${cell[0]}x${cell[1]}`,
+                );
+            }
+        }
+    });
+
+    /**
+     * Which file, not just that one exists. The key set, the PNG headers
+     * (identical within a node by construction) and `data-band` (which echoes
+     * the name, not the file) all stay green if `bare` and `plenty` swap
+     * sheets — the clearing would then empty as you logged and fill as you
+     * harvested, the mechanic running backwards. The Vite-resolved URL is the
+     * one thing carrying the filename.
+     */
+    it('draws the band it names, not a different one wearing its key', () => {
+        expect(nodeSprite('reeds', 'bare')).toContain('node-reeds-bare');
+        expect(nodeSprite('reeds', 'plenty')).toContain('node-reeds-plenty');
+        expect(nodeSprite('salvage', 'some')).toContain('node-salvage-some');
+    });
+
+    /**
+     * Both levels of the lookup, because both are records keyed by a string
+     * that arrives from outside. `constructor` resolves to a truthy function
+     * through the prototype chain on a bare lookup, and BLOB.md §12 records
+     * that ROOM_OBJECTS and SPRITE_ITEMS still carry exactly that bug.
+     */
+    it('resolves neither a node nor a band it has no sprite for', () => {
+        expect(nodeSprite('constructor', 'bare')).toBeUndefined();
+        expect(nodeSprite('reeds', 'constructor')).toBeUndefined();
+        expect(nodeSprite('reeds', '')).toBeUndefined();
+        expect(nodeSprite('swamp', 'bare')).toBeUndefined();
+        expect(nodeCell('constructor')).toBeUndefined();
+    });
+
+    /**
+     * The heap has no `bare` sprite, so a heap that somehow reached the client
+     * at zero draws nothing rather than throwing or drawing a full stack.
+     */
+    it('draws nothing for a heap at no amount at all', () => {
+        expect(nodeSprite('salvage', 'bare')).toBeUndefined();
     });
 });
