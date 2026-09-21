@@ -354,6 +354,7 @@ function RoomCard({
                     onPoke={() => onReact('notice')}
                     inside={inside}
                     shelter={bag.shelter.built}
+                    nodes={bag.nodes}
                 />
 
                 {/* The clearing's own things, laid over the picture as real
@@ -374,7 +375,18 @@ function RoomCard({
                             (candidate) => candidate.node === spec.node,
                         );
 
-                        if (node === undefined) {
+                        // A heap (no skill) is not part of the world the way
+                        // the other three are: `CompanionBag::nodes()` only
+                        // ever sends one once something has actually been
+                        // left there, never at zero. The fixture's own
+                        // default salvage row keeps `available: 0` so tests
+                        // can still find the row, so this guard is what keeps
+                        // that row from drawing a hotspot no real payload
+                        // could ever produce.
+                        if (
+                            node === undefined ||
+                            (node.skill === null && node.available === 0)
+                        ) {
                             return null;
                         }
 

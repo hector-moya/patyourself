@@ -5,8 +5,8 @@ import { __resetSpriteClock, useSpriteClock } from '@/hooks/use-sprite-clock';
 
 import { ANIMATIONS } from './companion-animations';
 import { CompanionRoom, roomSize } from './companion-room';
-import { companion } from './companion.fixture';
-import { SCENES, sceneFor } from './scenes';
+import { bag, companion } from './companion.fixture';
+import { nodeCell, SCENES, sceneFor } from './scenes';
 
 /**
  * The foliage reads the shared clock, which is a module-level singleton, so
@@ -771,6 +771,160 @@ describe('the shelter standing in the clearing', () => {
         expect(drawn).toHaveAttribute('y', '-14');
         expect(drawn).toHaveAttribute('width', '48');
         expect(drawn).toHaveAttribute('height', '48');
+    });
+});
+
+describe('the nodes in the clearing', () => {
+    const standing = (band: string) =>
+        SCENES.forest.nodes.map((spec) => ({ node: spec.node, band }));
+
+    /**
+     * One sprite per node and exactly one. The "exactly one" half is the
+     * clearing-side twin of the gap F3's final review found indoors, where
+     * only the lean-to's interior was guarded and the hut's and the cabin's
+     * could both draw with the whole suite green.
+     *
+     * The mutation that turns this red: render every band instead of the one
+     * the payload names.
+     */
+    it('draws the band the payload names, and only that one', () => {
+        const { container } = render(
+            <CompanionRoom
+                companion={companion({ scene: 'forest' })}
+                animation="idle"
+                frame={0}
+                hour={12}
+                nodes={[{ node: 'reeds', band: 'plenty' }]}
+            />,
+        );
+
+        const drawn = container.querySelectorAll('[data-node="reeds"]');
+
+        expect(drawn).toHaveLength(1);
+        expect(drawn[0]).toHaveAttribute('data-band', 'plenty');
+    });
+
+    /**
+     * A node the payload does not carry is not drawn. This is how the heap
+     * disappears when it is drained: `HarvestNode` deletes the row, so
+     * `CompanionBag::nodes()` stops sending it, even though `scenes.ts` still
+     * knows where one would stand.
+     */
+    it('draws nothing for a node the payload does not carry', () => {
+        const { container } = render(
+            <CompanionRoom
+                companion={companion({ scene: 'forest' })}
+                animation="idle"
+                frame={0}
+                hour={12}
+                nodes={[]}
+            />,
+        );
+
+        expect(container.querySelectorAll('[data-node]')).toHaveLength(0);
+    });
+
+    /**
+     * Nothing grows indoors. "Where Blob is" and "what Blob has" are separate
+     * facts, and F3 §1 exists to keep them apart.
+     */
+    it('draws no node indoors', () => {
+        const { container } = render(
+            <CompanionRoom
+                companion={companion({ scene: 'forest' })}
+                animation="idle"
+                frame={0}
+                hour={12}
+                inside
+                nodes={standing('plenty')}
+            />,
+        );
+
+        expect(container.querySelectorAll('[data-node]')).toHaveLength(0);
+    });
+
+    /**
+     * `at` is the base centre now, so the cell hangs UP and LEFT of it — the
+     * same contract `ShelterLayer` follows. Derived from `NODE_CELLS` rather
+     * than pasted, so a deliberate coordinate change survives and only a wrong
+     * derivation fails.
+     *
+     * The mutation that turns this red: drop the `- height` and draw from the
+     * point downward, which would plant every node's art below the ground it
+     * stands on.
+     */
+    it('hangs a node cell above the point it stands on', () => {
+        const { container } = render(
+            <CompanionRoom
+                companion={companion({ scene: 'forest' })}
+                animation="idle"
+                frame={0}
+                hour={12}
+                nodes={[{ node: 'reeds', band: 'bare' }]}
+            />,
+        );
+
+        const spec = SCENES.forest.nodes.find((node) => node.node === 'reeds')!;
+        const [width, height] = nodeCell('reeds')!;
+        const art = container.querySelector('[data-node="reeds"]')!;
+
+        expect(art.getAttribute('x')).toBe(String(spec.at[0] - width / 2));
+        expect(art.getAttribute('y')).toBe(String(spec.at[1] - height));
+    });
+
+    /**
+     * A band with no art draws nothing rather than throwing — a heap at zero
+     * is the real case, and it can only arrive through a payload the server
+     * does not send, so the guard is cheap insurance rather than a live path.
+     */
+    it('draws nothing for a band it has no art for', () => {
+        const { container } = render(
+            <CompanionRoom
+                companion={companion({ scene: 'forest' })}
+                animation="idle"
+                frame={0}
+                hour={12}
+                nodes={[{ node: 'salvage', band: 'bare' }]}
+            />,
+        );
+
+        expect(container.querySelectorAll('[data-node]')).toHaveLength(0);
+    });
+
+    /**
+     * BLOB.md §11 trap 9: a shared fixture widened without anything asserting the
+     * widening took does not fail a guard, it silently drops out of what the guard
+     * covers. Three sections were added to this surface without one.
+     *
+     * Reads `bag()` rather than a hand-written list on purpose. A test that
+     * supplies its own `nodes` array proves the COMPONENT can draw a heap and
+     * proves nothing about whether any other test in the suite ever sees one —
+     * and that second thing is what was actually missing.
+     *
+     * The mutation that turns this red: delete the `salvage` row from the fixture.
+     */
+    it('gives the whole suite a heap to reach', () => {
+        const fixture = bag();
+        const heap = fixture.nodes.find((node) => node.node === 'salvage');
+
+        expect(heap).toBeDefined();
+
+        const { container } = render(
+            <CompanionRoom
+                companion={companion({ scene: 'forest' })}
+                animation="idle"
+                frame={0}
+                hour={12}
+                nodes={fixture.nodes.map((node) =>
+                    node.node === 'salvage' ? { ...node, band: 'plenty' } : node,
+                )}
+            />,
+        );
+
+        expect(container.querySelector('[data-node="salvage"]')).toHaveAttribute(
+            'data-band',
+            'plenty',
+        );
     });
 });
 

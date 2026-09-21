@@ -67,6 +67,27 @@ export function bag(overrides: Partial<CompanionBagData> = {}): CompanionBagData
                 known: false,
                 usable: false,
             },
+            // The heap: absent from most clearings, and absent from this
+            // fixture until F3.6 drew it. A node without a skill is not the
+            // world — it is there only because something put it there, nothing
+            // restocks it, and `HarvestNode` deletes it once drained — so
+            // `skill` is null, `known` is true with nothing to learn, and there
+            // is no `bare` band it can ever be in.
+            //
+            // Present with `available: 0` and no band on purpose: that is the
+            // shape a test gets by default, and a test about the heap has to
+            // say what is in it. The DEFAULT here must not draw a heap, or
+            // every clearing case in the suite silently gains a fifth object.
+            {
+                node: 'salvage',
+                label: 'the heap',
+                available: 0,
+                band: '',
+                skill: null,
+                met: true,
+                known: true,
+                usable: true,
+            },
         ],
         skills: [],
         recipes: [],

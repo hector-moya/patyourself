@@ -24,7 +24,13 @@ import type { AnimationName } from '@/patyourself/companion-animations';
 import { ANIMATIONS } from '@/patyourself/companion-animations';
 import { partOfDay } from '@/patyourself/part-of-day';
 import type { RoomPalette } from '@/patyourself/part-of-day';
-import { sceneFor, SHELTER_CELL, shelterSprite } from '@/patyourself/scenes';
+import {
+    nodeCell,
+    nodeSprite,
+    sceneFor,
+    SHELTER_CELL,
+    shelterSprite,
+} from '@/patyourself/scenes';
 import type { FoliageSpec } from '@/patyourself/scenes';
 
 /**
@@ -304,6 +310,53 @@ function ShelterLayer({
     );
 }
 
+/**
+ * What is standing at one node, at the amount it is standing in.
+ *
+ * The generalisation of `ShelterLayer` above, and a plain `<image>` for the
+ * same reason: the tree and the grass are sheets read by the one shared clock
+ * because they exist to carry wind, and a pile of timber does not sway. One
+ * frame, no clock, no phase.
+ *
+ * `band` decides which of a node's sprites is drawn, and the band itself is
+ * the server's answer — the thresholds are authored in
+ * `config('companion.node_bands')` and are deliberately nowhere in this
+ * language.
+ */
+function NodeLayer({
+    node,
+    band,
+    at,
+}: {
+    node: string;
+    band: string;
+    at: readonly [number, number];
+}) {
+    const sprite = nodeSprite(node, band);
+    const cell = nodeCell(node);
+
+    if (sprite === undefined || cell === undefined) {
+        return null;
+    }
+
+    const [width, height] = cell;
+
+    return (
+        <image
+            data-node={node}
+            data-band={band}
+            href={sprite}
+            // `at` is the base centre, so the cell hangs up and left of it —
+            // the same contract `ShelterLayer` follows.
+            x={at[0] - width / 2}
+            y={at[1] - height}
+            width={width}
+            height={height}
+            style={{ imageRendering: 'pixelated' }}
+        />
+    );
+}
+
 export function CompanionRoom({
     companion,
     animation,
@@ -313,6 +366,7 @@ export function CompanionRoom({
     onPoke,
     inside = false,
     shelter = null,
+    nodes = [],
 }: {
     companion: CompanionData;
     animation: AnimationName;
@@ -346,6 +400,16 @@ export function CompanionRoom({
      * nothing built — which is the one way left to look at it.
      */
     shelter?: string | null;
+    /**
+     * What is standing at each node, by name and band. Placement is
+     * `scenes.ts`'s; WHICH nodes are there and how much is at them is the
+     * server's, exactly as `shelter` above is.
+     *
+     * Structurally satisfied by `BagNodeData`, so the page passes `bag.nodes`
+     * straight through rather than mapping it into a new array on every
+     * render.
+     */
+    nodes?: readonly { node: string; band: string }[];
 }) {
     if (!companion.features.includes('blob')) {
         return null;
@@ -418,6 +482,31 @@ export function CompanionRoom({
                     {shelter !== null && scene.shelter !== undefined && (
                         <ShelterLayer stage={shelter} at={scene.shelter} />
                     )}
+                    {/* After the shelter and over it: the building stands at
+                        the treeline and the nodes are nearer the front, so
+                        painting them later is what puts them in front.
+
+                        Still under Blob and under the wash. The sprites are
+                        drawn in neutral light, so a layer that escaped the
+                        overlay would stay at noon all night. */}
+                    {scene.nodes.map((spec) => {
+                        const standing = nodes.find(
+                            (candidate) => candidate.node === spec.node,
+                        );
+
+                        if (standing === undefined) {
+                            return null;
+                        }
+
+                        return (
+                            <NodeLayer
+                                key={spec.node}
+                                node={spec.node}
+                                band={standing.band}
+                                at={spec.at}
+                            />
+                        );
+                    })}
                 </>
             )}
 
