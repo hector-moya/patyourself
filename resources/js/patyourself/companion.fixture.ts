@@ -28,11 +28,20 @@ export function bag(overrides: Partial<CompanionBagData> = {}): CompanionBagData
         // All three nodes stand in the clearing from the start, unmet and unusable —
         // the one list the server does NOT filter by what has happened, because
         // a node being there is not a preview of anything.
+        //
+        // `bare` is the band an unmet node sits in and stays in: nothing stocks
+        // a node whose skill has not been bought, so this is what a new record
+        // actually sees, for as long as it takes to buy one. A test that wants
+        // a node with something at it must set BOTH `available` and `band` —
+        // they are the payload's two views of one fact and the server keeps
+        // them in step, so a fixture that moves one alone is describing a
+        // payload the server cannot send.
         nodes: [
             {
                 node: 'deadfall',
                 label: 'the fallen branches',
                 available: 0,
+                band: 'bare',
                 skill: 'gather-wood',
                 met: false,
                 known: false,
@@ -42,6 +51,7 @@ export function bag(overrides: Partial<CompanionBagData> = {}): CompanionBagData
                 node: 'reeds',
                 label: 'the reeds',
                 available: 0,
+                band: 'bare',
                 skill: 'gather-fibre',
                 met: false,
                 known: false,
@@ -51,10 +61,41 @@ export function bag(overrides: Partial<CompanionBagData> = {}): CompanionBagData
                 node: 'trunk',
                 label: 'the fallen trunk',
                 available: 0,
+                band: 'bare',
                 skill: 'chop-wood',
                 met: false,
                 known: false,
                 usable: false,
+            },
+            // The heap: absent from most clearings, and absent from this
+            // fixture until F3.6 drew it. A node without a skill is not the
+            // world — it is there only because something put it there, nothing
+            // restocks it, and `HarvestNode` deletes it once drained — so
+            // `skill` is null, `known` is true with nothing to learn, and there
+            // is no `bare` band it can ever be in.
+            //
+            // Present with `available: 0` and no band on purpose: that is the
+            // shape a test gets by default, and a test about the heap has to
+            // say what is in it. The DEFAULT here must not draw a heap, or
+            // every clearing case in the suite silently gains a fifth object.
+            //
+            // This IS the impossible payload the warning above describes —
+            // the server never sends a heap at `available: 0` with an empty
+            // band; `CompanionBag::nodes()` skips a skill-less node with
+            // nothing standing rather than sending one at zero. Kept anyway
+            // because it is what buys the other two things this row exists
+            // for: every test can FIND a heap row to override, and an empty
+            // band has no sprite, so the default clearing stays at four
+            // authored nodes instead of quietly drawing a fifth.
+            {
+                node: 'salvage',
+                label: 'the heap',
+                available: 0,
+                band: '',
+                skill: null,
+                met: true,
+                known: true,
+                usable: true,
             },
         ],
         skills: [],

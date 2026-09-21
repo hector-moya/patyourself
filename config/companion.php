@@ -576,6 +576,48 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | What a node looks like
+    |--------------------------------------------------------------------------
+    |
+    | The clearing draws what is standing at a node rather than printing it, so
+    | an amount has to land in one of a few named bands and each band has a
+    | sprite. THE NUMBERS LIVE HERE AND THE ART IS SEMANTIC: getting a
+    | threshold wrong costs an edit to this array, and getting the art wrong
+    | costs a generation and a judgement. Welding them together would price
+    | every adjustment at the higher of the two.
+    |
+    | Read as "the least `available` that reaches this band", ascending, and
+    | resolved by taking the LAST band that has begun — the same sort,
+    | filter and take-last shape `partOfDay()` uses to let night wrap past
+    | midnight without a fifth state describing 3am. The two part company at
+    | the EMPTY-RESULT edge, though: below every part's `from`, `partOfDay()`
+    | wraps around to the last entry, while below every band's floor
+    | `bandFor()` names no band at all and returns `''` (see its own
+    | docblock) — a deliberate divergence, not an oversight, because
+    | guessing a band here would draw art for an amount no author described.
+    |
+    | `plenty` is `capacity.base` and means ONE TRIP CAN NO LONGER TAKE IT
+    | ALL — the one threshold a player could infer from play rather than be
+    | told. It is deliberately ABSOLUTE rather than a share of the account's
+    | own capacity: thresholds that moved with the bag would make the clearing
+    | look emptier the moment a crate was built, which is the picture going
+    | backwards as a reward for progress.
+    |
+    | `plenty` is open-ended, so 5 and 300 are drawn the same. That is the
+    | intent, not a limit accepted — a pile past a certain size stops reading
+    | as a number to the eye too. The exact amount is still carried by the
+    | bag's take field and by Blob's own `took` line.
+    |
+    */
+
+    'node_bands' => [
+        'bare' => 0,
+        'some' => 1,
+        'plenty' => 5,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | The bag
     |--------------------------------------------------------------------------
     |

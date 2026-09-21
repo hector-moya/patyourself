@@ -25,14 +25,20 @@ vi.mock('@inertiajs/react', async (importOriginal) => {
     };
 });
 
-import { roomOffset } from '@/patyourself/companion-room';
+import { roomOffset, roomSize } from '@/patyourself/companion-room';
 import {
     bag,
     companion,
     noCompanion,
     unlock,
 } from '@/patyourself/companion.fixture';
-import { SCENES, SHELTER_CELL, SHELTER_SPRITES } from '@/patyourself/scenes';
+import { renderClearing } from '@/patyourself/companion.harness';
+import {
+    nodeCell,
+    SCENES,
+    SHELTER_CELL,
+    SHELTER_SPRITES,
+} from '@/patyourself/scenes';
 
 import CompanionPage from './companion';
 
@@ -100,24 +106,55 @@ describe('Companion screen', () => {
      * nothing anywhere that reads as a score.
      */
     it('never shows what has not happened', () => {
-        render(
-            <CompanionPage
+        renderClearing({
+            bag: {
                 // The clearing's shelter object renders only once something
                 // has been built, on a scene that names it a place to
                 // stand — the bare fixture and the default cabin scene both
                 // leave it absent, which would leave this guard blind to it.
-                bag={bag({
-                    shelter: { built: 'hut', label: 'hut', offer: null },
-                })}
-                companion={companion({ scene: 'forest' })}
-            />,
-        );
+                shelter: { built: 'hut', label: 'hut', offer: null },
+                // The fixture's own nodes all sit at `available: 0`, which is
+                // real art (the `bare` band) but never the art this guard has
+                // to cover — mapping over the fixture's rows, rather than
+                // replacing the array, keeps the heap in place with nothing
+                // standing at it (its `band: ''` has no sprite, so it stays
+                // undrawn, which is the right clearing for an account that
+                // never had a cabin) while giving the other three something
+                // standing: reeds a `plenty`, the rest a `some`, so the guard
+                // sees each drawn band at least once.
+                nodes: bag().nodes.map((node) => {
+                    if (node.node === 'salvage') {
+                        return node;
+                    }
+
+                    return node.node === 'reeds'
+                        ? {
+                              ...node,
+                              available: 27,
+                              band: 'plenty',
+                              known: true,
+                          }
+                        : { ...node, available: 3, band: 'some', known: true };
+                }),
+            },
+        });
 
         expect(
             screen.queryByText(
                 /locked|next up|to unlock|remaining|streak|congratulation|\d+\s*%|\d+ of \d+/i,
             ),
         ).toBeNull();
+
+        // The guard above walks the HOTSPOT loop, which a mutation to
+        // `NodeSpot` (rendering `{available} of {total}` as visible text)
+        // already reddens — but nothing here proves `CompanionRoom` ever
+        // received `bag.nodes` at all. Deleting `nodes={bag.nodes}` from
+        // `companion.tsx` leaves `CompanionRoom.nodes` at its `[]` default,
+        // the clearing draws no node art, and every assertion above still
+        // passes. Three of the four rows set up above resolve a sprite
+        // (reeds `plenty`, deadfall and trunk `some`); the heap stays at
+        // `band: ''`, which has none, so it never draws.
+        expect(document.querySelectorAll('[data-node]')).toHaveLength(3);
     });
 
     /**
@@ -129,74 +166,78 @@ describe('Companion screen', () => {
      * surface the acceptance criterion never looked at.
      */
     it('still shows nothing that has not happened once the bag is open', () => {
-        render(
-            <CompanionPage
-                bag={bag({
-                    xp: 48,
-                    held: 3,
-                    capacity: 5,
-                    items: [
-                        {
-                            item: 'fibre',
-                            label: 'fibre',
-                            category: 'material',
-                            quantity: 3,
-                            droppable: true,
-                        },
-                    ],
-                    skills: [
-                        {
-                            skill: 'gather-fibre',
-                            label: 'gather fibre',
-                            price: 20,
-                            known: false,
-                            affordable: true,
-                        },
-                    ],
-                    // The fixture's own nodes default to available: 0, which
-                    // leaves Clearing rendering null and this guard blind to
-                    // it. At least one node standing and known so the
-                    // clearing group actually renders here.
-                    nodes: [
-                        {
-                            node: 'reeds',
-                            label: 'the reeds',
-                            available: 4,
-                            skill: 'gather-fibre',
-                            met: true,
-                            known: true,
-                            usable: true,
-                        },
-                    ],
-                    // The fixture's own shelter defaults to a null offer, which
-                    // leaves the bag's own Shelter section rendering null and
-                    // this guard blind to it — a section that renders null is
-                    // a section the acceptance criterion is not checking. A
-                    // non-null offer so that row actually renders inside this
-                    // assertion.
-                    //
-                    // `built` and `label` are non-null for the same reason:
-                    // the clearing's own shelter object (the room hotspot,
-                    // not this bag row) renders only once something has been
-                    // built, so this guard has to build something or it is
-                    // asserting over a scene the object is absent from.
-                    shelter: {
-                        built: 'hut',
-                        label: 'hut',
-                        offer: {
-                            stage: 'lean-to',
-                            label: 'lean-to',
-                            recipe: { planks: 4 },
-                            buildable: false,
-                        },
+        renderClearing({
+            bag: {
+                xp: 48,
+                held: 3,
+                capacity: 5,
+                items: [
+                    {
+                        item: 'fibre',
+                        label: 'fibre',
+                        category: 'material',
+                        quantity: 3,
+                        droppable: true,
                     },
-                })}
-                // The clearing's shelter object also needs a scene that
-                // names it a place to stand — cabin (this fixture's default)
-                // never does, so it would still be absent without this.
-                companion={companion({ scene: 'forest' })}
-            />,
-        );
+                ],
+                skills: [
+                    {
+                        skill: 'gather-fibre',
+                        label: 'gather fibre',
+                        price: 20,
+                        known: false,
+                        affordable: true,
+                    },
+                ],
+                // The fixture's own nodes default to available: 0, which
+                // leaves Clearing rendering null and this guard blind to it.
+                // Mapping over the fixture's rows, rather than replacing the
+                // array with one node, keeps the heap in place with nothing
+                // standing at it (its `band: ''` has no sprite, so it stays
+                // undrawn — the right clearing for an account that never had
+                // a cabin) while giving the other three something standing:
+                // reeds a `plenty`, the rest a `some`, so the guard sees each
+                // drawn band at least once. Replacing the array here rather
+                // than mapping is trap 9 committed while fixing trap 9 — it
+                // silently drops the other three out of this very guard.
+                nodes: bag().nodes.map((node) => {
+                    if (node.node === 'salvage') {
+                        return node;
+                    }
+
+                    return node.node === 'reeds'
+                        ? {
+                              ...node,
+                              available: 27,
+                              band: 'plenty',
+                              known: true,
+                          }
+                        : { ...node, available: 3, band: 'some', known: true };
+                }),
+                // The fixture's own shelter defaults to a null offer, which
+                // leaves the bag's own Shelter section rendering null and
+                // this guard blind to it — a section that renders null is
+                // a section the acceptance criterion is not checking. A
+                // non-null offer so that row actually renders inside this
+                // assertion.
+                //
+                // `built` and `label` are non-null for the same reason:
+                // the clearing's own shelter object (the room hotspot,
+                // not this bag row) renders only once something has been
+                // built, so this guard has to build something or it is
+                // asserting over a scene the object is absent from.
+                shelter: {
+                    built: 'hut',
+                    label: 'hut',
+                    offer: {
+                        stage: 'lean-to',
+                        label: 'lean-to',
+                        recipe: { planks: 4 },
+                        buildable: false,
+                    },
+                },
+            },
+        });
 
         fireEvent.click(screen.getByRole('button', { name: /bag/i }));
 
@@ -206,6 +247,14 @@ describe('Companion screen', () => {
                 /locked|next up|to unlock|remaining|streak|congratulation|\d+\s*%|\d+ of \d+/i,
             ),
         ).toBeNull();
+
+        // Same gap as the guard above, checked with the bag open: deleting
+        // `nodes={bag.nodes}` from `companion.tsx` leaves the clearing behind
+        // the dialog drawing no node art at all, and nothing above would
+        // notice. Three of the four rows set up above resolve a sprite
+        // (reeds `plenty`, deadfall and trunk `some`); the heap stays at
+        // `band: ''`, which has none, so it never draws.
+        expect(document.querySelectorAll('[data-node]')).toHaveLength(3);
     });
 
     it('relays what Blob has to say, near Blob', () => {
@@ -436,7 +485,16 @@ describe('Companion screen', () => {
             expect(post.mock.calls[0][0]).toContain('/companion/nodes/reeds');
         });
 
-        /** What is standing there, once something is. */
+        /**
+         * What is standing there, once something is. The art carries the
+         * picture now, so the count lives only in the accessible name —
+         * `NodeSpot` carries no text content at all.
+         *
+         * The mutation that turns this red: drop the `available > 0` guard
+         * so a zero prints a count of what has not accrued — the fallen
+         * branches' name would then be "the fallen branches, 0" and the
+         * exact-name lookup below would stop finding it.
+         */
         it('shows what has accrued, and nothing when nothing has', () => {
             render(
                 <CompanionPage
@@ -447,6 +505,7 @@ describe('Companion screen', () => {
                                 node: 'reeds',
                                 label: 'the reeds',
                                 available: 4,
+                                band: 'some',
                                 skill: 'gather-fibre',
                                 met: true,
                                 known: true,
@@ -456,6 +515,7 @@ describe('Companion screen', () => {
                                 node: 'deadfall',
                                 label: 'the fallen branches',
                                 available: 0,
+                                band: 'bare',
                                 skill: 'gather-wood',
                                 met: false,
                                 known: false,
@@ -467,12 +527,12 @@ describe('Companion screen', () => {
             );
 
             expect(
-                screen.getByRole('button', { name: /the reeds/i }),
-            ).toHaveTextContent('4');
+                screen.getByRole('button', { name: 'the reeds, 4' }),
+            ).toBeInTheDocument();
             // A zero would be a count of what you have not got.
             expect(
-                screen.getByRole('button', { name: /the fallen branches/i }),
-            ).toHaveTextContent(/^the fallen branches$/i);
+                screen.getByRole('button', { name: 'the fallen branches' }),
+            ).toBeInTheDocument();
         });
 
         /** Indoors there is no clearing, so there is nothing to touch. */
@@ -551,6 +611,7 @@ describe('Companion screen', () => {
                                 node: 'deadfall',
                                 label: 'the fallen branches',
                                 available: 0,
+                                band: 'bare',
                                 skill: 'gather-wood',
                                 met: false,
                                 known: false,
@@ -560,6 +621,7 @@ describe('Companion screen', () => {
                                 node: 'reeds',
                                 label: 'the reeds',
                                 available: 0,
+                                band: 'bare',
                                 skill: 'gather-fibre',
                                 met: false,
                                 known: false,
@@ -569,6 +631,7 @@ describe('Companion screen', () => {
                                 node: 'trunk',
                                 label: 'the fallen trunk',
                                 available: 0,
+                                band: 'bare',
                                 skill: 'chop-wood',
                                 met: false,
                                 known: false,
@@ -660,6 +723,7 @@ describe('Companion screen', () => {
                                 node: 'reeds',
                                 label: 'the reeds',
                                 available: 4,
+                                band: 'some',
                                 skill: 'gather-fibre',
                                 met: true,
                                 known: true,
@@ -740,7 +804,11 @@ describe('Companion screen', () => {
             render(
                 <CompanionPage
                     bag={bag({
-                        shelter: { built: 'cabin', label: 'cabin', offer: null },
+                        shelter: {
+                            built: 'cabin',
+                            label: 'cabin',
+                            offer: null,
+                        },
                     })}
                     companion={companion({ scene: 'forest' })}
                 />,
@@ -755,6 +823,27 @@ describe('Companion screen', () => {
 
             expect(control.style.left).toBe(expected.left);
             expect(control.style.top).toBe(expected.top);
+        });
+
+        /**
+         * `toHaveClass`, not `toContain` on the class string: a template literal that
+         * eats its leading space ships `class="c-nodec-node--art"`, and a substring
+         * check passes on exactly that.
+         *
+         * The mutation that turns this red: drop `roomSize(...)` from the style.
+         */
+        it('sizes the shelter control to its art', () => {
+            renderClearing({
+                bag: { shelter: { built: 'hut', label: 'hut', offer: null } },
+            });
+
+            const spot = screen.getByRole('button', {
+                name: /go inside the hut/i,
+            });
+
+            expect(spot).toHaveClass('c-node', 'c-shelter', 'c-node--art');
+            expect(spot.style.width).not.toBe('');
+            expect(spot.style.height).not.toBe('');
         });
 
         /**
@@ -784,6 +873,7 @@ describe('Companion screen', () => {
                                 node: 'salvage',
                                 label: 'the heap',
                                 available: 26,
+                                band: 'plenty',
                                 skill: null,
                                 met: true,
                                 known: true,
@@ -1160,6 +1250,7 @@ describe('Companion screen', () => {
                             node: 'reeds',
                             label: 'the reeds',
                             available: 4,
+                            band: 'some',
                             skill: 'gather-fibre',
                             met: true,
                             known: true,
@@ -1197,5 +1288,215 @@ describe('Companion screen', () => {
 
         expect(screen.getByText('the hut')).toBeInTheDocument();
         expect(screen.queryByText('the forest')).toBeNull();
+    });
+
+    /**
+     * A control that removes itself must not take the keyboard with it. Going
+     * inside unmounts `ShelterSpot`, and focus lands on <body>, so the next Tab
+     * restarts at the top of the document.
+     *
+     * Asserting "not body" rather than naming an element on purpose: the defect
+     * IS focus falling to the document, and pinning the replacement element
+     * would re-encode the implementation and fail the next time it moves.
+     *
+     * The mutation that turns this red: delete the `useEffect` block.
+     */
+    it('keeps the keyboard in the clearing when a hotspot unmounts under it', () => {
+        renderClearing({
+            bag: { shelter: { built: 'hut', label: 'hut', offer: null } },
+        });
+
+        const spot = screen.getByRole('button', { name: /go inside the hut/i });
+        spot.focus();
+        expect(document.activeElement).toBe(spot);
+
+        fireEvent.click(spot);
+
+        expect(
+            screen.queryByRole('button', { name: /go inside the hut/i }),
+        ).toBeNull();
+        expect(document.activeElement).not.toBe(document.body);
+    });
+
+    /**
+     * The other half, and the half that makes the fix safe: focus that SURVIVED
+     * the click is never stolen.
+     *
+     * Focus sits on the plinth's control while the SHELTER hotspot is clicked —
+     * `fireEvent.click` does not move focus, so this is a click that raises the
+     * recovery flag (the hotspot unmounts) while focus is somewhere perfectly
+     * good. Recovery must decline to act. Without that, the effect would drag
+     * focus to the stage after any qualifying click, which is a worse bug than
+     * the one being fixed.
+     *
+     * The mutation that turns this red: delete the
+     * `document.activeElement === document.body` condition, keeping the
+     * `recoverFocus.current` gate. Focus is then yanked to `.c-stage` and the
+     * final assertion fails.
+     */
+    it('does not steal focus that survived the click', () => {
+        renderClearing({
+            bag: { shelter: { built: 'hut', label: 'hut', offer: null } },
+        });
+
+        const plinth = screen.getByRole('button', { name: 'Go inside' });
+        const spot = screen.getByRole('button', { name: /go inside the hut/i });
+
+        plinth.focus();
+        fireEvent.click(spot);
+
+        expect(
+            screen.queryByRole('button', { name: /go inside the hut/i }),
+        ).toBeNull();
+        expect(document.activeElement).toBe(
+            screen.getByRole('button', { name: 'Go outside' }),
+        );
+    });
+});
+
+describe('the clearing has no words in it', () => {
+    /**
+     * The phase's own acceptance criterion. Every node's name was printed in
+     * the clearing at a fixed 8px font that did not scale with the svg, which
+     * is the label-sizing problem BLOB.md §12 has carried since F1. It is
+     * retired by deletion, not by a font rule.
+     *
+     * The mutation that turns this red: put `{label}` back in the button.
+     */
+    it('prints no node name over the picture', () => {
+        renderClearing();
+
+        expect(screen.queryByText('the reeds')).toBeNull();
+        expect(screen.queryByText('the fallen branches')).toBeNull();
+        expect(screen.queryByText('the fallen trunk')).toBeNull();
+    });
+
+    /**
+     * And no amount either — the art carries it. A digit over the picture is
+     * the number this phase exists to stop printing.
+     *
+     * The mutation that turns this red: restore the `<i>{available}</i>`.
+     */
+    it('prints no amount over the picture', () => {
+        renderClearing({
+            bag: {
+                nodes: [
+                    {
+                        node: 'reeds',
+                        label: 'the reeds',
+                        available: 27,
+                        band: 'plenty',
+                        skill: 'gather-fibre',
+                        met: true,
+                        known: true,
+                        usable: true,
+                    },
+                ],
+            },
+        });
+
+        expect(screen.queryByText('27')).toBeNull();
+    });
+
+    /**
+     * What a screen reader hears is the one thing that does NOT change. The
+     * picture is a band; the name is the number behind it, which AT users have
+     * today and must not lose to a redraw they cannot see.
+     *
+     * The mutation that turns this red: drop `, ${available}` from the label,
+     * or swap it for the band word.
+     */
+    it('still tells a screen reader exactly how much is standing', () => {
+        renderClearing({
+            bag: {
+                nodes: [
+                    {
+                        node: 'reeds',
+                        label: 'the reeds',
+                        available: 27,
+                        band: 'plenty',
+                        skill: 'gather-fibre',
+                        met: true,
+                        known: true,
+                        usable: true,
+                    },
+                ],
+            },
+        });
+
+        expect(
+            screen.getByRole('button', { name: 'the reeds, 27' }),
+        ).toBeInTheDocument();
+    });
+
+    /**
+     * A node with nothing at it is named without a number. A zero would be a
+     * count of what you have not got — the rule the old `available > 0` guard
+     * on the printed count already followed, carried over to the name.
+     */
+    it('names an empty node without a number', () => {
+        renderClearing();
+
+        expect(
+            screen.getByRole('button', { name: 'the reeds' }),
+        ).toBeInTheDocument();
+    });
+
+    /**
+     * The control sits on the art's own centre, not the base centre
+     * `spec.at` names — `.c-node` is translated by -50%,-50%, and the art
+     * hangs above the point the thing stands on rather than around it, the
+     * same contract `positions the shelter control on the art` above pins
+     * for the shelter's own hotspot. It is also sized to its OWN cell, so it
+     * scales with the stage rather than being right at one width. Both are
+     * derived from `SCENES.forest.nodes` and `nodeCell` rather than pasted,
+     * so this only fails on a wrong derivation and survives a deliberate
+     * coordinate change. `toHaveClass`, not `toContain`, because a template
+     * literal that eats its leading space ships `class="c-nodec-node--art"`
+     * and a substring check passes on that.
+     *
+     * The mutations that turn this red: shift every node hotspot 20 room
+     * units right, or size every hotspot with
+     * `roomSize(SHELTER_CELL, SHELTER_CELL)` instead of its own cell.
+     */
+    it('sizes each node control to its own art', () => {
+        renderClearing();
+
+        const spot = screen.getByRole('button', { name: 'the reeds' });
+
+        expect(spot).toHaveClass('c-node', 'c-node--art');
+        expect(spot).not.toHaveClass('is-known');
+
+        const spec = SCENES.forest.nodes.find((node) => node.node === 'reeds')!;
+        const cell = nodeCell('reeds')!;
+        const expectedAt = roomOffset(spec.at[0], spec.at[1] - cell[1] / 2);
+        const expectedSize = roomSize(cell[0], cell[1]);
+
+        expect(spot.style.left).toBe(expectedAt.left);
+        expect(spot.style.top).toBe(expectedAt.top);
+        expect(spot.style.width).toBe(expectedSize.width);
+        expect(spot.style.height).toBe(expectedSize.height);
+    });
+});
+
+describe('the clearing harness', () => {
+    /**
+     * The guard's own guard. Without this, `renderClearing` could stop
+     * checking and nothing would notice — which is precisely the failure
+     * mode it exists to end.
+     *
+     * The mutation that turns this red: delete the `if` block in
+     * `companion.harness.tsx`.
+     */
+    it('refuses to hand back an interior', () => {
+        expect(() => renderClearing({ companion: { scene: 'cabin' } })).toThrow(
+            /the clearing did not render/,
+        );
+    });
+
+    it('renders the clearing without being told the scene', () => {
+        renderClearing();
+
+        expect(screen.getByRole('img')).toHaveAttribute('data-scene', 'forest');
     });
 });

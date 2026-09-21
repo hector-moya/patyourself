@@ -4,6 +4,7 @@ namespace Tests\Feature\Companion;
 
 use App\Actions\BuildItem;
 use App\Actions\HarvestNode;
+use App\Actions\LearnSkill;
 use App\Actions\MeetNode;
 use App\Models\ActionLog;
 use App\Models\Companion;
@@ -149,6 +150,47 @@ class CompanionBagTest extends TestCase
         $this->assertDatabaseCount('companions', 0);
     }
 
+    /**
+     * `worldBeforeAnythingHappened()` is the ONLY path an account with no
+     * `companions` row at all can reach — there is no companion to read
+     * `nodes` from, so this is a second place building the same list `nodes()`
+     * builds for everyone else. Two branches building one payload can drift
+     * into two shapes, and `band` is exactly the kind of field a later change
+     * could add to one and forget on the other.
+     *
+     * What breaks without it: a brand-new account's very first visit to the
+     * clearing draws through THIS path, not `nodes()`. The client's sprite
+     * lookup resolves a missing or unmatched `band` to nothing and paints
+     * nothing — so a first-time player would see an empty clearing with none
+     * of the three world nodes standing in it, which is the opposite of F1's
+     * whole point that all three are there from the start. `bare` is also the
+     * band every unmet node stands in, so this is the single most-seen band
+     * in the feature, and this is where it would first go missing.
+     *
+     * The mutation that turns this red: deleting the `'band' => ...` line
+     * from the row built in `worldBeforeAnythingHappened()`. Confirmed by
+     * hand — restoring that removed line is what makes this test pass again.
+     */
+    public function test_the_world_before_anything_happened_carries_a_band_too(): void
+    {
+        $user = User::factory()->create();
+
+        $bag = app(CompanionBag::class);
+
+        // Read through the same private method `nodes()` calls, rather than
+        // hardcoding 'bare' here: the point is that both paths agree with
+        // EACH OTHER, not that both agree with a number pasted into a test.
+        $expected = (new \ReflectionMethod($bag, 'bandFor'))->invoke($bag, 0);
+
+        $bands = array_column($this->bag($user)['nodes'], 'band');
+
+        $this->assertNotEmpty($bands);
+        $this->assertSame(array_fill(0, count($bands), $expected), $bands);
+
+        // Reached the branch this test is actually about, not the other one.
+        $this->assertDatabaseCount('companions', 0);
+    }
+
     /** The balance, and nothing about a target. */
     public function test_the_balance_is_what_the_record_has_paid_less_what_was_spent(): void
     {
@@ -244,6 +286,7 @@ class CompanionBagTest extends TestCase
                 'node' => 'reeds',
                 'label' => 'the reeds',
                 'available' => 4,
+                'band' => 'some',
                 'skill' => 'gather-fibre',
                 'met' => true,
                 'known' => true,
@@ -255,6 +298,7 @@ class CompanionBagTest extends TestCase
                 'node' => 'deadfall',
                 'label' => 'the fallen branches',
                 'available' => 0,
+                'band' => 'bare',
                 'skill' => 'gather-wood',
                 'met' => false,
                 'known' => false,
@@ -264,6 +308,7 @@ class CompanionBagTest extends TestCase
                 'node' => 'trunk',
                 'label' => 'the fallen trunk',
                 'available' => 0,
+                'band' => 'bare',
                 'skill' => 'chop-wood',
                 'met' => false,
                 'known' => false,
@@ -326,6 +371,7 @@ class CompanionBagTest extends TestCase
             'node' => 'salvage',
             'label' => 'the heap',
             'available' => 26,
+            'band' => 'plenty',
             // Null rather than '': a heap is not a thing you learn to use.
             'skill' => null,
             // The row exists, so it has been placed — and a heap is placed
@@ -1169,5 +1215,70 @@ class CompanionBagTest extends TestCase
         app(MeetNode::class)->handle($user, 'reeds');
 
         $this->assertContains('planks', array_column($this->bag($user)['recipes'], 'item'));
+    }
+
+    /**
+     * The picture in the clearing is a band, not a number, so the band is what
+     * the payload has to carry. It is computed HERE and not in the client
+     * because the thresholds are authored in config and the client cannot read
+     * config — the alternative is the numbers existing twice, and two opinions
+     * about what "plenty" means will eventually disagree.
+     */
+    public function test_a_node_carries_the_band_its_amount_falls_in(): void
+    {
+        $user = $this->richUser();
+        app(MeetNode::class)->handle($user, 'reeds');
+        app(LearnSkill::class)->handle($user, 'gather-fibre');
+
+        $companion = Companion::query()->where('user_id', $user->id)->sole();
+
+        foreach ([0 => 'bare', 1 => 'some', 4 => 'some', 5 => 'plenty', 300 => 'plenty'] as $available => $band) {
+            $companion->nodes()->updateOrCreate(
+                ['node' => 'reeds'],
+                ['available' => $available],
+            );
+
+            $reeds = collect($this->bag($user->fresh()))['nodes'];
+            $row = collect($reeds)->firstWhere('node', 'reeds');
+
+            $this->assertSame($band, $row['band'], "at {$available}");
+        }
+    }
+
+    /**
+     * The top threshold is `capacity.base`, and it means "one trip can no
+     * longer take it all". Nothing DERIVES one of these from the other —
+     * both are independently authored literals in `config/companion.php` —
+     * so this test is what keeps them equal rather than a guard that a
+     * derivation stayed correct: change either value without the other and
+     * this reddens, which is the point, since `node_bands.plenty` meaning
+     * anything other than a bagful is exactly what that pairing must not be
+     * allowed to drift into.
+     */
+    public function test_the_top_band_begins_at_a_bagful(): void
+    {
+        $this->assertSame(
+            (int) config('companion.capacity.base'),
+            (int) config('companion.node_bands.plenty'),
+        );
+    }
+
+    /**
+     * A band the table does not reach resolves to nothing rather than to the
+     * lowest one. The client looks the name up in a sprite record, so an empty
+     * string draws nothing — which is the safe failure. Guessing `bare` would
+     * draw a full reed bed for an amount the author never described.
+     */
+    public function test_an_amount_below_every_band_names_none(): void
+    {
+        config()->set('companion.node_bands', ['some' => 1, 'plenty' => 5]);
+
+        $user = $this->richUser();
+        app(MeetNode::class)->handle($user, 'reeds');
+        app(LearnSkill::class)->handle($user, 'gather-fibre');
+
+        $row = collect($this->bag($user)['nodes'])->firstWhere('node', 'reeds');
+
+        $this->assertSame('', $row['band']);
     }
 }

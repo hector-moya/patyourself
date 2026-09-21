@@ -50,7 +50,7 @@ final readonly class CompanionBag
      *     held: int,
      *     name: string,
      *     items: list<array{item: string, label: string, category: string, quantity: int, droppable: bool}>,
-     *     nodes: list<array{node: string, label: string, available: int, skill: string|null, met: bool, known: bool, usable: bool}>,
+     *     nodes: list<array{node: string, label: string, available: int, band: string, skill: string|null, met: bool, known: bool, usable: bool}>,
      *     skills: list<array{skill: string, label: string, price: int, known: bool, affordable: bool}>,
      *     recipes: list<array{item: string, label: string, recipe: array<string, int>, tool: string|null, buildable: bool}>,
      *     shelter: array{built: string|null, label: string|null, offer: array{stage: string, label: string, recipe: array<string, int>, buildable: bool}|null},
@@ -165,7 +165,7 @@ final readonly class CompanionBag
      *
      * @param  list<string>  $met
      * @param  list<string>  $learned
-     * @return list<array{node: string, label: string, available: int, skill: string|null, met: bool, known: bool, usable: bool}>
+     * @return list<array{node: string, label: string, available: int, band: string, skill: string|null, met: bool, known: bool, usable: bool}>
      */
     private function worldBeforeAnythingHappened(): array
     {
@@ -183,6 +183,11 @@ final readonly class CompanionBag
                 'node' => $name,
                 'label' => (string) $entry['label'],
                 'available' => 0,
+                // Derived through bandFor() rather than hardcoded 'bare': if
+                // an author ever moves the bottom threshold off zero, a
+                // literal here would silently disagree with every other path
+                // that reads the same amount through the same function.
+                'band' => $this->bandFor(0),
                 'skill' => (string) $entry['skill'],
                 'met' => false,
                 'known' => false,
@@ -205,7 +210,7 @@ final readonly class CompanionBag
      * @param  list<string>  $met
      * @param  list<string>  $learned
      * @param  Collection<string, CompanionItem>  $held
-     * @return list<array{node: string, label: string, available: int, skill: string|null, met: bool, known: bool, usable: bool}>
+     * @return list<array{node: string, label: string, available: int, band: string, skill: string|null, met: bool, known: bool, usable: bool}>
      */
     private function nodes(Companion $companion, array $met, array $learned, Collection $held): array
     {
@@ -233,6 +238,7 @@ final readonly class CompanionBag
                 'node' => $name,
                 'label' => (string) $entry['label'],
                 'available' => (int) ($standingHere?->available ?? 0),
+                'band' => $this->bandFor((int) ($standingHere?->available ?? 0)),
                 // Null rather than '' so the client has one falsy case to
                 // test, the same choice `recipes[].tool` already made.
                 'skill' => $skill === '' ? null : $skill,
@@ -243,6 +249,32 @@ final readonly class CompanionBag
         }
 
         return $listed;
+    }
+
+    /**
+     * Which band an amount falls in.
+     *
+     * Sorts by the floor and takes the last band that has begun — the same
+     * shape `partOfDay()` uses, and the reason night wraps past midnight
+     * without a fifth state describing 3am.
+     *
+     * An amount below every floor names NO band, rather than falling back to
+     * the lowest. The client looks the name up in a sprite record and draws
+     * nothing for a miss, which is the safe failure; guessing would draw a
+     * full node for an amount no author described.
+     */
+    private function bandFor(int $available): string
+    {
+        /** @var array<string, int> $bands */
+        $bands = (array) config('companion.node_bands', []);
+
+        $named = collect($bands)
+            ->sortBy(static fn (int $floor): int => $floor)
+            ->filter(static fn (int $floor): bool => $floor <= $available)
+            ->keys()
+            ->last();
+
+        return is_string($named) ? $named : '';
     }
 
     /**

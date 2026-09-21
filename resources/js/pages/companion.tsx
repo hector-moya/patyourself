@@ -1,5 +1,5 @@
 import { router } from '@inertiajs/react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { useSpriteClock } from '@/hooks/use-sprite-clock';
 import CoachLayout from '@/layouts/coach-layout';
@@ -18,9 +18,19 @@ import type {
 import type { AnimationName } from '@/patyourself/companion-animations';
 import { CompanionBag } from '@/patyourself/companion-bag';
 import { CompanionGlyph } from '@/patyourself/companion-glyph';
-import { CompanionRoom, roomOffset } from '@/patyourself/companion-room';
+import {
+    CompanionRoom,
+    roomOffset,
+    roomSize,
+} from '@/patyourself/companion-room';
 import { partOfDay } from '@/patyourself/part-of-day';
-import { sceneFor, SHELTER_CELL, shelterSprite } from '@/patyourself/scenes';
+import {
+    nodeCell,
+    nodeSprite,
+    sceneFor,
+    SHELTER_CELL,
+    shelterSprite,
+} from '@/patyourself/scenes';
 import { store as touchNodeRoute } from '@/routes/companion/nodes';
 
 interface CompanionPageProps {
@@ -254,6 +264,37 @@ function RoomCard({
     const part = partOfDay(hour, companion.room);
     const shelterAt = sceneFor(companion.scene).shelter;
 
+    const stage = useRef<HTMLDivElement>(null);
+    /**
+     * Set by a hotspot that is about to remove itself — going inside unmounts
+     * `ShelterSpot`, and draining the heap deletes its node row and with it
+     * `NodeSpot`. A ref rather than state: this must not cause a render of
+     * its own, it only has to survive until the next commit.
+     */
+    const recoverFocus = useRef(false);
+
+    /**
+     * No dependency array: this has to run after EVERY commit, because what it
+     * is watching for is an element disappearing rather than a value changing.
+     * The ref is the gate, so it costs a boolean check on renders that are not
+     * about focus.
+     *
+     * The condition is the whole safety of it. Focus is recovered only when it
+     * was actually LOST — a click that left focus somewhere real must not have
+     * it dragged back to the stage, which would be worse than the bug.
+     */
+    useEffect(() => {
+        if (!recoverFocus.current) {
+            return;
+        }
+
+        recoverFocus.current = false;
+
+        if (document.activeElement === document.body) {
+            stage.current?.focus();
+        }
+    });
+
     return (
         <section className="pixel-frame c-panel">
             {/* Where Blob is, and when — the one thing this screen never
@@ -289,8 +330,8 @@ function RoomCard({
                 </time>
             </div>
 
-            <div className="c-stage">
-{/* What just happened wins over what Blob had to say: one is
+            <div className="c-stage" ref={stage} tabIndex={-1}>
+                {/* What just happened wins over what Blob had to say: one is
                     about the click that was made a moment ago, the other is a
                     line the coach wrote some time ago. Both are Blob talking,
                     and there is one bubble. */}
@@ -319,6 +360,7 @@ function RoomCard({
                     onPoke={() => onReact('notice')}
                     inside={inside}
                     shelter={bag.shelter.built}
+                    nodes={bag.nodes}
                 />
 
                 {/* The clearing's own things, laid over the picture as real
@@ -338,8 +380,27 @@ function RoomCard({
                         const node = bag.nodes.find(
                             (candidate) => candidate.node === spec.node,
                         );
+                        const cell = nodeCell(spec.node);
 
-                        if (node === undefined) {
+                        // `available: 0` with an empty band is a FIXTURE-only
+                        // shape, kept so tests can still find the heap's row —
+                        // the server cannot actually send it.
+                        // `CompanionBag::nodes()` skips a skill-less node with
+                        // nothing standing at it rather than sending one at
+                        // zero, and were a heap ever sent at `available: 0`
+                        // its band would be `bandFor(0)`, which resolves to
+                        // `'bare'`, not `''`. Gated here on the sprite
+                        // resolving so this control agrees with `NodeLayer`,
+                        // which already draws nothing for a band with no art:
+                        // without this, an empty heap (or any future node
+                        // whose band has no art) leaves an invisible,
+                        // unlabelled hit region standing in the clearing —
+                        // the defect 15e893a fixed for the shelter.
+                        if (
+                            node === undefined ||
+                            cell === undefined ||
+                            nodeSprite(spec.node, node.band) === undefined
+                        ) {
                             return null;
                         }
 
@@ -348,9 +409,22 @@ function RoomCard({
                                 key={spec.node}
                                 label={node.label}
                                 available={node.available}
-                                known={node.known}
-                                at={roomOffset(spec.at[0], spec.at[1])}
-                                onClick={() => onTouchNode(spec.node)}
+                                cell={cell}
+                                // The art's centre, not the base centre `at`
+                                // names: `.c-node` is translated by
+                                // -50%,-50%, and the art sits above the point
+                                // the thing stands on rather than around it.
+                                at={roomOffset(
+                                    spec.at[0],
+                                    spec.at[1] - cell[1] / 2,
+                                )}
+                                onClick={() => {
+                                    // A drained heap is deleted, so this
+                                    // control can remove itself — the same
+                                    // shape `ShelterSpot` has.
+                                    recoverFocus.current = true;
+                                    onTouchNode(spec.node);
+                                }}
                             />
                         );
                     })}
@@ -383,7 +457,10 @@ function RoomCard({
                                 shelterAt[0],
                                 shelterAt[1] - SHELTER_CELL / 2,
                             )}
-                            onClick={onToggleInside}
+                            onClick={() => {
+                                recoverFocus.current = true;
+                                onToggleInside();
+                            }}
                         />
                     )}
             </div>
@@ -496,49 +573,53 @@ function Record({ companion }: { companion: CompanionData }) {
 }
 
 /**
- * One thing standing in the clearing.
+ * One thing standing in the clearing, as a control over its own picture.
  *
- * A real `<button>` over the picture rather than a shape inside the svg, so it
- * is focusable, announced, and reachable without a mouse.
+ * A real `<button>` laid over the svg rather than a shape inside it, so it is
+ * focusable, announced, and reachable without a mouse — the same rule
+ * `ShelterSpot` follows and the reason neither is a `<foreignObject>`.
  *
- * What it shows is what is THERE: its name always, and a count only once
- * something has actually accrued. No lock, no "requires", no price — the price
- * lives in the bag, which the encounter opens. A node you cannot use looks
- * exactly like one you can, because that is the whole mechanic.
+ * IT CARRIES NO TEXT. The art says what is standing there and how much of it,
+ * so printing the name again would be this button narrating the picture. That
+ * also retires the label-sizing problem BLOB.md §12 has carried since F1: the
+ * labels were a fixed 8px font that did not scale with the svg, so below
+ * roughly a 300px stage they wrapped to a second line. The box is measured in
+ * room units now and scales with the picture.
+ *
+ * NO `is-known` EITHER, and that RESTORES a rule rather than dropping one: a
+ * node you cannot use is supposed to look exactly like one you can, because
+ * that sameness IS the mechanic, and the border this used to grow when a
+ * skill was bought quietly contradicted it. Putting the distinction on the
+ * art instead would be worse — a fact about the record drawn into the world.
+ *
+ * `aria-label` carries the one thing the picture cannot: the exact amount. It
+ * overrides the subtree entirely, so the number has to be folded in by hand —
+ * otherwise deleting the text takes it away from a screen reader while
+ * leaving it in the picture for everyone else.
  */
 function NodeSpot({
     label,
     available,
-    known,
+    cell,
     at,
     onClick,
 }: {
     label: string;
     available: number;
-    known: boolean;
+    cell: readonly [number, number];
     at: { left: string; top: string };
     onClick: () => void;
 }) {
     return (
         <button
             type="button"
-            className={cn('c-node', known && 'is-known')}
-            style={at}
-            // Named explicitly rather than left to fall out of the text
-            // content: today the two agree, but F3.6 replaces this button's
-            // text with a sprite, and the accessible name must not go with
-            // it. An explicit `aria-label` overrides the subtree entirely,
-            // so the count has to be folded into it by hand or a sighted
-            // user keeps seeing the number while a screen reader stops
-            // hearing it.
+            className={cn('c-node', 'c-node--art')}
+            style={{ ...at, ...roomSize(cell[0], cell[1]) }}
+            // Only once there is something to take. A zero would be a count
+            // of what you have not got.
             aria-label={available > 0 ? `${label}, ${available}` : label}
             onClick={onClick}
-        >
-            {label}
-            {/* Only once there is something to take. A zero would be a count
-                of what you have not got. */}
-            {available > 0 && <i>{available}</i>}
-        </button>
+        />
     );
 }
 
@@ -571,8 +652,8 @@ function ShelterSpot({
     return (
         <button
             type="button"
-            className={cn('c-node', 'c-shelter', 'c-shelter--art')}
-            style={at}
+            className={cn('c-node', 'c-shelter', 'c-node--art')}
+            style={{ ...at, ...roomSize(SHELTER_CELL, SHELTER_CELL) }}
             // The picture says what it is; the name says what pressing does.
             aria-label={`Go inside the ${label}`}
             onClick={onClick}

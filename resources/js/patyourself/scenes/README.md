@@ -310,3 +310,121 @@ durable records it otherwise. Start the job, do something else, come back.
 owner a candidate sheet will fail for that reason alone, repeatedly, on this branch's own history. Use
 `Artifact` instead — publish an HTML page with the composites — and say so if the brief you were given
 named the other tool.
+
+---
+
+# The nodes
+
+The four things standing in the clearing, each drawn at the amounts its stock can be in. `scenes.ts`'s
+`nodeSprite()` reads these by node and band, and `companion-room.tsx`'s `NodeLayer` draws whichever one
+the server says is standing.
+
+**Eleven sprites, not twelve.** Three world nodes get three bands each; the heap gets two. A node
+without a skill is a heap rather than the world — `HarvestNode` deletes it once drained and
+`CompanionBag::nodes()` skips a skill-less node with no row — so the heap never reaches the client at
+nothing-at-all, and a `bare` heap would be art for a state the system cannot produce.
+
+| File | Cell | Object | State | Source |
+| --- | --- | --- | --- | --- |
+| `node-reeds-bare.png` | 48x41 | — | — | top-cut of `plenty`, 0.62 requested (0.630 realised) |
+| `node-reeds-some.png` | 48x41 | — | — | top-cut of `plenty`, 0.35 requested (0.381 realised) |
+| `node-reeds-plenty.png` | 48x41 | `92e16390-da65-4a69-96b7-6e9555825e0e` | base | candidate 1 of 16, review `476665e9-e647-4b9f-b3c8-b45e962eab99` |
+| `node-deadfall-bare.png` | 44x36 | `58e87787-b039-4240-856c-e9cefb668c89` | base | candidate 0 of 16, review `baa662f5-c396-4b41-a904-cb192889ca05` |
+| `node-deadfall-some.png` | 44x36 | `4a5d37e2-a304-477a-b4a6-5c0e6592edca` | base | candidate 2, same review |
+| `node-deadfall-plenty.png` | 44x36 | `6104f714-b738-45a3-b51f-2a7b5001bdfc` | base | candidate 1, same review |
+| `node-trunk-bare.png` | 48x47 | `9d8265a3-dd4d-4212-98e0-d03a20c43507` | base | candidate 3 of 16, review `98dc6dd7-6a83-4f0d-8961-80a21d3d03dd` |
+| `node-trunk-some.png` | 48x47 | `8182a150-c095-42b3-b5f7-02a589940e0b` | `some` | state edit on the base |
+| `node-trunk-plenty.png` | 48x47 | `262b3164-491d-4bc8-98f9-5d692733c928` | `plenty` | state edit on `some` |
+| `node-salvage-some.png` | 46x35 | `3af7e16c-349a-4d8a-a428-3128e667419c` | `some` | state edit on `plenty`, downward |
+| `node-salvage-plenty.png` | 46x35 | `b6a72f8b-6a25-4b1f-9fde-cd25b042c1f1` | base | candidate 4 of 16, review `becf8225-b74c-4727-8230-5e30357a64bc` |
+
+Tags `f36-reeds`, `f36-deadfall`, `f36-trunk`, `f36-salvage` sit on the promoted objects so
+`list_objects` finds them again. As with the backdrops and the foliage, Pixel Lab keeps no images
+library and this directory is their only durable home.
+
+## Three pipelines, not one, and the measurements that chose between them
+
+The plan assumed one route for all four — generate the lowest band, then `create_object_state` upward.
+Three of the four needed something else, and each departure was measured rather than felt.
+
+**The branches use three independent candidates as the three bands, with no state edit at all.** Their
+sixteen candidates share one palette — brown sticks on green grass — and differ only in how much wood
+is lying there, so three of them ordered by mass already *are* three amounts of one thing: 183, 353 and
+437 opaque pixels for candidates 0, 2 and 1. Nothing had to be generated twice.
+
+**The reeds cannot do that, and a render is why.** Their sixteen candidates are sixteen different reed
+beds in different palettes, not one bed at sixteen amounts, and apparent quantity follows palette
+rather than pixel count: candidate 0 carries 1273 opaque pixels in pale straw and reads as *fewer*
+reeds than candidate 14's 741 in dark green. A triple picked by mass rendered as no progression at all.
+
+So the reeds' lower bands are a **deterministic top-cut** of the chosen bed — each column of stalk
+loses a share of its height, the base row untouched. That is the tree's shear precedent applied again:
+measured, found wanting, replaced by something hand-built on the same grid. It introduces no new
+colours because it removes rather than paints, it cannot move the ground line because it only ever
+clears from the top, and it gives exact control of mass: 1259, 812, 492 for plenty, some and bare.
+
+A `create_object_state` was tried first and survives in the history only as the reason not to use it:
+asked for "about half as many stalks" it returned 1160 against 1259 — an eighth of the reduction
+requested. Whatever that edit is good at, thinning fine repeated detail is not it.
+
+**The heap needed a downward state edit and got a good one.** No candidate could serve as its lower
+band: all sixteen cluster between 1009 and 1388 opaque pixels, and the smallest is 1009 against the
+chosen one's 1084 — a fifteenth under it, not the twentieth once claimed here. The edit down returned
+301 against 1084 — a stack of a few boards where a pile had been. The plan had named a hand-composite
+fallback here, expecting the downward direction to fail. It did not.
+
+**The trunk's additive edits held the geometric promise exactly**, which is worth recording because the
+shelter's did not. Every opaque pixel of `bare` survives into `some` — a zero-loss superset, checked
+pixel by pixel — and `some` into `plenty` loses two. Shared pixels move by a median of 6 of 255, with
+74 of 1034 past the threshold that counts as a real change. The log is the same log in all three and
+only the cut timber beside it grows, which is what the trunk's band model requires: the node is the
+world, and the world does not change shape when you take something from it.
+
+## Crop to one shared box — and align first only where alignment is right
+
+All bands of a node are cropped to **one** box, the union of their bounds. Cropping each to its own
+would lose registration and the object would slide between bands — the same property that makes the
+shelter's three stages share a byte-identical alpha channel.
+
+Whether to bottom-align *before* that crop is per-node, and getting it wrong once is what this
+section exists to prevent.
+
+**Align bands that share no registration.** The branches are three independent generations; nothing
+relates their cells, so their lowest opaque rows are put on one floor first. The heap's two bands are
+a state edit, but that edit genuinely moved the base — `some` came back with its lowest row three
+below its source's — so it is aligned too.
+
+**Do NOT align bands that are state edits of one another, or cuts of one image.** They already share
+a registration by construction, and that is the entire reason the state pipeline exists.
+
+**The trunk is the worked example of getting this wrong**, and it shipped wrong once before a review
+caught it. Its `some` grew cut billets *beneath* the log, which dropped the cell's bbox floor from
+row 37 to row 47. Bottom-aligning on that pushed `bare`'s log down ten rows to meet billets that only
+exist in the other two bands — so the log jumped down when the trunk was emptied, which is precisely
+the hop alignment is meant to prevent. Measured on the shipped files at the time: 174 of `bare`'s 1034
+opaque pixels had no counterpart in `some`. Unaligned, that number is zero.
+
+**The bbox cannot tell you which case you are in.** "The floor moved" and "material appeared below
+the floor" look identical to it. So this is a judgement made once per node, recorded here, and
+checked by rendering the bands in sequence and watching whether the object holds still. The check is
+cheap and it is the only thing that catches the error — every count and cell dimension stayed
+correct while the trunk was broken.
+
+The shipped cell is whatever that shared box measures, and is deliberately not chosen in advance:
+`create_1_direction_object` forces a 48x48 square, and four 48-wide cells cannot stand in a 144-wide
+clearing at once.
+
+## Two things the composites caught that arithmetic did not
+
+Both were found by looking, and neither is visible in a cutout on transparency.
+
+**Every generated cell carries 6 to 12 transparent rows below its art.** Composited raw, at the cell's
+own bottom edge, all four nodes appeared to levitate in front of the treeline. That is what the crop
+step removes, and it is why the crop is not an optimisation: without it the art does not stand on the
+ground it is placed on.
+
+**The reeds' style crop had to be clamped.** Their cell at x=50 wants PNG column 98, and 98 + 48 runs
+two past the backdrop's own width of 144, so the reference was taken from column 96 instead — the same
+ground, two columns left. The clamp is harmless for a palette reference. What it signals is not, and
+belongs to placement rather than to art: a full-width cell does not fit the room at that x, which is
+one of the things the placement pass has to answer.
