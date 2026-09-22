@@ -486,7 +486,10 @@ describe('the bag', () => {
         open(bag({ stash: { standing: true, items: [] } }));
 
         expect(screen.getByText('At home')).toBeInTheDocument();
-        // An empty chest says so plainly and names nothing that could go in it.
+        // An empty chest says so plainly, by name — a chest that exists and
+        // has nothing in it, not the silence a chest that does not exist gets.
+        expect(screen.getByText('The chest is empty.')).toBeInTheDocument();
+        // ...and names nothing that could go in it.
         expect(
             screen.queryByRole('button', { name: /take out/i }),
         ).not.toBeInTheDocument();
@@ -528,6 +531,32 @@ describe('the bag', () => {
         expect(
             screen.getByRole('button', { name: 'Put planks in the chest' }),
         ).toBeInTheDocument();
+    });
+
+    /**
+     * The put-away control's other half: never for a tool, mirroring the drop
+     * control's own droppable gating above. A tool takes no room in the bag,
+     * so there is nothing for putting it away to buy, chest or no chest.
+     */
+    it('offers no put-down control for a tool even once a chest stands', () => {
+        open(
+            bag({
+                stash: { standing: true, items: [] },
+                items: [
+                    {
+                        item: 'axe',
+                        label: 'axe',
+                        category: 'tool',
+                        quantity: 1,
+                        droppable: false,
+                    },
+                ],
+            }),
+        );
+
+        expect(
+            screen.queryByRole('button', { name: 'Put axe in the chest' }),
+        ).not.toBeInTheDocument();
     });
 
     it('offers no put-down control while no chest stands', () => {
