@@ -136,6 +136,14 @@ describe('Companion screen', () => {
                           }
                         : { ...node, available: 3, band: 'some', known: true };
                 }),
+                // The at-home section renders only once a chest stands and only
+                // with something in it. The bare fixture has neither, which
+                // would leave this guard blind to the whole section rather than
+                // failing on it — trap 9, which has bitten three times here.
+                stash: {
+                    standing: true,
+                    items: [{ item: 'planks', label: 'planks', quantity: 7 }],
+                },
             },
         });
 
@@ -236,12 +244,25 @@ describe('Companion screen', () => {
                         buildable: false,
                     },
                 },
+                // The at-home section renders only once a chest stands and only
+                // with something in it. The bare fixture has neither, which
+                // would leave this guard blind to the whole section rather than
+                // failing on it — trap 9, which has bitten three times here.
+                stash: {
+                    standing: true,
+                    items: [{ item: 'planks', label: 'planks', quantity: 7 }],
+                },
             },
         });
 
         fireEvent.click(screen.getByRole('button', { name: /bag/i }));
 
         expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+        // Proof the section is actually in what follows. Widening the fixture
+        // is not proof it rendered; an unnamed section drops silently out of
+        // this guard's coverage instead of failing it.
+        expect(screen.getByText('At home')).toBeInTheDocument();
         expect(
             screen.queryByText(
                 /locked|next up|to unlock|remaining|streak|congratulation|\d+\s*%|\d+ of \d+/i,

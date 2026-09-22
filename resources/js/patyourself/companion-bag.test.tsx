@@ -475,4 +475,78 @@ describe('the bag', () => {
         expect(screen.queryByRole('button', { name: /planks/i })).toBeNull();
         expect(screen.queryByText(/cabin/i)).toBeNull();
     });
+
+    it('says nothing about the chest before one is built', () => {
+        open(bag({ stash: { standing: false, items: [] } }));
+
+        expect(screen.queryByText('At home')).not.toBeInTheDocument();
+    });
+
+    it('shows an at-home section with nothing in it once a chest stands', () => {
+        open(bag({ stash: { standing: true, items: [] } }));
+
+        expect(screen.getByText('At home')).toBeInTheDocument();
+        // An empty chest says so plainly and names nothing that could go in it.
+        expect(
+            screen.queryByRole('button', { name: /take out/i }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('lists what is at home with a control to fetch it back', () => {
+        open(
+            bag({
+                stash: {
+                    standing: true,
+                    items: [{ item: 'planks', label: 'planks', quantity: 7 }],
+                },
+            }),
+        );
+
+        expect(screen.getByText('planks')).toBeInTheDocument();
+        expect(screen.getByText('7')).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: 'Take planks out of the chest' }),
+        ).toBeInTheDocument();
+    });
+
+    it('offers a put-down control for a carried stack once a chest stands', () => {
+        open(
+            bag({
+                stash: { standing: true, items: [] },
+                items: [
+                    {
+                        item: 'planks',
+                        label: 'planks',
+                        category: 'material',
+                        quantity: 3,
+                        droppable: true,
+                    },
+                ],
+            }),
+        );
+
+        expect(
+            screen.getByRole('button', { name: 'Put planks in the chest' }),
+        ).toBeInTheDocument();
+    });
+
+    it('offers no put-down control while no chest stands', () => {
+        open(
+            bag({
+                items: [
+                    {
+                        item: 'planks',
+                        label: 'planks',
+                        category: 'material',
+                        quantity: 3,
+                        droppable: true,
+                    },
+                ],
+            }),
+        );
+
+        expect(
+            screen.queryByRole('button', { name: 'Put planks in the chest' }),
+        ).not.toBeInTheDocument();
+    });
 });

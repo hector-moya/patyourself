@@ -35,6 +35,7 @@ import { destroy as dropRoute } from '@/routes/companion/items';
 import { store as takeRoute } from '@/routes/companion/nodes';
 import { store as shelterRoute } from '@/routes/companion/shelter';
 import { store as learnRoute } from '@/routes/companion/skills';
+import { store as stashRoute } from '@/routes/companion/stash';
 
 export function CompanionBag({
     bag,
@@ -86,6 +87,7 @@ export function CompanionBag({
                     {said !== null && <p className="c-bagsaid">{said}</p>}
 
                     <Held bag={bag} />
+                    <AtHome bag={bag} />
                     <Clearing nodes={bag.nodes} />
                     <Shelter shelter={bag.shelter} />
                     <Build recipes={bag.recipes} />
@@ -119,6 +121,40 @@ function Held({ bag }: { bag: CompanionBagData }) {
                         <span>{item.label}</span>
                         <span className="c-bagheld">
                             <b className="c-bagqty">{item.quantity}</b>
+                            {/* Offered only once a chest stands, and only for
+                                what the bag actually carries. Before that there
+                                is nowhere to put anything down, and a control
+                                that named one would be naming a thing to go and
+                                build. */}
+                            {bag.stash.standing && item.droppable && (
+                                <Form
+                                    {...stashRoute.form()}
+                                    options={{ preserveScroll: true }}
+                                >
+                                    {({ processing }) => (
+                                        <>
+                                            <input
+                                                type="hidden"
+                                                name="item"
+                                                value={item.item}
+                                            />
+                                            <input
+                                                type="hidden"
+                                                name="direction"
+                                                value="in"
+                                            />
+                                            <button
+                                                type="submit"
+                                                className="c-bagdrop"
+                                                disabled={processing}
+                                                aria-label={`Put ${item.label} in the chest`}
+                                            >
+                                                put away
+                                            </button>
+                                        </>
+                                    )}
+                                </Form>
+                            )}
                             {/* Offered only for what the bag actually
                                 carries. A tool takes no room, so tipping one
                                 out would buy nothing and lose something
@@ -145,6 +181,88 @@ function Held({ bag }: { bag: CompanionBagData }) {
                                 </Form>
                             )}
                         </span>
+                    </li>
+                ))}
+            </ul>
+        </>
+    );
+}
+
+/**
+ * What is in the chest, and how much of it to fetch back.
+ *
+ * ABSENT UNTIL A CHEST STANDS. Not greyed, not explained, not named as
+ * something that could exist — the same silence a stage whose predecessor is
+ * missing gets, and the same silence an unmet skill gets. A section describing
+ * a chest nobody built would be the app naming the thing to go and get.
+ *
+ * An empty chest still shows its heading, because at that point the chest is a
+ * thing that has happened: it is standing in the clearing and it is empty, and
+ * saying so is a fact rather than a placeholder.
+ *
+ * No drop control here, by rule. What is at home is never tipped out — a stack
+ * has to be fetched back into the bag first — so the only destroying gesture in
+ * this feature stays in one place, on things Blob is actually carrying.
+ */
+function AtHome({ bag }: { bag: CompanionBagData }) {
+    if (!bag.stash.standing) {
+        return null;
+    }
+
+    if (bag.stash.items.length === 0) {
+        return (
+            <>
+                <p className="c-baggrp">At home</p>
+                <p className="c-bagnone">The chest is empty.</p>
+            </>
+        );
+    }
+
+    return (
+        <>
+            <p className="c-baggrp">At home</p>
+            <ul className="c-bagrows">
+                {bag.stash.items.map((item) => (
+                    <li key={item.item} className="c-bagrow">
+                        <span>{item.label}</span>
+                        <Form
+                            {...stashRoute.form()}
+                            options={{ preserveScroll: true }}
+                            className="c-bagbuy"
+                        >
+                            {({ processing }) => (
+                                <>
+                                    <b className="c-bagqty">{item.quantity}</b>
+                                    <input
+                                        type="hidden"
+                                        name="item"
+                                        value={item.item}
+                                    />
+                                    <input
+                                        type="hidden"
+                                        name="direction"
+                                        value="out"
+                                    />
+                                    <input
+                                        type="number"
+                                        name="amount"
+                                        min={1}
+                                        max={item.quantity}
+                                        defaultValue={1}
+                                        className="c-bagtake"
+                                        aria-label={`How much ${item.label} to take out`}
+                                    />
+                                    <button
+                                        type="submit"
+                                        className="pixel-button"
+                                        disabled={processing}
+                                        aria-label={`Take ${item.label} out of the chest`}
+                                    >
+                                        take out
+                                    </button>
+                                </>
+                            )}
+                        </Form>
                     </li>
                 ))}
             </ul>
