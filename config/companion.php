@@ -864,10 +864,18 @@ return [
     | what separates this from `drop` above — so these lines must never read as
     | giving something up.
     |
-    | `full` is the refusal, and it is worded as a node's own `full` line is: it
-    | names where the thing stays, because nothing is ever destroyed. It is said
-    | only for a bag with no room at all; a bag with some room takes what fits
-    | and the rest stays in the chest without anything being said about it.
+    | `full` is the refusal, and it names where the thing stays, because nothing
+    | is ever destroyed — the same idea a node's own `full` line carries. It is
+    | worded differently from a node's, though: a node's `full` line is
+    | hand-written per node and can conjugate its verb to its own noun
+    | ("the timber stays", "the planks stay"). This one is generic — one
+    | template for every stashable item — and `{label}` covers both mass nouns
+    | (fibre, deadfall, timber, rope) and plural count nouns (planks), so no
+    | verb here may ever agree with it. "The chest keeps what will not fit" is
+    | why that construction is safe: the subject is the chest, never `{label}`.
+    | It is said only for a bag with no room at all; a bag with some room takes
+    | what fits and the rest stays in the chest without anything being said
+    | about it.
     |
     | `{count}` is how many moved. `{label}` is the thing.
     |
@@ -876,7 +884,7 @@ return [
     'stash' => [
         'in' => '{name} puts {count} {label} in the chest.',
         'out' => '{name} lifts {count} {label} back out of the chest.',
-        'full' => 'There is nowhere to put them. The {label} stay in the chest.',
+        'full' => 'There is nowhere to put the {label}. The chest keeps what will not fit.',
     ],
 
 ];

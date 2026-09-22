@@ -58,7 +58,7 @@ class CompanionStashScreenTest extends TestCase
     }
 
     /** A full bag says where the thing stays, because nothing is destroyed. */
-    public function test_a_full_bag_says_the_planks_stay_in_the_chest(): void
+    public function test_a_full_bag_says_the_chest_keeps_the_planks(): void
     {
         $user = User::factory()->create();
         $companion = $user->companion()->firstOrCreate([]);
@@ -72,7 +72,31 @@ class CompanionStashScreenTest extends TestCase
                 'amount' => 1,
             ])
             ->assertRedirect()
-            ->assertSessionHas(CompanionController::SAID_KEY, 'There is nowhere to put them. The planks stay in the chest.');
+            ->assertSessionHas(CompanionController::SAID_KEY, 'There is nowhere to put the planks. The chest keeps what will not fit.');
+    }
+
+    /**
+     * The refusal is templated once for every stashable item, and most of them
+     * — fibre, deadfall, timber, rope — are mass nouns, unlike `planks`. This
+     * pins the sentence against one of those, so a regression back to a
+     * conjugated verb ("the timber stays"/"the timber stay") would be caught
+     * here even though it would read fine for `planks` alone.
+     */
+    public function test_a_full_bag_refusal_reads_correctly_for_a_mass_noun(): void
+    {
+        $user = User::factory()->create();
+        $companion = $user->companion()->firstOrCreate([]);
+        $companion->stashItems()->create(['item' => 'timber', 'quantity' => 4]);
+        $companion->items()->create(['item' => 'fibre', 'quantity' => 5]);
+
+        $this->actingAs($user)
+            ->post(route('companion.stash.store'), [
+                'item' => 'timber',
+                'direction' => 'out',
+                'amount' => 1,
+            ])
+            ->assertRedirect()
+            ->assertSessionHas(CompanionController::SAID_KEY, 'There is nowhere to put the timber. The chest keeps what will not fit.');
     }
 
     /** A press that moved nothing says nothing rather than narrating itself. */
@@ -98,6 +122,32 @@ class CompanionStashScreenTest extends TestCase
         $this->actingAs($user)
             ->post(route('companion.stash.store'), [
                 'item' => 'axe',
+                'direction' => 'in',
+            ])
+            ->assertNotFound();
+    }
+
+    /** A container occupies no room of its own, so it is never offered here either. */
+    public function test_a_container_is_a_404_rather_than_a_sentence(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->post(route('companion.stash.store'), [
+                'item' => 'crate',
+                'direction' => 'in',
+            ])
+            ->assertNotFound();
+    }
+
+    /** A structure stands in the clearing; it is never something the bag carries. */
+    public function test_a_structure_is_a_404_rather_than_a_sentence(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->post(route('companion.stash.store'), [
+                'item' => 'chest',
                 'direction' => 'in',
             ])
             ->assertNotFound();
