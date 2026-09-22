@@ -895,3 +895,9 @@ Every one of these has cost a round on this project.
   `CompanionBag::items()` lists it — the shelter avoids this only by being a column rather than a row.
   It reads oddly, since Blob is not carrying a chest; the fix, if wanted, is filtering `structure` out
   of `items()`. An open question, not a defect.
+- **`UnstashItem` does not refuse a non-carried category, unlike `StashItem` and `DropItem`, which
+  both do.** There is no reachable path today: a container can only ever enter the stash through
+  `StashItem`, which already refuses it, and `CompanionStashController` gates both directions on
+  `movable()` before either action runs. It would cost something only if a second way to populate the
+  stash ever bypassed `StashItem` — a seeder, an import, a future admin action — at which point
+  `UnstashItem` would hand a container back out of a chest that should never have held one, silently.

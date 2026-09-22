@@ -106,4 +106,23 @@ class StashItemTest extends TestCase
 
         app(StashItem::class)->handle($user, 'moonstone');
     }
+
+    /**
+     * THE STASH IS UNCAPPED, by design: the world is uncapped everywhere else
+     * in this feature — node stock has no ceiling and nothing expires — and a
+     * ceiling here would be the first place it refuses to hold something. This
+     * is the test the spec's own mutation table names for that rule (§12,
+     * "The stash is uncapped" / "add a ceiling") and it exists to notice if a
+     * ceiling is ever introduced: a large deposit, made in one call, must move
+     * in full.
+     */
+    public function test_a_large_deposit_moves_in_full(): void
+    {
+        [$user, $companion] = $this->carrying(['planks' => 30]);
+
+        $moved = app(StashItem::class)->handle($user, 'planks');
+
+        $this->assertSame(30, $moved);
+        $this->assertSame(30, (int) $companion->stashItems()->where('item', 'planks')->value('quantity'));
+    }
 }
