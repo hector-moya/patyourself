@@ -974,6 +974,73 @@ describe('Companion screen', () => {
                 expect(spot.style.width).not.toBe('');
                 expect(spot.style.height).not.toBe('');
             });
+
+            /**
+             * THE SECOND ORDERING. `companion-room.tsx`'s SVG layer draws off
+             * `paintOrder`, sorted by base y — trunk 42, heap 70, chest 73,
+             * branches 74, reeds 76 — so the reeds paint over the chest
+             * where their cells overlap (x 20..47, y 40..73: about 79% of
+             * the chest's own box). Every hotspot button shares one
+             * `z-index` (`.c-node` in `patyourself.css`), so hit-testing
+             * favours whichever is LATER in the DOM — if that ordering ever
+             * disagreed with the art's, a click in the overlap would open
+             * the chest while the player is looking at reeds.
+             *
+             * jsdom has no layout engine, so this asserts DOM order only —
+             * never which button "receives" a click, and never geometry.
+             *
+             * The mutation that turns this red: move `ChestSpot` back to
+             * being appended after the sorted node/shelter sequence instead
+             * of folded into the one `paintOrder` call — which is exactly
+             * where the brief's own sample code first placed it.
+             */
+            it('orders every hotspot by base y, the same order the art paints in', () => {
+                renderClearing({
+                    bag: {
+                        nodes: bag().nodes.map((node) => ({
+                            ...node,
+                            available: 3,
+                            band: 'plenty',
+                            known: true,
+                        })),
+                        shelter: { built: 'hut', label: 'hut', offer: null },
+                        stash: { standing: true, items: [] },
+                    },
+                });
+
+                // Base y, ascending: shelter 34, trunk 42, heap 70, chest 73,
+                // branches 74, reeds 76.
+                const shelter = screen.getByRole('button', {
+                    name: /go inside the hut/i,
+                });
+                const trunk = screen.getByRole('button', {
+                    name: /the fallen trunk/i,
+                });
+                const heap = screen.getByRole('button', {
+                    name: /the heap/i,
+                });
+                const chest = screen.getByRole('button', {
+                    name: /open the chest/i,
+                });
+                const branches = screen.getByRole('button', {
+                    name: /the fallen branches/i,
+                });
+                const reeds = screen.getByRole('button', {
+                    name: /the reeds/i,
+                });
+
+                const isBefore = (earlier: Element, later: Element) =>
+                    Boolean(
+                        earlier.compareDocumentPosition(later) &
+                        Node.DOCUMENT_POSITION_FOLLOWING,
+                    );
+
+                expect(isBefore(shelter, trunk)).toBe(true);
+                expect(isBefore(trunk, heap)).toBe(true);
+                expect(isBefore(heap, chest)).toBe(true);
+                expect(isBefore(chest, branches)).toBe(true);
+                expect(isBefore(branches, reeds)).toBe(true);
+            });
         });
     });
 

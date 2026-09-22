@@ -28,6 +28,7 @@ import {
     CHEST_CELL,
     nodeCell,
     nodeSprite,
+    paintOrder,
     sceneFor,
     SHELTER_CELL,
     shelterSprite,
@@ -266,6 +267,161 @@ function RoomCard({
     const shelterAt = sceneFor(companion.scene).shelter;
     const chestAt = sceneFor(companion.scene).chest;
 
+    /**
+     * The clearing's own things, as real HTML buttons laid over the picture
+     * rather than shapes inside the svg — the scene is a `role="img"` and
+     * everything reachable in it has to be reachable from a keyboard too,
+     * the same rule Poke already follows.
+     *
+     * ONE SORTED LIST, not three blocks rendered one after another. Every
+     * `.c-node` shares the same `z-index: 1` (`patyourself.css`), so with
+     * equal stacking the LATER SIBLING wins hit-testing — the later one is
+     * what a click actually lands on, whatever the picture shows on top.
+     * `companion-room.tsx`'s `ChestLayer`/`NodeLayer` already draw off
+     * `paintOrder`, sorted by base y ascending; this reuses the *same*
+     * helper rather than a second, hand-written ordering that could quietly
+     * disagree with it — BLOB.md §12's own words are that the hotspot loop
+     * "follows" the art's paint order, and a second sort is exactly the kind
+     * of drift that stops being true silently.
+     *
+     * Reaching this the first time round, `ChestSpot` was appended after
+     * this whole sequence (mirroring where the shelter's own control sits).
+     * The chest's cell (base y 73) overlaps the reeds' cell (base y 76) by
+     * 27x33 room units — about 79% of the chest's own box — and being later
+     * in the DOM put the chest's button on top of the reeds' there, even
+     * though the SVG layer paints the (nearer) reeds over the (further)
+     * chest. The player would have seen reeds and clicked the chest. Folding
+     * every control into this one sorted list is what removes that
+     * possibility rather than papering over one instance of it.
+     */
+    const hotspots = inside
+        ? []
+        : paintOrder([
+              ...sceneFor(companion.scene).nodes.flatMap((spec) => {
+                  const node = bag.nodes.find(
+                      (candidate) => candidate.node === spec.node,
+                  );
+                  const cell = nodeCell(spec.node);
+
+                  // `available: 0` with an empty band is a FIXTURE-only
+                  // shape, kept so tests can still find the heap's row —
+                  // the server cannot actually send it.
+                  // `CompanionBag::nodes()` skips a skill-less node with
+                  // nothing standing at it rather than sending one at
+                  // zero, and were a heap ever sent at `available: 0`
+                  // its band would be `bandFor(0)`, which resolves to
+                  // `'bare'`, not `''`. Gated here on the sprite
+                  // resolving so this control agrees with `NodeLayer`,
+                  // which already draws nothing for a band with no art:
+                  // without this, an empty heap (or any future node
+                  // whose band has no art) leaves an invisible,
+                  // unlabelled hit region standing in the clearing —
+                  // the defect 15e893a fixed for the shelter.
+                  if (
+                      node === undefined ||
+                      cell === undefined ||
+                      nodeSprite(spec.node, node.band) === undefined
+                  ) {
+                      return [];
+                  }
+
+                  return [
+                      {
+                          at: spec.at,
+                          spot: (
+                              <NodeSpot
+                                  key={spec.node}
+                                  label={node.label}
+                                  available={node.available}
+                                  cell={cell}
+                                  // The art's centre, not the base centre
+                                  // `at` names: `.c-node` is translated by
+                                  // -50%,-50%, and the art sits above the
+                                  // point the thing stands on rather than
+                                  // around it.
+                                  at={roomOffset(
+                                      spec.at[0],
+                                      spec.at[1] - cell[1] / 2,
+                                  )}
+                                  onClick={() => {
+                                      // A drained heap is deleted, so this
+                                      // control can remove itself — the same
+                                      // shape `ShelterSpot` has.
+                                      recoverFocus.current = true;
+                                      onTouchNode(spec.node);
+                                  }}
+                              />
+                          ),
+                      },
+                  ];
+              }),
+              // What Blob built, standing where it was built. One at a time
+              // and never two: the stages replace one another, so there is
+              // only ever one thing here.
+              ...(bag.shelter.built !== null &&
+              shelterAt !== undefined &&
+              // `CompanionBag::shelter()` deliberately keeps forwarding a
+              // stage config no longer defines — nothing about Blob is
+              // ever taken because an author edited a list. Gated here on
+              // the sprite resolving so this control agrees with
+              // `ShelterLayer`, which already draws nothing for that
+              // stage: without this, a retired stage leaves an invisible,
+              // unlabelled hit region standing in the clearing.
+              shelterSprite(bag.shelter.built) !== undefined
+                  ? [
+                        {
+                            at: shelterAt,
+                            spot: (
+                                <ShelterSpot
+                                    key="shelter"
+                                    label={
+                                        bag.shelter.label ?? bag.shelter.built
+                                    }
+                                    // The art's centre, not the base centre
+                                    // `shelterAt` names: `.c-node` is
+                                    // translated by -50%,-50%, and the art
+                                    // sits above the point the structure
+                                    // stands on rather than around it.
+                                    at={roomOffset(
+                                        shelterAt[0],
+                                        shelterAt[1] - SHELTER_CELL / 2,
+                                    )}
+                                    onClick={() => {
+                                        recoverFocus.current = true;
+                                        onToggleInside();
+                                    }}
+                                />
+                            ),
+                        },
+                    ]
+                  : []),
+              // The chest, once one is standing. Clicking it opens the bag
+              // at what is at home — it posts nothing, because deciding how
+              // much to move is a bag question and the clearing is where a
+              // thing IS. Absent entirely until one is built, so there is
+              // never an invisible hit region here.
+              ...(bag.stash.standing && chestAt !== undefined
+                  ? [
+                        {
+                            at: chestAt,
+                            spot: (
+                                <ChestSpot
+                                    key="chest"
+                                    at={roomOffset(
+                                        chestAt[0],
+                                        chestAt[1] - CHEST_CELL[1] / 2,
+                                    )}
+                                    onClick={() => {
+                                        recoverFocus.current = true;
+                                        onOpenBag();
+                                    }}
+                                />
+                            ),
+                        },
+                    ]
+                  : []),
+          ]);
+
     const stage = useRef<HTMLDivElement>(null);
     /**
      * Set by a hotspot that is about to remove itself — going inside unmounts
@@ -372,119 +528,20 @@ function RoomCard({
                     reachable from a keyboard too — the same rule Poke already
                     follows.
 
-                    ALL THREE ARE HERE FROM THE START, whatever the record says.
-                    Clicking one you cannot use does not fail and shows no
-                    lock: Blob turns it over and puts it down again, and that
-                    encounter is what puts the skill in the list.
+                    ALL THREE KINDS ARE HERE FROM THE START, whatever the
+                    record says. Clicking one you cannot use does not fail and
+                    shows no lock: Blob turns it over and puts it down again,
+                    and that encounter is what puts the skill in the list.
+
+                    `hotspots` (computed above) is already sorted by base y,
+                    the same order the art paints in — rendered here in that
+                    order rather than as separate blocks per kind, so the
+                    LAST sibling among these — the one hit-testing actually
+                    favours at equal z-index — is always the nearest thing,
+                    agreeing with what the picture shows on top.
 
                     Not reachable from indoors: nothing grows in a room. */}
-                {!inside &&
-                    sceneFor(companion.scene).nodes.map((spec) => {
-                        const node = bag.nodes.find(
-                            (candidate) => candidate.node === spec.node,
-                        );
-                        const cell = nodeCell(spec.node);
-
-                        // `available: 0` with an empty band is a FIXTURE-only
-                        // shape, kept so tests can still find the heap's row —
-                        // the server cannot actually send it.
-                        // `CompanionBag::nodes()` skips a skill-less node with
-                        // nothing standing at it rather than sending one at
-                        // zero, and were a heap ever sent at `available: 0`
-                        // its band would be `bandFor(0)`, which resolves to
-                        // `'bare'`, not `''`. Gated here on the sprite
-                        // resolving so this control agrees with `NodeLayer`,
-                        // which already draws nothing for a band with no art:
-                        // without this, an empty heap (or any future node
-                        // whose band has no art) leaves an invisible,
-                        // unlabelled hit region standing in the clearing —
-                        // the defect 15e893a fixed for the shelter.
-                        if (
-                            node === undefined ||
-                            cell === undefined ||
-                            nodeSprite(spec.node, node.band) === undefined
-                        ) {
-                            return null;
-                        }
-
-                        return (
-                            <NodeSpot
-                                key={spec.node}
-                                label={node.label}
-                                available={node.available}
-                                cell={cell}
-                                // The art's centre, not the base centre `at`
-                                // names: `.c-node` is translated by
-                                // -50%,-50%, and the art sits above the point
-                                // the thing stands on rather than around it.
-                                at={roomOffset(
-                                    spec.at[0],
-                                    spec.at[1] - cell[1] / 2,
-                                )}
-                                onClick={() => {
-                                    // A drained heap is deleted, so this
-                                    // control can remove itself — the same
-                                    // shape `ShelterSpot` has.
-                                    recoverFocus.current = true;
-                                    onTouchNode(spec.node);
-                                }}
-                            />
-                        );
-                    })}
-
-                {/* What Blob built, standing where it was built. One at a
-                    time and never two: the stages replace one another, so
-                    there is only ever one thing here.
-
-                    A real button over the picture rather than a shape inside
-                    the svg, the same rule the node hotspots follow. */}
-                {!inside &&
-                    bag.shelter.built !== null &&
-                    shelterAt !== undefined &&
-                    // `CompanionBag::shelter()` deliberately keeps forwarding
-                    // a stage config no longer defines — nothing about Blob
-                    // is ever taken because an author edited a list. Gated
-                    // here on the sprite resolving so this control agrees
-                    // with `ShelterLayer`, which already draws nothing for
-                    // that stage: without this, a retired stage leaves an
-                    // invisible, unlabelled hit region standing in the
-                    // clearing.
-                    shelterSprite(bag.shelter.built) !== undefined && (
-                        <ShelterSpot
-                            label={bag.shelter.label ?? bag.shelter.built}
-                            // The art's centre, not the base centre `shelterAt`
-                            // names: `.c-node` is translated by -50%,-50%, and
-                            // the art sits above the point the structure
-                            // stands on rather than around it.
-                            at={roomOffset(
-                                shelterAt[0],
-                                shelterAt[1] - SHELTER_CELL / 2,
-                            )}
-                            onClick={() => {
-                                recoverFocus.current = true;
-                                onToggleInside();
-                            }}
-                        />
-                    )}
-
-                {/* The chest, once one is standing. Clicking it opens the
-                    bag at what is at home — it posts nothing, because
-                    deciding how much to move is a bag question and the
-                    clearing is where a thing IS. Absent entirely until one
-                    is built, so there is never an invisible hit region
-                    here. */}
-                {!inside && bag.stash.standing && chestAt !== undefined && (
-                    <ChestSpot
-                        at={roomOffset(
-                            chestAt[0],
-                            chestAt[1] - CHEST_CELL[1] / 2,
-                        )}
-                        onClick={() => {
-                            recoverFocus.current = true;
-                            onOpenBag();
-                        }}
-                    />
-                )}
+                {hotspots.map((item) => item.spot)}
             </div>
 
             {/* Never disabled, never on a timer, never counted: pressing one
