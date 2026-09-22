@@ -7,6 +7,7 @@ use App\Actions\HarvestNode;
 use App\Models\Companion;
 use App\Models\CompanionItem;
 use App\Models\CompanionNode;
+use App\Models\CompanionStashItem;
 use App\Models\User;
 use Illuminate\Support\Collection;
 
@@ -53,13 +54,14 @@ final readonly class CompanionBag
      *     nodes: list<array{node: string, label: string, available: int, band: string, skill: string|null, met: bool, known: bool, usable: bool}>,
      *     skills: list<array{skill: string, label: string, price: int, known: bool, affordable: bool}>,
      *     recipes: list<array{item: string, label: string, recipe: array<string, int>, tool: string|null, buildable: bool}>,
+     *     stash: array{standing: bool, items: list<array{item: string, label: string, quantity: int}>},
      *     shelter: array{built: string|null, label: string|null, offer: array{stage: string, label: string, recipe: array<string, int>, buildable: bool}|null},
      * }
      */
     public function forUser(User $user): array
     {
         $companion = Companion::query()
-            ->with(['items', 'nodes', 'skills'])
+            ->with(['items', 'nodes', 'skills', 'stashItems'])
             ->where('user_id', $user->id)
             ->first();
 
@@ -81,6 +83,13 @@ final readonly class CompanionBag
                 'nodes' => $this->worldBeforeAnythingHappened(),
                 'skills' => [],
                 'recipes' => [],
+                // The second half of a pair, and the reason this literal is
+                // dangerous: a key added only to the return below leaves a
+                // brand-new account without it, and nothing in the type system
+                // notices because both paths satisfy `array`. Nothing is built
+                // and nothing is at home, which is exactly what an untouched
+                // clearing is.
+                'stash' => ['standing' => false, 'items' => []],
                 // Nothing built, and nothing offered: the offer waits on a
                 // price Blob can account for, and an account that has met
                 // nothing can account for nothing.
@@ -103,6 +112,7 @@ final readonly class CompanionBag
             'nodes' => $this->nodes($companion, $met, $learned, $held),
             'skills' => $this->skills($met, $learned, $balance),
             'recipes' => $this->recipes($knowable, $held, $companion),
+            'stash' => $this->stash($companion),
             'shelter' => $this->shelter($companion, $held, $knowable, $user),
         ];
     }
@@ -140,6 +150,50 @@ final readonly class CompanionBag
             },
             $companion->items->all(),
         )));
+    }
+
+    /**
+     * The chest, and what is in it.
+     *
+     * `standing` cannot be derived on the client. A built chest is a
+     * `companion_items` row of category `structure`, and nothing on the drawing
+     * side reads the bag's catalogue — so without this flag the clearing would
+     * either draw a chest nobody built or leave an invisible hit region where
+     * one was not, which is the defect 15e893a fixed for the shelter.
+     *
+     * `items` carries no `droppable` field, and that is deliberate rather than
+     * an omission: what is at home is never tipped out. `DropItem` is the only
+     * path in this feature that destroys, it acts on the bag, and a stack has
+     * to be fetched back before it can be given up.
+     *
+     * An item config does not know is skipped rather than shown as a blank row,
+     * the same rule {@see items()} already applies.
+     *
+     * @return array{standing: bool, items: list<array{item: string, label: string, quantity: int}>}
+     */
+    private function stash(Companion $companion): array
+    {
+        /** @var array<string, array<string, mixed>> $catalogue */
+        $catalogue = (array) config('companion.bag', []);
+
+        $standing = $companion->items
+            ->contains(static fn (CompanionItem $held): bool => $held->item === 'chest');
+
+        return [
+            'standing' => $standing,
+            'items' => array_values(array_filter(array_map(
+                static function (CompanionStashItem $held) use ($catalogue): ?array {
+                    $entry = $catalogue[$held->item] ?? null;
+
+                    return $entry === null ? null : [
+                        'item' => $held->item,
+                        'label' => (string) $entry['label'],
+                        'quantity' => $held->quantity,
+                    ];
+                },
+                $companion->stashItems->all(),
+            ))),
+        ];
     }
 
     /**

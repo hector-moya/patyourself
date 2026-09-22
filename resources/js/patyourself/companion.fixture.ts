@@ -103,6 +103,11 @@ export function bag(overrides: Partial<CompanionBagData> = {}): CompanionBagData
         // Nothing built and nothing offered, which is what an untouched
         // clearing sends: the offer waits on a price Blob can account for.
         shelter: { built: null, label: null, offer: null },
+        // Nothing built and nothing at home, which is what an untouched
+        // clearing sends. The DEFAULT here must not draw a chest, or every
+        // clearing case in the suite silently gains a sixth object — the same
+        // reasoning the heap's row above records.
+        stash: { standing: false, items: [] },
         ...overrides,
     };
 }

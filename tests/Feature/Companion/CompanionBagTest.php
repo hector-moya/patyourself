@@ -1307,4 +1307,53 @@ class CompanionBagTest extends TestCase
 
         $this->assertNotContains('chest', array_column($after['recipes'], 'item'));
     }
+
+    /**
+     * THE SECOND BUILDER. A brand-new account takes an early return with its
+     * own payload literal, and a key added only to the main return leaves that
+     * account without it — with nothing in the type system to notice, because
+     * both paths satisfy `array`.
+     */
+    public function test_an_account_with_no_companion_row_still_gets_a_stash(): void
+    {
+        $user = User::factory()->create();
+
+        $bag = app(CompanionBag::class)->forUser($user);
+
+        $this->assertArrayHasKey('stash', $bag);
+        $this->assertFalse($bag['stash']['standing']);
+        $this->assertSame([], $bag['stash']['items']);
+    }
+
+    /** `standing` is what the clearing draws on; it is not derivable client-side. */
+    public function test_standing_follows_the_chest_and_items_follow_the_stash(): void
+    {
+        $user = User::factory()->create();
+        $companion = $user->companion()->firstOrCreate([]);
+
+        $bag = app(CompanionBag::class)->forUser($user);
+        $this->assertFalse($bag['stash']['standing']);
+
+        $companion->items()->create(['item' => 'chest', 'quantity' => 1]);
+        $companion->stashItems()->create(['item' => 'planks', 'quantity' => 7]);
+
+        $bag = app(CompanionBag::class)->forUser($user->fresh());
+
+        $this->assertTrue($bag['stash']['standing']);
+        $this->assertSame(
+            [['item' => 'planks', 'label' => 'planks', 'quantity' => 7]],
+            $bag['stash']['items'],
+        );
+    }
+
+    /** An item config does not know is skipped rather than shown as a blank row. */
+    public function test_an_unknown_stashed_item_is_skipped(): void
+    {
+        $user = User::factory()->create();
+        $companion = $user->companion()->firstOrCreate([]);
+
+        $companion->stashItems()->create(['item' => 'moonstone', 'quantity' => 1]);
+
+        $this->assertSame([], app(CompanionBag::class)->forUser($user)['stash']['items']);
+    }
 }

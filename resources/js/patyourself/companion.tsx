@@ -135,6 +135,22 @@ export interface BagShelterData {
 }
 
 /**
+ * The chest, and what is in it.
+ *
+ * `standing` is the server's answer and cannot be worked out here: a built
+ * chest is a bag row of category `structure`, and nothing on this side reads
+ * the catalogue. The clearing draws on this flag and hangs its hotspot off it,
+ * so an unbuilt chest leaves neither a picture nor an invisible hit region.
+ *
+ * No `droppable`, by design: what is at home is never tipped out. A stack has
+ * to be fetched back into the bag before it can be given up.
+ */
+export interface BagStashData {
+    standing: boolean;
+    items: { item: string; label: string; quantity: number }[];
+}
+
+/**
  * The chosen half of Blob: what has been spent, bought, gathered and built.
  *
  * Assembled server-side by `CompanionBag`. Note what is NOT here — no count of
@@ -152,6 +168,7 @@ export interface CompanionBagData {
     skills: BagSkillData[];
     recipes: BagRecipeData[];
     shelter: BagShelterData;
+    stash: BagStashData;
 }
 
 export interface CompanionData {
