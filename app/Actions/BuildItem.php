@@ -53,6 +53,7 @@ final readonly class BuildItem
         }
 
         $tool = (string) ($catalogue[$item]['tool'] ?? '');
+        $category = (string) ($catalogue[$item]['category'] ?? '');
 
         // `makes`, not `yields`: `nodes.*.yields` already holds the NAME of a
         // material, and the same word holding a count in the adjacent config
@@ -62,9 +63,23 @@ final readonly class BuildItem
         // silently making nothing is worse than making the default.
         $makes = max(1, (int) ($catalogue[$item]['makes'] ?? 1));
 
-        return DB::transaction(function () use ($user, $item, $recipe, $tool, $makes): CompanionItem {
+        return DB::transaction(function () use ($user, $item, $recipe, $tool, $category, $makes): CompanionItem {
             /** @var Companion $companion */
             $companion = $user->companion()->firstOrCreate([]);
+
+            // A structure stands ONCE. Without this the `firstOrCreate` and
+            // `increment` at the end of this method would quietly stack a
+            // second chest onto the first, and there is no second stash for it
+            // to be.
+            //
+            // Checked before the tool and before the materials because it is
+            // not a shortage: nothing Blob could go and gather would change the
+            // answer, so sending the reader past it to a price would be the
+            // wrong sentence.
+            if ($category === 'structure'
+                && $companion->items()->where('item', $item)->exists()) {
+                throw CompanionEconomyException::alreadyStanding($item);
+            }
 
             // A recipe gates on a tool and NEVER on a skill: assembling by hand
             // is what hands are for, and what a hand needs is the right thing

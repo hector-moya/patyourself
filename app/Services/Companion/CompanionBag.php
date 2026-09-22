@@ -504,6 +504,17 @@ final readonly class CompanionBag
                 continue;
             }
 
+            // A structure stands once, so a standing one leaves this list
+            // rather than sitting in it offering a build that always refuses.
+            // This is the read half of a pair: `BuildItem` raises
+            // `alreadyStanding()` for the same state, and the two must never
+            // disagree about whether a build is possible — the same property
+            // `wouldFit()` exists to give the capacity check.
+            if ((string) ($item['category'] ?? '') === 'structure'
+                && (int) ($held->get($name)?->quantity ?? 0) > 0) {
+                continue;
+            }
+
             $tool = (string) ($item['tool'] ?? '');
 
             if (array_diff(array_keys($recipe), $knowable) !== []

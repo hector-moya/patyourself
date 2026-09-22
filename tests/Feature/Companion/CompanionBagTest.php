@@ -1281,4 +1281,30 @@ class CompanionBagTest extends TestCase
 
         $this->assertSame('', $row['band']);
     }
+
+    /**
+     * The read half of "a structure stands once".
+     *
+     * `BuildItem` refuses a second chest; this is the surface agreeing with it.
+     * A row that stayed listed would offer a build that always refuses, which
+     * is the one thing the bag's lists have never done.
+     */
+    public function test_a_standing_structure_leaves_the_build_list(): void
+    {
+        $user = User::factory()->create();
+        $companion = $user->companion()->firstOrCreate([]);
+
+        $companion->nodes()->create(['node' => 'trunk', 'available' => 0]);
+        $companion->items()->create(['item' => 'planks', 'quantity' => 4]);
+
+        $before = app(CompanionBag::class)->forUser($user);
+
+        $this->assertContains('chest', array_column($before['recipes'], 'item'));
+
+        $companion->items()->create(['item' => 'chest', 'quantity' => 1]);
+
+        $after = app(CompanionBag::class)->forUser($user->fresh());
+
+        $this->assertNotContains('chest', array_column($after['recipes'], 'item'));
+    }
 }

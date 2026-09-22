@@ -686,6 +686,28 @@ return [
             'capacity' => 5,
         ],
 
+        // A STRUCTURE, not a container. It raises nothing Blob can carry: it
+        // stands in the clearing and holds what the bag cannot, which is why
+        // there is no `capacity` key here and why it never appears in
+        // `capacity.carried`.
+        //
+        // 3 planks is the ONLY plank price a base bag can reach unaided.
+        // Sawing is net +2, so `wouldFit()` needs `held <= 3` at the moment it
+        // runs and a base bag tops out at three planks; a structure adds
+        // nothing carried, so `3 - 3 + 0 = 0 <= 5` and this builds. At 4 it
+        // would need a container first and stop being the first thing made of
+        // planks that anyone can put together.
+        //
+        // A `bag` recipe where the shelter is deliberately not one. The
+        // shelter is kept out because a recipe becomes knowable from its
+        // ingredients and all three stages would list at once; a chest has no
+        // stages, so only-the-next-stage has nothing to do here.
+        'chest' => [
+            'category' => 'structure',
+            'label' => 'chest',
+            'recipe' => ['planks' => 3],
+        ],
+
         'basket' => [
             'category' => 'container',
             'label' => 'basket',

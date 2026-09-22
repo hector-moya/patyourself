@@ -462,4 +462,53 @@ class BuildItemTest extends TestCase
         $this->assertSame(0, $companion->items()->where('item', 'fibre')->count());
         $this->assertSame(3, (int) $companion->items()->where('item', 'deadfall')->value('quantity'));
     }
+
+    /** A structure stands once: the second build is refused, not stacked. */
+    public function test_a_structure_cannot_be_built_twice(): void
+    {
+        [$user, $companion] = $this->carrying(['planks' => 6]);
+
+        app(BuildItem::class)->handle($user, 'chest');
+
+        $this->expectException(CompanionEconomyException::class);
+
+        try {
+            app(BuildItem::class)->handle($user, 'chest');
+        } finally {
+            $this->assertSame(1, $this->held($companion, 'chest'));
+            $this->assertSame(3, $this->held($companion, 'planks'));
+        }
+    }
+
+    /**
+     * The chest is reachable by a bag that has never built a container.
+     *
+     * 3 planks is the whole reason the price is 3: sawing is net +2, so
+     * `wouldFit()` needs `held <= 3` when it runs and a base bag tops out at
+     * three planks. A structure adds nothing carried, so `3 - 3 + 0 = 0 <= 5`.
+     */
+    public function test_a_base_bag_can_afford_the_chest(): void
+    {
+        [$user, $companion] = $this->carrying(['planks' => 3]);
+
+        $this->assertSame(5, $companion->capacity());
+
+        app(BuildItem::class)->handle($user, 'chest');
+
+        $this->assertSame(1, $this->held($companion, 'chest'));
+        $this->assertSame(0, $companion->items()->where('item', 'planks')->count());
+    }
+
+    /** A standing chest takes no bag room and raises no capacity. */
+    public function test_a_standing_chest_is_neither_carried_nor_capacity(): void
+    {
+        [$user, $companion] = $this->carrying(['planks' => 3]);
+
+        app(BuildItem::class)->handle($user, 'chest');
+
+        $companion->load('items');
+
+        $this->assertSame(0, $companion->held());
+        $this->assertSame(5, $companion->capacity());
+    }
 }

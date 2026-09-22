@@ -7,7 +7,7 @@ use RuntimeException;
 /**
  * A refusal the economy makes.
  *
- * Seven factories now, not the three this once was, but the shape held: something
+ * Eight factories now, not the three this once was, but the shape held: something
  * was asked for that the current state cannot pay for. NONE OF THEM DESTROYS
  * ANYTHING, and none of them is a failure on the user's part — a full bag is a
  * reason to build the next container, not a mistake, and the words say so
@@ -96,5 +96,19 @@ class CompanionEconomyException extends RuntimeException
     public static function notOffered(string $thing): self
     {
         return new self("[{$thing}] is not something Blob can put up yet.");
+    }
+
+    /**
+     * A structure that is already standing.
+     *
+     * Deliberately not worded as a shortage, because it is not one: nothing
+     * that could be gathered would change the answer. A structure stands once,
+     * so the screen stops offering a second the moment the first goes up —
+     * {@see CompanionBag::recipes()} drops it from the list — and reaching this
+     * means the read and the action have drifted apart.
+     */
+    public static function alreadyStanding(string $thing): self
+    {
+        return new self("[{$thing}] is already standing; there is only ever one.");
     }
 }
