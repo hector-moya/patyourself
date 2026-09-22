@@ -56,6 +56,7 @@ class CompanionVocabularyTest extends TestCase
             // likeliest place in the whole app for a scolding word to appear,
             // which is exactly why it is scanned.
             $root.'/app/Actions/DropItem.php',
+            $root.'/app/Actions/StashItem.php',
             $root.'/app/Listeners/StockCompanionNodes.php',
             $root.'/app/Http/Controllers/CompanionNodeController.php',
             $root.'/app/Http/Controllers/CompanionSkillController.php',
