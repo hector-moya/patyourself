@@ -57,6 +57,7 @@ class CompanionVocabularyTest extends TestCase
             // which is exactly why it is scanned.
             $root.'/app/Actions/DropItem.php',
             $root.'/app/Actions/StashItem.php',
+            $root.'/app/Actions/UnstashItem.php',
             $root.'/app/Listeners/StockCompanionNodes.php',
             $root.'/app/Http/Controllers/CompanionNodeController.php',
             $root.'/app/Http/Controllers/CompanionSkillController.php',
