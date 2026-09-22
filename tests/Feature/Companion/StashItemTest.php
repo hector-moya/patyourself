@@ -115,6 +115,13 @@ class StashItemTest extends TestCase
      * "The stash is uncapped" / "add a ceiling") and it exists to notice if a
      * ceiling is ever introduced: a large deposit, made in one call, must move
      * in full.
+     *
+     * This test alone only proves half of that. A ceiling can be shaped as a
+     * CLAMP — limiting what a single call moves — or as a THRESHOLD — refusing
+     * once the stash already holds enough. This test starts from an empty
+     * stash, so a clamp reddens it but a threshold never gets the chance to
+     * fire. {@see test_a_deposit_onto_an_already_large_stash_also_moves_in_full}
+     * is the other half.
      */
     public function test_a_large_deposit_moves_in_full(): void
     {
@@ -124,5 +131,32 @@ class StashItemTest extends TestCase
 
         $this->assertSame(30, $moved);
         $this->assertSame(30, (int) $companion->stashItems()->where('item', 'planks')->value('quantity'));
+    }
+
+    /**
+     * The other half of the uncapped rule: a deposit onto a stash that
+     * ALREADY holds a large stack must still move in full. Starting from an
+     * empty stash (as {@see test_a_large_deposit_moves_in_full} does) can only
+     * ever catch a CLAMP-shaped ceiling — a THRESHOLD-shaped one, which refuses
+     * once the existing stash total reaches some number, never gets a chance
+     * to fire when the stash starts at zero. This test starts the stash
+     * already large, so a threshold has something to trip on.
+     */
+    public function test_a_deposit_onto_an_already_large_stash_also_moves_in_full(): void
+    {
+        [$user, $companion] = $this->carrying(['planks' => 30]);
+        app(StashItem::class)->handle($user, 'planks');
+
+        // firstOrCreate + increment rather than a blind create(), so this
+        // step is valid regardless of what the first call left carried — a
+        // correct StashItem deletes the carried row on a whole-stack move,
+        // but a mutated one might not, and this test should still exercise
+        // "carry 30 more" either way rather than tripping on the unrelated
+        // unique constraint.
+        $companion->items()->firstOrCreate(['item' => 'planks'], ['quantity' => 0])->increment('quantity', 30);
+        $moved = app(StashItem::class)->handle($user, 'planks');
+
+        $this->assertSame(30, $moved);
+        $this->assertSame(60, (int) $companion->stashItems()->where('item', 'planks')->value('quantity'));
     }
 }
