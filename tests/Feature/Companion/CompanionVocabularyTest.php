@@ -43,6 +43,7 @@ class CompanionVocabularyTest extends TestCase
             $root.'/app/Services/Companion/CompanionCapacityException.php',
             $root.'/app/Models/Companion.php',
             $root.'/app/Models/CompanionItem.php',
+            $root.'/app/Models/CompanionStashItem.php',
             $root.'/app/Models/CompanionNode.php',
             $root.'/app/Models/CompanionSkill.php',
             $root.'/app/Actions/LearnSkill.php',

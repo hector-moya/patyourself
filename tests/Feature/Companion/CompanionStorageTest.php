@@ -3,6 +3,7 @@
 namespace Tests\Feature\Companion;
 
 use App\Models\Companion;
+use App\Models\CompanionStashItem;
 use App\Models\User;
 use App\Services\Companion\CompanionResolver;
 use Carbon\CarbonInterface;
@@ -180,5 +181,60 @@ class CompanionStorageTest extends TestCase
         $companion->forceFill(['salvaged_at' => now()])->save();
 
         $this->assertInstanceOf(CarbonInterface::class, $companion->fresh()->salvaged_at);
+    }
+
+    /**
+     * THE REASON THIS IS ITS OWN TABLE.
+     *
+     * `Companion::held()` and `Companion::capacity()` both sum `$this->items`
+     * with no filter. Had the stash been a `location` column on
+     * `companion_items`, a stashed crate would raise carry capacity and
+     * stashed planks would count against the bag — silently, with every
+     * existing test green, because every existing test writes rows that are
+     * all in one place.
+     *
+     * The mutation that turns this red is pointing `stashItems()` at
+     * `companion_items`.
+     */
+    public function test_what_is_at_home_is_neither_carried_nor_capacity(): void
+    {
+        $user = User::factory()->create();
+        $companion = $user->companion()->firstOrCreate([]);
+
+        $companion->items()->create(['item' => 'fibre', 'quantity' => 2]);
+        $companion->stashItems()->create(['item' => 'planks', 'quantity' => 9]);
+        $companion->stashItems()->create(['item' => 'crate', 'quantity' => 1]);
+
+        $companion->load('items');
+
+        $this->assertSame(2, $companion->held());
+        $this->assertSame(5, $companion->capacity());
+        $this->assertSame(2, $companion->stashItems()->count());
+    }
+
+    /** One stack per item at home, enforced by the database rather than by care. */
+    public function test_the_stash_cannot_hold_two_stacks_of_one_item(): void
+    {
+        $user = User::factory()->create();
+        $companion = $user->companion()->firstOrCreate([]);
+
+        $companion->stashItems()->create(['item' => 'planks', 'quantity' => 1]);
+
+        $this->expectException(QueryException::class);
+
+        $companion->stashItems()->create(['item' => 'planks', 'quantity' => 1]);
+    }
+
+    /** The stash goes with the companion it belongs to. */
+    public function test_the_stash_is_removed_with_its_companion(): void
+    {
+        $user = User::factory()->create();
+        $companion = $user->companion()->firstOrCreate([]);
+
+        $companion->stashItems()->create(['item' => 'planks', 'quantity' => 3]);
+
+        $companion->delete();
+
+        $this->assertSame(0, CompanionStashItem::query()->count());
     }
 }

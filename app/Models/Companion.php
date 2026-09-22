@@ -108,6 +108,22 @@ class Companion extends Model
         return $this->hasMany(CompanionItem::class);
     }
 
+    /**
+     * What is at home rather than on Blob.
+     *
+     * A SECOND RELATION, never a filter on `items`. Everything that reads
+     * `items` — `held()`, `capacity()`, `wouldFit()`, `spend()`,
+     * `shortfallFor()` — means "what Blob is carrying", and it means that
+     * because of this separation rather than because each one remembered to
+     * ask. Nothing in this class may ever sum the two together.
+     *
+     * @return HasMany<CompanionStashItem, $this>
+     */
+    public function stashItems(): HasMany
+    {
+        return $this->hasMany(CompanionStashItem::class);
+    }
+
     /** @return HasMany<CompanionNode, $this> */
     public function nodes(): HasMany
     {
