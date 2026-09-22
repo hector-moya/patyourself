@@ -60,13 +60,20 @@ order to document them, so scanning it would fail on its own subject matter.
 
 ## 3. From record to drawing
 
-**Store only what cannot be derived.** Five tables hold the chosen half of Blob — `companions`
+**Store only what cannot be derived.** Six tables hold the chosen half of Blob — `companions`
 (the name, `xp_spent`, `shelter` — what has been built — and `salvaged_at` — whether a granted
-cabin was already handed back), `companion_skills`, `companion_items`, `companion_nodes` and
-`companion_remarks` (the coach's own lines, written via `WriteBlobRemark` and the MCP tool, read
-on every `/companion` request). Nothing else. Counts, earned XP, the scene and the whole gift
-ladder are still recomputed from the record on every read, so the parts that could drift still
-cannot.
+cabin was already handed back), `companion_skills`, `companion_items`, `companion_stash_items`,
+`companion_nodes` and `companion_remarks` (the coach's own lines, written via `WriteBlobRemark` and
+the MCP tool, read on every `/companion` request). Nothing else. Counts, earned XP, the scene and
+the whole gift ladder are still recomputed from the record on every read, so the parts that could
+drift still cannot.
+
+`companion_stash_items` is its own table rather than a `location` column on `companion_items`,
+because `Companion::held()` and `capacity()` both sum `$this->items` unfiltered — a `location`
+column would make both silently wrong while every test written before F4.1 stayed green, since
+every one of them puts every row in one place. Measured rather than assumed: pointing
+`stashItems()` at `CompanionItem` gave `held() = 11` and `capacity() = 10` against an expected 2
+and 5. §10 has the ruling.
 
 Where Blob is *looking* is deliberately not among them. `inside` is `useState(false)` in
 `resources/js/pages/companion.tsx`, with a comment saying why, and it resets to outside on load the
@@ -78,7 +85,7 @@ claims to describe the record. A choice is not a claim about the record, which i
 be stored and a count may not.
 
 ```
-outcomes + summaries in the DB     companions + its three tables     companion_remarks
+outcomes + summaries in the DB     companions + its four tables     companion_remarks
         |                                    |                       (+ one remark, at
         v                                    v                        most, per visit)
 CompanionResolver::forUser()        CompanionBag::forUser()                 |
@@ -576,6 +583,34 @@ belong to the player:
   a tool or container reaching `CompanionItemController` is a 404, not a line in Blob's voice,
   because there is no sentence for a gesture the screen never offers.
 
+### The stash: a second place the world keeps the overflow
+
+F4.1 adds a chest, built once out of three planks, standing in the clearing. **The bag still
+spends; the stash only stores.** `Companion::wouldFit()` is untouched — a recipe reaches into the
+bag alone and never into the chest, so a container is still what decides whether a build fits, and
+the stash cannot make buildable something the bag's own arithmetic refuses.
+
+**The stash is uncapped.** The world is already uncapped everywhere else in this feature — node
+stock has no ceiling and nothing expires — and a limit here would be the first place the world
+refuses to hold something. `StashItem` runs no room check at all.
+
+**What it actually fixes, with the arithmetic.** Sawing is `{timber: 1} makes 3`, a net +2, so
+`wouldFit()`'s `held − consumed + made ≤ capacity` needs `held ≤ 3` the moment it runs: a base bag
+holding 3 planks plus the timber that has to be in hand to saw again is 4, and `4 − 1 + 3 = 6 > 5`,
+refused. A base bag tops out at 3 planks and the saw stops. Park those 3 planks in the chest and
+`held` drops back to what the timber alone costs — **sawing goes from self-blocking to unbounded.**
+
+**What it does NOT fix.** It sits downstream of rope — the chest itself needs planks, which need
+the handsaw, which needs rope — so it does nothing for F2's timber dead end; F3 already closed that,
+twice, with a harvest that can take less than a bagful and a stack that can be tipped out. It also
+does not make the salvage heap's 26 planks self-sufficient: the cabin costs 14 and `BuildShelter`
+spends from the bag, which still holds only 5 plus 5 per container, so two crates still stand
+between the heap and the cabin.
+
+**Accepted consequence: `DropItem` becomes rarely needed once a chest is standing.** That is fine.
+It was F3's answer to a dead end, and a dead end having a second exit does not make the first one
+wrong.
+
 ## 9. Where everything lives
 
 ```
@@ -584,10 +619,14 @@ config/companion.php                    ladder, tail, scenes, parts of day, rend
 database/migrations/
   ..._000001_add_the_shelter_to_companions_table.php   shelter + salvaged_at
   ..._000002_salvage_granted_cabins.php                the one-time backfill
+  ..._000001_create_companion_stash_items_table.php    the stash's own table; uncapped, no location column
+database/factories/
+  CompanionStashItemFactory.php         one stash stack, for tests
 app/Models/
   Companion.php                         the name, xp_spent, capacity(), held(), wouldFit(),
-                                         shortfallFor(), spend()
+                                         shortfallFor(), spend(), stashItems()
   CompanionItem.php                     one stack held in the bag
+  CompanionStashItem.php                one stack at home, in the chest — its own table, see §10
   CompanionNode.php                     one node's standing stock
   CompanionSkill.php                    one skill learned, and when
   CompanionRemark.php                   one thing Blob has to say, written by the coach
@@ -607,6 +646,8 @@ app/Actions/
   BuildItem.php                         spends a recipe, makes something
   BuildShelter.php                      puts up one shelter stage; the only writer of shelter
   DropItem.php                          tips a carried stack out; the only path that destroys
+  StashItem.php                         puts a stack down in the chest; nothing destroyed, no cap
+  UnstashItem.php                       fetches a stack back out, bounded by room; mirrors HarvestNode
   SalvageTheCabin.php                   the migration's conversion, factored out and tested
   WriteBlobRemark.php                   records one of Blob's remarks; the only writer
 app/Listeners/StockCompanionNodes.php   ActionLogged -> one unit into each unlocked node
@@ -618,6 +659,7 @@ app/Http/Controllers/
   CompanionBuildController.php          building an item
   CompanionShelterController.php        putting up one shelter stage
   CompanionItemController.php           tipping a carried stack out
+  CompanionStashController.php          moving a stack between the bag and the chest; one route, both directions
   CompanionNameController.php           renaming Blob
 
 resources/js/hooks/use-sprite-clock.ts  the one rAF loop
@@ -634,7 +676,8 @@ resources/js/patyourself/
   scenes.ts                             the scene registry; each scene may carry a shelter coordinate
   part-of-day.ts                        partOfDay, asleepAt(), wakingAt()
   sprites/   + README.md                bodies, worn-item sheets, every measurement
-  scenes/    + README.md                backdrops, foliage, the shelter sprites, the light's reasoning
+  scenes/    + README.md                backdrops, foliage, the shelter sprites, node-chest.png,
+                                        the light's reasoning
   ui/        + README.md                the pixel frame and buttons
 resources/css/patyourself.css           .pixel-frame, .pixel-button, transition rules
 resources/js/pages/companion.tsx        the screen
@@ -668,6 +711,8 @@ Each of these was settled with evidence. The cost column is what getting it wron
 | **The shelter is not a `bag` category** | This departs from arc §5's taxonomy table, deliberately. A recipe in `bag` becomes knowable from its ingredients, so all three stages would list at once — and only the next stage is ever listed. A structure also does not stack in `companion_items`. | The build list becomes a checklist of three, which is the one thing the arc forbids. |
 | **The salvage is 26 planks, and 26 is not self-sufficient** | 4 + 8 + 14 is what the arc costs, but the cabin is consumed in one act of fourteen and the bag holds five plus five per container — so two crates, eight more planks, stand between the heap and the cabin. An established account reaches the hut and then has to play the economy for the rest. That is consistent with the cabin being something you build rather than something you are given; it is *not* what spec §6's own sentence claims. | An established account is told it can rebuild what it had and finds it cannot without gathering. |
 | **The shelter's `y=34` is chosen, not measured** | The measured ground line (PNG row 62 → `y=24`) is the clearing's *back wall*, not its open floor — a building standing on it reads as standing among the trunks rather than in the clearing. Four heights were rendered past that measured line before `y=34` was picked as the one that actually stands in it. | A later "correction" back onto the measured line puts the shelter back in the trees, with the render evidence that ruled it out gone unless this row is read first. |
+| **The stash is its own table, never a column on `companion_items`** | `Companion::held()` and `capacity()` both sum `$this->items` unfiltered. A `location` column makes both silently wrong while every existing test stays green, because every test written before this one puts every row in one place. MEASURED: pointing `stashItems()` at `CompanionItem` gave `held() = 11` and `capacity() = 10` against the expected 2 and 5. | A stashed crate raising carry capacity and stashed planks counting against the bag, discovered nowhere in the suite because every test's rows share one location. |
+| **A recipe spends from the bag alone** | `wouldFit()` is the one arithmetic the refusing action and the predicting read must share. Letting a recipe reach the stash grows a second notion of "held" and makes containers decoration. | `CompanionBag::recipes()` promising a build that `BuildItem` then refuses, or the reverse — the exact disagreement `wouldFit()` exists to make impossible. |
 
 ## 11. Traps that have already bitten
 
@@ -701,7 +746,16 @@ Every one of these has cost a round on this project.
    `data-frame` reads 0 forever. Trust `data-animation` and `data-part-of-day`.
 7. **Check the commit, not the working tree**, before believing anything found while a review is
    running. A reviewer's in-flight mutation once looked exactly like a shipped defect.
-8. **Herd serves the main checkout, never a worktree.** Dump to HTML and `php -S 127.0.0.1:8899 -t .`.
+8. **Herd serves the main checkout, never a worktree.** "Dump to HTML and `php -S`" is not specific
+   enough, and it cost F4.1 about eight tool calls to get past. Serving a built SPA with
+   `php -S ... -t public public/index.php` returns EVERY asset — the JS module included — as
+   `Content-Type: text/html`, so the browser silently refuses to execute the module script and
+   **the page renders blank with no console error at all**. A registered PWA service worker is a
+   plausible-looking red herring; it is not the cause. What works is a router script that
+   `return false`s for a request matching a real file, served as
+   `php -S 127.0.0.1:8899 -t public <router>.php` — BOTH the `-t public` and the router are
+   required, because `return false` resolves the path against the docroot `-t` sets, not against
+   wherever the router script itself lives.
 9. **When a task adds a conditionally-rendered section, the shared fixture must be widened in the
    same task, or every guard downstream goes quiet rather than red.** It has bitten three times on
    one branch, always in `companion.test.tsx`'s "never shows what has not happened" guard — the
@@ -718,9 +772,20 @@ Every one of these has cost a round on this project.
 
 ## 12. What is not done
 
-- **F4 (depth)** is what remains. F1 (the bag), F2 (the tools), F3 (the shelter's economy) and F3.5
-  (the shelter drawn) are built; the reasoning behind the whole arc, and what F4 is sketched to cover,
-  lives in `docs/superpowers/specs/2026-09-17-companion-progression-arc-design.md`.
+- **F4 is three sub-projects, not one.** F1 (the bag), F2 (the tools), F3 (the shelter's economy),
+  F3.5 (the shelter drawn) and F3.6 (the nodes drawn) are built. F4 decomposes into
+  **F4.1 — the stash (DONE)**, **F4.2 — consumption proper**, and **F4.3 — wearables migrating into
+  the taxonomy**. F4.2 and F4.3 are not designed; each needs its own brainstorm → spec → plan cycle,
+  the same one F4.1 went through. The reasoning behind the whole arc lives in
+  `docs/superpowers/specs/2026-09-17-companion-progression-arc-design.md`; F4.1's own decisions live
+  in `docs/superpowers/specs/2026-09-22-companion-f4.1-the-stash-design.md`.
+- **"More skills" was cut from F4 entirely**, and the cut is a finding rather than an omission. Two
+  measured facts removed it: `CompanionBag.php`'s `skills()` reads `$skill['node']` with a bare
+  lookup, and F2's rule is that a recipe gates on a tool and never on a skill — so a skill that
+  unlocks nothing in the world is not representable today, and a new skill means a new node. The
+  clearing is also full: four node cells need **186 units of width in a 144-unit room**, before
+  Blob's silhouette and the shelter's 48-wide cell are counted, so a fifth node would be a second
+  new object in a room that could not hold four. **The world ends at four nodes and the chest.**
 - ~~A full bag of timber has no exit.~~ **Closed by F3**: a harvest can take less than a bagful, and
   a carried stack can be tipped out. Both are the player's act; nothing discards on their behalf.
 - ~~Node hotspot labels do not scale with the stage.~~ **Closed by F3.6, by deletion rather than by a
@@ -816,3 +881,17 @@ Every one of these has cost a round on this project.
   this bullet: **a guard over a state the system cannot reach costs you the state it can.** Assert what
   is reachable. Fixing this properly means narrowing that guard to the forms a scarf can actually
   appear on, and only then restoring the amplitude.
+- **`Companion::capacity()` sums the `capacity` config field across EVERY held item, regardless of
+  category.** Harmless today — the chest carries no `capacity` key — but any future `structure` or
+  `tool` that gains one would silently enlarge the bag forever. Measured: adding `'capacity' => 5` to
+  the chest's config row turned a capacity assertion from 5 to 10.
+- **`$companion->load('items')` is dead at three sites** — `HarvestNode.php:86`, `BuildItem.php:109`
+  and `UnstashItem.php:69` — all three for the same reason: each action resolves the companion fresh
+  inside its own transaction via `$user->companion()->firstOrCreate([])`, so `items` is never
+  pre-loaded and cannot be stale, and the relation lazy-loads on first read regardless. F4.1 corrected
+  the comment in `UnstashItem` to say so; the other two still state a premise that does not hold.
+  Evidence: a mutation moving the call after `room()` stayed GREEN.
+- **The bag's `Held` section lists a standing chest.** A `structure` lives in `companion_items`, so
+  `CompanionBag::items()` lists it — the shelter avoids this only by being a column rather than a row.
+  It reads oddly, since Blob is not carrying a chest; the fix, if wanted, is filtering `structure` out
+  of `items()`. An open question, not a defect.
