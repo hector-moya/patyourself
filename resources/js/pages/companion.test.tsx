@@ -163,6 +163,15 @@ describe('Companion screen', () => {
         // (reeds `plenty`, deadfall and trunk `some`); the heap stays at
         // `band: ''`, which has none, so it never draws.
         expect(document.querySelectorAll('[data-node]')).toHaveLength(3);
+
+        // The identical failure mode, one prop over: `chestStanding` carries
+        // no fallback that happens to still draw something, the way
+        // `nodes={[]}` at least renders an empty clearing. Deleting
+        // `chestStanding={bag.stash.standing}` from `companion.tsx` leaves
+        // `CompanionRoom.chestStanding` at its `false` default, the chest
+        // this fixture stood at line 143 never draws, and nothing above
+        // would notice.
+        expect(document.querySelectorAll('[data-chest]')).toHaveLength(1);
     });
 
     /**
@@ -276,6 +285,11 @@ describe('Companion screen', () => {
         // (reeds `plenty`, deadfall and trunk `some`); the heap stays at
         // `band: ''`, which has none, so it never draws.
         expect(document.querySelectorAll('[data-node]')).toHaveLength(3);
+
+        // The same gap, one prop over: the room stays mounted behind the
+        // dialog, so a dropped `chestStanding={bag.stash.standing}` would
+        // leave the chest this fixture stood at line 260 undrawn here too.
+        expect(document.querySelectorAll('[data-chest]')).toHaveLength(1);
     });
 
     it('relays what Blob has to say, near Blob', () => {
@@ -909,6 +923,57 @@ describe('Companion screen', () => {
             expect(
                 screen.getByRole('button', { name: /the heap/i }),
             ).toBeInTheDocument();
+        });
+
+        describe('the chest', () => {
+            /**
+             * Absent entirely until one is built, the same rule `ShelterSpot`
+             * follows: a chest nobody built is not an invisible hit region.
+             */
+            it('offers no chest control until one is standing', () => {
+                renderClearing({
+                    bag: { stash: { standing: false, items: [] } },
+                });
+
+                expect(
+                    screen.queryByRole('button', { name: /chest/i }),
+                ).not.toBeInTheDocument();
+            });
+
+            /**
+             * Clicking it opens the bag rather than posting anything — the
+             * same shape `@/routes/companion/stash` is deliberately NOT used
+             * here for, per the task's own interface note: deciding how much
+             * to move is a bag question, and the clearing is where a thing
+             * IS.
+             */
+            it('opens the bag from the chest once one is standing', () => {
+                renderClearing({
+                    bag: { stash: { standing: true, items: [] } },
+                });
+
+                expect(post).not.toHaveBeenCalled();
+
+                fireEvent.click(screen.getByRole('button', { name: /chest/i }));
+
+                expect(post).not.toHaveBeenCalled();
+                expect(screen.getByRole('dialog')).toBeInTheDocument();
+                expect(screen.getByText('At home')).toBeInTheDocument();
+            });
+
+            it('sizes the chest control to its art', () => {
+                renderClearing({
+                    bag: { stash: { standing: true, items: [] } },
+                });
+
+                const spot = screen.getByRole('button', {
+                    name: /open the chest/i,
+                });
+
+                expect(spot).toHaveClass('c-node', 'c-chest', 'c-node--art');
+                expect(spot.style.width).not.toBe('');
+                expect(spot.style.height).not.toBe('');
+            });
         });
     });
 

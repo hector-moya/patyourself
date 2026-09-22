@@ -19,6 +19,7 @@ import forestDay from './scenes/forest-day.png';
 import forestDusk from './scenes/forest-dusk.png';
 import forestNight from './scenes/forest-night.png';
 import forestSunrise from './scenes/forest-sunrise.png';
+import chestPng from './scenes/node-chest.png';
 import nodeDeadfallBare from './scenes/node-deadfall-bare.png';
 import nodeDeadfallPlenty from './scenes/node-deadfall-plenty.png';
 import nodeDeadfallSome from './scenes/node-deadfall-some.png';
@@ -114,6 +115,17 @@ export interface SceneSpec {
      * `(x − SHELTER_CELL/2, y − SHELTER_CELL)`.
      */
     shelter?: readonly [number, number];
+    /**
+     * Where the chest stands, when one has been built. Absent indoors.
+     *
+     * Placement only, exactly as `nodes` and `shelter` are: WHETHER one is
+     * standing comes from the server's `bag.stash.standing`, never from here.
+     *
+     * Like `shelter` and unlike `FoliageSpec.at`, this is the BASE CENTRE —
+     * where the chest stands, not a cell's top-left. The art's top-left
+     * derives as `(x − CHEST_CELL[0] / 2, y − CHEST_CELL[1])`.
+     */
+    chest?: readonly [number, number];
 }
 
 /**
@@ -138,10 +150,49 @@ const SHELTER_SPRITES: Record<string, string> = {
  * and `SPRITE_ITEMS` still carry exactly that bug.
  */
 export function shelterSprite(stage: string): string | undefined {
-    return Object.hasOwn(SHELTER_SPRITES, stage) ? SHELTER_SPRITES[stage] : undefined;
+    return Object.hasOwn(SHELTER_SPRITES, stage)
+        ? SHELTER_SPRITES[stage]
+        : undefined;
 }
 
 export { SHELTER_SPRITES };
+
+/**
+ * The chest's cell, MEASURED off the cropped art rather than chosen.
+ *
+ * `create_1_direction_object` forces a 48x48 square, and the crop to the
+ * art's own bounding box — nine transparent rows above, six below — is what
+ * sets this to 34x33 rather than 48x48; `scenes/README.md` "The chest"
+ * records the measurement. Five objects cannot stand apart in a 144-unit
+ * room, so this number is part of what the placement render had to fit.
+ */
+export const CHEST_CELL: readonly [number, number] = [34, 33];
+
+/** The chest's one sprite. It has no bands: a chest is a chest, and what is in it is in the bag. */
+export function chestSprite(): string {
+    return chestPng;
+}
+
+/**
+ * Sorts anything with a base centre by that base y, ascending.
+ *
+ * F3.6's rule for the clearing is that nearer things sit lower and overlap
+ * further things, so painting in ascending base-y order puts the nearer
+ * thing last — on top of whatever it overlaps. `SCENES.forest.nodes` is
+ * already authored in this order (`scenes.test.ts` pins that), so this is a
+ * no-op for the four nodes that ship today; it exists so the chest can join
+ * the same order rather than being drawn at a hand-picked array index, and
+ * so BLOB.md §12's observation — that array order is paint order with
+ * nothing enforcing it — stops being true.
+ *
+ * Returns a fresh array. `Array.prototype.sort` mutates its receiver, and a
+ * caller's own list should never come back changed under it.
+ */
+export function paintOrder<T extends { at: readonly [number, number] }>(
+    items: readonly T[],
+): T[] {
+    return [...items].sort((a, b) => a.at[1] - b.at[1]);
+}
 
 /**
  * The cell each node's art is drawn on, in the room's own units.
@@ -175,9 +226,21 @@ export const NODE_CELLS: Record<string, readonly [number, number]> = {
  * produce, and BLOB.md §12 records what guarding an unreachable state costs.
  */
 const NODE_SPRITES: Record<string, Record<string, string>> = {
-    reeds: { bare: nodeReedsBare, some: nodeReedsSome, plenty: nodeReedsPlenty },
-    deadfall: { bare: nodeDeadfallBare, some: nodeDeadfallSome, plenty: nodeDeadfallPlenty },
-    trunk: { bare: nodeTrunkBare, some: nodeTrunkSome, plenty: nodeTrunkPlenty },
+    reeds: {
+        bare: nodeReedsBare,
+        some: nodeReedsSome,
+        plenty: nodeReedsPlenty,
+    },
+    deadfall: {
+        bare: nodeDeadfallBare,
+        some: nodeDeadfallSome,
+        plenty: nodeDeadfallPlenty,
+    },
+    trunk: {
+        bare: nodeTrunkBare,
+        some: nodeTrunkSome,
+        plenty: nodeTrunkPlenty,
+    },
     salvage: { some: nodeSalvageSome, plenty: nodeSalvagePlenty },
 };
 
@@ -360,6 +423,28 @@ export const SCENES: Record<string, SceneSpec> = {
         // rather than in the clearing. Four heights were rendered and y=34
         // is the one that actually stands in the clearing.
         shelter: [44, 34],
+        // THE CHEST. Occupancy was computed first, from every base centre
+        // and cell already above: a 34x33 chest — CHEST_CELL — has no
+        // collision-free position anywhere in this room, with or without a
+        // heap standing. The one candidate small enough to clear everything,
+        // 24x23, was the arithmetic's answer.
+        //
+        // A render overruled it. Four placements were rendered at both
+        // sizes, over the real backdrop with the real Blob; at [30, 73] the
+        // full 34x33 chest stands in open grass to Blob's right, with the
+        // reed bed behind it and clear of Blob's own silhouette entirely.
+        // The bounding boxes call that an overlap with the reeds (x 20..68);
+        // the render calls it depth — the same rule that forced every node
+        // above to overlap another. `scenes/README.md` "The chest" carries
+        // the occupancy table and both rendered states (with a heap and
+        // without).
+        //
+        // Base y 73 sits between the heap's 70 and the branches'/reeds'
+        // 74/76, so `paintOrder` draws it after the heap and before the
+        // reeds — the only two things it overlaps in x. The heap is
+        // further and paints first; the reeds are nearer and paint last,
+        // over it.
+        chest: [30, 73],
     },
 
     cabin: {

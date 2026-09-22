@@ -25,8 +25,11 @@ import { ANIMATIONS } from '@/patyourself/companion-animations';
 import { partOfDay } from '@/patyourself/part-of-day';
 import type { RoomPalette } from '@/patyourself/part-of-day';
 import {
+    CHEST_CELL,
+    chestSprite,
     nodeCell,
     nodeSprite,
+    paintOrder,
     sceneFor,
     SHELTER_CELL,
     shelterSprite,
@@ -311,6 +314,50 @@ function ShelterLayer({
 }
 
 /**
+ * One thing `paintOrder` can sort and this component can then draw: a node
+ * at a band, or the chest. A discriminated union rather than two separate
+ * `.map` calls, because the whole point of sorting them together is that
+ * neither list is allowed to paint as a fixed block above or below the
+ * other — see the paint-order comment where this is built, below.
+ */
+type PaintItem =
+    | {
+          kind: 'node';
+          node: string;
+          band: string;
+          at: readonly [number, number];
+      }
+    | { kind: 'chest'; at: readonly [number, number] };
+
+/**
+ * The chest, when one has been built.
+ *
+ * One sprite and no bands. A node is drawn at the amount standing at it
+ * because the amount is the thing you are deciding about; a chest is a
+ * chest, and what is in it is in the bag, named exactly rather than banded.
+ * Giving it bands would buy a picture the bag modal already gives precisely.
+ *
+ * A single frame and no clock, the same as the shelter: the tree and the
+ * grass are sheets because this scene exists to carry wind, and a box does
+ * not sway.
+ */
+function ChestLayer({ at }: { at: readonly [number, number] }) {
+    return (
+        <image
+            data-chest="standing"
+            href={chestSprite()}
+            // `at` is the base centre, so the cell hangs up and left of it —
+            // the same contract `SceneSpec.shelter` carries.
+            x={at[0] - CHEST_CELL[0] / 2}
+            y={at[1] - CHEST_CELL[1]}
+            width={CHEST_CELL[0]}
+            height={CHEST_CELL[1]}
+            style={{ imageRendering: 'pixelated' }}
+        />
+    );
+}
+
+/**
  * What is standing at one node, at the amount it is standing in.
  *
  * The generalisation of `ShelterLayer` above, and a plain `<image>` for the
@@ -367,6 +414,7 @@ export function CompanionRoom({
     inside = false,
     shelter = null,
     nodes = [],
+    chestStanding = false,
 }: {
     companion: CompanionData;
     animation: AnimationName;
@@ -410,6 +458,12 @@ export function CompanionRoom({
      * render.
      */
     nodes?: readonly { node: string; band: string }[];
+    /**
+     * Whether a chest is standing. The server's answer, exactly as `shelter`
+     * and `nodes` are — a built chest is a bag row of category `structure`,
+     * and nothing on this side reads the catalogue.
+     */
+    chestStanding?: boolean;
 }) {
     if (!companion.features.includes('blob')) {
         return null;
@@ -483,30 +537,57 @@ export function CompanionRoom({
                         <ShelterLayer stage={shelter} at={scene.shelter} />
                     )}
                     {/* After the shelter and over it: the building stands at
-                        the treeline and the nodes are nearer the front, so
-                        painting them later is what puts them in front.
+                        the treeline and the nodes and chest are nearer the
+                        front, so painting them later is what puts them in
+                        front.
 
                         Still under Blob and under the wash. The sprites are
                         drawn in neutral light, so a layer that escaped the
-                        overlay would stay at noon all night. */}
-                    {scene.nodes.map((spec) => {
-                        const standing = nodes.find(
-                            (candidate) => candidate.node === spec.node,
-                        );
+                        overlay would stay at noon all night.
 
-                        if (standing === undefined) {
-                            return null;
-                        }
+                        NODES AND THE CHEST SHARE ONE PAINT ORDER, sorted by
+                        base y rather than drawn as two separate loops in a
+                        fixed sequence. The chest's own base y (73) falls
+                        between the heap's (70) and the reeds' (76) — the
+                        only two things it overlaps in x — so it has to paint
+                        after the heap and before the reeds, not after every
+                        node regardless of depth. `paintOrder` is a no-op for
+                        the four nodes alone (`scenes.test.ts` pins that they
+                        are already authored in this order); it only starts
+                        doing work the moment a fifth thing — the chest —
+                        joins the list. */}
+                    {paintOrder<PaintItem>([
+                        ...scene.nodes.flatMap((spec): PaintItem[] => {
+                            const standing = nodes.find(
+                                (candidate) => candidate.node === spec.node,
+                            );
 
-                        return (
+                            return standing === undefined
+                                ? []
+                                : [
+                                      {
+                                          kind: 'node',
+                                          node: spec.node,
+                                          band: standing.band,
+                                          at: spec.at,
+                                      },
+                                  ];
+                        }),
+                        ...(chestStanding && scene.chest !== undefined
+                            ? [{ kind: 'chest', at: scene.chest } as PaintItem]
+                            : []),
+                    ]).map((item) =>
+                        item.kind === 'node' ? (
                             <NodeLayer
-                                key={spec.node}
-                                node={spec.node}
-                                band={standing.band}
-                                at={spec.at}
+                                key={item.node}
+                                node={item.node}
+                                band={item.band}
+                                at={item.at}
                             />
-                        );
-                    })}
+                        ) : (
+                            <ChestLayer key="chest" at={item.at} />
+                        ),
+                    )}
                 </>
             )}
 

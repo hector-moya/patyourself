@@ -25,6 +25,7 @@ import {
 } from '@/patyourself/companion-room';
 import { partOfDay } from '@/patyourself/part-of-day';
 import {
+    CHEST_CELL,
     nodeCell,
     nodeSprite,
     sceneFor,
@@ -263,6 +264,7 @@ function RoomCard({
     const [showRemark, setShowRemark] = useState(true);
     const part = partOfDay(hour, companion.room);
     const shelterAt = sceneFor(companion.scene).shelter;
+    const chestAt = sceneFor(companion.scene).chest;
 
     const stage = useRef<HTMLDivElement>(null);
     /**
@@ -361,6 +363,7 @@ function RoomCard({
                     inside={inside}
                     shelter={bag.shelter.built}
                     nodes={bag.nodes}
+                    chestStanding={bag.stash.standing}
                 />
 
                 {/* The clearing's own things, laid over the picture as real
@@ -463,6 +466,25 @@ function RoomCard({
                             }}
                         />
                     )}
+
+                {/* The chest, once one is standing. Clicking it opens the
+                    bag at what is at home — it posts nothing, because
+                    deciding how much to move is a bag question and the
+                    clearing is where a thing IS. Absent entirely until one
+                    is built, so there is never an invisible hit region
+                    here. */}
+                {!inside && bag.stash.standing && chestAt !== undefined && (
+                    <ChestSpot
+                        at={roomOffset(
+                            chestAt[0],
+                            chestAt[1] - CHEST_CELL[1] / 2,
+                        )}
+                        onClick={() => {
+                            recoverFocus.current = true;
+                            onOpenBag();
+                        }}
+                    />
+                )}
             </div>
 
             {/* Never disabled, never on a timer, never counted: pressing one
@@ -656,6 +678,33 @@ function ShelterSpot({
             style={{ ...at, ...roomSize(SHELTER_CELL, SHELTER_CELL) }}
             // The picture says what it is; the name says what pressing does.
             aria-label={`Go inside the ${label}`}
+            onClick={onClick}
+        />
+    );
+}
+
+/**
+ * The chest's hit region: the art's own cell, in room units, so it scales
+ * with the picture instead of holding a fixed pixel size the way the
+ * retired labels did.
+ *
+ * Clicking it opens the bag rather than posting anything — deciding how much
+ * of what is at home to move is a bag question, and this is the clearing.
+ */
+function ChestSpot({
+    at,
+    onClick,
+}: {
+    at: { left: string; top: string };
+    onClick: () => void;
+}) {
+    return (
+        <button
+            type="button"
+            className={cn('c-node', 'c-chest', 'c-node--art')}
+            style={{ ...at, ...roomSize(CHEST_CELL[0], CHEST_CELL[1]) }}
+            // The picture says what it is; the name says what pressing does.
+            aria-label="Open the chest"
             onClick={onClick}
         />
     );

@@ -6,7 +6,7 @@ import { __resetSpriteClock, useSpriteClock } from '@/hooks/use-sprite-clock';
 import { ANIMATIONS } from './companion-animations';
 import { CompanionRoom, roomSize } from './companion-room';
 import { bag, companion } from './companion.fixture';
-import { nodeCell, SCENES, sceneFor } from './scenes';
+import { CHEST_CELL, nodeCell, SCENES, sceneFor } from './scenes';
 
 /**
  * The foliage reads the shared clock, which is a module-level singleton, so
@@ -638,11 +638,10 @@ describe('the shelter interior', () => {
      * the arc's own sentence about this phase conflated.
      */
     it('goes inside without the scene changing underneath it', () => {
-        const markup = room(
-            { scene: 'forest' },
-            12,
-            { inside: true, shelter: 'cabin' },
-        ).innerHTML;
+        const markup = room({ scene: 'forest' }, 12, {
+            inside: true,
+            shelter: 'cabin',
+        }).innerHTML;
 
         expect(markup).toContain('data-scene="forest"');
         expect(markup).toContain('data-interior="cabin"');
@@ -650,21 +649,18 @@ describe('the shelter interior', () => {
 
     /** Each stage is a different interior, and only ever one of them. */
     it('draws the interior the stage that is standing has', () => {
-        const leanTo = room(
-            { scene: 'forest' },
-            12,
-            { inside: true, shelter: 'lean-to' },
-        ).innerHTML;
-        const hut = room(
-            { scene: 'forest' },
-            12,
-            { inside: true, shelter: 'hut' },
-        ).innerHTML;
-        const cabin = room(
-            { scene: 'forest' },
-            12,
-            { inside: true, shelter: 'cabin' },
-        ).innerHTML;
+        const leanTo = room({ scene: 'forest' }, 12, {
+            inside: true,
+            shelter: 'lean-to',
+        }).innerHTML;
+        const hut = room({ scene: 'forest' }, 12, {
+            inside: true,
+            shelter: 'hut',
+        }).innerHTML;
+        const cabin = room({ scene: 'forest' }, 12, {
+            inside: true,
+            shelter: 'cabin',
+        }).innerHTML;
 
         expect(leanTo).toContain('data-interior="lean-to"');
         expect(hut).toContain('data-interior="hut"');
@@ -687,11 +683,9 @@ describe('the shelter interior', () => {
 
     /** Outside, no interior is drawn at all — never two at once. */
     it('draws no interior while Blob is outside', () => {
-        const markup = room(
-            { scene: 'forest' },
-            12,
-            { shelter: 'cabin' },
-        ).innerHTML;
+        const markup = room({ scene: 'forest' }, 12, {
+            shelter: 'cabin',
+        }).innerHTML;
 
         expect(markup).not.toContain('data-interior');
         expect(markup).toContain('scene-backdrop');
@@ -743,7 +737,9 @@ describe('the shelter standing in the clearing', () => {
         for (const stage of ['lean-to', 'hut', 'cabin']) {
             const container = room({ scene: 'forest' }, 12, { shelter: stage });
 
-            expect(container.querySelectorAll('[data-shelter]')).toHaveLength(1);
+            expect(container.querySelectorAll('[data-shelter]')).toHaveLength(
+                1,
+            );
         }
     });
 
@@ -771,6 +767,110 @@ describe('the shelter standing in the clearing', () => {
         expect(drawn).toHaveAttribute('y', '-14');
         expect(drawn).toHaveAttribute('width', '48');
         expect(drawn).toHaveAttribute('height', '48');
+    });
+});
+
+describe('the chest standing in the clearing', () => {
+    // `scene: 'forest'` on every case here, matching every other outdoor
+    // guard in this file: the default fixture's scene is 'cabin', which is
+    // indoors unconditionally and never reaches the branch `ChestLayer` is
+    // drawn in.
+    it('draws no chest until one is standing', () => {
+        const container = room({ scene: 'forest' }, 12, {
+            chestStanding: false,
+        });
+
+        expect(container.querySelector('[data-chest]')).toBeNull();
+    });
+
+    it('draws the chest once one is standing', () => {
+        const container = room({ scene: 'forest' }, 12, {
+            chestStanding: true,
+        });
+
+        expect(container.querySelector('[data-chest]')).not.toBeNull();
+        expect(container.querySelector('[data-chest]')).toHaveAttribute(
+            'data-chest',
+            'standing',
+        );
+    });
+
+    it('draws one chest and never two', () => {
+        const container = room({ scene: 'forest' }, 12, {
+            chestStanding: true,
+        });
+
+        expect(container.querySelectorAll('[data-chest]')).toHaveLength(1);
+    });
+
+    /** Mirrors `ShelterLayer`'s own "draws nothing indoors" case. */
+    it('draws nothing indoors, because you are looking at the inside of it', () => {
+        const container = room({ scene: 'forest' }, 12, {
+            chestStanding: true,
+            inside: true,
+            shelter: 'cabin',
+        });
+
+        expect(container.querySelector('[data-chest]')).toBeNull();
+    });
+
+    /**
+     * The mutation that turns this red: drop the `- CHEST_CELL[1]` in
+     * `ChestLayer` and draw from the point downward, which would plant the
+     * chest below the ground it stands on — the same failure `ShelterLayer`
+     * and `NodeLayer` both guard against.
+     */
+    it('hangs the chest cell above the base centre it stands on', () => {
+        const container = room({ scene: 'forest' }, 12, {
+            chestStanding: true,
+        });
+        const drawn = container.querySelector('[data-chest]');
+        const [x, y] = SCENES.forest.chest!;
+
+        expect(drawn).toHaveAttribute('x', String(x - CHEST_CELL[0] / 2));
+        expect(drawn).toHaveAttribute('y', String(y - CHEST_CELL[1]));
+        expect(drawn).toHaveAttribute('width', String(CHEST_CELL[0]));
+        expect(drawn).toHaveAttribute('height', String(CHEST_CELL[1]));
+    });
+
+    /**
+     * THE ONE SUBTLE PART. The chest's base y (73) sits between the heap's
+     * (70) and the reeds' (76) — the only two nodes it overlaps in x — so it
+     * has to paint after the heap and before the reeds, not after every node
+     * regardless of depth.
+     *
+     * The mutation that turns this red: render `<ChestLayer>` after the
+     * whole node loop instead of folding it into the sorted list — which
+     * would put the chest on top of the reeds, the nearer thing, exactly
+     * backwards from F3.6's rule.
+     */
+    it('draws the chest after the heap and before the reeds, not after everything', () => {
+        const standing = SCENES.forest.nodes.map((spec) => ({
+            node: spec.node,
+            band: 'plenty',
+        }));
+
+        const container = room({ scene: 'forest' }, 12, {
+            chestStanding: true,
+            nodes: standing,
+        });
+
+        const heap = container.querySelector('[data-node="salvage"]');
+        const chest = container.querySelector('[data-chest]');
+        const reeds = container.querySelector('[data-node="reeds"]');
+
+        expect(heap).not.toBeNull();
+        expect(chest).not.toBeNull();
+        expect(reeds).not.toBeNull();
+
+        expect(
+            heap!.compareDocumentPosition(chest!) &
+                Node.DOCUMENT_POSITION_FOLLOWING,
+        ).toBeTruthy();
+        expect(
+            chest!.compareDocumentPosition(reeds!) &
+                Node.DOCUMENT_POSITION_FOLLOWING,
+        ).toBeTruthy();
     });
 });
 
@@ -946,15 +1046,16 @@ describe('the nodes in the clearing', () => {
                 frame={0}
                 hour={12}
                 nodes={fixture.nodes.map((node) =>
-                    node.node === 'salvage' ? { ...node, band: 'plenty' } : node,
+                    node.node === 'salvage'
+                        ? { ...node, band: 'plenty' }
+                        : node,
                 )}
             />,
         );
 
-        expect(container.querySelector('[data-node="salvage"]')).toHaveAttribute(
-            'data-band',
-            'plenty',
-        );
+        expect(
+            container.querySelector('[data-node="salvage"]'),
+        ).toHaveAttribute('data-band', 'plenty');
     });
 });
 

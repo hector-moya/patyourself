@@ -6,10 +6,13 @@ import { describe, expect, it } from 'vitest';
 
 import { ANIMATIONS } from './companion-animations';
 import {
+    CHEST_CELL,
+    chestSprite,
     NODE_CELLS,
     nodeCell,
     NODE_SPRITES,
     nodeSprite,
+    paintOrder,
     SCENES,
     sceneFor,
     SHELTER_CELL,
@@ -247,7 +250,7 @@ describe('nodes and the shelter', () => {
      * coordinate change and only fails on a wrong derivation — and, unlike
      * overlap, is a structural property jsdom can actually check.
      */
-    it('keeps every node clear of the shelter\'s own cell', () => {
+    it("keeps every node clear of the shelter's own cell", () => {
         const [shelterX, shelterY] = SCENES.forest.shelter!;
         // The cell `ShelterLayer` actually draws: top-left
         // `(shelterX − SHELTER_CELL/2, shelterY − SHELTER_CELL)`, `SHELTER_CELL`
@@ -275,17 +278,50 @@ describe('nodes and the shelter', () => {
     });
 });
 
+describe('paint order', () => {
+    /**
+     * `companion-room.tsx` draws the clearing's nodes and its chest off one
+     * sorted list rather than a hand-picked array index, because the chest's
+     * own base y (73) falls between the heap's (70) and the reeds' (76) —
+     * the two things it overlaps in x — so neither "draw the chest after
+     * every node" nor "draw it first" is correct on its own.
+     *
+     * This is the half of that claim `scenes.ts` alone can prove: sorting
+     * the forest's four nodes by their own base y already yields exactly
+     * the order they are authored in, 42 (trunk), 70 (heap), 74 (branches),
+     * 76 (reeds) — so `paintOrder` is a no-op for everything that ships
+     * today, and the sort exists only to keep that agreement enforced
+     * rather than assumed now that the chest has joined it. BLOB.md §12
+     * records that array order being load-bearing paint order had nothing
+     * enforcing it before this.
+     *
+     * The mutation that turns this red: reorder any two of the four nodes
+     * in `SCENES.forest.nodes` without also moving their `at[1]` — swapping
+     * `trunk` and `salvage`, say, leaves the data correct and the array
+     * order wrong.
+     */
+    it("sorts the forest's nodes by base y into exactly their authored order", () => {
+        expect(paintOrder(SCENES.forest.nodes)).toEqual(SCENES.forest.nodes);
+    });
+});
+
 describe('the shelter sprites', () => {
     it('draws every stage on the same 48x48 cell', () => {
         for (const [stage, sheet] of Object.entries(SHELTER_SPRITES)) {
             const { width, height } = sheetSize(sheet);
 
-            expect(`${stage}: ${width}x${height}`).toBe(`${stage}: ${SHELTER_CELL}x${SHELTER_CELL}`);
+            expect(`${stage}: ${width}x${height}`).toBe(
+                `${stage}: ${SHELTER_CELL}x${SHELTER_CELL}`,
+            );
         }
     });
 
     it('has a sprite for every stage the shelter config can reach', () => {
-        expect(Object.keys(SHELTER_SPRITES).sort()).toEqual(['cabin', 'hut', 'lean-to']);
+        expect(Object.keys(SHELTER_SPRITES).sort()).toEqual([
+            'cabin',
+            'hut',
+            'lean-to',
+        ]);
     });
 
     /**
@@ -321,6 +357,54 @@ describe('the shelter sprites', () => {
     });
 });
 
+describe('the chest', () => {
+    it('sizes the chest from art that exists', () => {
+        expect(chestSprite()).toMatch(/node-chest/);
+        expect(CHEST_CELL[0]).toBeGreaterThan(0);
+        expect(CHEST_CELL[1]).toBeGreaterThan(0);
+    });
+
+    /**
+     * `CHEST_CELL` is a measurement, not a choice — `scenes/README.md` "The
+     * chest" records it as the crop's own bounding box, 34x33 out of a
+     * generated 48x48. This is the guard that keeps the declared number
+     * honest against the committed file, the same way the shelter's "draws
+     * every stage on the same 48x48 cell" does for its own cell.
+     *
+     * The mutation that turns this red: change `CHEST_CELL` to any value
+     * that does not match the PNG's own header.
+     */
+    it('draws the chest on the cell it declares', () => {
+        const { width, height } = sheetSize(chestSprite());
+
+        expect(`${width}x${height}`).toBe(`${CHEST_CELL[0]}x${CHEST_CELL[1]}`);
+    });
+
+    it('stands the chest inside the room on both axes', () => {
+        // The room's viewBox, written out because this file already writes it
+        // out rather than importing `ROOM` from `companion-room`.
+        const [left, right, floor] = [-72, 72, 76];
+
+        const at = SCENES.forest.chest;
+
+        expect(at).toBeDefined();
+
+        const [x, y] = at!;
+
+        // `at` is the base centre, so the cell hangs up and left of it.
+        expect(x - CHEST_CELL[0] / 2).toBeGreaterThanOrEqual(left);
+        expect(x + CHEST_CELL[0] / 2).toBeLessThanOrEqual(right);
+        expect(y).toBeLessThanOrEqual(floor);
+        expect(y - CHEST_CELL[1]).toBeGreaterThanOrEqual(-38);
+    });
+
+    /** The cabin has no chest, the same as it has no shelter and no nodes. */
+    it('gives the forest somewhere to put a chest, and the cabin none', () => {
+        expect(SCENES.forest.chest).toBeDefined();
+        expect(SCENES.cabin.chest).toBeUndefined();
+    });
+});
+
 describe('the node sprites', () => {
     /**
      * Every node the clearing stands somewhere has art for every band the
@@ -331,10 +415,25 @@ describe('the node sprites', () => {
      * costs: the `blob` form's sleep row lost its breath to exactly that.
      */
     it('draws every band the server can send, and no band it cannot', () => {
-        expect(Object.keys(NODE_SPRITES.reeds).sort()).toEqual(['bare', 'plenty', 'some']);
-        expect(Object.keys(NODE_SPRITES.deadfall).sort()).toEqual(['bare', 'plenty', 'some']);
-        expect(Object.keys(NODE_SPRITES.trunk).sort()).toEqual(['bare', 'plenty', 'some']);
-        expect(Object.keys(NODE_SPRITES.salvage).sort()).toEqual(['plenty', 'some']);
+        expect(Object.keys(NODE_SPRITES.reeds).sort()).toEqual([
+            'bare',
+            'plenty',
+            'some',
+        ]);
+        expect(Object.keys(NODE_SPRITES.deadfall).sort()).toEqual([
+            'bare',
+            'plenty',
+            'some',
+        ]);
+        expect(Object.keys(NODE_SPRITES.trunk).sort()).toEqual([
+            'bare',
+            'plenty',
+            'some',
+        ]);
+        expect(Object.keys(NODE_SPRITES.salvage).sort()).toEqual([
+            'plenty',
+            'some',
+        ]);
     });
 
     /**
