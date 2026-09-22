@@ -853,4 +853,30 @@ return [
 
     'drop' => '{name} tips out the {label}. The bag is lighter.',
 
+    /*
+    |--------------------------------------------------------------------------
+    | The chest
+    |--------------------------------------------------------------------------
+    |
+    | What Blob says when something moves between the bag and home. Same copy
+    | rules as everywhere else, and one that matters here: NOTHING IS LOST IN
+    | EITHER DIRECTION. A stack put down can be fetched back, which is exactly
+    | what separates this from `drop` above — so these lines must never read as
+    | giving something up.
+    |
+    | `full` is the refusal, and it is worded as a node's own `full` line is: it
+    | names where the thing stays, because nothing is ever destroyed. It is said
+    | only for a bag with no room at all; a bag with some room takes what fits
+    | and the rest stays in the chest without anything being said about it.
+    |
+    | `{count}` is how many moved. `{label}` is the thing.
+    |
+    */
+
+    'stash' => [
+        'in' => '{name} puts {count} {label} in the chest.',
+        'out' => '{name} lifts {count} {label} back out of the chest.',
+        'full' => 'There is nowhere to put them. The {label} stay in the chest.',
+    ],
+
 ];
