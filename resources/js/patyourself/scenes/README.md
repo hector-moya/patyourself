@@ -428,3 +428,77 @@ two past the backdrop's own width of 144, so the reference was taken from column
 ground, two columns left. The clamp is harmless for a palette reference. What it signals is not, and
 belongs to placement rather than to art: a full-width cell does not fit the room at that x, which is
 one of the things the placement pass has to answer.
+
+---
+
+# The chest
+
+What F4.1 adds: a single object, built out of three planks, holding what the bag cannot carry.
+`scenes.ts`'s `chestSprite()` reads this file and `companion-room.tsx`'s `ChestLayer` draws it
+whenever the server says one is standing.
+
+| File | Cell | Object | Source |
+| --- | --- | --- | --- |
+| `node-chest.png` | 34x33 | `1b5024b6-c02c-47fa-b326-4421ddb58438` | candidate 15 of 16, review `73a2dc64-7137-4abf-8f6b-94eaec3cefcc` |
+
+Tag `f41-chest` sits on the promoted object. The review object was dismissed once the choice was made,
+so the other fifteen are gone — as everywhere else here, this directory is the art's only durable home.
+
+## One sprite, and no bands
+
+A node is drawn at the amount standing at it because the amount is the thing being decided about. A
+chest is a chest: what is inside it is named exactly in the bag, so drawing it at three fullnesses
+would buy a picture the modal already gives precisely, at the cost of two more generations and a
+second band model. This is the first object here that is deliberately *not* banded.
+
+## The description carries the economy
+
+The prompt asked for **rough weathered planks and no iron**, and that is a rule rather than a
+preference: the chest is priced at three planks, and there is no metal anywhere in this world — the
+whole material list is fibre, deadfall, timber, rope and planks. A chest with iron bands would be the
+art promising a material the economy cannot supply.
+
+## Style crop: the ground it stands on
+
+`sips -c 48 48 --cropOffset 66 92 forest-day.png` — **row then column**, the opposite order from the
+prose, which is the same trap the shelter's own runbook records. PNG column 92, row 66 is the
+foreground grass the chest actually stands in, not an arbitrary sample of forest. Quantised to 32
+colours it came to 732 base64 characters, comfortably under the roughly 1KB where `style_images`
+truncates in transit.
+
+## What the crop removed, and why the cell is 34x33
+
+The generated cell was 48x48 with the art's bounds at (8, 9, 42, 42): **nine transparent rows above
+and six below**. Cropping to those bounds kept all 843 opaque pixels and cost none — checked rather
+than assumed. The shipped cell is therefore 34x33, and as with the nodes it is whatever the crop
+measures rather than a size chosen in advance.
+
+## The placement, and the measurement that did not decide it
+
+Worth recording because the arithmetic and the render disagreed, and the render won.
+
+Occupancy was computed first, from every base centre and cell already in `scenes.ts`:
+
+| | x | y |
+| --- | --- | --- |
+| trunk | -68..-20 | -5..42 |
+| heap | -17..29 | 35..70 |
+| branches | -56..-12 | 38..74 |
+| reeds | 20..68 | 35..76 |
+| shelter | 20..68 | -14..34 |
+| Blob, as drawn | -15..15 | 1..52 |
+
+Against that, **a 34x33 chest has no collision-free position anywhere in the room** — with or without
+a heap. The one candidate small enough to find clean ground (24x23) had eighteen such positions, all
+centre-front, and none of them survived a heap either.
+
+So the box test nominated the small chest, and **rendering four placements at two sizes overruled it**:
+at `[30, 73]` the full-size chest stands in the open grass to Blob's right with the reed bed behind
+it, clear of Blob's silhouette entirely. The bounding boxes call that an overlap with the reeds. The
+picture calls it depth, which is the rule F3.6 set — nearer things sit lower and overlap further ones
+— and the chest's base at y=73 is nearer than the heap's at y=70, so it paints in front of the salvage
+pile as well. Both states were rendered: a clearing with a heap and a clearing without.
+
+The lesson generalises past this object. A rectangle test can tell you that nothing fits; it cannot
+tell you which overlap reads as a mistake. Only the render does that, and here it chose the size the
+rectangles rejected.
