@@ -854,21 +854,26 @@ return [
     'drop' => '{name} tips out the {label}. The bag is lighter.',
 
     /*
-     * The pile against the shelter's wall.
-     *
-     * `takes` is NOT a second copy of `capacity.carried`. That list says what
-     * the bag may hold; this one says what this one object accepts, which is
-     * the kind of statement a recipe has always made about its ingredients.
-     * Fibre and rope are not wood.
-     *
-     * A plank and a deadfall count the same. The pile's job is to absorb
-     * whatever there is too much of, and it is a picture rather than a list of
-     * what is in it.
-     *
-     * ONE LINE ONLY, and no refusal line. The pile is uncapped, so there is no
-     * sentence in which it says no; and it is never offered without a shelter
-     * standing, so there is no sentence for that either.
-     */
+    |--------------------------------------------------------------------------
+    | The woodpile
+    |--------------------------------------------------------------------------
+    |
+    | The pile against the shelter's wall.
+    |
+    | `takes` is NOT a second copy of `capacity.carried`. That list says what
+    | the bag may hold; this one says what this one object accepts, which is
+    | the kind of statement a recipe has always made about its ingredients.
+    | Fibre and rope are not wood.
+    |
+    | A plank and a deadfall count the same. The pile's job is to absorb
+    | whatever there is too much of, and it is a picture rather than a list of
+    | what is in it.
+    |
+    | ONE LINE ONLY, and no refusal line. The pile is uncapped, so there is no
+    | sentence in which it says no; and it is never offered without a shelter
+    | standing, so there is no sentence for that either.
+    |
+    */
     'woodpile' => [
         'takes' => ['deadfall', 'timber', 'planks'],
         'stacked' => '{name} stacks {count} {label} against the wall.',
