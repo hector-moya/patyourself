@@ -44,6 +44,17 @@ describe('the bag', () => {
                         quantity: 3,
                         droppable: true,
                     },
+                    // A wood item held once a shelter stands, so the
+                    // stack-it control (F4.2 task 6) actually renders
+                    // inside this guard rather than dropping out of what it
+                    // covers — trap 9, restated below with its own proof.
+                    {
+                        item: 'timber',
+                        label: 'timber',
+                        category: 'material',
+                        quantity: 2,
+                        droppable: true,
+                    },
                 ],
                 skills: [
                     {
@@ -63,18 +74,18 @@ describe('the bag', () => {
                         buildable: false,
                     },
                 ],
-                // The fixture's own shelter defaults to a null offer, which
-                // leaves Shelter rendering null and this guard blind to it — a
-                // section that renders null is a section the acceptance
-                // criterion is not checking. A non-null offer so the shelter
-                // row actually renders inside this assertion.
+                // Standing (`built`), not merely offered, so the stack-it
+                // control's own gate — `bag.shelter.built !== null` — is
+                // actually satisfied here, and a non-null `offer` for the
+                // next stage so the "Put up" row keeps rendering too, same
+                // as before this widening.
                 shelter: {
-                    built: null,
-                    label: null,
+                    built: 'lean-to',
+                    label: 'lean-to',
                     offer: {
-                        stage: 'lean-to',
-                        label: 'lean-to',
-                        recipe: { planks: 4 },
+                        stage: 'hut',
+                        label: 'hut',
+                        recipe: { planks: 8 },
                         buildable: false,
                     },
                 },
@@ -86,6 +97,17 @@ describe('the bag', () => {
                 /locked|next up|to unlock|remaining|streak|congratulation|\d+\s*%|\d+ of \d+/i,
             ),
         ).toBeNull();
+
+        // Trap 9's own rule: widening the fixture's `woodpile` key (task 6,
+        // step 1) was never proof this SECTION renders — only exercising it
+        // is. Without this, the shelter+item combination above could be
+        // silently wrong (e.g. `timber` not actually in `woodpile.takes`)
+        // and the guard would still pass for the wrong reason.
+        expect(
+            screen.getByRole('button', {
+                name: 'Stack the timber against the wall',
+            }),
+        ).toBeInTheDocument();
     });
 
     /** Held-of-capacity, and never joined by the word "of". */
@@ -645,5 +667,42 @@ describe('the bag', () => {
                 name: 'Stack the deadfall against the wall',
             }),
         ).not.toBeInTheDocument();
+    });
+
+    /**
+     * The no-totals rule, enforced directly rather than through the shared
+     * regex the guard above uses — that regex is built for words like
+     * "remaining" and "next up" and does not match a bare integer, so a
+     * count of what is in the pile rendered beside the button would slip
+     * straight through it.
+     *
+     * Scoped to the stack-it control's OWN form, not the row it sits in:
+     * the row's `c-bagqty` legitimately shows the held quantity, which is a
+     * thing Blob HAS, not a total of what is in the pile, and a row-wide
+     * assertion would either false-fail on that or have to carve it out.
+     */
+    it('shows no digit anywhere in the stack-it control itself', () => {
+        open(
+            bag({
+                items: [
+                    {
+                        item: 'timber',
+                        label: 'timber',
+                        category: 'material',
+                        quantity: 3,
+                        droppable: true,
+                    },
+                ],
+                shelter: { built: 'lean-to', label: 'lean-to', offer: null },
+            }),
+        );
+
+        const button = screen.getByRole('button', {
+            name: 'Stack the timber against the wall',
+        });
+        const control = button.closest('form');
+
+        expect(control).not.toBeNull();
+        expect(control?.textContent).not.toMatch(/\d/);
     });
 });
