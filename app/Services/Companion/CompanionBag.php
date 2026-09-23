@@ -55,6 +55,7 @@ final readonly class CompanionBag
      *     skills: list<array{skill: string, label: string, price: int, known: bool, affordable: bool}>,
      *     recipes: list<array{item: string, label: string, recipe: array<string, int>, tool: string|null, buildable: bool}>,
      *     stash: array{standing: bool, items: list<array{item: string, label: string, quantity: int}>},
+     *     woodpile: array{amount: int, takes: list<string>},
      *     shelter: array{built: string|null, label: string|null, offer: array{stage: string, label: string, recipe: array<string, int>, buildable: bool}|null},
      * }
      */
@@ -90,6 +91,14 @@ final readonly class CompanionBag
                 // and nothing is at home, which is exactly what an untouched
                 // clearing is.
                 'stash' => ['standing' => false, 'items' => []],
+                // The other half of the pair the `stash` comment above warns
+                // about. Nothing is built, so there is nowhere to stack; but
+                // the KEY is present and empty rather than absent, because a
+                // screen should never have to ask whether one exists.
+                'woodpile' => [
+                    'amount' => 0,
+                    'takes' => array_values((array) config('companion.woodpile.takes', [])),
+                ],
                 // Nothing built, and nothing offered: the offer waits on a
                 // price Blob can account for, and an account that has met
                 // nothing can account for nothing.
@@ -113,6 +122,7 @@ final readonly class CompanionBag
             'skills' => $this->skills($met, $learned, $balance),
             'recipes' => $this->recipes($knowable, $held, $companion),
             'stash' => $this->stash($companion),
+            'woodpile' => $this->woodpile($companion),
             'shelter' => $this->shelter($companion, $held, $knowable, $user),
         ];
     }
@@ -193,6 +203,32 @@ final readonly class CompanionBag
                 },
                 $companion->stashItems->all(),
             ))),
+        ];
+    }
+
+    /**
+     * The pile against the wall, and what may go into it.
+     *
+     * `amount` cannot be derived on the client: it is a column, and the drawing
+     * side reads no database. It is sent so the interior can be drawn at the
+     * right size, and for NOTHING ELSE — it is never rendered as text, because
+     * a figure of what is in a pile is a total and this screen shows no totals.
+     *
+     * `takes` is sent rather than re-authored on the client so config stays the
+     * one author of what the pile accepts — the same reasoning `droppable`
+     * follows in {@see items()}.
+     *
+     * Whether the control is offered at all ALSO needs `shelter.built`, which
+     * this payload already carries. There is no second flag here, because a
+     * pile with no shelter to stand in is not a state the world has.
+     *
+     * @return array{amount: int, takes: list<string>}
+     */
+    private function woodpile(Companion $companion): array
+    {
+        return [
+            'amount' => $companion->woodpile,
+            'takes' => array_values((array) config('companion.woodpile.takes', [])),
         ];
     }
 

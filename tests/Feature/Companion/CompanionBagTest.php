@@ -1356,4 +1356,36 @@ class CompanionBagTest extends TestCase
 
         $this->assertSame([], app(CompanionBag::class)->forUser($user)['stash']['items']);
     }
+
+    /**
+     * THE SECOND BUILDER. `CompanionBag::forUser()` has an early return for an
+     * account with no companion row, which builds its own payload literal. A
+     * key added only to the main return leaves a brand-new account without it,
+     * and nothing in the type system notices, because both paths satisfy
+     * `array`. F3.6 shipped exactly this defect; F4.1 had to guard it again.
+     */
+    public function test_an_account_with_no_companion_row_still_has_a_woodpile_key(): void
+    {
+        $user = User::factory()->create();
+
+        $bag = app(CompanionBag::class)->forUser($user);
+
+        $this->assertArrayHasKey('woodpile', $bag);
+        $this->assertSame(0, $bag['woodpile']['amount']);
+        $this->assertContains('deadfall', $bag['woodpile']['takes']);
+    }
+
+    public function test_the_payload_reports_what_is_in_the_pile(): void
+    {
+        $user = User::factory()->create();
+        $user->companion()->create(['woodpile' => 17]);
+
+        $bag = app(CompanionBag::class)->forUser($user);
+
+        $this->assertSame(17, $bag['woodpile']['amount']);
+        $this->assertSame(
+            config('companion.woodpile.takes'),
+            $bag['woodpile']['takes'],
+        );
+    }
 }
