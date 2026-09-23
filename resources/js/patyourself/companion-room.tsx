@@ -444,9 +444,16 @@ export function woodpileHeight(amount: number): number {
  * plant, stool), only the plant borders this gap; the stool sits well clear
  * of it at x[51,60].
  *
- * NOT a `ROOM_OBJECT`. Those arrive from the ladder as gifts and are keyed by
- * name; this one is bought, and its size is a function of what was put into
- * it rather than of anything the record says.
+ * NOT a `ROOM_OBJECT`, and not in the `room-object` class namespace either.
+ * Those arrive from the ladder as gifts and are keyed by name; this one is
+ * bought, and its size is a function of what was put into it rather than of
+ * anything the record says. `room-shelter`/`room-shelter--lean-to` already
+ * draws that same line for the shelter below, which is also built rather
+ * than gifted — `room-woodpile` follows that precedent rather than
+ * `room-object--woodpile`, so a selector scoped to earned objects (such as
+ * `[class*="room-object--"]`) does not silently start counting a bought one.
+ * No `--` modifier: unlike the shelter, the pile has no stages to select
+ * between.
  *
  * `data-woodpile` carries the amount as a TEST SEAM, the same standing
  * `data-animation` and `data-part-of-day` already have. It is an attribute
@@ -459,7 +466,7 @@ function Woodpile({ amount }: { amount: number }) {
 
     return (
         <g
-            className="room-object room-object--woodpile"
+            className="room-woodpile"
             data-woodpile={amount}
             data-woodpile-height={h}
         >

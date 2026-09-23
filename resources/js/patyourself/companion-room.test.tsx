@@ -621,13 +621,21 @@ describe('room objects', () => {
     });
 
     it('draws every object the record has earned, at once', () => {
-        const container = room({
-            room_objects: ['bookshelf', 'rug', 'lamp', 'plant', 'stool'],
-        });
+        const container = room(
+            { room_objects: ['bookshelf', 'rug', 'lamp', 'plant', 'stool'] },
+            12,
+            { woodpile: 4 },
+        );
 
         expect(
             container.querySelectorAll('[class*="room-object--"]'),
         ).toHaveLength(5);
+        // The pile is bought, not earned — it lives outside the
+        // `room-object` class namespace on purpose (see the comment on
+        // `Woodpile` in companion-room.tsx) so a pile standing here does not
+        // nudge the count above to 6. Asserted here rather than left to
+        // "obviously wouldn't match": that selector once did match it.
+        expect(container.querySelector('.room-woodpile')).not.toBeNull();
     });
 });
 
