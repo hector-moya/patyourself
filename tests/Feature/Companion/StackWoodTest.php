@@ -17,5 +17,6 @@ class StackWoodTest extends TestCase
         $companion = $user->companion()->create([]);
 
         $this->assertSame(0, $companion->woodpile);
+        $this->assertSame(0, (int) $user->companion()->value('woodpile'));
     }
 }
