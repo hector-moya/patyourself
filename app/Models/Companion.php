@@ -36,6 +36,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     // is deliberately absent: it is written once, by the conversion, through
     // forceFill — it is not a thing any request should be able to set.
     'shelter',
+    'woodpile',
 ])]
 class Companion extends Model
 {
@@ -54,6 +55,7 @@ class Companion extends Model
      */
     protected $attributes = [
         'xp_spent' => 0,
+        'woodpile' => 0,
     ];
 
     /**
