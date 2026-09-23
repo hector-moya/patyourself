@@ -195,8 +195,14 @@ it ever looks finished.
 
 ## 9. The surface
 
-A **stack it** control on each wood stack in the bag's carried section, reusing F3's take-an-amount
-control that F4.1 already reused for the stash rather than inventing a third.
+A **stack it** control on each wood stack in the bag's carried section, mirroring the stash's
+`put away` control beside it (`companion-bag.tsx:129`) exactly: a `Form` with `preserveScroll`, two
+hidden inputs, one submit button, **and no amount input — it posts the whole stack.**
+
+Measured rather than assumed: the Held row's `put away` sends no `amount`, so "reuse F3's
+take-an-amount control" would have been inventing a control the bag does not have. The action still
+accepts an optional amount, the same as `StashItem` does, so the route is not narrowed by what the
+screen currently offers.
 
 **No clearing hotspot.** The pile is indoors, and the clearing's controls are unreachable from there
 by design. The chest's *click it, the bag opens at that section* relationship does not transfer,
