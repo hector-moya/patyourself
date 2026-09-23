@@ -11,6 +11,7 @@ use App\Http\Controllers\CompanionNodeController;
 use App\Http\Controllers\CompanionShelterController;
 use App\Http\Controllers\CompanionSkillController;
 use App\Http\Controllers\CompanionStashController;
+use App\Http\Controllers\CompanionWoodpileController;
 use App\Http\Controllers\ExperimentController;
 use App\Http\Controllers\ExportController;
 use App\Http\Controllers\InboxController;
@@ -182,6 +183,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // two lists, and the copy would drift apart.
     Route::post('companion/stash', [CompanionStashController::class, 'store'])
         ->name('companion.stash.store');
+
+    // ONE DIRECTION, because there is only one: nothing comes back out of the
+    // pile. That is what makes it a place material is spent rather than a third
+    // place it is kept, and it is the whole of what this phase adds.
+    Route::post('companion/woodpile', [CompanionWoodpileController::class, 'store'])
+        ->name('companion.woodpile.store');
 
     // Putting up a stage of the shelter. Posted from inside the bag like the
     // other two, and the only writer of what is built.
