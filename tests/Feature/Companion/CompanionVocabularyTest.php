@@ -58,6 +58,7 @@ class CompanionVocabularyTest extends TestCase
             $root.'/app/Actions/DropItem.php',
             $root.'/app/Actions/StashItem.php',
             $root.'/app/Actions/UnstashItem.php',
+            $root.'/app/Actions/StackWood.php',
             $root.'/app/Listeners/StockCompanionNodes.php',
             $root.'/app/Http/Controllers/CompanionNodeController.php',
             $root.'/app/Http/Controllers/CompanionSkillController.php',
