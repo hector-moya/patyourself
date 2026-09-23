@@ -404,6 +404,80 @@ function NodeLayer({
     );
 }
 
+/**
+ * How tall the pile is allowed to get, in room units. `FLOOR` sits at 52
+ * (`BODY.h` 40 + `LEG_LENGTH` 12) and the bookshelf's own top is at y=10, so
+ * at this height the pile's own top (`FLOOR - 26` = 26) stays short of it.
+ *
+ * A starting value, not a measured one: this is Task 9's to tune once it
+ * renders in a browser, the same way `WOODPILE_K` below already says it is.
+ */
+export const WOODPILE_MAX_H = 26;
+
+/**
+ * How quickly it approaches that. Chosen by rendering, not derived: at 12 the
+ * pile is half its ceiling by about a dozen units, which is roughly two
+ * bagfuls, and still visibly growing at a hundred.
+ */
+const WOODPILE_K = 12;
+
+/**
+ * The drawn height of a pile holding `amount`.
+ *
+ * ASYMPTOTIC BY NECESSITY. The room is 114 units tall and the pile is
+ * uncapped, so the picture cannot be linear in the amount — but it also must
+ * not plateau, because a size it stops growing from reads as full, and a pile
+ * that reads as full has rebuilt the end state this whole phase exists to
+ * remove.
+ *
+ * `MAX_H * n / (n + K)` is monotonic non-decreasing, is strictly below
+ * `MAX_H` for every finite n, and has no flat region.
+ */
+export function woodpileHeight(amount: number): number {
+    return (WOODPILE_MAX_H * amount) / (amount + WOODPILE_K);
+}
+
+/**
+ * Wood stacked against the wall, in the free gap between Blob's own
+ * footprint (ends at x=22) and the plant's foliage (starts at x=35) —
+ * x[22,35], 13 units wide. Of the room's five objects (bookshelf, rug, lamp,
+ * plant, stool), only the plant borders this gap; the stool sits well clear
+ * of it at x[51,60].
+ *
+ * NOT a `ROOM_OBJECT`. Those arrive from the ladder as gifts and are keyed by
+ * name; this one is bought, and its size is a function of what was put into
+ * it rather than of anything the record says.
+ *
+ * `data-woodpile` carries the amount as a TEST SEAM, the same standing
+ * `data-animation` and `data-part-of-day` already have. It is an attribute
+ * inside a `role="img"`, not text: nothing on this screen renders what is in
+ * the pile as a figure, because a figure of a holding is a total.
+ */
+function Woodpile({ amount }: { amount: number }) {
+    const h = woodpileHeight(amount);
+    const rows = Math.max(1, Math.round(h / 4));
+
+    return (
+        <g
+            className="room-object room-object--woodpile"
+            data-woodpile={amount}
+            data-woodpile-height={h}
+        >
+            <rect x={22} y={FLOOR - h} width={13} height={h} fill="#7A5B3A" />
+            {Array.from({ length: rows }, (_, i) => (
+                <rect
+                    key={i}
+                    x={23}
+                    y={FLOOR - h + (i * h) / rows + 0.75}
+                    width={11}
+                    height={0.9}
+                    fill="#5E442A"
+                />
+            ))}
+        </g>
+    );
+}
+
 export function CompanionRoom({
     companion,
     animation,
@@ -415,6 +489,7 @@ export function CompanionRoom({
     shelter = null,
     nodes = [],
     chestStanding = false,
+    woodpile = 0,
 }: {
     companion: CompanionData;
     animation: AnimationName;
@@ -464,6 +539,11 @@ export function CompanionRoom({
      * and nothing on this side reads the catalogue.
      */
     chestStanding?: boolean;
+    /**
+     * How much is in the pile. The server's answer, exactly as `nodes` and
+     * `chestStanding` are — this component only turns it into a height.
+     */
+    woodpile?: number;
 }) {
     if (!companion.features.includes('blob')) {
         return null;
@@ -744,6 +824,8 @@ export function CompanionRoom({
                             {spec.render(palette)}
                         </g>
                     ))}
+
+                    {woodpile > 0 && <Woodpile amount={woodpile} />}
                 </>
             )}
 

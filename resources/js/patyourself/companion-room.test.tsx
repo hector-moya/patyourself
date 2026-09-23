@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { __resetSpriteClock, useSpriteClock } from '@/hooks/use-sprite-clock';
 
 import { ANIMATIONS } from './companion-animations';
-import { CompanionRoom, roomSize } from './companion-room';
+import { CompanionRoom, roomSize, WOODPILE_MAX_H } from './companion-room';
 import { bag, companion } from './companion.fixture';
 import { CHEST_CELL, nodeCell, SCENES, sceneFor } from './scenes';
 
@@ -628,6 +628,58 @@ describe('room objects', () => {
         expect(
             container.querySelectorAll('[class*="room-object--"]'),
         ).toHaveLength(5);
+    });
+});
+
+describe('the woodpile', () => {
+    it('draws nothing where the pile is until something is in it', () => {
+        const container = room({}, 12, { inside: true, woodpile: 0 });
+
+        expect(container.querySelector('[data-woodpile]')).toBeNull();
+    });
+
+    it('draws the pile once there is something in it', () => {
+        const container = room({}, 12, { inside: true, woodpile: 4 });
+
+        expect(container.querySelector('[data-woodpile]')).not.toBeNull();
+    });
+
+    // scene: 'forest' on purpose, matching every other outdoor guard in this
+    // file: the default fixture's scene is 'cabin', which
+    // `indoors = inside || scene.name === 'cabin'` makes indoors
+    // unconditionally, so `inside: false` alone would not reach the branch
+    // this test means to guard.
+    it('never draws the pile in the clearing, at any amount', () => {
+        const container = room({ scene: 'forest' }, 12, {
+            inside: false,
+            woodpile: 400,
+        });
+
+        expect(container.querySelector('[data-woodpile]')).toBeNull();
+    });
+
+    /**
+     * The picture is ASYMPTOTIC by necessity: the room is 114 units tall and
+     * the pile is uncapped. Monotonic non-decreasing, and never reaching the
+     * ceiling it approaches.
+     */
+    it('grows with the pile and never reaches its ceiling', () => {
+        const heightAt = (amount: number): number =>
+            Number(
+                room({}, 12, { inside: true, woodpile: amount })
+                    .querySelector('[data-woodpile]')
+                    ?.getAttribute('data-woodpile-height'),
+            );
+
+        const amounts = [1, 3, 10, 50, 500, 100_000];
+        const heights = amounts.map(heightAt);
+
+        heights.forEach((h, i) => {
+            if (i > 0) {
+                expect(h).toBeGreaterThan(heights[i - 1]);
+            }
+            expect(h).toBeLessThan(WOODPILE_MAX_H);
+        });
     });
 });
 

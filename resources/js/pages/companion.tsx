@@ -520,6 +520,7 @@ function RoomCard({
                     shelter={bag.shelter.built}
                     nodes={bag.nodes}
                     chestStanding={bag.stash.standing}
+                    woodpile={bag.woodpile.amount}
                 />
 
                 {/* The clearing's own things, laid over the picture as real
