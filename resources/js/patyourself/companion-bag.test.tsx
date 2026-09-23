@@ -578,4 +578,72 @@ describe('the bag', () => {
             screen.queryByRole('button', { name: 'Put planks in the chest' }),
         ).not.toBeInTheDocument();
     });
+
+    it('offers to stack wood once a shelter is standing', () => {
+        open(
+            bag({
+                items: [
+                    {
+                        item: 'deadfall',
+                        label: 'deadfall',
+                        category: 'material',
+                        quantity: 3,
+                        droppable: true,
+                    },
+                ],
+                shelter: { built: 'lean-to', label: 'lean-to', offer: null },
+            }),
+        );
+
+        expect(
+            screen.getByRole('button', {
+                name: 'Stack the deadfall against the wall',
+            }),
+        ).toBeInTheDocument();
+    });
+
+    it('does not offer to stack what the pile does not take', () => {
+        open(
+            bag({
+                items: [
+                    {
+                        item: 'fibre',
+                        label: 'fibre',
+                        category: 'material',
+                        quantity: 3,
+                        droppable: true,
+                    },
+                ],
+                shelter: { built: 'lean-to', label: 'lean-to', offer: null },
+            }),
+        );
+
+        expect(
+            screen.queryByRole('button', {
+                name: 'Stack the fibre against the wall',
+            }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('offers no pile before there is a shelter to stand one in', () => {
+        open(
+            bag({
+                items: [
+                    {
+                        item: 'deadfall',
+                        label: 'deadfall',
+                        category: 'material',
+                        quantity: 3,
+                        droppable: true,
+                    },
+                ],
+            }),
+        );
+
+        expect(
+            screen.queryByRole('button', {
+                name: 'Stack the deadfall against the wall',
+            }),
+        ).not.toBeInTheDocument();
+    });
 });

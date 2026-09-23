@@ -151,6 +151,20 @@ export interface BagStashData {
 }
 
 /**
+ * The pile against the wall: what it will take, and how much is stacked.
+ *
+ * `amount` is for the DRAWING ONLY — it sizes the picture and is never
+ * rendered as text, because a figure of what is in a pile is a total and
+ * this screen shows none. `takes` is config's own list of what the pile
+ * accepts, so a control offering to stack something reads it from here
+ * rather than re-authoring the list.
+ */
+export interface BagWoodpileData {
+    amount: number;
+    takes: string[];
+}
+
+/**
  * The chosen half of Blob: what has been spent, bought, gathered and built.
  *
  * Assembled server-side by `CompanionBag`. Note what is NOT here — no count of
@@ -169,6 +183,7 @@ export interface CompanionBagData {
     recipes: BagRecipeData[];
     shelter: BagShelterData;
     stash: BagStashData;
+    woodpile: BagWoodpileData;
 }
 
 export interface CompanionData {

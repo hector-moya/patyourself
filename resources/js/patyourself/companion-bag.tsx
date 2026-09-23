@@ -36,6 +36,7 @@ import { store as takeRoute } from '@/routes/companion/nodes';
 import { store as shelterRoute } from '@/routes/companion/shelter';
 import { store as learnRoute } from '@/routes/companion/skills';
 import { store as stashRoute } from '@/routes/companion/stash';
+import { store as woodpileRoute } from '@/routes/companion/woodpile';
 
 export function CompanionBag({
     bag,
@@ -155,6 +156,41 @@ function Held({ bag }: { bag: CompanionBagData }) {
                                     )}
                                 </Form>
                             )}
+                            {/* Offered only once something is built to stack
+                                against, and only for what the pile takes.
+                                One-way, and no confirmation: an "are you sure"
+                                is the app having an opinion about a choice that
+                                belongs to the player, which is the same rule
+                                `drop` follows next door.
+
+                                NO AMOUNT INPUT, matching `put away` above. The
+                                action accepts one; the screen does not offer
+                                one. */}
+                            {bag.shelter.built !== null &&
+                                bag.woodpile.takes.includes(item.item) && (
+                                    <Form
+                                        {...woodpileRoute.form()}
+                                        options={{ preserveScroll: true }}
+                                    >
+                                        {({ processing }) => (
+                                            <>
+                                                <input
+                                                    type="hidden"
+                                                    name="item"
+                                                    value={item.item}
+                                                />
+                                                <button
+                                                    type="submit"
+                                                    className="c-bagdrop"
+                                                    disabled={processing}
+                                                    aria-label={`Stack the ${item.label} against the wall`}
+                                                >
+                                                    stack it
+                                                </button>
+                                            </>
+                                        )}
+                                    </Form>
+                                )}
                             {/* Offered only for what the bag actually
                                 carries. A tool takes no room, so tipping one
                                 out would buy nothing and lose something

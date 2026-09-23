@@ -108,6 +108,10 @@ export function bag(overrides: Partial<CompanionBagData> = {}): CompanionBagData
         // clearing case in the suite silently gains a sixth object — the same
         // reasoning the heap's row above records.
         stash: { standing: false, items: [] },
+        // Nothing stacked. Present and empty rather than absent, exactly as the
+        // server sends it — and `takes` carries config's own list so a test
+        // does not have to re-author what the pile accepts.
+        woodpile: { amount: 0, takes: ['deadfall', 'timber', 'planks'] },
         ...overrides,
     };
 }
