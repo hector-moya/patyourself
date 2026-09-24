@@ -107,7 +107,8 @@ final readonly class BuildItem
             // CompanionBag's read of "will this build" can never drift from
             // what this action actually enforces.
             //
-            // `wouldFit()` is computed from `items`, through `held()`.
+            // `wouldFit()` is computed from `items`, through `held()` AND
+            // `capacity()` — both sum `$this->items`.
             // `$companion` was just resolved fresh inside this transaction, so
             // the relation would lazy-load on first read regardless — this
             // call is belt-and-braces, not load-bearing, and it stays so this

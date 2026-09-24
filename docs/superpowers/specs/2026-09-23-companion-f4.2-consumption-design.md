@@ -343,8 +343,14 @@ Recorded so a later reader can check rather than re-derive.
   happened` guard — its regex does not match a bare integer, disproved by running the mutation — so
   the check that actually holds this is the dedicated no-digits test scoped to the control's own
   `<form>`.
-- If the picture ever reaches a size it stops growing from, §8's asymptote has been implemented as a
-  cap and the end state F4.2 exists to remove has been rebuilt inside the fix.
+- If the drawn HEIGHT ever reaches a size it stops growing from, §8's asymptote has been implemented
+  as a cap and the end state F4.2 exists to remove has been rebuilt inside the fix. **This is not the
+  same claim as the drawn STACK settling on one fixed shape past some amount** — a discrete row count
+  computed from a continuous height necessarily saturates once the height rounds to the last row, and
+  that saturating is not a cap on the height itself. Measured: the drawn markup is byte-identical from
+  `amount = 172` onward (10 rows / 32 logs, unchanging through 500 and 1,000,000), while
+  `woodpileHeight()` keeps climbing toward, and never reaches, `WOODPILE_MAX_H` for every one of those
+  amounts.
 - If the pile ever refuses a deposit for being full, the world has started saying no — the same
   failure §7 of the F4.1 spec names for the stash.
 - If a recipe ever spends from the pile, `wouldFit()` has grown a second notion of "held" and

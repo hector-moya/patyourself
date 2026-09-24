@@ -618,8 +618,12 @@ F4.2 adds a pile of wood standing inside the shelter. `StackWood` moves a whole 
 
 **One-way and uncapped.** The pile is `companions.woodpile`, a single unsigned integer, default 0 —
 no table, no per-material breakdown. Nothing comes back out, so there is nothing to remember beyond
-the running total, and `StackWood`'s `increment('woodpile', …)` is the column's only writer anywhere
-in the tree, confirmed by grepping `app/`, `config/`, `database/` and `tests/`.
+the running total, and `StackWood`'s `increment('woodpile', …)` is the column's **only writer in
+application code**, confirmed by grepping `app/`, `config/` and `database/`. Not `tests/`: `woodpile`
+is `#[Fillable]` on `Companion` — the same list `xp_spent` sits in, and that shape predates this
+phase — which is what lets `StackWoodTest.php:81` and `CompanionBagTest.php:1400` seed a pile
+directly with `create(['woodpile' => …])` for their own setup. Neither test is application code
+deciding to move wood; the claim above is scoped to the code the record actually runs.
 
 `config('companion.woodpile.takes')` names `deadfall`, `timber` and `planks`. **This is not a second
 `carried` list.** F4.1 refused one on the grounds that two lists describing one idea eventually
@@ -744,7 +748,7 @@ Each of these was settled with evidence. The cost column is what getting it wron
 | **The stash is its own table, never a column on `companion_items`** | `Companion::held()` and `capacity()` both sum `$this->items` unfiltered. A `location` column makes both silently wrong while every existing test stays green, because every test written before this one puts every row in one place. MEASURED: pointing `stashItems()` at `CompanionItem` gave `held() = 11` and `capacity() = 10` against the expected 2 and 5. | A stashed crate raising carry capacity and stashed planks counting against the bag, discovered nowhere in the suite because every test's rows share one location. |
 | **A recipe spends from the bag alone** | `wouldFit()` is the one arithmetic the refusing action and the predicting read must share. Letting a recipe reach the stash grows a second notion of "held" and makes containers decoration. | `CompanionBag::recipes()` promising a build that `BuildItem` then refuses, or the reverse — the exact disagreement `wouldFit()` exists to make impossible. |
 | **Whether Blob sleeps is the clock alone; WHERE it sleeps is what you built** | `asleepAt()` and `wakingAt()` take only `(hour, room)` — there is no bag parameter to add. §2's rule names `logCount`, `insightCount` and the unlocks as what a sleeping Blob must never read; the pile is none of those, it is a purchase, like the cabin Blob already stands next to. The decision of *where* lives entirely in `pages/companion.tsx`'s `useState` initialiser — `asleepAt(hour, room) && bag.woodpile.amount > 0`, read once, at mount. | A state of being alive becomes a reward, in the one place it could hide. |
-| **Nothing comes out of the pile** | One-way is the entire difference between a sink and a stash, and it is why one integer suffices — nothing to remember, only a total to grow. `StackWood`'s `increment` is confirmed, by grep, as the column's only writer anywhere in the tree. | The sink becomes storage, the end state returns, and the column has to become a table to answer a question it never had to answer. |
+| **Nothing comes out of the pile** | One-way is the entire difference between a sink and a stash, and it is why one integer suffices — nothing to remember, only a total to grow. `StackWood`'s `increment` is confirmed, by grep, as the column's only writer in application code — `woodpile` is `#[Fillable]` (`xp_spent` has the identical shape, and predates this phase), which is what lets two tests seed it directly by mass assignment; neither is application code moving wood. | The sink becomes storage, the end state returns, and the column has to become a table to answer a question it never had to answer. |
 
 ## 11. Traps that have already bitten
 
@@ -842,7 +846,7 @@ Every one of these has cost a round on this project.
     added `scene: 'forest'` before it shipped. **The sixth instance was written by someone who had
     quoted that very warning earlier in the same session.** The count moving is the point: reading
     the warning does not prevent making the mistake it warns about — only a runtime check does,
-    which is why `renderClearing`/`renderInside` throw rather than merely comment.
+    which is why `renderClearing`/`renderAtHome` throw rather than merely comment.
 
 ## 12. What is not done
 
@@ -863,6 +867,12 @@ Every one of these has cost a round on this project.
   new object in a room that could not hold four. **The world ends at four nodes and the chest.**
 - ~~A full bag of timber has no exit.~~ **Closed by F3**: a harvest can take less than a bagful, and
   a carried stack can be tipped out. Both are the player's act; nothing discards on their behalf.
+- ~~`$companion->load('items')` stated a false premise at two of the three sites that carry it.~~
+  **Closed by F4.2**: `HarvestNode.php`, `BuildItem.php` and `UnstashItem.php` now all read alike —
+  each says the call is belt-and-braces, not load-bearing, because each action resolves `$companion`
+  fresh inside its own transaction, so `items` is never pre-loaded and the relation would lazy-load
+  on first read regardless. The measurement that established this, carried over from F4.1 rather than
+  re-run: a mutation moving the call to after `room()` stayed GREEN.
 - ~~Node hotspot labels do not scale with the stage.~~ **Closed by F3.6, by deletion rather than by a
   font rule.** The labels were a fixed 8px font that did not scale with the svg, so below roughly a
   300px stage they wrapped to a second line — reflow, not overflow, was the failure mode, and no box
@@ -976,6 +986,16 @@ Every one of these has cost a round on this project.
   drawers at a dozen logs and a panelled cupboard door at 500 — trap 4 exactly — while every jsdom
   assertion stayed green the whole time. It was redrawn as rows of stacked log ends; `woodpileHeight()`
   itself did not change.
+
+  **That is true of the height, and false of the drawing.** `h` is asymptotic and never reaches
+  `WOODPILE_MAX_H` for any finite `n` — but the drawn stack discretises it into rows of `ROW_H`
+  (2.7 units) via `Math.ceil(h / ROW_H)`, and a rounded row count is not asymptotic: it saturates.
+  MEASURED, not derived: the drawn markup is byte-identical from `amount = 172` onward — 9 rows
+  (29 logs) at 171, 10 rows (32 logs) at 172, and still 10 rows (32 logs) at 500 and at 1,000,000 —
+  because `h` can approach but never clear `WOODPILE_MAX_H`, so `h / ROW_H` can never clear 10.
+  `companion-room.test.tsx`'s "saturates the drawn stack at 172 logs" pins this: identical innerHTML
+  at 172, 500 and 1,000,000, and different at 171. The height keeps climbing forever; the picture
+  stops changing at 172.
 - **`CompanionBag::items()` is the single author of what the bag lists.** `companion-bag.tsx` maps
   `bag.items` with no category filter of its own, so nothing on the client would stop a wrongly-
   included row from rendering. Worth writing down before someone adds a second filter client-side.
