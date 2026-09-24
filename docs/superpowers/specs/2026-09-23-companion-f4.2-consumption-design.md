@@ -265,11 +265,16 @@ about the test, not a failure.
 | Zero draws nothing | draw the pile whenever indoors | a test asserting no pile element before anything is stacked |
 | The second builder carries `woodpile` | delete the key from `worldBeforeAnythingHappened()` | a brand-new account rendering `/companion` |
 | The control appears only on wood | offer it on every carried row | a test asserting `fibre` has no stack control |
-| The amount is never text | render the amount beside the pile | `companion.test.tsx`'s `never shows what has not happened`, and a test asserting no digits in that section |
+| The amount is never text | render the amount beside the pile | a test asserting no digit characters inside the control's own `<form>` — **not** `companion.test.tsx`'s `never shows what has not happened` guard, whose regex (`/locked\|next up\|to unlock\|remaining\|streak\|\d+ of \d+/`) does not match a bare integer |
 
 **A ceiling has two shapes**, and F4.1 paid for learning it: a *clamp* (limit this call) and a
 *threshold* (refuse once N is held). A test starting from an empty pile can only ever see the first.
 The uncapped test must start from a pile that already holds a large amount.
+
+**The row above is corrected, not aspirational — running the mutation disproved the original claim.**
+`never shows what has not happened` stayed green with the amount rendered as text beside the pile,
+because its regex was never written to catch a bare integer. What actually turns red is the dedicated
+no-digits test, and only that test.
 
 Two guards that are not mutations but are required:
 
@@ -334,7 +339,10 @@ Recorded so a later reader can check rather than re-derive.
 - If `asleepAt()` or `wakingAt()` ever reads the pile, §7's ruling has been broken and a state of
   being alive has become a reward.
 - If the pile's amount is ever rendered as a figure, arc §4's rewritten rule has been broken and the
-  interior is a checklist.
+  interior is a checklist. **Not** caught by `companion.test.tsx`'s `never shows what has not
+  happened` guard — its regex does not match a bare integer, disproved by running the mutation — so
+  the check that actually holds this is the dedicated no-digits test scoped to the control's own
+  `<form>`.
 - If the picture ever reaches a size it stops growing from, §8's asymptote has been implemented as a
   cap and the end state F4.2 exists to remove has been rebuilt inside the fix.
 - If the pile ever refuses a deposit for being full, the world has started saying no — the same

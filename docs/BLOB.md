@@ -611,19 +611,47 @@ between the heap and the cabin.
 It was F3's answer to a dead end, and a dead end having a second exit does not make the first one
 wrong.
 
+### The pile: the economy's first sink
+
+F4.2 adds a pile of wood standing inside the shelter. `StackWood` moves a whole carried stack of
+`deadfall`, `timber` or `planks` into it, and nothing ever moves back out.
+
+**One-way and uncapped.** The pile is `companions.woodpile`, a single unsigned integer, default 0 —
+no table, no per-material breakdown. Nothing comes back out, so there is nothing to remember beyond
+the running total, and `StackWood`'s `increment('woodpile', …)` is the column's only writer anywhere
+in the tree, confirmed by grepping `app/`, `config/`, `database/` and `tests/`.
+
+`config('companion.woodpile.takes')` names `deadfall`, `timber` and `planks`. **This is not a second
+`carried` list.** F4.1 refused one on the grounds that two lists describing one idea eventually
+disagree, and that reasoning holds — but `takes` and `carried` are not the same idea. `carried` says
+what the bag may hold; `takes` says what this one object accepts, which is the kind of statement a
+recipe has always made about its own ingredients. Fibre and rope are not wood, and the pile does not
+take them. A plank and a deadfall count the same, deliberately — the pile's job is to absorb whatever
+there is too much of, and it is a picture rather than an inventory.
+
+**The measured reason it exists: the economy terminated.** `LearnSkill.php:66` is the only writer of
+`xp_spent`, and three skills at 20 XP each (`config/companion.php:467–469`) make 60 XP the entire
+amount any account will ever spend — past roughly four concluded experiments the wallet only grows,
+and nothing refills that sink. Past the cabin and the chest, **the only new thing any further
+material can become is another container**: `Companion::capacity()` multiplies a container's
+`capacity` by its quantity, so crates stack +5 forever, and the terminal loop was *build crates to
+carry materials you have nothing left to spend on*. That is an end state, which the progression
+arc's own Discovery row forbids outright — the pile is what removes it.
+
 ## 9. Where everything lives
 
 ```
 config/companion.php                    ladder, tail, scenes, parts of day, renderer, xp, skills,
-                                         nodes, the bag, capacity, the shelter, salvage
+                                         nodes, the bag, capacity, the shelter, salvage, woodpile
 database/migrations/
   ..._000001_add_the_shelter_to_companions_table.php   shelter + salvaged_at
   ..._000002_salvage_granted_cabins.php                the one-time backfill
   ..._000001_create_companion_stash_items_table.php    the stash's own table; uncapped, no location column
+  ..._000001_add_the_woodpile_to_companions_table.php  the pile's own column; uncapped, one integer
 database/factories/
   CompanionStashItemFactory.php         one stash stack, for tests
 app/Models/
-  Companion.php                         the name, xp_spent, capacity(), held(), wouldFit(),
+  Companion.php                         the name, xp_spent, woodpile, capacity(), held(), wouldFit(),
                                          shortfallFor(), spend(), stashItems()
   CompanionItem.php                     one stack held in the bag
   CompanionStashItem.php                one stack at home, in the chest — its own table, see §10
@@ -648,6 +676,7 @@ app/Actions/
   DropItem.php                          tips a carried stack out; the only path that destroys
   StashItem.php                         puts a stack down in the chest; nothing destroyed, no cap
   UnstashItem.php                       fetches a stack back out, bounded by room; mirrors HarvestNode
+  StackWood.php                         moves a whole stack onto the pile; the only writer of woodpile
   SalvageTheCabin.php                   the migration's conversion, factored out and tested
   WriteBlobRemark.php                   records one of Blob's remarks; the only writer
 app/Listeners/StockCompanionNodes.php   ActionLogged -> one unit into each unlocked node
@@ -660,6 +689,7 @@ app/Http/Controllers/
   CompanionShelterController.php        putting up one shelter stage
   CompanionItemController.php           tipping a carried stack out
   CompanionStashController.php          moving a stack between the bag and the chest; one route, both directions
+  CompanionWoodpileController.php       stacking wood against the wall; one route, one direction
   CompanionNameController.php           renaming Blob
 
 resources/js/hooks/use-sprite-clock.ts  the one rAF loop
@@ -668,7 +698,7 @@ resources/js/patyourself/
   companion-bag.tsx                     the bag modal: contents, the build list, the skill list
   companion-animations.ts               the animation registry
   companion-room.tsx                    the scene compositor and the light; takes inside and shelter,
-                                        draws the standing structure
+                                        draws the standing structure and, indoors only, the woodpile
   companion-glyph.tsx                   the 8x8 mark beside a record line: sprout, crate, spark
   blob-renderer.tsx                     both renderers, worn items, ability props
   sprite-layout.ts                      forms, cells, the 231 anchors
@@ -713,6 +743,8 @@ Each of these was settled with evidence. The cost column is what getting it wron
 | **The shelter's `y=34` is chosen, not measured** | The measured ground line (PNG row 62 → `y=24`) is the clearing's *back wall*, not its open floor — a building standing on it reads as standing among the trunks rather than in the clearing. Four heights were rendered past that measured line before `y=34` was picked as the one that actually stands in it. | A later "correction" back onto the measured line puts the shelter back in the trees, with the render evidence that ruled it out gone unless this row is read first. |
 | **The stash is its own table, never a column on `companion_items`** | `Companion::held()` and `capacity()` both sum `$this->items` unfiltered. A `location` column makes both silently wrong while every existing test stays green, because every test written before this one puts every row in one place. MEASURED: pointing `stashItems()` at `CompanionItem` gave `held() = 11` and `capacity() = 10` against the expected 2 and 5. | A stashed crate raising carry capacity and stashed planks counting against the bag, discovered nowhere in the suite because every test's rows share one location. |
 | **A recipe spends from the bag alone** | `wouldFit()` is the one arithmetic the refusing action and the predicting read must share. Letting a recipe reach the stash grows a second notion of "held" and makes containers decoration. | `CompanionBag::recipes()` promising a build that `BuildItem` then refuses, or the reverse — the exact disagreement `wouldFit()` exists to make impossible. |
+| **Whether Blob sleeps is the clock alone; WHERE it sleeps is what you built** | `asleepAt()` and `wakingAt()` take only `(hour, room)` — there is no bag parameter to add. §2's rule names `logCount`, `insightCount` and the unlocks as what a sleeping Blob must never read; the pile is none of those, it is a purchase, like the cabin Blob already stands next to. The decision of *where* lives entirely in `pages/companion.tsx`'s `useState` initialiser — `asleepAt(hour, room) && bag.woodpile.amount > 0`, read once, at mount. | A state of being alive becomes a reward, in the one place it could hide. |
+| **Nothing comes out of the pile** | One-way is the entire difference between a sink and a stash, and it is why one integer suffices — nothing to remember, only a total to grow. `StackWood`'s `increment` is confirmed, by grep, as the column's only writer anywhere in the tree. | The sink becomes storage, the end state returns, and the column has to become a table to answer a question it never had to answer. |
 
 ## 11. Traps that have already bitten
 
@@ -731,6 +763,15 @@ Every one of these has cost a round on this project.
    could, because the other three asserted that *nothing* was drawn and "draw even less" cannot
    falsify them. A stated mutation nobody has executed is a second thing to believe, not evidence —
    and it is more dangerous than no comment at all, because it stops the next reader checking.
+
+   **A new case, F4.2: `$attributes` hides a column's SQL `DEFAULT`.** When a model declares an
+   `$attributes` default for a column, `HasAttributes::getAttributesForInsert()` returns the
+   in-memory attributes verbatim and `Model::performInsert()` never re-SELECTs, so the INSERT is
+   always explicit — no test going through Eloquent's `create()` path can verify that column's
+   `DEFAULT` clause at all. Mutating `companions.woodpile`'s `->default(0)` to `->default(5)` left a
+   database-reading assertion green; the only mutation that reddened it was removing the column
+   outright. `xp_spent` has the same shape and predates this phase — not a new defect, only a newly
+   measured one.
 2. **`assertDatabaseMissing` on a column that does not exist is a constant-false predicate.** SQLite
    degrades the unresolvable identifier to a string literal, so it passes forever. On MySQL it errors
    outright — and tests here are SQLite while production is MySQL.
@@ -757,28 +798,62 @@ Every one of these has cost a round on this project.
    required, because `return false` resolves the path against the docroot `-t` sets, not against
    wherever the router script itself lives.
 9. **When a task adds a conditionally-rendered section, the shared fixture must be widened in the
-   same task, or every guard downstream goes quiet rather than red.** It has bitten three times on
-   one branch, always in `companion.test.tsx`'s "never shows what has not happened" guard — the
-   acceptance criterion for the whole feature, run twice, bag closed and bag open. The three nodes'
-   shared `available: 0` default hid `Clearing` from both runs (Batch 1); `shelter.offer`'s default
-   of `null` hid `Shelter`, and rendering `1 of 4` as visible text there left 38/38 green (Batch 2);
-   and `ShelterSpot` needed two fixture fields widened together — `bag.shelter.built` *and* the
-   fixture's default scene, `cabin`, whose `SCENES` entry names no `shelter` coordinate — because
-   widening `built` alone still left the object absent (Batch 3). This differs from trap 1: that one
-   is about a single test proving nothing; this is about a **shared** fixture, where an unnamed
-   section does not fail the guard, it silently drops out of what the guard covers, and every later
-   addition to the same surface inherits the blind spot. Widening the obvious field is not proof a
-   section renders — assert that it did.
+   same task, or every guard downstream goes quiet rather than red.** It has bitten four times on
+   one branch, three of them in `companion.test.tsx`'s "never shows what has not happened" guard —
+   the acceptance criterion for the whole feature, run twice, bag closed and bag open. The three
+   nodes' shared `available: 0` default hid `Clearing` from both runs (Batch 1); `shelter.offer`'s
+   default of `null` hid `Shelter`, and rendering `1 of 4` as visible text there left 38/38 green
+   (Batch 2); and `ShelterSpot` needed two fixture fields widened together — `bag.shelter.built`
+   *and* the fixture's default scene, `cabin`, whose `SCENES` entry names no `shelter` coordinate —
+   because widening `built` alone still left the object absent (Batch 3). This differs from trap 1:
+   that one is about a single test proving nothing; this is about a **shared** fixture, where an
+   unnamed section does not fail the guard, it silently drops out of what the guard covers, and
+   every later addition to the same surface inherits the blind spot. Widening the obvious field is
+   not proof a section renders — assert that it did.
+
+   **The fourth bite, F4.2's, is the first outside `companion.test.tsx`** — it landed in
+   `companion-bag.test.tsx`'s own "never shows" guard, which means the trap is a property of the
+   shared-fixture *pattern*, not of one file. It also exposed a **second, independent failure mode
+   this trap's text above does not describe**: even with the fixture widened AND the woodpile
+   control rendering, the mutation that rendered the pile's amount as text stayed green under all
+   three regex-based "never shows" guards in the codebase — because **the regex is blind to shapes
+   nobody listed**. `/locked|next up|to unlock|remaining|streak|\d+ of \d+/` does not match a bare
+   integer, and no amount of widening a fixture teaches a regex a shape it was never given. Both
+   modes were confirmed by running the mutation: with the fixture widened and the amount rendered,
+   the shared guards stayed green, and only a dedicated no-digits test, scoped to the control's own
+   `<form>`, caught it.
+10. **A type signature is not a guard in this project.** `asleepAt()`'s signature was widened
+    experimentally while all 14 call sites were left passing only two arguments, to see whether
+    TypeScript actually stops a mismatched call from shipping. It does not, three ways over: `npm
+    test` stayed green (vitest's esbuild transform strips types without checking them); `npm run
+    build` also built clean with zero errors, and `npm run build` is the exact command
+    `.github/workflows/tests.yml` runs; only `npm run types:check` (`tsc --noEmit`) caught it, with
+    14 errors, and that script runs in **neither** workflow — `lint.yml` runs `composer lint` +
+    `npm run format` + `npm run lint`, `tests.yml` runs `npm run build` + `phpunit`. So "the types
+    prevent this" means "an editor prevents this, for whoever is looking." TypeScript errors never
+    fail this project's CI.
+11. **The harness's own `scene: 'cabin'` trap is a moving count, and F4.2 moved it to six.**
+    `companion.harness.tsx`'s own docblock records that `companion.fixture.ts` defaulting to
+    `scene: 'cabin'` — combined with `companion-room.tsx`'s `indoors = inside || scene.name ===
+    'cabin'` — has silently rendered the interior instead of the clearing five times across F3 and
+    F3.5, "twice in tests written hours after someone read the warning." A sixth landed in this
+    phase's own plan: the woodpile's "never draws the pile in the clearing" test, as drafted, would
+    have exercised nothing, for exactly that reason, and was caught only because the implementer
+    added `scene: 'forest'` before it shipped. **The sixth instance was written by someone who had
+    quoted that very warning earlier in the same session.** The count moving is the point: reading
+    the warning does not prevent making the mistake it warns about — only a runtime check does,
+    which is why `renderClearing`/`renderInside` throw rather than merely comment.
 
 ## 12. What is not done
 
 - **F4 is three sub-projects, not one.** F1 (the bag), F2 (the tools), F3 (the shelter's economy),
   F3.5 (the shelter drawn) and F3.6 (the nodes drawn) are built. F4 decomposes into
-  **F4.1 — the stash (DONE)**, **F4.2 — consumption proper**, and **F4.3 — wearables migrating into
-  the taxonomy**. F4.2 and F4.3 are not designed; each needs its own brainstorm → spec → plan cycle,
-  the same one F4.1 went through. The reasoning behind the whole arc lives in
-  `docs/superpowers/specs/2026-09-17-companion-progression-arc-design.md`; F4.1's own decisions live
-  in `docs/superpowers/specs/2026-09-22-companion-f4.1-the-stash-design.md`.
+  **F4.1 — the stash (DONE)**, **F4.2 — consumption proper (DONE)**, and **F4.3 — wearables
+  migrating into the taxonomy** — the last of the three. F4.3 is not designed; it needs its own
+  brainstorm → spec → plan cycle, the same one F4.1 and F4.2 went through. The reasoning behind the
+  whole arc lives in `docs/superpowers/specs/2026-09-17-companion-progression-arc-design.md`; F4.1's
+  own decisions live in `docs/superpowers/specs/2026-09-22-companion-f4.1-the-stash-design.md`;
+  F4.2's own decisions live in `docs/superpowers/specs/2026-09-23-companion-f4.2-consumption-design.md`.
 - **"More skills" was cut from F4 entirely**, and the cut is a finding rather than an omission. Two
   measured facts removed it: `CompanionBag.php`'s `skills()` reads `$skill['node']` with a bare
   lookup, and F2's rule is that a recipe gates on a tool and never on a skill — so a skill that
@@ -881,23 +956,26 @@ Every one of these has cost a round on this project.
   this bullet: **a guard over a state the system cannot reach costs you the state it can.** Assert what
   is reachable. Fixing this properly means narrowing that guard to the forms a scarf can actually
   appear on, and only then restoring the amplitude.
-- **`Companion::capacity()` sums the `capacity` config field across EVERY held item, regardless of
-  category.** Harmless today — the chest carries no `capacity` key — but any future `structure` or
-  `tool` that gains one would silently enlarge the bag forever. Measured: adding `'capacity' => 5` to
-  the chest's config row turned a capacity assertion from 5 to 10.
-- **`$companion->load('items')` is dead at three sites** — `HarvestNode.php:86`, `BuildItem.php:109`
-  and `UnstashItem.php:69` — all three for the same reason: each action resolves the companion fresh
-  inside its own transaction via `$user->companion()->firstOrCreate([])`, so `items` is never
-  pre-loaded and cannot be stale, and the relation lazy-loads on first read regardless. F4.1 corrected
-  the comment in `UnstashItem` to say so; the other two still state a premise that does not hold.
-  Evidence: a mutation moving the call after `room()` stayed GREEN.
-- **The bag's `Held` section lists a standing chest.** A `structure` lives in `companion_items`, so
-  `CompanionBag::items()` lists it — the shelter avoids this only by being a column rather than a row.
-  It reads oddly, since Blob is not carrying a chest; the fix, if wanted, is filtering `structure` out
-  of `items()`. An open question, not a defect.
 - **`UnstashItem` does not refuse a non-carried category, unlike `StashItem` and `DropItem`, which
   both do.** There is no reachable path today: a container can only ever enter the stash through
   `StashItem`, which already refuses it, and `CompanionStashController` gates both directions on
   `movable()` before either action runs. It would cost something only if a second way to populate the
   stash ever bypassed `StashItem` — a seeder, an import, a future admin action — at which point
   `UnstashItem` would hand a container back out of a chest that should never have held one, silently.
+- **`consumable` is a category with no behaviour.** It occurs exactly twice in non-test code, both as
+  data — `config/companion.php:658` (rope's category) and `:833` (the `carried` list) — and nothing
+  branches on `consumable` versus `material`. Rope is a material with a second name, and the arc's
+  own taxonomy table describes both identically. This is **F4.3's subject**, measured here so the
+  next phase inherits it rather than re-deriving it.
+- **The pile's drawn height is `WOODPILE_MAX_H * n / (n + WOODPILE_K)`, and the curve — and the shape
+  drawn at that height — were chosen by rendering, not by arithmetic.** Rendered at 1, 12, 40 and
+  500: h = 2.0, 13.0, 20.0, 25.4, still climbing toward but never reaching the 26-unit ceiling —
+  geometry the browser confirmed (placement, clearance from Blob and the plant, growth across the
+  range), not geometry it assumed. What the render changed was the shape, not the curve: the first
+  drawing was a rectangle with evenly-spaced horizontal lines, and it read as a small chest of
+  drawers at a dozen logs and a panelled cupboard door at 500 — trap 4 exactly — while every jsdom
+  assertion stayed green the whole time. It was redrawn as rows of stacked log ends; `woodpileHeight()`
+  itself did not change.
+- **`CompanionBag::items()` is the single author of what the bag lists.** `companion-bag.tsx` maps
+  `bag.items` with no category filter of its own, so nothing on the client would stop a wrongly-
+  included row from rendering. Worth writing down before someone adds a second filter client-side.
