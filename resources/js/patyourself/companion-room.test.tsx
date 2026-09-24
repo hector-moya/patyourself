@@ -652,6 +652,21 @@ describe('the woodpile', () => {
         expect(container.querySelector('[data-woodpile]')).not.toBeNull();
     });
 
+    /**
+     * The no-digits rule belongs to the PICTURE, not just the bag button:
+     * `companion-bag.test.tsx` already guards the bag's own `<form>` for
+     * this, but that guard is scoped to the form and cannot see the room —
+     * which is where the pile is actually drawn. Nothing outside this file
+     * would redden if a digit were drawn into `Woodpile`'s own `<g>`.
+     */
+    it('never draws the amount as a number onto the pile itself', () => {
+        const container = room({}, 12, { inside: true, woodpile: 4 });
+
+        expect(
+            container.querySelector('[data-woodpile]')?.textContent,
+        ).not.toMatch(/\d/);
+    });
+
     // scene: 'forest' on purpose, matching every other outdoor guard in this
     // file: the default fixture's scene is 'cabin', which
     // `indoors = inside || scene.name === 'cabin'` makes indoors
@@ -688,6 +703,31 @@ describe('the woodpile', () => {
             }
             expect(h).toBeLessThan(WOODPILE_MAX_H);
         });
+    });
+
+    /**
+     * The HEIGHT above is asymptotic and never plateaus — but the DRAWING
+     * discretises it into rows of `ROW_H` (2.7 units) each, and a rounded
+     * row count is not asymptotic: it saturates. Measured directly (not
+     * derived): `rowCount = Math.ceil(h / ROW_H)` reaches its ceiling of 10
+     * rows once `amount` crosses 171 — 171 draws 9 rows (29 logs), 172 draws
+     * 10 (32 logs), and every amount from 172 upward draws the same 10 rows,
+     * because `h` can approach but never reach `WOODPILE_MAX_H` (26), so
+     * `h / ROW_H` can never clear 10. This is the plateau §8's asymptote
+     * would become a cap if nothing pinned it — the number is 172, not a
+     * round guess.
+     */
+    it('saturates the drawn stack at 172 logs, and never draws more however much piles up', () => {
+        const drawnAt = (amount: number): string | undefined =>
+            room({}, 12, { inside: true, woodpile: amount }).querySelector(
+                '[data-woodpile]',
+            )?.innerHTML;
+
+        const atSaturation = drawnAt(172);
+
+        expect(drawnAt(171)).not.toBe(atSaturation);
+        expect(drawnAt(500)).toBe(atSaturation);
+        expect(drawnAt(1_000_000)).toBe(atSaturation);
     });
 });
 

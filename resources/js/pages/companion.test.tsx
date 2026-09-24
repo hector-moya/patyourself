@@ -171,6 +171,12 @@ describe('Companion screen', () => {
         // `CompanionRoom.chestStanding` at its `false` default, the chest
         // this fixture stood at line 143 never draws, and nothing above
         // would notice.
+        //
+        // A third prop of this same class, `woodpile={bag.woodpile.amount}`,
+        // cannot be guarded here — this fixture never stacks a pile, so its
+        // default `0` draws nothing either way. See the assertion in
+        // 'opens indoors at night once a pile stands' below, the one case
+        // where a pile actually stands.
         expect(document.querySelectorAll('[data-chest]')).toHaveLength(1);
     });
 
@@ -406,6 +412,17 @@ describe('Companion screen', () => {
             });
 
             expect(screen.getByRole('img')).toBeInTheDocument();
+
+            // The same failure mode as the two props guarded above (see the
+            // comment on `chestStanding` in the 'never shows what has not
+            // happened' test), a third time over: `CompanionRoom.woodpile`
+            // defaults to `0`, which draws no pile at all. Deleting
+            // `woodpile={bag.woodpile.amount}` from `companion.tsx` would
+            // leave the fixture's `amount: 6` above stranded — never reaching
+            // `CompanionRoom` — and nothing above this line would notice.
+            expect(document.querySelectorAll('[data-woodpile]')).toHaveLength(
+                1,
+            );
         });
 
         it('stays outside at night when nothing is stacked', () => {
