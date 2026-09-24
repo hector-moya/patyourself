@@ -138,9 +138,7 @@ export default function CompanionPage({
     // daylight stays outside when the hour crosses into night. That is the
     // pre-pile behaviour, so nothing is worse than it was.
     const [inside, setInside] = useState(
-        () =>
-            bag.woodpile.amount > 0 &&
-            asleepAt(new Date().getHours(), companion.room),
+        () => bag.woodpile.amount > 0 && asleepAt(hour, companion.room),
     );
 
     // `revealed` is a flash: true on exactly the render after the encounter,
