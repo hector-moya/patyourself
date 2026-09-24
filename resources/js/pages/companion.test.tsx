@@ -32,7 +32,7 @@ import {
     noCompanion,
     unlock,
 } from '@/patyourself/companion.fixture';
-import { renderClearing } from '@/patyourself/companion.harness';
+import { renderAtHome, renderClearing } from '@/patyourself/companion.harness';
 import {
     nodeCell,
     SCENES,
@@ -382,6 +382,60 @@ describe('Companion screen', () => {
                     .querySelector('.blob-anim')
                     ?.getAttribute('data-animation'),
             ).toBe('sleep');
+        });
+    });
+
+    /**
+     * Where Blob spends the night, once a pile stands. WHETHER Blob sleeps
+     * stays the clock alone — these are all about WHERE, which is what was
+     * built.
+     */
+    describe('the pile and where Blob sleeps', () => {
+        it('opens indoors at night once a pile stands', () => {
+            vi.useFakeTimers({ toFake: ['Date'] });
+            vi.setSystemTime(new Date('2026-09-23T22:00:00'));
+
+            renderAtHome({
+                bag: {
+                    woodpile: {
+                        amount: 6,
+                        takes: ['deadfall', 'timber', 'planks'],
+                    },
+                    shelter: { built: 'cabin', label: 'cabin', offer: null },
+                },
+            });
+
+            expect(screen.getByRole('img')).toBeInTheDocument();
+        });
+
+        it('stays outside at night when nothing is stacked', () => {
+            vi.useFakeTimers({ toFake: ['Date'] });
+            vi.setSystemTime(new Date('2026-09-23T22:00:00'));
+
+            renderClearing({
+                bag: {
+                    shelter: { built: 'cabin', label: 'cabin', offer: null },
+                },
+            });
+
+            expect(screen.getByRole('img')).toBeInTheDocument();
+        });
+
+        it('stays outside in daylight however much is stacked', () => {
+            vi.useFakeTimers({ toFake: ['Date'] });
+            vi.setSystemTime(new Date('2026-09-23T12:00:00'));
+
+            renderClearing({
+                bag: {
+                    woodpile: {
+                        amount: 400,
+                        takes: ['deadfall', 'timber', 'planks'],
+                    },
+                    shelter: { built: 'cabin', label: 'cabin', offer: null },
+                },
+            });
+
+            expect(screen.getByRole('img')).toBeInTheDocument();
         });
     });
 

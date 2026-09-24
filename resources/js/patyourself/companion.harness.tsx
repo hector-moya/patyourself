@@ -53,3 +53,36 @@ export function renderClearing(
 
     return payload;
 }
+
+/**
+ * The mirror of `renderClearing`, and it exists for the same reason: a test
+ * that means to assert the INTERIOR must fail loudly when it gets the clearing,
+ * rather than quietly asserting nothing.
+ *
+ * Used by the one behaviour that puts Blob indoors without the player asking —
+ * a pile standing at an hour Blob sleeps.
+ */
+export function renderAtHome(
+    opts: {
+        companion?: Partial<CompanionData>;
+        bag?: Partial<CompanionBagData>;
+    } = {},
+): { companion: CompanionData; bag: CompanionBagData } {
+    const payload = {
+        companion: companion({ scene: 'forest', ...opts.companion }),
+        bag: bag(opts.bag),
+    };
+
+    render(<CompanionPage {...payload} />);
+
+    const scene = screen.getByRole('img');
+
+    if (scene.dataset.interior === undefined) {
+        throw new Error(
+            'the interior did not render: got scene=' +
+                `${scene.dataset.scene} interior=${scene.dataset.interior}.`,
+        );
+    }
+
+    return payload;
+}

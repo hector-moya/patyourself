@@ -23,7 +23,7 @@ import {
     roomOffset,
     roomSize,
 } from '@/patyourself/companion-room';
-import { partOfDay } from '@/patyourself/part-of-day';
+import { asleepAt, partOfDay } from '@/patyourself/part-of-day';
 import {
     CHEST_CELL,
     nodeCell,
@@ -113,7 +113,35 @@ export default function CompanionPage({
     // inside/outside is a view, not a thing you own, and it resets on load the
     // way the bag does. What Blob has BUILT is the stored half, and it lives
     // on the bag payload.
-    const [inside, setInside] = useState(false);
+    //
+    // Once a pile stands, Blob's night is spent at home, and the page opens
+    // where Blob actually is — but where it is looking is still a view, not a
+    // fact anyone owns. A pile is a purchase, the same as the cabin Blob
+    // already stands beside, and the initial VALUE of this view is allowed to
+    // read one, same as the room and the buttons below already read
+    // `bag.shelter.built`.
+    //
+    // WHETHER BLOB SLEEPS IS STILL THE CLOCK ALONE. `asleepAt` knows nothing
+    // about the pile and must not: the day this starts reading what has been
+    // recorded, a state of being alive has quietly become a reward. WHERE it
+    // sleeps is what you built, which is the first time in this feature that a
+    // purchase changes where Blob is.
+    //
+    // A useState initialiser runs ONCE, at mount. Three behaviours fall out of
+    // that and none of them needs its own rule: the page opens indoors at
+    // night when a pile stands, an explicit toggle afterwards is never
+    // overridden (the initialiser never runs again), and the view never flips
+    // under the player's hand as the hour ticks past bedtime while the page
+    // stays open.
+    //
+    // Accepted, and recorded rather than discovered later: a page loaded in
+    // daylight stays outside when the hour crosses into night. That is the
+    // pre-pile behaviour, so nothing is worse than it was.
+    const [inside, setInside] = useState(
+        () =>
+            bag.woodpile.amount > 0 &&
+            asleepAt(new Date().getHours(), companion.room),
+    );
 
     // `revealed` is a flash: true on exactly the render after the encounter,
     // gone by the next request. Inertia re-renders this component across visits
