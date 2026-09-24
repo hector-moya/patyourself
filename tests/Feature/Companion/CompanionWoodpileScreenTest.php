@@ -38,6 +38,31 @@ class CompanionWoodpileScreenTest extends TestCase
         );
     }
 
+    /**
+     * The other tests here never post an `amount` at all, so nothing above
+     * would notice `$validated['amount'] ?? null` being replaced by a literal
+     * `1` in the controller — `StackWood::handle()` itself is already tested
+     * against a partial amount (`StackWoodTest::
+     * test_stacking_an_amount_leaves_the_rest_in_the_bag`), but the route
+     * that reads the request into that argument was not.
+     */
+    public function test_stacking_a_named_amount_leaves_the_remainder_in_the_bag(): void
+    {
+        $user = $this->userWithAShelter();
+        $user->companion->items()->create(['item' => 'planks', 'quantity' => 5]);
+
+        $response = $this->actingAs($user)
+            ->post(route('companion.woodpile.store'), ['item' => 'planks', 'amount' => 2]);
+
+        $response->assertRedirect();
+
+        $this->assertSame(2, $user->companion->fresh()->woodpile);
+        $this->assertSame(
+            3,
+            $user->companion->items()->where('item', 'planks')->value('quantity'),
+        );
+    }
+
     public function test_what_the_pile_does_not_take_is_not_a_route(): void
     {
         $user = $this->userWithAShelter();
