@@ -405,12 +405,13 @@ function NodeLayer({
 }
 
 /**
- * How tall the pile is allowed to get, in room units. `FLOOR` sits at 52
- * (`BODY.h` 40 + `LEG_LENGTH` 12) and the bookshelf's own top is at y=10, so
- * at this height the pile's own top (`FLOOR - 26` = 26) stays short of it.
- *
- * A starting value, not a measured one: this is Task 9's to tune once it
- * renders in a browser, the same way `WOODPILE_K` below already says it is.
+ * How tall the pile is allowed to get, in room units. Confirmed by rendering
+ * in a browser (Task 9), not by arithmetic against other furniture: at this
+ * ceiling the pile sits flush on the floor at every amount, clears Blob's
+ * footprint on its left (x=22) and the plant's foliage on its right (x=35)
+ * — with daylight visible on both sides even at 500 — and grows visibly
+ * across the realistic range (h(1)=2.0, h(12)=13.0, h(40)=20.0, h(500)=25.4,
+ * still climbing toward but never reaching this ceiling).
  */
 export const WOODPILE_MAX_H = 26;
 
@@ -455,6 +456,20 @@ export function woodpileHeight(amount: number): number {
  * No `--` modifier: unlike the shelter, the pile has no stages to select
  * between.
  *
+ * Drawn as rows of circular log ends, not a rectangle with shelf lines. A
+ * browser render of the first version (Task 9) showed the rectangle-plus-
+ * lines shape reading as a small chest of drawers at a dozen logs and a
+ * panelled cupboard at hundreds — evenly spaced horizontal lines on a
+ * rectangle mean furniture in this room, whatever the comment beside them
+ * claims they mean. Rows alternate a full row of 4 sawn ends with a row of
+ * 3 nestled in the gap between the row below, and the top row or two loses
+ * its outer logs so the stack narrows toward the top instead of stopping
+ * flush — a pile of wood settles; a flat top is what reads as a shelf.
+ * `Math.sin` of the row and column indices gives each log a small, fixed x
+ * offset so the rows do not read as a printed grid, and it is deterministic
+ * rather than `Math.random()`: the same amount always draws the same
+ * picture on every render, rather than reshuffling the logs each time.
+ *
  * `data-woodpile` carries the amount as a TEST SEAM, the same standing
  * `data-animation` and `data-part-of-day` already have. It is an attribute
  * inside a `role="img"`, not text: nothing on this screen renders what is in
@@ -462,7 +477,37 @@ export function woodpileHeight(amount: number): number {
  */
 function Woodpile({ amount }: { amount: number }) {
     const h = woodpileHeight(amount);
-    const rows = Math.max(1, Math.round(h / 4));
+
+    const LOG_R = 1.6;
+    const ROW_H = 2.7;
+    const GAP_X = 22;
+    const GAP_W = 13;
+    const FULL_SPACING = GAP_W / 4;
+
+    const rowCount = Math.max(1, Math.ceil(h / ROW_H));
+
+    const logs = Array.from({ length: rowCount }, (_, row) => {
+        const fromTop = rowCount - 1 - row;
+        const isFullRow = row % 2 === 0;
+        const positions = isFullRow
+            ? [0, 1, 2, 3].map(
+                  (col) => GAP_X + FULL_SPACING / 2 + col * FULL_SPACING,
+              )
+            : [0, 1, 2].map((col) => GAP_X + FULL_SPACING + col * FULL_SPACING);
+
+        // The top row or two loses its outer logs, narrowing the
+        // silhouette toward the top rather than stopping flush.
+        const trim = fromTop === 0 ? 2 : fromTop === 1 ? 1 : 0;
+        const trimmed = positions.slice(
+            Math.floor(trim / 2),
+            positions.length - Math.ceil(trim / 2),
+        );
+
+        return trimmed.map((x, col) => ({
+            cx: x + Math.sin(row * 2 + col) * 0.3,
+            cy: FLOOR - LOG_R - row * ROW_H,
+        }));
+    }).flat();
 
     return (
         <g
@@ -470,15 +515,15 @@ function Woodpile({ amount }: { amount: number }) {
             data-woodpile={amount}
             data-woodpile-height={h}
         >
-            <rect x={22} y={FLOOR - h} width={13} height={h} fill="#7A5B3A" />
-            {Array.from({ length: rows }, (_, i) => (
-                <rect
+            {logs.map((log, i) => (
+                <circle
                     key={i}
-                    x={23}
-                    y={FLOOR - h + (i * h) / rows + 0.75}
-                    width={11}
-                    height={0.9}
-                    fill="#5E442A"
+                    cx={log.cx}
+                    cy={log.cy}
+                    r={LOG_R}
+                    fill="#7A5B3A"
+                    stroke="#5E442A"
+                    strokeWidth={0.4}
                 />
             ))}
         </g>
