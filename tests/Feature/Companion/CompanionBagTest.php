@@ -1388,4 +1388,25 @@ class CompanionBagTest extends TestCase
             $bag['woodpile']['takes'],
         );
     }
+
+    /**
+     * `capacity()` summed the `capacity` field across EVERY held item
+     * regardless of category. Harmless while only containers carried one — but
+     * any future structure or tool that gained one would silently enlarge the
+     * bag forever, which is the opposite of the rule that a tool never taxes
+     * what Blob can carry.
+     *
+     * MEASURED on F4.1: adding `'capacity' => 5` to the chest's config row
+     * turned this assertion from 5 to 10.
+     */
+    public function test_only_a_container_enlarges_the_bag(): void
+    {
+        config()->set('companion.bag.chest.capacity', 5);
+
+        $user = User::factory()->create();
+        $companion = $user->companion()->create([]);
+        $companion->items()->create(['item' => 'chest', 'quantity' => 1]);
+
+        $this->assertSame(5, $companion->fresh()->capacity());
+    }
 }

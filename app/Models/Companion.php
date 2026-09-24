@@ -161,7 +161,19 @@ class Companion extends Model
         $catalogue = (array) config('companion.bag', []);
 
         $added = $this->items->sum(
-            static fn (CompanionItem $held): int => (int) ($catalogue[$held->item]['capacity'] ?? 0) * $held->quantity,
+            static function (CompanionItem $held) use ($catalogue): int {
+                // A CONTAINER, and nothing else. This summed every held item's
+                // `capacity` field regardless of category, so any future
+                // structure or tool that gained one would have enlarged the bag
+                // forever — a permanent thing quietly changing what Blob can
+                // carry, which is the mirror image of the rule that a tool
+                // never occupies a slot.
+                if (($catalogue[$held->item]['category'] ?? '') !== 'container') {
+                    return 0;
+                }
+
+                return (int) ($catalogue[$held->item]['capacity'] ?? 0) * $held->quantity;
+            },
         );
 
         return $base + (int) $added;
