@@ -823,15 +823,15 @@ Every one of these has cost a round on this project.
    the shared guards stayed green, and only a dedicated no-digits test, scoped to the control's own
    `<form>`, caught it.
 10. **A type signature is not a guard in this project.** `asleepAt()`'s signature was widened
-    experimentally while all 14 call sites were left passing only two arguments, to see whether
-    TypeScript actually stops a mismatched call from shipping. It does not, three ways over: `npm
-    test` stayed green (vitest's esbuild transform strips types without checking them); `npm run
-    build` also built clean with zero errors, and `npm run build` is the exact command
-    `.github/workflows/tests.yml` runs; only `npm run types:check` (`tsc --noEmit`) caught it, with
-    14 errors, and that script runs in **neither** workflow — `lint.yml` runs `composer lint` +
-    `npm run format` + `npm run lint`, `tests.yml` runs `npm run build` + `phpunit`. So "the types
-    prevent this" means "an editor prevents this, for whoever is looking." TypeScript errors never
-    fail this project's CI.
+    experimentally, every call site was left passing two arguments, and `tsc --noEmit` reported
+    14 errors — to see whether TypeScript actually stops a mismatched call from shipping. It does
+    not, two ways over: `npm test` stayed green (vitest's esbuild transform strips types without
+    checking them), and `npm run build` also built clean with zero errors, and `npm run build` is
+    the exact command `.github/workflows/tests.yml` runs. Only `npm run types:check`
+    (`tsc --noEmit`) caught it, and that script runs in **neither** workflow — `lint.yml` runs
+    `composer lint` + `npm run format` + `npm run lint`, `tests.yml` runs `npm run build` +
+    `phpunit`. So "the types prevent this" means "an editor prevents this, for whoever is looking."
+    TypeScript errors never fail this project's CI.
 11. **The harness's own `scene: 'cabin'` trap is a moving count, and F4.2 moved it to six.**
     `companion.harness.tsx`'s own docblock records that `companion.fixture.ts` defaulting to
     `scene: 'cabin'` — combined with `companion-room.tsx`'s `indoors = inside || scene.name ===
