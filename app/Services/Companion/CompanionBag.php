@@ -132,6 +132,13 @@ final readonly class CompanionBag
      * rather than shown as a blank row — the same rule the room already applies
      * to an unknown room object.
      *
+     * A `structure` is filtered out the same way: it is a `companion_items`
+     * row because that is where `BuildItem` writes it, but a structure stands
+     * in the world rather than in the bag — Blob is not carrying a chest, it
+     * is standing next to one. The shelter never has this problem, because it
+     * is a column rather than a row; a built chest had no such column, so
+     * without this filter it read as Held.
+     *
      * @return list<array{item: string, label: string, category: string, quantity: int, droppable: bool}>
      */
     private function items(Companion $companion): array
@@ -146,16 +153,26 @@ final readonly class CompanionBag
             static function (CompanionItem $held) use ($catalogue, $carried): ?array {
                 $entry = $catalogue[$held->item] ?? null;
 
-                return $entry === null ? null : [
+                if ($entry === null) {
+                    return null;
+                }
+
+                $category = (string) $entry['category'];
+
+                if ($category === 'structure') {
+                    return null;
+                }
+
+                return [
                     'item' => $held->item,
                     'label' => (string) $entry['label'],
-                    'category' => (string) $entry['category'],
+                    'category' => $category,
                     'quantity' => $held->quantity,
                     // Answered here rather than from the category on the
                     // client, so the list of what Blob carries has one author.
                     // A tool is on the belt and a container is the room
                     // itself; neither is a thing the bag can be relieved of.
-                    'droppable' => in_array((string) $entry['category'], $carried, true),
+                    'droppable' => in_array($category, $carried, true),
                 ];
             },
             $companion->items->all(),

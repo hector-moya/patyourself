@@ -106,6 +106,13 @@ final readonly class BuildItem
             // itself lives on the model — {@see Companion::wouldFit()} — so
             // CompanionBag's read of "will this build" can never drift from
             // what this action actually enforces.
+            //
+            // `wouldFit()` is computed from `items`, through `held()`.
+            // `$companion` was just resolved fresh inside this transaction, so
+            // the relation would lazy-load on first read regardless — this
+            // call is belt-and-braces, not load-bearing, and it stays so this
+            // reads the same as {@see HarvestNode} and {@see UnstashItem},
+            // which carry it too.
             $companion->load('items');
 
             if (! $companion->wouldFit($item, $recipe, $makes)) {

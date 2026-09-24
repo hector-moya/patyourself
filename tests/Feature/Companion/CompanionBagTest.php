@@ -419,6 +419,25 @@ class CompanionBagTest extends TestCase
         $this->assertSame(5, $bag['capacity']);
     }
 
+    /**
+     * A `structure` lives in `companion_items`, so the bag listed a standing
+     * chest under Held. Accurate and odd: Blob is not carrying a chest. The
+     * shelter avoids this only by being a column rather than a row.
+     */
+    public function test_a_standing_structure_is_not_listed_as_carried(): void
+    {
+        $user = User::factory()->create();
+        $companion = $user->companion()->create([]);
+        $companion->items()->create(['item' => 'chest', 'quantity' => 1]);
+
+        $bag = app(CompanionBag::class)->forUser($user);
+
+        $this->assertSame(
+            [],
+            array_column($bag['items'], 'item'),
+        );
+    }
+
     /** A container raises capacity and does not occupy it. */
     public function test_a_built_container_raises_capacity_without_taking_room(): void
     {

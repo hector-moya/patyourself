@@ -81,8 +81,11 @@ final readonly class HarvestNode
                 return 0;
             }
 
-            // `items` may be stale on a companion the caller has been holding,
-            // and capacity is computed from it.
+            // `room()` is computed from `items`. `$companion` was just resolved
+            // fresh inside this transaction, so the relation would lazy-load on
+            // first read regardless — this call is belt-and-braces, not
+            // load-bearing, and it stays so this reads the same as
+            // {@see BuildItem} and {@see UnstashItem}, which carry it too.
             $companion->load('items');
 
             $room = $companion->room();
